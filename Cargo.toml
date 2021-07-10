@@ -1,5 +1,5 @@
 [package]
-name = "nacos-rust"
+name = "nacos_rust"
 version = "0.1.0"
 authors = ["heqingpan <heqingpan@126.com>"]
 edition = "2018"

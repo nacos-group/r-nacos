@@ -1089,7 +1089,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "nacos-rust"
+name = "nacos_rust"
 version = "0.1.0"
 dependencies = [
  "actix",

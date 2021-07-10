@@ -22,6 +22,13 @@ impl ConfigKey {
             tenant:tenant.to_owned(),
         }
     }
+
+    pub fn build_key(&self) -> String {
+        if self.tenant.len()==0 {
+            return format!("{}\x02{}",self.data_id,self.group)
+        }
+        format!("{}\x02{}\x02{}",self.data_id,self.group,self.tenant)
+    }
 }
 
 impl PartialEq for ConfigKey {
@@ -45,6 +52,7 @@ impl ConfigValue {
     }
 }
 
+#[derive(Debug)]
 pub struct ListenerItem {
     pub key:ConfigKey,
     pub md5:String,
