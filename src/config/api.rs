@@ -47,6 +47,9 @@ impl ConfigWebParams {
         param.group = self.group.as_ref().unwrap_or(&"DEFAULT_GROUP".to_owned()).to_owned();
         //param.tenant= self.tenant.as_ref().unwrap_or(&"public".to_owned()).to_owned();
         param.tenant= self.tenant.as_ref().unwrap_or(&"".to_owned()).to_owned();
+        if param.tenant=="public" {
+            param.tenant="".to_owned();
+        }
         if let Some(v) = self.content.as_ref() {
             if v.len() >0 {
                 param.content = v.to_owned();

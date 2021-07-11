@@ -91,6 +91,9 @@ impl ListenerItem {
                     list.push(ListenerItem::new(key,endValue));
                 }
                 else{
+                    if endValue=="public" {
+                        endValue="".to_owned();
+                    }
                     let key = ConfigKey::new(&tmpList[0],&tmpList[1],&endValue);
                     list.push(ListenerItem::new(key,tmpList[2].to_owned()));
                 }
