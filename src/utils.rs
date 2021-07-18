@@ -28,3 +28,18 @@ pub fn option_owned_by_clone<T>(a:Option<&T>) -> Option<T>
         None => None
     }
 }
+
+pub fn get_bool_from_string(s:&Option<String>,default:bool) -> bool {
+    if let Some(s) = s {
+        if s.eq_ignore_ascii_case("true") {
+            return true;
+        }
+        if s.len()==0 {
+            return default;
+        }
+        return false;
+    }
+    else{
+        return default;
+    }
+}

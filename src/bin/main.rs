@@ -6,6 +6,11 @@ use nacos_rust::config::api::{
     app_config as cs_config
 };
 
+use nacos_rust::naming::core::{NamingActor,NamingCmd};
+use nacos_rust::naming::api::{
+    app_config as ns_config
+};
+
 use actix::prelude::{
     Actor,Addr,
 };
@@ -23,10 +28,14 @@ fn app_config(config:&mut web::ServiceConfig){
         web::resource("/").route(web::get().to(index))
     );
     cs_config(config);
+    ns_config(config);
 }
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    std::env::set_var("RUST_LOG","actix_web=debug,actix_server=info");
+    env_logger::init();
+    println!("Hello, world!");
     let config_addr = ConfigActor::new().start();
     let config_addr2 = config_addr.clone();
     tokio::spawn(async move {
@@ -35,13 +44,20 @@ async fn main() -> std::io::Result<()> {
             config_addr2.send(ConfigCmd::PEEK_LISTENER_TIME_OUT).await;
         }
     });
-    std::env::set_var("RUST_LOG","actix_web=debug,actix_server=info");
-    env_logger::init();
-    println!("Hello, world!");
+    let naming_addr = NamingActor::new().start();
+    let naming_addr2 = naming_addr.clone();
+    tokio::spawn(async move {
+        loop {
+            tokio::time::delay_for(tokio::time::Duration::from_millis(5000)).await;
+            naming_addr2.send(NamingCmd::PEEK_LISTENER_TIME_OUT).await;
+        }
+    });
     HttpServer::new(move || {
         let config_addr = config_addr.clone();
+        let naming_addr = naming_addr.clone();
         App::new()
             .data(config_addr)
+            .data(naming_addr)
             .wrap(middleware::Logger::default())
             .configure(app_config)
     })
