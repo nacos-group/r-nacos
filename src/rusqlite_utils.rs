@@ -41,6 +41,7 @@ pub fn convert_json_params(inputs:&Vec<serde_json::Value>) -> Vec<rusqlite::type
 
 
 pub fn sqlite_execute(conn:&Rc<Connection>,sql:&str,args:&Vec<serde_json::Value>) -> Result<usize,String> {
+    //println!("sqlite_execute, {} | {:?}",&sql,&args);
     let result = conn.execute(&sql,params_from_iter(
         convert_json_params(args).iter()) );
     match result {
@@ -52,6 +53,7 @@ pub fn sqlite_execute(conn:&Rc<Connection>,sql:&str,args:&Vec<serde_json::Value>
 pub fn sqlite_fetch<T,F>(conn:&Rc<Connection>,sql:&str,args:&Vec<serde_json::Value>,convert:F) -> Result<Vec<T>,String> 
 where F: Fn(&Row) -> T + Send
 {
+    //println!("sqlite_fetch, {} | {:?}",&sql,&args);
     let mut stmt = conn.prepare(&sql).unwrap();
         let r = stmt.query_map(params_from_iter(
             convert_json_params(&args).iter()), |r|{Ok(convert(r))});

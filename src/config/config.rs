@@ -241,10 +241,28 @@ pub struct ConfigActor {
 
 impl ConfigActor {
     pub fn new() -> Self {
-        Self {
+        let mut s=Self {
             cache: Default::default(),
             listener: ConfigListener::new(),
             config_db: ConfigDB::new(),
+        };
+        s.load_config();
+        s
+    }
+
+    fn load_config(&mut self) {
+        for item in self.config_db.query_config_list(){
+            let key = ConfigKey::new(
+                item.data_id.as_ref().unwrap(),
+                item.group.as_ref().unwrap(),
+                item.tenant.as_ref().unwrap()
+            );
+            let val = ConfigValue{
+                content:item.content.unwrap(),
+                md5:item.content_md5.unwrap(),
+            };
+            self.cache.insert(key, val);
+
         }
     }
 }
@@ -274,7 +292,14 @@ impl Handler<ConfigCmd> for ConfigActor{
     fn handle(&mut self,msg: ConfigCmd, ctx:&mut Context<Self>) -> Self::Result {
         match msg {
             ConfigCmd::ADD(key,val) =>{
-                self.cache.insert(key.clone(),ConfigValue::new(val));
+                let config_val = ConfigValue::new(val);
+                if let Some(v) = self.cache.get(&key) {
+                    if v.md5 == config_val.md5 {
+                        return Ok(ConfigResult::NULL);
+                    }
+                }
+                self.config_db.update_config(&key, &config_val);
+                self.cache.insert(key.clone(),config_val);
                 self.listener.notify(key);
             },
             ConfigCmd::DELETE(key) =>{

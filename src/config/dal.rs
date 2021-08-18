@@ -61,7 +61,7 @@ impl ConfigSql{
 
     pub fn query_prepare(&self,param:&ConfigParam) -> (String,Vec<serde_json::Value>) {
         B::prepare(
-            B::new_sql("select id, data_id, `group`, tenant, content, content_md5, last_time tb_config")
+            B::new_sql("select id, data_id, `group`, tenant, content, content_md5, last_time from tb_config")
             .push_build(&mut self.conditions(param))
         )
     }
@@ -105,7 +105,7 @@ impl ConfigSql{
         )
     }
 
-    pub fn update_prepare(&self,record:&ConfigDO) -> (String,Vec<serde_json::Value>) {
+    pub fn update_prepare(&self,record:&ConfigDO,param:&ConfigParam) -> (String,Vec<serde_json::Value>) {
         let mut set_builder=B::new_comma();
         if let Some(id) = &record.id {
             set_builder.eq("id",id);
@@ -128,10 +128,7 @@ impl ConfigSql{
         if let Some(last_time) = &record.last_time {
             set_builder.eq("last_time",last_time);
         }
-        let mut whr = B::new_where();
-        if let Some(id)=&record.id {
-            whr.eq("id",id);
-        }
+        let mut whr = self.conditions(param);
         if whr.is_empty() {
             panic!("update conditions is empty");
         }
@@ -176,8 +173,8 @@ impl ConfigDao {
         self.execute(&sql, &args)
     }
 
-    pub fn update(&self,record:&ConfigDO) -> Result<usize,String> {
-        let (sql,args) = self.inner.update_prepare(record);
+    pub fn update(&self,record:&ConfigDO,param:&ConfigParam) -> Result<usize,String> {
+        let (sql,args) = self.inner.update_prepare(record,param);
         self.execute(&sql, &args)
     }
 
@@ -246,7 +243,7 @@ impl ConfigHistorySql{
 
     pub fn query_prepare(&self,param:&ConfigHistoryParam) -> (String,Vec<serde_json::Value>) {
         B::prepare(
-            B::new_sql("select id, data_id, group, tenant, content, last_time tb_config_history")
+            B::new_sql("select id, data_id, group, tenant, content, last_time from tb_config_history")
             .push_build(&mut self.conditions(param))
         )
     }
@@ -286,7 +283,7 @@ impl ConfigHistorySql{
         )
     }
 
-    pub fn update_prepare(&self,record:&ConfigHistoryDO) -> (String,Vec<serde_json::Value>) {
+    pub fn update_prepare(&self,record:&ConfigHistoryDO,param:&ConfigHistoryParam) -> (String,Vec<serde_json::Value>) {
         let mut set_builder=B::new_comma();
         if let Some(id) = &record.id {
             set_builder.eq("id",id);
@@ -306,10 +303,7 @@ impl ConfigHistorySql{
         if let Some(last_time) = &record.last_time {
             set_builder.eq("last_time",last_time);
         }
-        let mut whr = B::new_where();
-        if let Some(id)=&record.id {
-            whr.eq("id",id);
-        }
+        let mut whr = self.conditions(param);
         if whr.is_empty() {
             panic!("update conditions is empty");
         }
@@ -354,8 +348,8 @@ impl ConfigHistoryDao {
         self.execute(&sql, &args)
     }
 
-    pub fn update(&self,record:&ConfigHistoryDO) -> Result<usize,String> {
-        let (sql,args) = self.inner.update_prepare(record);
+    pub fn update(&self,record:&ConfigHistoryDO,param:&ConfigHistoryParam) -> Result<usize,String> {
+        let (sql,args) = self.inner.update_prepare(record,param);
         self.execute(&sql, &args)
     }
 

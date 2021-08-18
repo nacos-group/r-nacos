@@ -90,7 +90,8 @@ create index if not exists tb_config_history_key_idx on tb_config_history(data_i
     pub fn update_config(&self,key:&ConfigKey,val:&ConfigValue) {
         let config = Self::convert_to_config_do(key, val);
         let config_history = Self::convert_to_config_history_do(key, val);
-        let is_update=match self.config_dao.update(&config) {
+        let config_param = Self::convert_to_config_param(key);
+        let is_update=match self.config_dao.update(&config,&config_param) {
             Ok(size) => {
                 size >0
             },
