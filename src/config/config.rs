@@ -7,11 +7,13 @@ use crate::utils::get_md5;
 
 use actix::prelude::*;
 
+use super::config_db::ConfigDB;
+
 #[derive(Debug,Hash,Eq,Clone)]
 pub struct ConfigKey {
-    data_id:String,
-    group:String,
-    tenant:String,
+    pub(crate) data_id:String,
+    pub(crate) group:String,
+    pub(crate) tenant:String,
 }
 
 impl ConfigKey {
@@ -38,8 +40,8 @@ impl PartialEq for ConfigKey {
 }
 
 pub struct ConfigValue {
-    content:String,
-    md5:String,
+    pub(crate) content:String,
+    pub(crate) md5:String,
 }
 
 impl ConfigValue {
@@ -77,13 +79,13 @@ impl ListenerItem {
                 if tmpList.len() > 2{
                     continue;
                 }
-                tmpList.push(configs[start..i].to_owned());
+                tmpList.push(String::from_utf8(bytes[start..i].to_vec()).unwrap());
                 start = i+1;
             }
             else if char == 1 {
                 let mut endValue = String::new();
                 if start+1 <=i {
-                    endValue = configs[start..i].to_owned();
+                    endValue = String::from_utf8(bytes[start..i].to_vec()).unwrap();
                 }
                 start = i+1;
                 if tmpList.len() == 2 {
@@ -114,13 +116,13 @@ impl ListenerItem {
                 if tmpList.len() > 2{
                     continue;
                 }
-                tmpList.push(configs[start..i].to_owned());
+                tmpList.push(String::from_utf8(bytes[start..i].to_vec()).unwrap());
                 start = i+1;
             }
             else if char == 1 {
                 let mut endValue = String::new();
                 if start+1 <=i {
-                    endValue = configs[start..i].to_owned();
+                    endValue = String::from_utf8(bytes[start..i].to_vec()).unwrap();
                 }
                 start = i+1;
                 if tmpList.len() == 1 {
@@ -234,6 +236,7 @@ impl ConfigListener {
 pub struct ConfigActor {
     cache: HashMap<ConfigKey,ConfigValue>,
     listener: ConfigListener,
+    config_db: ConfigDB,
 }
 
 impl ConfigActor {
@@ -241,6 +244,7 @@ impl ConfigActor {
         Self {
             cache: Default::default(),
             listener: ConfigListener::new(),
+            config_db: ConfigDB::new(),
         }
     }
 }
