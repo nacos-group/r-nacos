@@ -3,8 +3,10 @@ use std::cmp::max;
 use std::collections::BTreeSet;
 use std::collections::HashMap;
 use std::collections::LinkedList;
+use std::net::SocketAddr;
 use chrono::Local;
 use serde::{Serialize,Deserialize};
+use super::udp_handler::{UdpSender,UdpSenderCmd,UdpReciver};
 
 use actix::prelude::*;
 
@@ -393,14 +395,16 @@ pub struct NamingActor {
     service_map:HashMap<String,Service>,
     namespace_group_service:HashMap<String,BTreeSet<String>>,
     last_id:u64,
+    udp_sender:Addr<UdpSender>,
 }
 
 impl NamingActor {
-    pub fn new() -> Self {
+    pub fn new(udp_sender:Addr<UdpSender>) -> Self {
         Self {
             service_map: Default::default(),
             namespace_group_service: Default::default(),
             last_id:0u64,
+            udp_sender,
         }
     }
 
@@ -499,6 +503,7 @@ pub enum NamingCmd {
     QUERY_LIST(ServiceKey,Vec<String>,bool),
     QUERY_SERVICE_PAGE(ServiceKey,usize,usize),
     PEEK_LISTENER_TIME_OUT,
+    ClientReceiveMsg((SocketAddr,Vec<u8>)),
 }
 
 pub enum NamingResult {
@@ -542,16 +547,22 @@ impl Handler<NamingCmd> for NamingActor {
                 self.time_check();
                 Ok(NamingResult::NULL)
             },
+            _ => {Ok(NamingResult::NULL)}
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use tokio::net::UdpSocket;
     use super::*;
     #[tokio::test()]
     async fn test01(){
-        let mut naming = NamingActor::new();
+        let local_addr:SocketAddr = "0.0.0.0:0".parse().unwrap();
+        let socket = UdpSocket::bind(local_addr).await.unwrap();
+        let (r,w) = socket.split();
+        let sender_addr = UdpSender::new(w).start();
+        let mut naming = NamingActor::new(sender_addr);
         let mut instance = Instance::new("127.0.0.1".to_owned(),8080);
         instance.namespace_id = "public".to_owned();
         instance.service_name = "foo".to_owned();
