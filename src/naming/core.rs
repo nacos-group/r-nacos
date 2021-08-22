@@ -122,7 +122,13 @@ impl Instance{
         true
     }
 
-    pub fn update_info(&mut self,o:Self,tag:Option<InstanceUpdateTag>) {
+    pub fn update_info(&mut self,o:Self,tag:Option<InstanceUpdateTag>) -> bool {
+        let is_update=self.enabled != o.enabled 
+        || self.healthy != o.healthy
+        || self.weight != o.weight
+        || self.ephemeral != o.ephemeral
+        || self.metadata != o.metadata
+        ;
         self.healthy = o.healthy;
         self.last_modified_millis = o.last_modified_millis;
         if let Some(tag) = tag {
@@ -145,6 +151,7 @@ impl Instance{
             self.enabled = o.enabled;
             self.ephemeral = o.ephemeral;
         }
+        is_update
     }
 
     pub fn get_service_key(&self) -> ServiceKey {
@@ -200,6 +207,14 @@ impl PartialEq for InstanceTimeInfo {
     }
 }
 
+pub enum UpdateInstanceType{
+    None,
+    New,
+    Remove,
+    UpdateTime,
+    UpdateValue,
+}
+
 #[derive(Debug,Clone,Default)]
 pub struct Cluster {
     pub cluster_name:String,
@@ -208,25 +223,35 @@ pub struct Cluster {
 }
 
 impl Cluster {
-    fn update_instance(&mut self,instance:Instance,update_tag:Option<InstanceUpdateTag>) {
+    fn update_instance(&mut self,instance:Instance,update_tag:Option<InstanceUpdateTag>) -> UpdateInstanceType {
         let key = instance.id.to_owned();
         let time_info = instance.get_time_info();
         let mut update_mark = true;
+        let mut rtype = UpdateInstanceType::None;
         if let Some(v) = self.instances.get_mut(&key){
             let old_last_time  = v.last_modified_millis;
-            v.update_info(instance, update_tag);
+            let is_update = v.update_info(instance, update_tag);
+            if is_update {
+                rtype=UpdateInstanceType::UpdateValue;
+            }
+            else{
+                rtype=UpdateInstanceType::UpdateTime;
+            }
             // 避免频繁更新
-            if time_info.time < old_last_time + 500 {
+            if !is_update && time_info.time < old_last_time + 500 {
+                rtype=UpdateInstanceType::None;
                 update_mark = false;
                 v.last_modified_millis = old_last_time;
             }
         }
         else{
             self.instances.insert(key,instance);
+            rtype=UpdateInstanceType::New;
         }
         if update_mark {
             self.update_timeinfos(time_info);
         }
+        rtype
     }
 
     fn update_timeinfos(&mut self,time_info:InstanceTimeInfo) {
@@ -238,7 +263,7 @@ impl Cluster {
         self.timeinfos.push_back(time_info);
     }
 
-    fn time_check(&mut self,healthy_time:i64,offline_time:i64) {
+    fn time_check(&mut self,healthy_time:i64,offline_time:i64) -> (Vec<String>,Vec<String>) {
         assert!(healthy_time>=offline_time);
         let mut i=0;
         let t= self.timeinfos.iter();
@@ -262,12 +287,13 @@ impl Cluster {
             }
         }
         self.timeinfos = self.timeinfos.split_off(remove_index);
-        for item in remove_list {
+        for item in &remove_list {
             self.remove_instance(&item);
         }
-        for item in update_list {
+        for item in &update_list {
             self.update_instance_healthy_unvaild(&item);
         }
+        (remove_list,update_list)
     }
 
     fn remove_instance(&mut self,instance_id:&str) {
@@ -335,22 +361,25 @@ impl Service {
         self.check_sum="".to_owned();
     }
 
-    fn remove_instance(&mut self,cluster_name:&str,instance_id:&str){
+    fn remove_instance(&mut self,cluster_name:&str,instance_id:&str) -> UpdateInstanceType {
         if let Some(cluster) = self.cluster_map.get_mut(cluster_name){
             cluster.remove_instance(instance_id);
+            return UpdateInstanceType::Remove;
         }
+        UpdateInstanceType::None
     }
 
-    fn update_instance(&mut self,instance:Instance,tag:Option<InstanceUpdateTag>){
+    fn update_instance(&mut self,instance:Instance,tag:Option<InstanceUpdateTag>) -> UpdateInstanceType {
         let cluster_name = instance.cluster_name.to_owned();
         if let Some(v) = self.cluster_map.get_mut(&cluster_name){
-            v.update_instance(instance, tag);
-            return;
+            return v.update_instance(instance, tag);
         }
         let mut cluster = Cluster::default();
         cluster.cluster_name = cluster_name.to_owned();
-        cluster.update_instance(instance, None);
+        let rtype=cluster.update_instance(instance, None);
         self.cluster_map.insert(cluster_name,cluster);
+        rtype
+
     }
 
     fn get_instance(&self,cluster_name:&str,instance_key:&str) -> Option<Instance> {
@@ -383,10 +412,15 @@ impl Service {
         list
     }
 
-    fn time_check(&mut self,healthy_time:i64,offline_time:i64){
+    fn time_check(&mut self,healthy_time:i64,offline_time:i64) -> (Vec<String>,Vec<String>) {
+        let mut remove_list = vec![];
+        let mut update_list = vec![];
         for item in self.cluster_map.values_mut() {
-            item.time_check(healthy_time, offline_time);
+            let (mut rlist,mut ulist)=item.time_check(healthy_time, offline_time);
+            remove_list.append(&mut rlist);
+            update_list.append(&mut ulist);
         }
+        (remove_list,update_list)
     }
 }
 
@@ -443,22 +477,22 @@ impl NamingActor {
         }
     }
 
-    fn add_instance(&mut self,key:&ServiceKey,instance:Instance){
+    fn add_instance(&mut self,key:&ServiceKey,instance:Instance) -> UpdateInstanceType {
         let service = self.service_map.get_mut(&key.get_join_service_name()).unwrap();
-        service.update_instance(instance,None);
+        service.update_instance(instance,None)
     }
 
-    pub fn remove_instance(&mut self,key:&ServiceKey ,cluster_name:&str,instance_id:&str) {
+    pub fn remove_instance(&mut self,key:&ServiceKey ,cluster_name:&str,instance_id:&str) -> UpdateInstanceType {
         let service = self.service_map.get_mut(&key.get_join_service_name()).unwrap();
-        service.remove_instance(cluster_name, instance_id);
+        service.remove_instance(cluster_name, instance_id)
     }
 
-    pub fn update_instance(&mut self,key:&ServiceKey,mut instance:Instance,tag:Option<InstanceUpdateTag>){
+    pub fn update_instance(&mut self,key:&ServiceKey,mut instance:Instance,tag:Option<InstanceUpdateTag>) -> UpdateInstanceType {
         instance.init();
         assert!(instance.check_vaild());
         self.create_empty_service(key);
         let service = self.service_map.get_mut(&key.get_join_service_name()).unwrap();
-        service.update_instance(instance, tag);
+        service.update_instance(instance, tag)
     }
 
     pub fn get_instance(&self,key:&ServiceKey,cluster_name:&str,instance_id:&str) -> Option<Instance> {
@@ -475,13 +509,18 @@ impl NamingActor {
         vec![]
     }
 
-    pub fn time_check(&mut self){
+    pub fn time_check(&mut self) -> (Vec<String>,Vec<String>) {
         let current_time = Local::now().timestamp_millis();
         let healthy_time = current_time - 15000;
         let offline_time = current_time - 30000;
+        let mut remove_list = vec![];
+        let mut update_list = vec![];
         for item in self.service_map.values_mut(){
-            item.time_check(healthy_time, offline_time);
+            let (mut rlist,mut ulist)=item.time_check(healthy_time, offline_time);
+            remove_list.append(&mut rlist);
+            update_list.append(&mut ulist);
         }
+        (remove_list,update_list)
     }
 
     pub fn get_service_list(&self,page_size:usize,page_index:usize,key:&ServiceKey) -> (usize,Vec<String>) {
