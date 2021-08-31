@@ -141,9 +141,27 @@ fn send(sender:UdpSender,remote_addr:SocketAddr){
     });
 }
 
+pub fn get_sha1(content:&str) -> String {
+    use crypto::digest::Digest;
+    let mut m = crypto::sha1::Sha1::new();
+    m.input_str(content);
+    m.result_str()
+}
+
+pub fn get_sha1_2(content:&str) -> Vec<u8>{
+    use crypto::digest::Digest;
+    let mut m = crypto::sha1::Sha1::new();
+    m.input_str(content);
+    let mut r  = vec![0u8;20];
+    m.result(&mut r);
+    r
+}
+
+
 //#[tokio::main]
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
+    println!("sha1:{:?}",get_sha1_2("abc123"));
     println!("notify udp");
     let remote_addr: SocketAddr = env::args()
         .nth(1)

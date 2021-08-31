@@ -1,6 +1,7 @@
 
 use super::core::{Instance, InstanceUpdateTag,NamingActor,NamingCmd,NamingResult,ServiceKey,NamingUtils};
 use super::super::utils::{select_option_by_clone,get_bool_from_string};
+use super::api_model::{InstanceVO,QueryListResult};
 
 use actix_web::{
     App,web,HttpRequest,HttpResponse,Responder,HttpMessage,middleware,HttpServer
@@ -10,6 +11,7 @@ use chrono::Local;
 use serde::{Serialize,Deserialize};
 use actix::prelude::*;
 use std::collections::HashMap;
+use std::net::SocketAddr;
 
 #[derive(Debug,Serialize,Deserialize)]
 pub struct InstanceWebParams {
@@ -85,6 +87,8 @@ pub struct InstanceWebQueryListParams {
     pub groupName:Option<String>,
     pub clusters:Option<String>,
     pub healthyOnly:Option<bool>,
+    pub clientIP:Option<String>,
+    pub udpPort:Option<u16>,
 }
 
 impl InstanceWebQueryListParams {
@@ -114,58 +118,20 @@ impl InstanceWebQueryListParams {
         }
         Ok((key,clusters))
     }
-}
 
-#[derive(Debug,Serialize,Deserialize,Default)]
-pub struct InstanceVO {
-    service:String,
-    ip:String,
-    port:u32,
-    clusterName:String,
-    weight:f32,
-    healthy:bool,
-    instanceId:String,
-    metadata:HashMap<String,String>,
-    marked:Option<bool>,
-    enabled:Option<bool>,
-    serviceName:Option<String>,
-    ephemeral:Option<bool>,
-}
-
-impl InstanceVO {
-    fn from_instance(instance:&Instance) -> Self {
-        Self {
-            service:NamingUtils::get_group_and_service_name(&instance.service_name,&instance.group_name),
-            ip:instance.ip.to_owned(),
-            port:instance.port,
-            clusterName:instance.cluster_name.to_owned(),
-            weight:instance.weight,
-            healthy:instance.healthy,
-            instanceId:instance.id.to_owned(),
-            metadata:instance.metadata.clone(),
-            marked:Some(true),
-            enabled:Some(instance.enabled),
-            serviceName:Some(instance.service_name.to_owned()),
-            ephemeral:Some(instance.ephemeral),
+    fn get_addr(&self) -> Option<SocketAddr> {
+        if let Some(port) = &self.udpPort {
+            if let Some(ip_str) = &self.clientIP {
+                match ip_str.parse(){
+                    Ok(ip) => {
+                        return Some(SocketAddr::new(ip, *port));
+                    },
+                    _ => {}
+                }
+            }
         }
+        None
     }
-}
-
-
-#[derive(Debug,Serialize,Deserialize,Default)]
-pub struct QueryListResult {
-    name:String,
-    clusters:String,
-    cacheMillis:u64,
-    hosts:Vec<InstanceVO>,
-    lastRefTime:Option<i64>,
-    checksum:Option<String>,
-    useSpecifiedURL:Option<bool>,
-    env:Option<String>,
-    protectThreshold:Option<f32>,
-    reachLocalSiteCallThreshold:Option<bool>,
-    dom:Option<String>,
-    metadata:Option<HashMap<String,String>>,
 }
 
 #[derive(Debug,Serialize,Deserialize,Default)]
@@ -286,15 +252,17 @@ pub async fn get_instance(param:web::Query<InstanceWebParams>,naming_addr:web::D
 }
 
 pub async fn get_instance_list(param:web::Query<InstanceWebQueryListParams>,naming_addr:web::Data<Addr<NamingActor>>) -> impl Responder {
+    println!("get_instance_list:{:?}",&param);
     let only_healthy = param.healthyOnly.unwrap_or(true);
+    let addr = param.get_addr();
     let return_val = match param.to_clusters_key() {
         Ok((key,clusters)) => {
-            match naming_addr.send(NamingCmd::QUERY_LIST(key.clone(),clusters,only_healthy)).await {
+            match naming_addr.send(NamingCmd::QUERY_LIST_STRING(key.clone(),clusters,only_healthy,addr)).await {
                 Ok(res) => {
                     let result: NamingResult = res.unwrap();
                     match result {
-                        NamingResult::INSTANCE_LIST(v) => {
-                            do_get_instance_list(&param,&key,v)
+                        NamingResult::INSTANCE_LIST_STRING(v) => {
+                            v
                         },
                         _ => {"error".to_owned()}
                     }
@@ -305,21 +273,6 @@ pub async fn get_instance_list(param:web::Query<InstanceWebQueryListParams>,nami
         Err(e) => {e}
     };
     return_val
-}
-
-fn do_get_instance_list(param:&InstanceWebQueryListParams,key:&ServiceKey,v:Vec<Instance>) -> String {
-    let mut result = QueryListResult::default();
-    result.name = key.get_join_service_name();
-    result.cacheMillis = 3000u64;
-    let now = Local::now().timestamp_millis();
-    result.lastRefTime = Some(now);
-    result.checksum = Some(now.to_string());
-    result.useSpecifiedURL = Some(false);
-    result.clusters = param.clusters.as_ref().unwrap_or(&"".to_owned()).to_owned();
-    result.env = Some("".to_owned());
-    result.hosts = v.into_iter().map(|e| InstanceVO::from_instance(&e)).collect::<Vec<_>>();
-    result.dom = Some(key.service_name.to_owned());
-    serde_json::to_string(&result).unwrap()
 }
 
 pub async fn add_instance(a:web::Query<InstanceWebParams>,b:web::Form<InstanceWebParams>,naming_addr:web::Data<Addr<NamingActor>>) -> impl Responder {

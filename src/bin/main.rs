@@ -59,9 +59,10 @@ async fn main() -> Result<(), Box<dyn Error>>  {
     let naming_addr = NamingActor::new(sender_addr).start();
     let naming_addr2 = naming_addr.clone();
     tokio::spawn(async move {
+        //let mut i=0;
         loop {
             //println!("naming timer");
-            tokio::time::delay_for(tokio::time::Duration::from_millis(5000)).await;
+            tokio::time::delay_for(tokio::time::Duration::from_millis(3000)).await;
             naming_addr2.send(NamingCmd::PEEK_LISTENER_TIME_OUT).await;
         }
     });
@@ -75,7 +76,7 @@ async fn main() -> Result<(), Box<dyn Error>>  {
         App::new()
             .data(config_addr)
             .data(naming_addr)
-            .wrap(middleware::Logger::default())
+            //.wrap(middleware::Logger::default())
             .configure(app_config)
     })
     .workers(4)

@@ -21,8 +21,10 @@ impl UdpSender{
     }
 
     async fn send(send:Arc<Mutex<SendHalf>>,addr:SocketAddr,data:&[u8]) {
+        println!("UdpSender send:{:?},{}",&addr,data.len());
         let mut s=send.lock().await;
         s.send_to(data,&addr).await.unwrap();
+        println!("UdpSender send end");
     }
 }
 
@@ -38,7 +40,7 @@ pub struct UdpSenderCmd{
 }
 
 impl UdpSenderCmd{
-    fn new(data:Vec<u8>,addr:SocketAddr) -> Self {
+    pub fn new(data:Vec<u8>,addr:SocketAddr) -> Self {
         Self{
             data,
             target_addr:addr,
@@ -50,6 +52,7 @@ impl Handler<UdpSenderCmd> for UdpSender {
     type Result = ResponseActFuture<Self,Result<(),std::io::Error>>;
 
     fn handle(&mut self,msg:UdpSenderCmd,ctx: &mut Context<Self>) -> Self::Result {
+        println!("UdpSender msg:{:?},{}",&msg.target_addr,&msg.data.len());
         let send = self.send.clone();
         
         Box::pin(
@@ -83,11 +86,14 @@ impl UdpReciver {
     }
 
     pub async fn recv(&mut self) {
+        println!("UdpReciver start");
         loop{
             match self.recv.recv_from(&mut self.buf).await{
                 Ok((len,addr)) => {
-                    let mut data:Vec<u8> = Vec::with_capacity(len);
+                    println!("UdpReciver addr:{}",&addr);
+                    let mut data:Vec<u8> = vec![0u8;len];
                     data.clone_from_slice(&self.buf[..len]);
+                    println!("UdpReciver data len:{}",&data.len());
                     let msg = NamingCmd::ClientReceiveMsg((addr,data));
                     self.naming_addr.do_send(msg);
                 },

@@ -1157,6 +1157,7 @@ dependencies = [
  "actix-web",
  "chrono",
  "env_logger",
+ "flate2",
  "rsql_builder",
  "rusqlite",
  "rust-crypto",
