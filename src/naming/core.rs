@@ -5,9 +5,10 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::collections::LinkedList;
 use std::net::SocketAddr;
+use std::time::Duration;
 use chrono::Local;
 use serde::{Serialize,Deserialize};
-use super::udp_handler::{UdpSender,UdpSenderCmd,UdpReciver};
+use super::listener::{InnerNamingListener,NamingListenerCmd,ListenerItem};
 use super::api_model::{QueryListResult};
 use crate::utils::{gz_encode};
 
@@ -223,8 +224,6 @@ pub struct Cluster {
     pub cluster_name:String,
     instances: HashMap<String,Instance>,
     timeinfos: LinkedList<InstanceTimeInfo>,
-    listener_info:HashMap<SocketAddr,i64>,
-    listener_last_time:i64,
 }
 
 impl Cluster {
@@ -319,15 +318,6 @@ impl Cluster {
         self.instances.values().filter(|x|
             x.enabled && (x.healthy || !only_healthy)).collect::<Vec<_>>()
     }
-
-    fn update_listener(&mut self,addr:SocketAddr,last_time:i64) {
-        if let Some(t) = self.listener_info.get_mut(&addr) {
-            *t = last_time;
-        }
-        else{
-            self.listener_info.insert(addr,last_time );
-        }
-    }
 }
 
 #[derive(Debug,Clone)]
@@ -369,8 +359,6 @@ pub struct Service {
     pub check_sum:String,
     pub cluster_map:HashMap<String,Cluster>,
 
-    udp_sender:Option<Addr<UdpSender>>,
-    listener_info:HashMap<SocketAddr,(i64,Vec<String>,bool)>,
 }
 
 impl Service {
@@ -401,6 +389,7 @@ impl Service {
         rtype
     }
 
+    /*
     fn notify_listener(&mut self,cluster_name:&str,updateType:UpdateInstanceType) -> UpdateInstanceType {
         if match updateType {
             UpdateInstanceType::New =>{false}, 
@@ -410,41 +399,9 @@ impl Service {
         }{
             return updateType;
         }
-        let current_time = Local::now().timestamp_millis();
-        let mut data_cache:HashMap<String,Vec<u8>> = HashMap::new();
-        let mut response = HashMap::new();
-        response.insert("type", "dom".to_owned());
-        if let Some(c) = self.cluster_map.get(cluster_name){
-            for addr in c.listener_info.keys() {
-                if let Some(v) = self.listener_info.get(addr) {
-                    //if current_time - v.0 > 10000 {
-                    //    self.listener_info.remove(addr);
-                    //}
-                    //else 
-                    if let Some(udp_sender) = self.udp_sender.as_ref() {
-                        let clusters = (&v.1).join(",");
-                        if let Some(msg_data) = data_cache.get(&clusters) {
-                            let msg = UdpSenderCmd::new(msg_data.clone(),addr.clone());
-                            udp_sender.do_send(msg);
-                        }
-                        else{
-                            let res=self.get_instance_list_string(v.1.clone(),v.2);
-                            response.insert("data", res);
-                            let msg_str= serde_json::to_string(&response).unwrap();
-                            let msg_data = gz_encode(msg_str.as_bytes(), 1024);
-                            data_cache.insert(clusters, msg_data.clone());
-                            let msg = UdpSenderCmd::new(msg_data,addr.clone());
-                            udp_sender.do_send(msg);
-                        }
-                    }
-                }
-            }
-        }
-        if let Some(c) = self.cluster_map.get_mut(cluster_name){
-            c.listener_last_time=current_time;
-        }
         updateType
     }
+    */
 
     fn get_instance(&self,cluster_name:&str,instance_key:&str) -> Option<Instance> {
         match self.cluster_map.get(cluster_name){
@@ -515,127 +472,22 @@ impl Service {
         }
         (remove_list,update_list)
     }
-
-    fn update_listener(&mut self,cluster_names:&Vec<String>,addr:SocketAddr,only_healthy:bool){
-        let current_time = Local::now().timestamp_millis();
-        self.do_update_listener(addr, current_time,cluster_names.clone(),only_healthy);
-        for cluster_name in cluster_names {
-            if let Some(c) = self.cluster_map.get_mut(cluster_name) {
-                c.update_listener(addr, current_time);
-            }
-        }
-    }
-
-    fn do_update_listener(&mut self,addr:SocketAddr,last_time:i64,mut cluster_names:Vec<String>,only_healthy:bool) {
-        cluster_names.sort();
-        if let Some(t) = self.listener_info.get_mut(&addr) {
-            println!("do_update_listener update listener {},{}",&addr,&self.service_name);
-            *t = (last_time,cluster_names,only_healthy);
-        }
-        else{
-            println!("do_update_listener add listener {},{}",&addr,&self.service_name);
-            self.listener_info.insert(addr,(last_time,cluster_names,only_healthy) );
-        }
-    }
-
-    fn notify_check(&mut self,current_time:i64) {
-        println!("notify_check 1");
-        self.remove_timeout_listener(current_time);
-        println!("notify_check 2");
-        if self.listener_info.len() ==0 {
-            println!("empty listener");
-            return;
-        }
-        println!("notify_check 3");
-        let mut cluster_list = vec![];
-        for item in self.cluster_map.values_mut() {
-            if current_time - item.listener_last_time > 3000 {
-                cluster_list.push(item.cluster_name.to_owned());
-            }
-        }
-        println!("notify_check 4");
-        if cluster_list.len()==0 {
-            self.do_notify_empty(current_time);
-            return;
-        }
-        println!("notify_check 5");
-        for cluster_name in &cluster_list {
-            println!("notify_check 6 {:?}",&cluster_list);
-            self.notify_listener(cluster_name, UpdateInstanceType::UpdateValue);
-        }
-        println!("notify_check 7");
-    }
-
-    fn do_notify_empty(&mut self,current_time:i64){
-        println!("do_notify_empty");
-        if let Some(udp_sender) = self.udp_sender.as_ref() {
-            let mut response = HashMap::new();
-            response.insert("type", "dom".to_owned());
-            let res=self.get_instance_list_string(vec![],false);
-            response.insert("data", res);
-            let msg_str= serde_json::to_string(&response).unwrap();
-            for (addr,(t,clusters,b)) in &self.listener_info {
-                let msg_data = gz_encode(msg_str.as_bytes(), 1024);
-                let msg = UdpSenderCmd::new(msg_data,addr.clone());
-                udp_sender.do_send(msg);
-            }
-        }
-    }
-
-    fn remove_timeout_listener(&mut self,current_time:i64){
-        let mut remove_items= vec![];
-        let mut cluster_remove:HashMap<&String,Vec<&SocketAddr>> = HashMap::new();
-        let all_cluster_names:Vec<String> = self.cluster_map.keys().map(|e| e.to_owned()).collect();
-        for (key,(t,clusters,_)) in &self.listener_info {
-            if current_time - *t > 20000 {
-                let mut names = clusters;
-                if clusters.len()==0 {
-                    names = &all_cluster_names;
-                }
-                for cluster_name in names{
-                    if let Some(l) = cluster_remove.get_mut(&cluster_name) {
-                        l.push(key);
-                    }
-                    else{
-                        cluster_remove.insert(cluster_name,vec![key]);
-                    }
-                }
-                remove_items.push(key.clone());
-            }
-        }
-        for (cluster_name,addrs) in cluster_remove {
-            if let Some(c) = self.cluster_map.get_mut(cluster_name) {
-                for addr in addrs {
-                    c.listener_info.remove(addr);
-                }
-            }
-        }
-        for addr in remove_items {
-            println!("remove listener");
-            self.remove_listener(&addr);
-        }
-    }
-
-    fn remove_listener(&mut self,addr:&SocketAddr) {
-        self.listener_info.remove(addr);
-    }
 }
 
-#[derive(Debug)]
 pub struct NamingActor {
     service_map:HashMap<String,Service>,
     namespace_group_service:HashMap<String,BTreeSet<String>>,
     last_id:u64,
-    udp_sender:Addr<UdpSender>,
+    listener_addr:Addr<InnerNamingListener>,
 }
 
 impl NamingActor {
-    pub fn new(udp_sender:Addr<UdpSender>) -> Self {
+    pub fn new(listener_addr:Addr<InnerNamingListener>) -> Self {
         Self {
             service_map: Default::default(),
             namespace_group_service: Default::default(),
             last_id:0u64,
-            udp_sender,
+            listener_addr,
         }
     }
 
@@ -669,7 +521,6 @@ impl NamingActor {
                 service.group_name = key.group_name.to_owned();
                 service.last_modified_millis = current_time;
                 service.recalculate_checksum();
-                service.udp_sender = Some(self.udp_sender.clone());
                 self.service_map.insert(key.get_join_service_name(),service);
             }
         }
@@ -682,8 +533,7 @@ impl NamingActor {
 
     pub fn remove_instance(&mut self,key:&ServiceKey ,cluster_name:&str,instance_id:&str) -> UpdateInstanceType {
         let service = self.service_map.get_mut(&key.get_join_service_name()).unwrap();
-        let update_type=service.remove_instance(cluster_name, instance_id);
-        service.notify_listener(cluster_name, update_type)
+        service.remove_instance(cluster_name, instance_id)
     }
 
     pub fn update_instance(&mut self,key:&ServiceKey,mut instance:Instance,tag:Option<InstanceUpdateTag>) -> UpdateInstanceType {
@@ -692,8 +542,7 @@ impl NamingActor {
         self.create_empty_service(key);
         let cluster_name = instance.cluster_name.clone();
         let service = self.service_map.get_mut(&key.get_join_service_name()).unwrap();
-        let update_type=service.update_instance(instance, tag);
-        service.notify_listener(&cluster_name, update_type)
+        service.update_instance(instance, tag)
     }
 
     pub fn get_instance(&self,key:&ServiceKey,cluster_name:&str,instance_id:&str) -> Option<Instance> {
@@ -737,15 +586,6 @@ impl NamingActor {
         (remove_list,update_list)
     }
 
-    pub fn notify_check(&mut self) {
-        let current_time = Local::now().timestamp_millis();
-        //println!("Naming Actor notify_check {}",&current_time);
-        for item in self.service_map.values_mut(){
-            //println!("notify_check service {},{:?}",&item.service_name,&item.listener_info);
-            item.notify_check(current_time);
-        }
-    }
-
     pub fn get_service_list(&self,page_size:usize,page_index:usize,key:&ServiceKey) -> (usize,Vec<String>) {
         let offset = page_size * max(page_index-1,0);
         if let Some(set) = self.namespace_group_service.get(&key.get_namespace_group()){
@@ -756,27 +596,17 @@ impl NamingActor {
     }
 
     fn update_listener(&mut self,key:&ServiceKey,cluster_names:&Vec<String>,addr:SocketAddr,only_healthy:bool){
-        self.create_empty_service(key);
-        if let Some(service) = self.service_map.get_mut(&key.get_join_service_name()) {
-            service.update_listener(cluster_names, addr,only_healthy);
-        }
+        let item = ListenerItem::new(cluster_names.clone(),only_healthy,addr);
+        let msg = NamingListenerCmd::Add(key.clone(),item);
+        self.listener_addr.do_send(msg);
     }
 
-    fn update_listener_time(&mut self,addr:SocketAddr){
-        let current_time = Local::now().timestamp_millis();
-        let mut service_keys= vec![];
-        for (key,s) in &self.service_map {
-            if s.listener_info.contains_key(&addr) {
-                service_keys.push(key.clone());
-            }
-        }
-        for key in &service_keys {
-            if let Some(service) = self.service_map.get_mut(key) {
-                if let Some(v)=service.listener_info.get_mut(&addr) {
-                    v.0 =  current_time;
-                }
-            }
-        }
+    pub fn instance_time_out_heartbeat(&self,ctx:&mut actix::Context<Self>) {
+        ctx.run_later(Duration::new(3,0), |act,ctx|{
+            let addr = ctx.address();
+            addr.do_send(NamingCmd::PEEK_LISTENER_TIME_OUT);
+            act.instance_time_out_heartbeat(ctx);
+        });
     }
 }
 
@@ -791,8 +621,7 @@ pub enum NamingCmd {
     QUERY_LIST_STRING(ServiceKey,Vec<String>,bool,Option<SocketAddr>),
     QUERY_SERVICE_PAGE(ServiceKey,usize,usize),
     PEEK_LISTENER_TIME_OUT,
-    ClientReceiveMsg((SocketAddr,Vec<u8>)),
-    NotifyListener(ServiceKey),
+    NotifyListener(ServiceKey,u64),
 }
 
 pub enum NamingResult {
@@ -805,6 +634,14 @@ pub enum NamingResult {
 
 impl Actor for NamingActor {
     type Context = Context<Self>;
+
+    fn started(&mut self,ctx: &mut Self::Context) {
+        println!(" NamingActor started");
+        let msg = NamingListenerCmd::InitNamingActor(ctx.address());
+        self.listener_addr.do_send(msg);
+        self.instance_time_out_heartbeat(ctx);
+    }
+
 }
 
 impl Handler<NamingCmd> for NamingActor {
@@ -849,13 +686,11 @@ impl Handler<NamingCmd> for NamingActor {
                 //self.notify_check();
                 Ok(NamingResult::NULL)
             },
-            NamingCmd::ClientReceiveMsg((addr,_)) => {
-                self.update_listener_time(addr);
-                Ok(NamingResult::NULL)
-            },
-            NamingCmd::NotifyListener(service_key) => {
+            NamingCmd::NotifyListener(service_key,id) => {
                 let map=self.get_instance_map(&service_key, vec![], false);
                 //notify listener
+                let msg = NamingListenerCmd::Notify(service_key,"".to_string(),map,id);
+                self.listener_addr.do_send(msg);
                 Ok(NamingResult::NULL)
             },
         }
@@ -868,11 +703,8 @@ mod tests {
     use super::*;
     #[tokio::test()]
     async fn test01(){
-        let local_addr:SocketAddr = "0.0.0.0:0".parse().unwrap();
-        let socket = UdpSocket::bind(local_addr).await.unwrap();
-        let (r,w) = socket.split();
-        let sender_addr = UdpSender::new(w).start();
-        let mut naming = NamingActor::new(sender_addr);
+        let listener_addr = InnerNamingListener::new_and_create(3000, None).await;
+        let mut naming = NamingActor::new(listener_addr);
         let mut instance = Instance::new("127.0.0.1".to_owned(),8080);
         instance.namespace_id = "public".to_owned();
         instance.service_name = "foo".to_owned();

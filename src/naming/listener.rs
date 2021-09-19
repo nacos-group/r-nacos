@@ -26,7 +26,21 @@ pub struct ListenerItem {
     clusters_key: String,
 }
 
-fn gene_cluster_key(mut clusters:Vec<String>) -> String {
+impl ListenerItem{
+    pub fn new(mut clusters: Vec<String>,only_healthy: bool,listener_addr: SocketAddr) -> Self{
+        let clusters_key = format!("{},{}",&gene_cluster_key(&mut clusters),only_healthy);
+        Self{
+            clusters,
+            only_healthy,
+            listener_addr,
+            last_modified:0,
+            last_response_time:0,
+            clusters_key,
+        }
+    }
+}
+
+fn gene_cluster_key(mut clusters:&mut Vec<String>) -> String {
     clusters.sort();
     clusters.join(",")
 }
@@ -38,6 +52,7 @@ struct ListenerValue {
     cache: HashMap<String,String>,
     last_sign: String,
     last_modified: u64,
+    id:u64,
 }
 
 impl ListenerValue {
@@ -117,7 +132,7 @@ impl ListenerValue {
 
     fn notify(&mut self,service_key:ServiceKey,sign:String,instances:&HashMap<String,Vec<Instance>>,period:u64,sender:&Addr<UdpWorker>) -> Vec<SocketAddr> {
         let now = now_millis();
-        let remove_time = now- max(2*period,5);
+        let remove_time = now- max(2*period,10);
         let mut removes=vec![]; 
         for item in self.items.values_mut() {
             if item.last_response_time < remove_time {
@@ -146,14 +161,15 @@ pub struct InnerNamingListener{
     //namespace\x01group@@service: listener
     listeners: HashMap<String,ListenerValue>,
     client_to_listener_map: HashMap<SocketAddr,HashSet<String>>,
-    timeout_set:TimeoutSet<ServiceKey>,
+    timeout_set:TimeoutSet<(ServiceKey,u64)>,
     period:u64,
     sender: Addr<UdpWorker>,
-    naming_addr: Addr<NamingActor>,
+    naming_addr: Option<Addr<NamingActor>>,
+    listener_id:u64,
 }
 
 impl InnerNamingListener {
-    pub fn new(period:u64,sender:Addr<UdpWorker>,naming_addr:Addr<NamingActor>) -> Self {
+    pub fn new(period:u64,sender:Addr<UdpWorker>,naming_addr:Option<Addr<NamingActor>>) -> Self {
         Self {
             listeners: Default::default(),
             client_to_listener_map: Default::default(),
@@ -161,13 +177,17 @@ impl InnerNamingListener {
             period,
             sender,
             naming_addr,
+            listener_id:0,
         }
     }
 
-    pub async fn async_new(period:u64,naming_addr:Addr<NamingActor>) -> Self {
+    pub async fn new_and_create(period:u64,naming_addr:Option<Addr<NamingActor>>) -> Addr<Self> {
         let socket=UdpSocket::bind("0.0.0.0:0").await.unwrap();
-        let sender = UdpWorker::new_with_socket(socket).start();
-        Self::new(period,sender,naming_addr)
+        Self::create(move |ctx|{
+            let addr = ctx.address();
+            let sender = UdpWorker::new_with_socket(socket,addr).start();
+            Self::new(period,sender,naming_addr)
+        })
     }
 
     fn get_listener_key(key:&ServiceKey) -> String {
@@ -191,13 +211,16 @@ impl InnerNamingListener {
         let listener_key = Self::get_listener_key(&key);
         if let Some(value) = self.listeners.get_mut(&listener_key) {
             value.add(item);
+            println!("after add listener item count :{}",value.items.len());
         }
         else{
             let now = now_millis();
             let mut value = ListenerValue::default();
+            self.listener_id+=1;
+            value.id=self.listener_id;
             value.add(item);
             self.listeners.insert(listener_key.clone(), value);
-            self.timeout_set.add(now+self.period,key);
+            self.timeout_set.add(now+self.period,(key,self.listener_id));
         }
         self.update_client_map(addr, listener_key);
     }
@@ -240,14 +263,28 @@ impl InnerNamingListener {
         }
     }
 
+    fn add_hb(&mut self,service_key:ServiceKey,id:u64){
+        let listener_key = Self::get_listener_key(&service_key);
+        if let Some(value) = self.listeners.get(&listener_key) {
+            if value.id==id {
+                let now = now_millis();
+                println!("naming-listener AddHeartbeat,{:?},{}",&service_key,id);
+                self.timeout_set.add(now+self.period,(service_key,id));
+            }
+        }
+    }
+
     pub fn hb(&self,ctx:&mut actix::Context<Self>) {
         ctx.run_later(Duration::new(1,0), |act,ctx|{
             let current_time = now_millis();
             let addr = ctx.address();
-            for key in act.timeout_set.timeout(current_time){
-                let msg = NamingCmd::NotifyListener(key.clone());
-                act.naming_addr.do_send(msg);
-                addr.do_send(NamingListenerCmd::AddHeartbeat(key));
+            let keys = act.timeout_set.timeout(current_time);
+            if let Some(naming_addr) = act.naming_addr.as_ref() {
+                for (key,id) in keys{
+                    let msg = NamingCmd::NotifyListener(key.clone(),id);
+                    naming_addr.do_send(msg);
+                    addr.do_send(NamingListenerCmd::AddHeartbeat(key,id));
+                }
             }
             act.hb(ctx);
         });
@@ -274,33 +311,38 @@ impl Actor for InnerNamingListener {
 }
 
 
-#[derive(Debug,Message)]
+#[derive(Message)]
 #[rtype(result = "Result<(),std::io::Error>")]
 pub enum NamingListenerCmd{
+    InitNamingActor(Addr<NamingActor>),
     Add(ServiceKey,ListenerItem),
     Response(SocketAddr),
-    Notify(ServiceKey,String,HashMap<String,Vec<Instance>>),
-    AddHeartbeat(ServiceKey),
+    Notify(ServiceKey,String,HashMap<String,Vec<Instance>>,u64),
+    AddHeartbeat(ServiceKey,u64),
 }
 
 impl Handler<NamingListenerCmd> for InnerNamingListener {
     type Result = Result<(),std::io::Error>;
     fn handle(&mut self,msg:NamingListenerCmd,ctx: &mut Context<Self>) -> Self::Result {
         match msg {
+            NamingListenerCmd::InitNamingActor(naming_addr) => {
+                self.naming_addr=Some(naming_addr);
+            },
             NamingListenerCmd::Add(service_key, listener_item) => {
+                println!("naming-listener add ,{:?},{},{}",&service_key,&listener_item.clusters_key,&listener_item.listener_addr);
                 self.add(service_key,listener_item);
             },
             NamingListenerCmd::Response(socket_addr) => {
+                println!("naming-listener response,{:?}",&socket_addr);
                 self.client_response(&socket_addr);
             },
-            NamingListenerCmd::Notify(service_key,sign, instances) => {
+            NamingListenerCmd::Notify(service_key,sign, instances,id) => {
+                println!("naming-listener notify,{:?},{}",&service_key,id);
                 self.notify(service_key, sign, instances);
             },
-            NamingListenerCmd::AddHeartbeat(service_key) => {
-                let now = now_millis();
-                self.timeout_set.add(now+self.period,service_key);
+            NamingListenerCmd::AddHeartbeat(service_key,id) => {
+                self.add_hb(service_key, id );
             },
-            
         };
         Ok(())
     }

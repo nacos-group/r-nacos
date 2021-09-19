@@ -51,7 +51,7 @@ impl QueryListResult {
         result.name = key.get_join_service_name();
         result.cacheMillis = 10000u64;
         let now = Local::now().timestamp_millis();
-        result.lastRefTime = Some(now);
+        result.lastRefTime = Some(now - 1000);
         result.checksum = Some(now.to_string());
         result.useSpecifiedURL = Some(false);
         result.clusters = clusters;

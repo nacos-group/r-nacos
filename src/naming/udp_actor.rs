@@ -10,13 +10,15 @@ use tokio::net::{UdpSocket};
 use tokio::signal;
 use tokio::sync::Mutex;
 
+use super::listener::{InnerNamingListener,NamingListenerCmd};
+
 
 const MAX_DATAGRAM_SIZE: usize = 65_507;
 pub struct UdpWorker{
     local_addr:Option<String>,
-    //socket:Option<Arc<UdpSocket>>,
     recv:Arc<Mutex<RecvHalf>>,
     send:Arc<Mutex<SendHalf>>,
+    listener_addr:Addr<InnerNamingListener>,
 }
 
 impl UdpWorker {
@@ -29,12 +31,13 @@ impl UdpWorker {
     }
     */
 
-    pub fn new_with_socket(socket:UdpSocket) -> Self{
+    pub fn new_with_socket(socket:UdpSocket,listener_addr:Addr<InnerNamingListener>) -> Self{
         let (r,w) = socket.split();
         Self{
             local_addr:None,
             recv:Arc::new(Mutex::new(r)),
             send:Arc::new(Mutex::new(w)),
+            listener_addr,
             //socket:Some(Arc::new(socket)),
         }
     }
@@ -66,21 +69,21 @@ impl UdpWorker {
     fn init_loop_recv(&self,ctx:&mut actix::Context<Self>) {
         //let socket = self.socket.as_ref().unwrap().clone();
         let socket = self.recv.clone();
+        let listener_addr = self.listener_addr.clone();
         async move {
                     let mut buf=vec![0u8;MAX_DATAGRAM_SIZE];
                     let mut revc = socket.lock().await;
                     loop{
                         match revc.recv_from(&mut buf).await{
                             Ok((len,addr)) => {
-                                /*
-                                if let Some(addr) = self.actor{
-                                    let mut data:Vec<u8> = Vec::with_capacity(len);
-                                    data.clone_from_slice(&self.buf[..len]);
-                                    addr.send(data).await;
-                                }
-                                */
                                 let s=String::from_utf8_lossy(&buf[..len]);
                                 println!("rece from:{} | len:{} | str:{}",&addr,len,s);
+                                //if let Some(listener_addr) = &listener_addr {
+                                    //let mut data:Vec<u8> = Vec::with_capacity(len);
+                                    //data.clone_from_slice(&buf[..len]);
+                                    let msg = NamingListenerCmd::Response(addr.clone());
+                                    listener_addr.do_send(msg);
+                                //}
                             },
                             _ => {}
                         }

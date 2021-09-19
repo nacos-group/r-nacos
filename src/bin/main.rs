@@ -1,4 +1,5 @@
 
+use nacos_rust::naming::listener::InnerNamingListener;
 use tokio::net::UdpSocket;
 use std::error::Error;
 use std::net::SocketAddr;
@@ -11,7 +12,6 @@ use nacos_rust::config::api::{
 };
 
 use nacos_rust::naming::core::{NamingActor,NamingCmd};
-use nacos_rust::naming::udp_handler::{UdpSender,UdpReciver};
 use nacos_rust::naming::api::{
     app_config as ns_config
 };
@@ -51,25 +51,8 @@ async fn main() -> Result<(), Box<dyn Error>>  {
         }
     });
     //naming start
-    let local_addr:SocketAddr = "0.0.0.0:0".parse()?;
-    let socket = UdpSocket::bind(local_addr).await?;
-    //println!("udp local addr:{:?}",socket.local_addr());
-    let (r,w) = socket.split();
-    let sender_addr = UdpSender::new(w).start();
-    let naming_addr = NamingActor::new(sender_addr).start();
-    let naming_addr2 = naming_addr.clone();
-    tokio::spawn(async move {
-        //let mut i=0;
-        loop {
-            //println!("naming timer");
-            tokio::time::delay_for(tokio::time::Duration::from_millis(3000)).await;
-            naming_addr2.send(NamingCmd::PEEK_LISTENER_TIME_OUT).await;
-        }
-    });
-    let naming_addr3 = naming_addr.clone();
-    tokio::spawn(async move {
-        UdpReciver::new(r,naming_addr3).recv().await;
-    });
+    let listener_addr = InnerNamingListener::new_and_create(5000, None).await;
+    let mut naming_addr = NamingActor::new(listener_addr).start();
     HttpServer::new(move || {
         let config_addr = config_addr.clone();
         let naming_addr = naming_addr.clone();
