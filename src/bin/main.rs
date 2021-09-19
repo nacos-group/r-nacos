@@ -76,7 +76,7 @@ async fn main() -> Result<(), Box<dyn Error>>  {
         App::new()
             .data(config_addr)
             .data(naming_addr)
-            //.wrap(middleware::Logger::default())
+            .wrap(middleware::Logger::default())
             .configure(app_config)
     })
     .workers(4)

@@ -41,6 +41,28 @@ impl QueryListResult {
         result.dom = Some(key.service_name.to_owned());
         serde_json::to_string(&result).unwrap()
     }
+
+    pub fn get_ref_instance_list_string(
+        clusters: String,
+        key: &ServiceKey,
+        v: Vec<&Instance>,
+    ) -> String {
+        let mut result = QueryListResult::default();
+        result.name = key.get_join_service_name();
+        result.cacheMillis = 10000u64;
+        let now = Local::now().timestamp_millis();
+        result.lastRefTime = Some(now);
+        result.checksum = Some(now.to_string());
+        result.useSpecifiedURL = Some(false);
+        result.clusters = clusters;
+        result.env = Some("".to_owned());
+        result.hosts = v
+            .into_iter()
+            .map(|e| InstanceVO::from_instance(&e))
+            .collect::<Vec<_>>();
+        result.dom = Some(key.service_name.to_owned());
+        serde_json::to_string(&result).unwrap()
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Default)]

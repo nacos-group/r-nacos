@@ -27,3 +27,4 @@ flate2 = "1.0"
 # db
 rusqlite={version="0.25",features = ["bundled"]}
 rsql_builder="0.1"
+inner-mem-cache="0.1.3"

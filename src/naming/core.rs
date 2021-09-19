@@ -476,6 +476,28 @@ impl Service {
         list
     }
 
+    fn get_instance_map(&self,cluster_names:Vec<String>,only_healthy:bool) -> HashMap<String,Vec<Instance>> {
+        let mut map=HashMap::new();
+        let mut names = cluster_names;
+        if names.len()==0 {
+            for item in self.cluster_map.keys() {
+                names.push(item.to_owned());
+            }
+        }
+        for cluster_name in &names {
+            if let Some(c) = self.cluster_map.get(cluster_name) {
+                let mut list = vec![];
+                for item in c.get_all_instances(only_healthy) {
+                    list.push(item.clone());
+                }
+                if list.len()>0 {
+                    map.insert(cluster_name.to_owned(), list);
+                }
+            }
+        }
+        map
+    }
+
     fn get_instance_list_string(&self,cluster_names:Vec<String>,only_healthy:bool) -> String {
         let clusters = (&cluster_names).join(",");
         let list = self.get_instance_list(cluster_names, only_healthy);
@@ -688,6 +710,13 @@ impl NamingActor {
         vec![]
     }
 
+    pub fn get_instance_map(&self,key:&ServiceKey,cluster_names:Vec<String>,only_healthy:bool) -> HashMap<String,Vec<Instance>> {
+        if let Some(service) = self.service_map.get(&key.get_join_service_name()) {
+            return service.get_instance_map(cluster_names, only_healthy);
+        }
+        HashMap::new()
+    }
+
     pub fn get_instance_list_string(&self,key:&ServiceKey,cluster_names:Vec<String>,only_healthy:bool) -> String {
         let clusters = (&cluster_names).join(",");
         let list = self.get_instance_list(key, cluster_names, only_healthy);
@@ -763,6 +792,7 @@ pub enum NamingCmd {
     QUERY_SERVICE_PAGE(ServiceKey,usize,usize),
     PEEK_LISTENER_TIME_OUT,
     ClientReceiveMsg((SocketAddr,Vec<u8>)),
+    NotifyListener(ServiceKey),
 }
 
 pub enum NamingResult {
@@ -816,14 +846,18 @@ impl Handler<NamingCmd> for NamingActor {
             },
             NamingCmd::PEEK_LISTENER_TIME_OUT => {
                 self.time_check();
-                self.notify_check();
+                //self.notify_check();
                 Ok(NamingResult::NULL)
             },
             NamingCmd::ClientReceiveMsg((addr,_)) => {
                 self.update_listener_time(addr);
                 Ok(NamingResult::NULL)
             },
-            _ => {Ok(NamingResult::NULL)}
+            NamingCmd::NotifyListener(service_key) => {
+                let map=self.get_instance_map(&service_key, vec![], false);
+                //notify listener
+                Ok(NamingResult::NULL)
+            },
         }
     }
 }

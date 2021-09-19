@@ -937,6 +937,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "inner-mem-cache"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "12341117c8379c8c7b08da22b5636b89dabbe491db8785252b46bb5ea83a0bab"
+
+[[package]]
 name = "instant"
 version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1158,6 +1164,7 @@ dependencies = [
  "chrono",
  "env_logger",
  "flate2",
+ "inner-mem-cache",
  "rsql_builder",
  "rusqlite",
  "rust-crypto",
