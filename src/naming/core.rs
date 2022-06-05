@@ -703,7 +703,7 @@ mod tests {
     use super::*;
     #[tokio::test()]
     async fn test01(){
-        let listener_addr = InnerNamingListener::new_and_create(3000, None).await;
+        let listener_addr = InnerNamingListener::new_and_create(5000, None).await;
         let mut naming = NamingActor::new(listener_addr);
         let mut instance = Instance::new("127.0.0.1".to_owned(),8080);
         instance.namespace_id = "public".to_owned();

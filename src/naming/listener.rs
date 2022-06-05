@@ -220,7 +220,7 @@ impl InnerNamingListener {
             value.id=self.listener_id;
             value.add(item);
             self.listeners.insert(listener_key.clone(), value);
-            self.timeout_set.add(now+self.period,(key,self.listener_id));
+            self.timeout_set.add(now+self.period-500,(key,self.listener_id));
         }
         self.update_client_map(addr, listener_key);
     }
