@@ -1,4 +1,5 @@
 
+use std::collections::HashMap;
 use nacos_rust::naming::listener::InnerNamingListener;
 use tokio::net::UdpSocket;
 use std::error::Error;
@@ -28,10 +29,18 @@ async fn index() -> impl Responder {
     "hello"
 }
 
+async fn mock_token() -> impl Responder {
+    "{\"accessToken\":\"mock_value\",\"tokenTtl\":18000,\"globalAdmin\":true}"
+}
+
 fn app_config(config:&mut web::ServiceConfig){
     config.service(
         web::resource("/").route(web::get().to(index))
-    );
+    )
+    .service(
+        web::resource("/nacos/v1/auth/login").route(web::post().to(mock_token))
+    )
+    ;
     cs_config(config);
     ns_config(config);
 }
@@ -62,7 +71,7 @@ async fn main() -> Result<(), Box<dyn Error>>  {
             .wrap(middleware::Logger::default())
             .configure(app_config)
     })
-    .workers(4)
+    .workers(8)
     .bind("0.0.0.0:8848")?
     .run()
     .await?;
