@@ -491,6 +491,11 @@ impl NamingActor {
         }
     }
 
+    pub async fn new_and_create(period:u64) -> Addr<Self> {
+        let listener_addr = InnerNamingListener::new_and_create(period, None).await;
+        Self::new(listener_addr).start()
+    }
+
     fn get_service(&mut self,key:&ServiceKey) -> Option<&Service> {
         match self.service_map.get_mut(&key.get_join_service_name()){
             Some(v) => {

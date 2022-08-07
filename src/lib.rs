@@ -1,6 +1,8 @@
 
 pub mod config;
 pub mod naming;
+pub(crate) mod auth;
+pub mod web_config;
 pub mod utils;
 pub mod rusqlite_utils;
 
