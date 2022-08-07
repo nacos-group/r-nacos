@@ -181,11 +181,10 @@ impl InnerNamingListener {
         }
     }
 
-    pub async fn new_and_create(period:u64,naming_addr:Option<Addr<NamingActor>>) -> Addr<Self> {
-        let socket=UdpSocket::bind("0.0.0.0:0").await.unwrap();
+    pub fn new_and_create(period:u64,naming_addr:Option<Addr<NamingActor>>) -> Addr<Self> {
         Self::create(move |ctx|{
             let addr = ctx.address();
-            let sender = UdpWorker::new_with_socket(socket,addr).start();
+            let sender = UdpWorker::new(Some(addr)).start();
             Self::new(period,sender,naming_addr)
         })
     }
@@ -268,7 +267,7 @@ impl InnerNamingListener {
         if let Some(value) = self.listeners.get(&listener_key) {
             if value.id==id {
                 let now = now_millis();
-                println!("naming-listener AddHeartbeat,{:?},{}",&service_key,id);
+                log::debug!("naming-listener AddHeartbeat,{:?},{}",&service_key,id);
                 self.timeout_set.add(now+self.period,(service_key,id));
             }
         }
@@ -304,7 +303,7 @@ impl Actor for InnerNamingListener {
     type Context = Context<Self>;
 
     fn started(&mut self,ctx: &mut Self::Context) {
-        println!(" InnerNamingListener started");
+        log::info!(" InnerNamingListener started");
         self.hb(ctx);
         //self.init(ctx);
     }
@@ -329,15 +328,15 @@ impl Handler<NamingListenerCmd> for InnerNamingListener {
                 self.naming_addr=Some(naming_addr);
             },
             NamingListenerCmd::Add(service_key, listener_item) => {
-                println!("naming-listener add ,{:?},{},{}",&service_key,&listener_item.clusters_key,&listener_item.listener_addr);
+                log::debug!("naming-listener add ,{:?},{},{}",&service_key,&listener_item.clusters_key,&listener_item.listener_addr);
                 self.add(service_key,listener_item);
             },
             NamingListenerCmd::Response(socket_addr) => {
-                println!("naming-listener response,{:?}",&socket_addr);
+                log::debug!("naming-listener response,{:?}",&socket_addr);
                 self.client_response(&socket_addr);
             },
             NamingListenerCmd::Notify(service_key,sign, instances,id) => {
-                println!("naming-listener notify,{:?},{}",&service_key,id);
+                log::debug!("naming-listener notify,{:?},{}",&service_key,id);
                 self.notify(service_key, sign, instances);
             },
             NamingListenerCmd::AddHeartbeat(service_key,id) => {

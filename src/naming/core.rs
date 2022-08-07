@@ -491,9 +491,12 @@ impl NamingActor {
         }
     }
 
-    pub async fn new_and_create(period:u64) -> Addr<Self> {
-        let listener_addr = InnerNamingListener::new_and_create(period, None).await;
-        Self::new(listener_addr).start()
+    pub fn new_and_create(period:u64) -> Addr<Self> {
+        Self::create(move |ctx|{
+            let addr = ctx.address();
+            let listener_addr = InnerNamingListener::new_and_create(period, Some(addr.clone()));
+            Self::new(listener_addr)
+        })
     }
 
     fn get_service(&mut self,key:&ServiceKey) -> Option<&Service> {
@@ -641,7 +644,7 @@ impl Actor for NamingActor {
     type Context = Context<Self>;
 
     fn started(&mut self,ctx: &mut Self::Context) {
-        println!(" NamingActor started");
+        log::info!(" NamingActor started");
         let msg = NamingListenerCmd::InitNamingActor(ctx.address());
         self.listener_addr.do_send(msg);
         self.instance_time_out_heartbeat(ctx);

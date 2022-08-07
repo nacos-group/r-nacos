@@ -252,7 +252,7 @@ pub async fn get_instance(param:web::Query<InstanceWebParams>,naming_addr:web::D
 }
 
 pub async fn get_instance_list(param:web::Query<InstanceWebQueryListParams>,naming_addr:web::Data<Addr<NamingActor>>) -> impl Responder {
-    println!("get_instance_list:{:?}",&param);
+    log::debug!("get_instance_list:{:?}",&param);
     let only_healthy = param.healthyOnly.unwrap_or(true);
     let addr = param.get_addr();
     let return_val = match param.to_clusters_key() {
