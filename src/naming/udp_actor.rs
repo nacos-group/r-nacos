@@ -20,6 +20,7 @@ pub struct UdpWorker{
     addr: Option<Addr<InnerNamingListener>>,
     udp_port:u16,
     buf: Option<Vec<u8>>,
+    reading:bool,
 }
 
 impl UdpWorker {
@@ -30,6 +31,7 @@ impl UdpWorker {
             addr,
             udp_port:0,
             buf: Some(vec![]),
+            reading:false,
         }
     }
 
@@ -42,6 +44,7 @@ impl UdpWorker {
             addr:addr,
             udp_port,
             buf: Some(vec![]),
+            reading:false,
         }
     }
 
@@ -71,6 +74,10 @@ impl UdpWorker {
     }
 
     fn init_loop_recv(&mut self, ctx: &mut actix::Context<Self>) {
+        if self.reading {
+            return;
+        }
+        self.reading=true;
         let socket = self.socket.as_ref().unwrap().clone();
         let notify_addr = self.addr.clone();
         let buf = self.buf.replace(Vec::new());
@@ -101,19 +108,14 @@ impl UdpWorker {
         .into_actor(self)
         .map(|buf, act, ctx| {
             act.buf.replace(buf);
-            ctx.run_later(Duration::from_millis(1), |act,ctx|{
+            act.reading=false;
+            ctx.run_later(Duration::from_nanos(1), |act,ctx|{
                 act.init_loop_recv(ctx);
             });
         })
         .spawn(ctx);
     }
 
-    /*
-    async fn send(send:Arc<Mutex<SendHalf>>,addr:SocketAddr,data:&[u8]) {
-        let mut s=send.lock().await;
-        s.send_to(data,&addr).await.unwrap();
-    }
-     */
 }
 
 impl Actor for UdpWorker {
@@ -146,6 +148,7 @@ impl UdpSenderCmd{
 impl Handler<UdpSenderCmd> for UdpWorker {
     type Result = Result<(),std::io::Error>;
     fn handle(&mut self,msg:UdpSenderCmd,ctx: &mut Context<Self>) -> Self::Result {
+        log::info!("send instance info by udp,to addr:{}",&msg.target_addr);
         let socket = self.socket.as_ref().unwrap().clone();
         async move {
             socket.send_to(&msg.data, msg.target_addr).await;

@@ -332,11 +332,11 @@ impl Handler<NamingListenerCmd> for InnerNamingListener {
                 self.add(service_key,listener_item);
             },
             NamingListenerCmd::Response(socket_addr) => {
-                log::debug!("naming-listener response,{:?}",&socket_addr);
+                log::info!("naming-listener response,{:?}",&socket_addr);
                 self.client_response(&socket_addr);
             },
             NamingListenerCmd::Notify(service_key,sign, instances,id) => {
-                log::debug!("naming-listener notify,{:?},{}",&service_key,id);
+                log::info!("naming-listener notify,{:?},{}",&service_key,id);
                 self.notify(service_key, sign, instances);
             },
             NamingListenerCmd::AddHeartbeat(service_key,id) => {
