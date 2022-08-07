@@ -1165,6 +1165,7 @@ dependencies = [
  "env_logger",
  "flate2",
  "inner-mem-cache",
+ "log",
  "rsql_builder",
  "rusqlite",
  "rust-crypto",

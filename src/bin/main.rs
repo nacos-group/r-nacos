@@ -47,18 +47,10 @@ fn app_config(config:&mut web::ServiceConfig){
 
 #[actix_web::main]
 async fn main() -> Result<(), Box<dyn Error>>  {
-    std::env::set_var("RUST_LOG","actix_web=debug,actix_server=info");
+    std::env::set_var("RUST_LOG","actix_web=debug,actix_server=info,info");
     env_logger::init();
     println!("Hello, world!");
     let config_addr = ConfigActor::new().start();
-    let config_addr2 = config_addr.clone();
-    tokio::spawn(async move {
-        loop {
-            //println!("config timer");
-            tokio::time::delay_for(tokio::time::Duration::from_millis(500)).await;
-            config_addr2.send(ConfigCmd::PEEK_LISTENER_TIME_OUT).await;
-        }
-    });
     //naming start
     let listener_addr = InnerNamingListener::new_and_create(5000, None).await;
     let mut naming_addr = NamingActor::new(listener_addr).start();

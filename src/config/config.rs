@@ -1,4 +1,5 @@
 
+use std::time::Duration;
 use chrono::Local;
 use std::collections::HashMap;
 use std::collections::BTreeMap;
@@ -265,6 +266,13 @@ impl ConfigActor {
 
         }
     }
+
+    pub fn hb(&self,ctx:&mut actix::Context<Self>) {
+        ctx.run_later(Duration::from_millis(500), |act,ctx|{
+            act.listener.timeout();
+            act.hb(ctx);
+        });
+    }
 }
 
 #[derive(Message)]
@@ -274,7 +282,6 @@ pub enum ConfigCmd {
     GET(ConfigKey),
     DELETE(ConfigKey),
     LISTENER(Vec<ListenerItem>,ListenerSenderType,i64),
-    PEEK_LISTENER_TIME_OUT,
 }
 
 pub enum ConfigResult {
@@ -284,6 +291,11 @@ pub enum ConfigResult {
 
 impl Actor for ConfigActor {
     type Context = Context<Self>;
+
+    fn started(&mut self,ctx: &mut Self::Context) {
+        log::info!("ConfigActor started");
+        self.hb(ctx);
+    }
 }
 
 impl Handler<ConfigCmd> for ConfigActor{
@@ -332,9 +344,6 @@ impl Handler<ConfigCmd> for ConfigActor{
                     return Ok(ConfigResult::NULL);
                 }
             },
-            ConfigCmd::PEEK_LISTENER_TIME_OUT => {
-                self.listener.timeout();
-            }
         }
         Ok(ConfigResult::NULL)
     }
