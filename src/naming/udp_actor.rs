@@ -88,14 +88,15 @@ impl UdpWorker {
             }
             //let mut buf = buf.unwrap_or_else(|| vec![0u8; MAX_DATAGRAM_SIZE]);
             //buf=vec![0u8;MAX_DATAGRAM_SIZE];
+            /* 
             match socket.recv_from(&mut buf).await {
                 Ok((len, addr)) => {
                     //let mut data:Vec<u8> = Vec::with_capacity(len);
-                    let mut data: Vec<u8> = vec![0u8; len];
-                    data.clone_from_slice(&buf[..len]);
+                    //let mut data: Vec<u8> = vec![0u8; len];
+                    //data.clone_from_slice(&buf[..len]);
 
-                    let s=String::from_utf8_lossy(&buf[..len]);
-                    log::debug!("rece from:{} | len:{} | str:{}",&addr,len,s);
+                    //let s=String::from_utf8_lossy(&buf[..len]);
+                    //log::debug!("rece from:{} | len:{} | str:{}",&addr,len,s);
                     if let Some(_notify_addr)=notify_addr {
                         let msg = NamingListenerCmd::Response(addr.clone());
                         _notify_addr.do_send(msg);
@@ -103,13 +104,26 @@ impl UdpWorker {
                 }
                 _ => {}
             }
+            */
+            let mut try_res=socket.try_recv_from(&mut buf);
+            while try_res.is_ok() {
+                let (len,addr) = try_res.as_ref().unwrap();
+                if *len == 0 {
+                    break;
+                }
+                if let Some(_notify_addr)=notify_addr.as_ref() {
+                    let msg = NamingListenerCmd::Response(addr.clone());
+                    _notify_addr.do_send(msg);
+                }
+                try_res = socket.try_recv_from(&mut buf);
+            }
             buf
         }
         .into_actor(self)
         .map(|buf, act, ctx| {
             act.buf.replace(buf);
             act.reading=false;
-            ctx.run_later(Duration::from_nanos(1), |act,ctx|{
+            ctx.run_later(Duration::from_micros(10), |act,ctx|{
                 act.init_loop_recv(ctx);
             });
         })

@@ -267,7 +267,7 @@ impl InnerNamingListener {
         if let Some(value) = self.listeners.get(&listener_key) {
             if value.id==id {
                 let now = now_millis();
-                log::debug!("naming-listener AddHeartbeat,{:?},{}",&service_key,id);
+                //log::debug!("naming-listener AddHeartbeat,{:?},{}",&service_key,id);
                 self.timeout_set.add(now+self.period,(service_key,id));
             }
         }
