@@ -18,8 +18,9 @@ use serde::{Serialize,Deserialize};
 use std::collections::HashMap;
 
 #[derive(Serialize,Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ConfigWebParams{
-    pub dataId:Option<String>,
+    pub data_id:Option<String>,
     pub group:Option<String>,
     pub tenant:Option<String>,
     pub content:Option<String>,
@@ -29,7 +30,7 @@ impl ConfigWebParams {
 
     pub fn select_option(&self,o:&Self) -> Self {
         Self {
-            dataId: select_option_by_clone(&self.dataId, &o.dataId),
+            data_id: select_option_by_clone(&self.data_id, &o.data_id),
             group: select_option_by_clone(&self.group, &o.group),
             tenant: select_option_by_clone(&self.tenant, &o.tenant),
             content: select_option_by_clone(&self.content, &o.content),
@@ -38,7 +39,7 @@ impl ConfigWebParams {
 
     pub fn to_confirmed_param(&self) -> Result<ConfigWebConfirmedParam,String> {
         let mut param = ConfigWebConfirmedParam::default();
-        if let Some(v) = self.dataId.as_ref() {
+        if let Some(v) = self.data_id.as_ref() {
             if v.len() ==0 {
                 return Err("dataId is empty".to_owned());
             }
