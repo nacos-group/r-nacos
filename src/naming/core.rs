@@ -1,3 +1,4 @@
+#![allow(unused_imports,unused_assignments,unused_variables,unused_mut,dead_code)]
 
 use std::cmp::max;
 use std::collections::BTreeSet;
@@ -612,7 +613,7 @@ impl NamingActor {
     pub fn instance_time_out_heartbeat(&self,ctx:&mut actix::Context<Self>) {
         ctx.run_later(Duration::new(3,0), |act,ctx|{
             let addr = ctx.address();
-            addr.do_send(NamingCmd::PEEK_LISTENER_TIME_OUT);
+            addr.do_send(NamingCmd::PeekListenerTimeout);
             act.instance_time_out_heartbeat(ctx);
         });
     }
@@ -622,22 +623,22 @@ impl NamingActor {
 #[derive(Debug,Message)]
 #[rtype(result = "Result<NamingResult,std::io::Error>")]
 pub enum NamingCmd {
-    UPDATE(Instance,Option<InstanceUpdateTag>),
-    DELETE(Instance),
-    QUERY(Instance),
-    QUERY_LIST(ServiceKey,Vec<String>,bool,Option<SocketAddr>),
-    QUERY_LIST_STRING(ServiceKey,Vec<String>,bool,Option<SocketAddr>),
-    QUERY_SERVICE_PAGE(ServiceKey,usize,usize),
-    PEEK_LISTENER_TIME_OUT,
+    Update(Instance,Option<InstanceUpdateTag>),
+    Delete(Instance),
+    Query(Instance),
+    QueryList(ServiceKey,Vec<String>,bool,Option<SocketAddr>),
+    QueryListString(ServiceKey,Vec<String>,bool,Option<SocketAddr>),
+    QueryServicePage(ServiceKey,usize,usize),
+    PeekListenerTimeout,
     NotifyListener(ServiceKey,u64),
 }
 
 pub enum NamingResult {
     NULL,
-    INSTANCE(Instance),
-    INSTANCE_LIST(Vec<Instance>),
-    INSTANCE_LIST_STRING(String),
-    SERVICE_PAGE((usize,Vec<String>)),
+    Instance(Instance),
+    InstanceList(Vec<Instance>),
+    InstanceListString(String),
+    ServicePage((usize,Vec<String>)),
 }
 
 impl Actor for NamingActor {
@@ -657,39 +658,39 @@ impl Handler<NamingCmd> for NamingActor {
 
     fn handle(&mut self,msg:NamingCmd,ctx: &mut Context<Self>) -> Self::Result {
         match msg {
-            NamingCmd::UPDATE(instance,tag) => {
+            NamingCmd::Update(instance,tag) => {
                 self.update_instance(&instance.get_service_key(), instance, tag);
                 Ok(NamingResult::NULL)
             },
-            NamingCmd::DELETE(instance) => {
+            NamingCmd::Delete(instance) => {
                 self.remove_instance(&instance.get_service_key(), &instance.cluster_name, &instance.id);
                 Ok(NamingResult::NULL)
             },
-            NamingCmd::QUERY(instance) => {
+            NamingCmd::Query(instance) => {
                 if let Some(i) = self.get_instance(&instance.get_service_key(),&instance.cluster_name, &instance.id) {
-                    return Ok(NamingResult::INSTANCE(i));
+                    return Ok(NamingResult::Instance(i));
                 }
                 Ok(NamingResult::NULL)
             },
-            NamingCmd::QUERY_LIST(service_key,cluster_names,only_healthy,addr) => {
+            NamingCmd::QueryList(service_key,cluster_names,only_healthy,addr) => {
                 if let Some(addr) = addr {
                     self.update_listener(&service_key, &cluster_names, addr,only_healthy);
                 }
                 let list = self.get_instance_list(&service_key, cluster_names, only_healthy);
-                Ok(NamingResult::INSTANCE_LIST(list))
+                Ok(NamingResult::InstanceList(list))
             },
-            NamingCmd::QUERY_LIST_STRING(service_key,cluster_names,only_healthy,addr) => {
+            NamingCmd::QueryListString(service_key,cluster_names,only_healthy,addr) => {
                 println!("QUERY_LIST_STRING addr: {:?}",&addr);
                 if let Some(addr) = addr {
                     self.update_listener(&service_key, &cluster_names, addr,only_healthy);
                 }
                 let data= self.get_instance_list_string(&service_key, cluster_names, only_healthy);
-                Ok(NamingResult::INSTANCE_LIST_STRING(data))
+                Ok(NamingResult::InstanceListString(data))
             },
-            NamingCmd::QUERY_SERVICE_PAGE(service_key, page_size, page_index) => {
-                Ok(NamingResult::SERVICE_PAGE(self.get_service_list(page_size, page_index, &service_key)))
+            NamingCmd::QueryServicePage(service_key, page_size, page_index) => {
+                Ok(NamingResult::ServicePage(self.get_service_list(page_size, page_index, &service_key)))
             },
-            NamingCmd::PEEK_LISTENER_TIME_OUT => {
+            NamingCmd::PeekListenerTimeout => {
                 self.time_check();
                 //self.notify_check();
                 Ok(NamingResult::NULL)

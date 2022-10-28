@@ -1,3 +1,4 @@
+#![allow(unused_imports,unused_assignments,unused_variables,unused_mut,dead_code)]
 
 use std::time::Duration;
 use std::sync::Arc;

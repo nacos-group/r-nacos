@@ -1,3 +1,4 @@
+#![allow(unused_imports,unused_assignments,unused_variables,unused_mut,dead_code,unused_must_use)]
 
 use std::time::Duration;
 use chrono::Local;
@@ -73,34 +74,34 @@ impl ListenerItem {
         let mut list = vec![];
         let mut start = 0;
         let bytes = configs.as_bytes();
-        let mut tmpList = vec![];
+        let mut tmp_list = vec![];
         for i in 0..bytes.len(){
             let char = bytes[i];
             if char == 2 {
-                if tmpList.len() > 2{
+                if tmp_list.len() > 2{
                     continue;
                 }
-                tmpList.push(String::from_utf8(bytes[start..i].to_vec()).unwrap());
+                tmp_list.push(String::from_utf8(bytes[start..i].to_vec()).unwrap());
                 start = i+1;
             }
             else if char == 1 {
-                let mut endValue = String::new();
+                let mut end_value = String::new();
                 if start+1 <=i {
-                    endValue = String::from_utf8(bytes[start..i].to_vec()).unwrap();
+                    end_value = String::from_utf8(bytes[start..i].to_vec()).unwrap();
                 }
                 start = i+1;
-                if tmpList.len() == 2 {
-                    let key = ConfigKey::new(&tmpList[0],&tmpList[1],"");
-                    list.push(ListenerItem::new(key,endValue));
+                if tmp_list.len() == 2 {
+                    let key = ConfigKey::new(&tmp_list[0],&tmp_list[1],"");
+                    list.push(ListenerItem::new(key,end_value));
                 }
                 else{
-                    if endValue=="public" {
-                        endValue="".to_owned();
+                    if end_value=="public" {
+                        end_value="".to_owned();
                     }
-                    let key = ConfigKey::new(&tmpList[0],&tmpList[1],&endValue);
-                    list.push(ListenerItem::new(key,tmpList[2].to_owned()));
+                    let key = ConfigKey::new(&tmp_list[0],&tmp_list[1],&end_value);
+                    list.push(ListenerItem::new(key,tmp_list[2].to_owned()));
                 }
-                tmpList.clear();
+                tmp_list.clear();
             }
         }
         list
@@ -110,31 +111,31 @@ impl ListenerItem {
         let mut list = vec![];
         let mut start = 0;
         let bytes = configs.as_bytes();
-        let mut tmpList = vec![];
+        let mut tmp_list = vec![];
         for i in 0..bytes.len(){
             let char = bytes[i];
             if char == 2 {
-                if tmpList.len() > 2{
+                if tmp_list.len() > 2{
                     continue;
                 }
-                tmpList.push(String::from_utf8(bytes[start..i].to_vec()).unwrap());
+                tmp_list.push(String::from_utf8(bytes[start..i].to_vec()).unwrap());
                 start = i+1;
             }
             else if char == 1 {
-                let mut endValue = String::new();
+                let mut end_value = String::new();
                 if start+1 <=i {
-                    endValue = String::from_utf8(bytes[start..i].to_vec()).unwrap();
+                    end_value = String::from_utf8(bytes[start..i].to_vec()).unwrap();
                 }
                 start = i+1;
-                if tmpList.len() == 1 {
-                    let key = ConfigKey::new(&tmpList[0],&endValue,"");
+                if tmp_list.len() == 1 {
+                    let key = ConfigKey::new(&tmp_list[0],&end_value,"");
                     list.push(key);
                 }
                 else{
-                    let key = ConfigKey::new(&tmpList[0],&tmpList[1],&endValue);
+                    let key = ConfigKey::new(&tmp_list[0],&tmp_list[1],&end_value);
                     list.push(key);
                 }
-                tmpList.clear();
+                tmp_list.clear();
             }
         }
         list
@@ -153,7 +154,7 @@ pub enum ListenerResult {
 }
 
 type ListenerSenderType = tokio::sync::oneshot::Sender<ListenerResult>;
-type ListenerReceiverType = tokio::sync::oneshot::Receiver<ListenerResult>;
+//type ListenerReceiverType = tokio::sync::oneshot::Receiver<ListenerResult>;
 
 struct ConfigListener {
     version:u64,
@@ -301,7 +302,7 @@ impl Actor for ConfigActor {
 impl Handler<ConfigCmd> for ConfigActor{
     type Result = Result<ConfigResult,std::io::Error>;
 
-    fn handle(&mut self,msg: ConfigCmd, ctx:&mut Context<Self>) -> Self::Result {
+    fn handle(&mut self,msg: ConfigCmd, _ctx:&mut Context<Self>) -> Self::Result {
         match msg {
             ConfigCmd::ADD(key,val) =>{
                 let config_val = ConfigValue::new(val);

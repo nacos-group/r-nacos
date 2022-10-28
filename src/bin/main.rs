@@ -1,5 +1,5 @@
 
-use actix_web::App;
+use actix_web::{App, web::Data};
 use actix::Actor;
 use nacos_rust::naming::core::NamingActor;
 use nacos_rust::config::config::ConfigActor;
@@ -20,8 +20,8 @@ async fn main() -> Result<(), Box<dyn Error>>  {
         let config_addr = config_addr.clone();
         let naming_addr = naming_addr.clone();
         App::new()
-            .data(config_addr)
-            .data(naming_addr)
+            .app_data(Data::new(config_addr))
+            .app_data(Data::new(naming_addr))
             .wrap(middleware::Logger::default())
             .configure(app_config)
     })

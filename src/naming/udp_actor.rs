@@ -1,3 +1,4 @@
+#![allow(unused_imports,unused_must_use)]
 use std::io::stdin;
 use std::error::Error;
 use std::env;

@@ -4,17 +4,19 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 #[derive(Debug, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
 pub struct QueryListResult {
     pub name: String,
     pub clusters: String,
-    pub cacheMillis: u64,
+    pub cache_millis: u64,
     pub hosts: Vec<InstanceVO>,
-    pub lastRefTime: Option<i64>,
+    pub last_ref_time: Option<i64>,
     pub checksum: Option<String>,
-    pub useSpecifiedURL: Option<bool>,
+    #[serde(rename = "useSpecifiedURL")]
+    pub use_specified_url: Option<bool>,
     pub env: Option<String>,
-    pub protectThreshold: Option<f32>,
-    pub reachLocalSiteCallThreshold: Option<bool>,
+    pub protect_threshold: Option<f32>,
+    pub reach_local_site_call_threshold: Option<bool>,
     pub dom: Option<String>,
     pub metadata: Option<HashMap<String, String>>,
 }
@@ -27,11 +29,11 @@ impl QueryListResult {
     ) -> String {
         let mut result = QueryListResult::default();
         result.name = key.get_join_service_name();
-        result.cacheMillis = 10000u64;
+        result.cache_millis = 10000u64;
         let now = Local::now().timestamp_millis();
-        result.lastRefTime = Some(now);
+        result.last_ref_time = Some(now);
         result.checksum = Some(now.to_string());
-        result.useSpecifiedURL = Some(false);
+        result.use_specified_url = Some(false);
         result.clusters = clusters;
         result.env = Some("".to_owned());
         result.hosts = v
@@ -49,11 +51,11 @@ impl QueryListResult {
     ) -> String {
         let mut result = QueryListResult::default();
         result.name = key.get_join_service_name();
-        result.cacheMillis = 10000u64;
+        result.cache_millis = 10000u64;
         let now = Local::now().timestamp_millis();
-        result.lastRefTime = Some(now - 1000);
+        result.last_ref_time = Some(now - 1000);
         result.checksum = Some(now.to_string());
-        result.useSpecifiedURL = Some(false);
+        result.use_specified_url = Some(false);
         result.clusters = clusters;
         result.env = Some("".to_owned());
         result.hosts = v
@@ -66,18 +68,19 @@ impl QueryListResult {
 }
 
 #[derive(Debug, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
 pub struct InstanceVO {
     pub service: String,
     pub ip: String,
     pub port: u32,
-    pub clusterName: String,
+    pub cluster_name: String,
     pub weight: f32,
     pub healthy: bool,
-    pub instanceId: String,
+    pub instance_id: String,
     pub metadata: HashMap<String, String>,
     pub marked: Option<bool>,
     pub enabled: Option<bool>,
-    pub serviceName: Option<String>,
+    pub service_name: Option<String>,
     pub ephemeral: Option<bool>,
 }
 
@@ -90,14 +93,14 @@ impl InstanceVO {
             ),
             ip: instance.ip.to_owned(),
             port: instance.port,
-            clusterName: instance.cluster_name.to_owned(),
+            cluster_name: instance.cluster_name.to_owned(),
             weight: instance.weight,
             healthy: instance.healthy,
-            instanceId: instance.id.to_owned(),
+            instance_id: instance.id.to_owned(),
             metadata: instance.metadata.clone(),
             marked: Some(true),
             enabled: Some(instance.enabled),
-            serviceName: Some(instance.service_name.to_owned()),
+            service_name: Some(instance.service_name.to_owned()),
             ephemeral: Some(instance.ephemeral),
         }
     }
