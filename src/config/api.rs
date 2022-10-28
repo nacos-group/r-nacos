@@ -7,8 +7,7 @@ use super::config::{
 use crate::utils::select_option_by_clone;
 
 use actix_web::{
-    App,web,HttpRequest,HttpResponse,Responder,HttpMessage,
-    middleware,HttpServer,
+    web,HttpRequest,HttpResponse,Responder
 };
 
 use actix::prelude::{
@@ -76,7 +75,7 @@ async fn add_config(a:web::Query<ConfigWebParams>,b:web::Form<ConfigWebParams>,c
             let cmd = ConfigCmd::ADD(ConfigKey::new(&p.data_id,&p.group,&p.tenant),p.content.to_owned());
             match config_addr.send(cmd).await{
                 Ok(res) => {
-                    let r:ConfigResult = res.unwrap();
+                    let _:ConfigResult = res.unwrap();
                     "true".to_owned()
                 },
                 Err(err) => {
@@ -99,7 +98,7 @@ async fn del_config(a:web::Query<ConfigWebParams>,b:web::Form<ConfigWebParams>,c
             let cmd = ConfigCmd::DELETE(ConfigKey::new(&p.data_id,&p.group,&p.tenant));
             match config_addr.send(cmd).await{
                 Ok(res) => {
-                    let r:ConfigResult = res.unwrap();
+                    let _:ConfigResult = res.unwrap();
                     "true".to_owned()
                 },
                 Err(err) => {
