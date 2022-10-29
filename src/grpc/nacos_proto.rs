@@ -1,3 +1,5 @@
+#![allow(non_camel_case_types)]
+
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Any {
     #[prost(string, tag = "1")]

@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
 
 pub const SUCCESS_CODE:u16= 200u16;
@@ -37,4 +39,12 @@ impl BaseResponse {
     pub fn to_json_string(&self) -> String {
         serde_json::to_string(&self).unwrap()
     }
+}
+
+#[derive(Debug, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct ClientDetectionRequest {
+    pub module:Option<String>,
+    pub request_id:Option<String>,
+    pub headers:HashMap<String,String>,
 }

@@ -6,6 +6,8 @@ pub mod handler;
 pub mod nacos_proto;
 pub mod server;
 pub mod api_model;
+pub mod bistream_manage;
+pub mod bistream_conn;
 
 pub trait PayloadHandler {
     fn handle(&self, request_payload: nacos_proto::Payload) -> nacos_proto::Payload;
@@ -36,7 +38,7 @@ impl PayloadUtils {
             type_url: "".into(),
             value: val.into_bytes(),
         };
-        let mut meta = Self::new_metadata(url,client_ip,headers);
+        let meta = Self::new_metadata(url,client_ip,headers);
         nacos_proto::Payload {
             body: Some(body),
             metadata: Some(meta),
