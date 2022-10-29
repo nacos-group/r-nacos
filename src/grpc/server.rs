@@ -1,15 +1,25 @@
-use tokio_stream::StreamExt;
+use std::sync::Arc;
+
+use actix::prelude::*;
+//use tokio_stream::StreamExt;
 
 use crate::grpc::{PayloadUtils, PayloadHandler};
 use crate::grpc::nacos_proto::{request_server, Payload};
 
+use super::bistream_conn::BiStreamConn;
+use super::bistream_manage::{BiStreamManage, BiStreamManageCmd};
 use super::handler::InvokerHandler;
 use super::nacos_proto::bi_request_stream_server::BiRequestStream;
 
 
-#[derive(Default)]
 pub struct RequestServerImpl{
     invoker:InvokerHandler,
+}
+
+impl RequestServerImpl {
+    pub fn new() -> Self {
+        Self { invoker:InvokerHandler::new() }
+    }
 }
 
 #[tonic::async_trait]
@@ -25,8 +35,15 @@ impl request_server::Request for RequestServerImpl {
     }
 }
 
-#[derive(Debug,Default)]
-pub struct BiRequestStreamServerImpl;
+pub struct BiRequestStreamServerImpl{
+    stream_manage:Addr<BiStreamManage>,
+}
+
+impl BiRequestStreamServerImpl {
+    pub fn new(stream_manage:Addr<BiStreamManage>) -> Self {
+        Self { stream_manage }
+    }
+}
 
 #[tonic::async_trait]
 impl BiRequestStream for BiRequestStreamServerImpl {
@@ -36,18 +53,12 @@ impl BiRequestStream for BiRequestStreamServerImpl {
             &self,
             request: tonic::Request<tonic::Streaming<Payload>>,
         ) -> Result<tonic::Response<Self::requestBiStreamStream>, tonic::Status> {
-        let mut req = request.into_inner();
+        let client_id = Arc::new(request.remote_addr().unwrap().to_string());
+        let req = request.into_inner();
         let (tx,rx) = tokio::sync::mpsc::channel(10);
         let r_stream = tokio_stream::wrappers::ReceiverStream::new(rx);
-        tokio::spawn(async move {
-            while let Some(v) = req.next().await {
-                if let Ok(payload)=&v {
-                    println!("request_bi_stream request:{}",PayloadUtils::get_payload_string(payload));
-                }
-                tx.send(v).await.unwrap();
-            }
-            tx.send(Err(tonic::Status::aborted("close"))).await.unwrap();
-        });
+        let conn = BiStreamConn::new(tx, client_id.clone(), req, self.stream_manage.clone()).start();
+        self.stream_manage.do_send(BiStreamManageCmd::AddConn(client_id, conn));
         Ok(tonic::Response::new(r_stream))
     }
 }

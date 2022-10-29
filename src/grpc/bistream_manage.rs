@@ -89,6 +89,7 @@ impl Actor for BiStreamManage {
 
     fn started(&mut self, ctx: &mut Self::Context) {
         self.time_out_heartbeat(ctx);
+        log::info!("BiStreamManage started");
     }
 }
 

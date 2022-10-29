@@ -9,7 +9,7 @@ use super::bistream_manage::{BiStreamManage, BiStreamManageCmd};
 use super::{api_model::ClientDetectionRequest, nacos_proto::Payload};
 
 type SenderType = tokio::sync::mpsc::Sender<Result<Payload, tonic::Status>>;
-type ReceiverStreamType = tokio_stream::wrappers::ReceiverStream<Result<Payload, tonic::Status>>;
+type ReceiverStreamType = tonic::Streaming<Payload>;
 
 pub struct BiStreamConn {
     sender: SenderType,
