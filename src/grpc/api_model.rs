@@ -8,10 +8,10 @@ pub const ERROR_CODE:u16= 500u16;
 #[derive(Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct BaseResponse{
-    result_code:u16,
-    error_code:u16,
-    message:Option<String>,
-    request_id:Option<String>,
+    pub result_code:u16,
+    pub error_code:u16,
+    pub message:Option<String>,
+    pub request_id:Option<String>,
 }
 
 pub type ErrorResponse= BaseResponse;
@@ -40,6 +40,18 @@ impl BaseResponse {
         serde_json::to_string(&self).unwrap()
     }
 }
+
+
+#[derive(Debug, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct ServerCheckResponse{
+    pub result_code:u16,
+    pub error_code:u16,
+    pub message:Option<String>,
+    pub request_id:Option<String>,
+    pub connection_id:Option<String>,
+}
+
 
 #[derive(Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]

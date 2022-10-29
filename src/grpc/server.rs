@@ -28,9 +28,14 @@ impl request_server::Request for RequestServerImpl {
         &self,
         request: tonic::Request<Payload>,
     ) -> Result<tonic::Response<Payload>,tonic::Status> {
-        let v2 = request.into_inner();
-        println!("request_server request:{}",PayloadUtils::get_payload_string(&v2));
-        let res = self.invoker.handle(v2);
+        let remote_addr = request.remote_addr().unwrap();
+        let connection_id = remote_addr.to_string();
+        let mut payload = request.into_inner();
+        println!("request_server request:{}",PayloadUtils::get_payload_string(&payload));
+        if let Some(meta) = payload.metadata.as_mut() {
+            meta.headers.insert("connection_id".to_owned(), connection_id);
+        }
+        let res = self.invoker.handle(payload);
         Ok(tonic::Response::new(res))
     }
 }
