@@ -57,7 +57,7 @@ impl BiRequestStream for BiRequestStreamServerImpl {
         let req = request.into_inner();
         let (tx,rx) = tokio::sync::mpsc::channel(10);
         let r_stream = tokio_stream::wrappers::ReceiverStream::new(rx);
-        let conn = BiStreamConn::new(tx, client_id.clone(), req, self.stream_manage.clone()).start();
+        let conn = BiStreamConn::new(tx, client_id.clone(), req, self.stream_manage.clone());
         self.stream_manage.do_send(BiStreamManageCmd::AddConn(client_id, conn));
         Ok(tonic::Response::new(r_stream))
     }

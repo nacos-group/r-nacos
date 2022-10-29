@@ -55,7 +55,9 @@ impl BiStreamConn {
 impl Actor for BiStreamConn {
     type Context = Context<Self>;
 
-    fn started(&mut self, _ctx: &mut Self::Context) {}
+    fn started(&mut self, _ctx: &mut Self::Context) {
+        //log::info!("BiStreamConn started");
+    }
 }
 
 #[derive(Debug, Message)]

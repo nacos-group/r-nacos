@@ -46,6 +46,9 @@ impl BiStreamManage {
 
     fn check_active_time_set(&mut self,now:u64){
         let keys=self.active_time_set.timeout(now);
+        if keys.len()>0 {
+            log::info!("check_active_time_set time size:{}",keys.len());
+        }
         for key in keys{
             if let Some(item)=self.conn_cache.get(&key) {
                 item.conn.do_send(BiStreamSenderCmd::Detection(self.request_id.to_string()));
@@ -64,6 +67,9 @@ impl BiStreamManage {
                     del_keys.push(key);
                 }
             }
+        }
+        if del_keys.len()>0 {
+            log::info!("check_response_time_set time size:{}",del_keys.len());
         }
         for key in del_keys {
             if let Some(item) = self.conn_cache.remove(&key){
@@ -93,12 +99,12 @@ impl Actor for BiStreamManage {
     }
 }
 
-#[derive(Debug, Message)]
+#[derive(Message)]
 #[rtype(result = "Result<BiStreamManageResult,std::io::Error>")]
 pub enum BiStreamManageCmd {
     Response(Arc<String>,Payload),
     ConnClose(Arc<String>),
-    AddConn(Arc<String>,Addr<BiStreamConn>),
+    AddConn(Arc<String>,BiStreamConn),
 }
 
 pub enum BiStreamManageResult {
@@ -123,7 +129,7 @@ impl Handler<BiStreamManageCmd> for BiStreamManage {
                 self.conn_cache.remove(&client_id);
             },
             BiStreamManageCmd::AddConn(client_id, conn) => {
-                self.add_conn(client_id, conn);
+                self.add_conn(client_id, conn.start());
             },
         }
         Ok(BiStreamManageResult::None)
