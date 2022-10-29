@@ -1,13 +1,16 @@
 use tokio_stream::StreamExt;
 
-use crate::grpc::get_payload_string;
+use crate::grpc::{PayloadUtils, PayloadHandler};
 use crate::grpc::nacos_proto::{request_server, Payload};
 
+use super::handler::InvokerHandler;
 use super::nacos_proto::bi_request_stream_server::BiRequestStream;
 
 
-#[derive(Debug,Default)]
-pub struct RequestServerImpl;
+#[derive(Default)]
+pub struct RequestServerImpl{
+    invoker:InvokerHandler,
+}
 
 #[tonic::async_trait]
 impl request_server::Request for RequestServerImpl {
@@ -16,8 +19,9 @@ impl request_server::Request for RequestServerImpl {
         request: tonic::Request<Payload>,
     ) -> Result<tonic::Response<Payload>,tonic::Status> {
         let v2 = request.into_inner();
-        println!("request_server request:{}",get_payload_string(&v2));
-        Ok(tonic::Response::new(v2))
+        println!("request_server request:{}",PayloadUtils::get_payload_string(&v2));
+        let res = self.invoker.handle(v2);
+        Ok(tonic::Response::new(res))
     }
 }
 
@@ -38,7 +42,7 @@ impl BiRequestStream for BiRequestStreamServerImpl {
         tokio::spawn(async move {
             while let Some(v) = req.next().await {
                 if let Ok(payload)=&v {
-                    println!("request_bi_stream request:{}",get_payload_string(payload));
+                    println!("request_bi_stream request:{}",PayloadUtils::get_payload_string(payload));
                 }
                 tx.send(v).await.unwrap();
             }
