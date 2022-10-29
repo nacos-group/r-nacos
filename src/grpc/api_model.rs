@@ -15,9 +15,19 @@ pub struct BaseResponse{
 pub type ErrorResponse= BaseResponse;
 
 impl BaseResponse {
+
+    pub fn build_success_response() -> Self {
+        Self { 
+            result_code: SUCCESS_CODE,
+            error_code:0,
+            message: None,
+            request_id: None,
+        }
+    }
+
     pub fn build_error_response(error_code:u16,error_msg:String) -> Self {
         Self { 
-            result_code: 0u16,
+            result_code: ERROR_CODE,
             error_code,
             message: Some(error_msg),
             request_id: None,
