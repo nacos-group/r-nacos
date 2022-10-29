@@ -86,7 +86,7 @@ impl Handler<BiStreamSenderCmd> for BiStreamConn {
                 );
                 let sender = self.sender.clone();
                 async move {
-                    sender.send(Ok(payload)).await.unwrap();
+                    sender.send(Ok(payload)).await
                 }
                 .into_actor(self)
                 .map(|_, _, _| {})

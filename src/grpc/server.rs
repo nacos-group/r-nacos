@@ -3,6 +3,7 @@ use std::sync::Arc;
 use actix::prelude::*;
 //use tokio_stream::StreamExt;
 
+use crate::grpc::handler::RequestMeta;
 use crate::grpc::{PayloadUtils, PayloadHandler};
 use crate::grpc::nacos_proto::{request_server, Payload};
 
@@ -29,13 +30,12 @@ impl request_server::Request for RequestServerImpl {
         request: tonic::Request<Payload>,
     ) -> Result<tonic::Response<Payload>,tonic::Status> {
         let remote_addr = request.remote_addr().unwrap();
-        let connection_id = remote_addr.to_string();
-        let mut payload = request.into_inner();
-        println!("request_server request:{}",PayloadUtils::get_payload_string(&payload));
-        if let Some(meta) = payload.metadata.as_mut() {
-            meta.headers.insert("connection_id".to_owned(), connection_id);
-        }
-        let res = self.invoker.handle(payload);
+        let mut request_meta = RequestMeta::default();
+        request_meta.client_ip = remote_addr.ip().to_string();
+        request_meta.connection_id = remote_addr.to_string();
+        let payload = request.into_inner();
+        println!("request_server request:{},client_id:{}",PayloadUtils::get_payload_string(&payload),&request_meta.connection_id);
+        let res = self.invoker.handle(payload,request_meta);
         Ok(tonic::Response::new(res))
     }
 }

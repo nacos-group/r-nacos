@@ -1,6 +1,6 @@
 use std::{collections::HashMap};
 
-use self::api_model::BaseResponse;
+use self::{api_model::{BaseResponse}, handler::RequestMeta};
 
 pub mod handler;
 pub mod nacos_proto;
@@ -10,7 +10,7 @@ pub mod bistream_manage;
 pub mod bistream_conn;
 
 pub trait PayloadHandler {
-    fn handle(&self, request_payload: nacos_proto::Payload) -> nacos_proto::Payload;
+    fn handle(&self, request_payload: nacos_proto::Payload,request_meta:RequestMeta) -> nacos_proto::Payload;
 }
 
 pub struct PayloadUtils;
