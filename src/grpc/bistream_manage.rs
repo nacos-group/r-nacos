@@ -117,11 +117,14 @@ impl Handler<BiStreamManageCmd> for BiStreamManage {
     fn handle(&mut self, msg: BiStreamManageCmd, _ctx: &mut Context<Self>) -> Self::Result {
         match msg {
             BiStreamManageCmd::Response(client_id,payload)=> {
+                println!("BiStreamManageCmd payload:{},client_id:{}",PayloadUtils::get_payload_string(&payload),&client_id);
                 if let Some(t)=PayloadUtils::get_payload_type(&payload) {
                     if "ClientDetectionResponse"== t {
+                        let now = now_millis();
                         if let Some(item)=self.conn_cache.get_mut(&client_id) {
-                            item.last_active_time = now_millis();
+                            item.last_active_time = now;
                         }
+                        self.active_time_set.add(now+self.detection_time_out, client_id);
                     }
                 }
             },
