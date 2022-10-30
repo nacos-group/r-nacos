@@ -56,7 +56,7 @@ impl PayloadHandler for InvokerHandler {
             if "ServerCheckRequest"==url {
                 let mut response = ServerCheckResponse::default();
                 response.result_code = SUCCESS_CODE;
-                response.connection_id = Some(request_meta.connection_id.to_owned());
+                response.connection_id = Some(request_meta.connection_id.as_ref().to_owned());
                 return Ok(PayloadUtils::build_payload("ServerCheckResponse", serde_json::to_string(&response)?))
             }
             println!("InvokerHandler type:{}",url);

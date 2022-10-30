@@ -7,7 +7,7 @@ use nacos_rust::grpc::nacos_proto::bi_request_stream_server::BiRequestStreamServ
 use nacos_rust::grpc::nacos_proto::request_server::RequestServer;
 use nacos_rust::grpc::server::BiRequestStreamServerImpl;
 use nacos_rust::{naming::core::NamingActor, grpc::server::RequestServerImpl};
-use nacos_rust::config::config::ConfigActor;
+use nacos_rust::config::config::{ConfigActor, ConfigCmd};
 use tonic::transport::Server;
 use std::error::Error;
 
@@ -23,7 +23,10 @@ async fn main() -> Result<(), Box<dyn Error>>  {
     let config_addr = ConfigActor::new().start();
     let naming_addr = NamingActor::new_and_create(5000);
 
-    let bistream_manage = BiStreamManage::new().start();
+    let mut bistream_manage = BiStreamManage::new();
+    bistream_manage.set_config_addr(config_addr.clone());
+    let bistream_manage_addr = bistream_manage.start();
+    config_addr.do_send(ConfigCmd::SetConnManage(bistream_manage_addr.clone()));
 
     let mut invoker = InvokerHandler::new();
     invoker.add_config_handler(&config_addr);
@@ -31,8 +34,8 @@ async fn main() -> Result<(), Box<dyn Error>>  {
 
     tokio::spawn(async move {
         let addr = "0.0.0.0:9848".parse().unwrap();
-        let request_server = RequestServerImpl::new(bistream_manage.clone(),invoker);
-        let bi_request_stream_server = BiRequestStreamServerImpl::new(bistream_manage);
+        let request_server = RequestServerImpl::new(bistream_manage_addr.clone(),invoker);
+        let bi_request_stream_server = BiRequestStreamServerImpl::new(bistream_manage_addr);
         Server::builder()
         .add_service(RequestServer::new(request_server))
         .add_service(BiRequestStreamServer::new(bi_request_stream_server))

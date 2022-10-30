@@ -50,6 +50,17 @@ impl BiStreamConn {
             .spawn(ctx);
         }
     }
+
+    fn send_payload(&mut self, ctx: &mut Context<Self>,payload:Payload){
+        let sender = self.sender.clone();
+        async move {
+            sender.send(Ok(payload)).await
+        }
+        .into_actor(self)
+        .map(|_, _, _| {})
+        .spawn(ctx);
+    }
+
 }
 
 impl Actor for BiStreamConn {
@@ -64,6 +75,7 @@ impl Actor for BiStreamConn {
 #[rtype(result = "Result<BiStreamSenderResult,std::io::Error>")]
 pub enum BiStreamSenderCmd {
     Detection(String),
+    Send(Arc<Payload>),
     Close,
 }
 
@@ -84,14 +96,11 @@ impl Handler<BiStreamSenderCmd> for BiStreamConn {
                     "ClientDetectionRequest",
                     serde_json::to_string(&request).unwrap(),
                 );
-                let sender = self.sender.clone();
-                async move {
-                    sender.send(Ok(payload)).await
-                }
-                .into_actor(self)
-                .map(|_, _, _| {})
-                .spawn(ctx);
-            }
+                self.send_payload(ctx,payload);
+            },
+            BiStreamSenderCmd::Send(payload) => {
+                self.send_payload(ctx,payload.as_ref().to_owned());
+            },
             BiStreamSenderCmd::Close=> {
                 ctx.stop();
             },

@@ -160,3 +160,15 @@ pub struct ConfigChangeBatchListenResponse{
 
     pub changed_configs: Vec<ConfigContext>,
 }
+
+#[derive(Debug, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct ConfigChangeNotifyRequest {
+    pub module:Option<String>,
+    pub request_id:Option<String>,
+    pub headers:HashMap<String,String>,
+
+    pub data_id: String,
+    pub group: String,
+    pub tenant: String,
+}

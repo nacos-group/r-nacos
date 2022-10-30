@@ -1,8 +1,8 @@
 use std::{collections::{HashMap, HashSet}, sync::Arc, time::Duration};
 
-use crate::{now_millis, config::config::ConfigKey};
+use crate::{now_millis, config::config::{ConfigKey, ConfigActor, ConfigCmd}};
 
-use super::{bistream_conn::{BiStreamConn, BiStreamSenderCmd}, PayloadUtils, nacos_proto::Payload};
+use super::{bistream_conn::{BiStreamConn, BiStreamSenderCmd}, PayloadUtils, nacos_proto::Payload, api_model::ConfigChangeNotifyRequest};
 use actix::prelude::*;
 use inner_mem_cache::TimeoutSet;
 
@@ -26,6 +26,7 @@ pub struct BiStreamManage{
     detection_time_out: u64,
     response_time_out: u64,
     request_id:u64,
+    config_addr:Option<Addr<ConfigActor>>,
 }
 
 impl BiStreamManage {
@@ -35,6 +36,10 @@ impl BiStreamManage {
         this.detection_time_out = 5000;
         this.response_time_out = 5000;
         this
+    }
+
+    pub fn set_config_addr(&mut self,addr:Addr<ConfigActor>) {
+        self.config_addr = Some(addr);
     }
 
     pub fn add_conn(&mut self,client_id:Arc<String>,sender:Addr<BiStreamConn>) {
@@ -91,9 +96,14 @@ impl BiStreamManage {
         if del_keys.len()>0 {
             log::info!("check_response_time_set time size:{}",del_keys.len());
         }
-        for key in del_keys {
-            if let Some(item) = self.conn_cache.remove(&key){
+        for key in &del_keys {
+            if let Some(item) = self.conn_cache.remove(key){
                 item.conn.do_send(BiStreamSenderCmd::Close);
+            }
+        }
+        if let Some(config_addr) = &self.config_addr {
+            for key in del_keys {
+                config_addr.do_send(ConfigCmd::RemoveSubscribeClient(key));
             }
         }
     }
@@ -155,7 +165,21 @@ impl Handler<BiStreamManageCmd> for BiStreamManage {
             BiStreamManageCmd::ActiveClinet(client_id) => {
                 self.active_client(client_id);
             },
-            BiStreamManageCmd::NotifyConfig(config_key, client_id_set) => todo!(),
+            BiStreamManageCmd::NotifyConfig(config_key, client_id_set) => {
+                let mut request = ConfigChangeNotifyRequest::default();
+                request.group = config_key.group;
+                request.data_id= config_key.data_id;
+                request.tenant= config_key.tenant;
+                let payload = Arc::new(PayloadUtils::build_payload(
+                    "ConfigChangeNotifyRequest",
+                    serde_json::to_string(&request).unwrap(),
+                ));
+                for item in &client_id_set {
+                    if let Some(item) = self.conn_cache.get(item){
+                        item.conn.do_send(BiStreamSenderCmd::Send(payload.clone()));
+                    }
+                }
+            },
         }
         Ok(BiStreamManageResult::None)
     }

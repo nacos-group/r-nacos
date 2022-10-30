@@ -292,6 +292,7 @@ pub enum ConfigCmd {
     SetConnManage(Addr<BiStreamManage>),
     Subscribe(Vec<ListenerItem>,Arc<String>),
     RemoveSubscribe(Vec<ListenerItem>,Arc<String>),
+    RemoveSubscribeClient(Arc<String>),
 }
 
 pub enum ConfigResult {
@@ -380,6 +381,9 @@ impl Handler<ConfigCmd> for ConfigActor{
             },
             ConfigCmd::RemoveSubscribe(items, client_id) => {
                 self.subscriber.remove_subscribe(client_id, items);
+            },
+            ConfigCmd::RemoveSubscribeClient(client_id) => {
+                self.subscriber.remove_client_subscribe(client_id);
             },
         }
         Ok(ConfigResult::NULL)

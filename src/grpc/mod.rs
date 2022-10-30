@@ -1,4 +1,4 @@
-use std::{collections::HashMap};
+use std::{collections::HashMap, sync::Arc};
 
 use self::api_model::BaseResponse;
 use async_trait::async_trait;
@@ -14,7 +14,7 @@ pub mod bistream_conn;
 
 #[derive(Default)]
 pub struct RequestMeta{
-    pub connection_id:String,
+    pub connection_id:Arc<String>,
     pub client_ip:String,
     pub client_version:String,
     pub labels:HashMap<String,String>,

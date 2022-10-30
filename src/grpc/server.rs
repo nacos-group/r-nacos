@@ -13,13 +13,13 @@ use super::nacos_proto::bi_request_stream_server::BiRequestStream;
 
 
 pub struct RequestServerImpl{
-    stream_manage:Addr<BiStreamManage>,
+    bistream_manage_addr:Addr<BiStreamManage>,
     invoker:InvokerHandler,
 }
 
 impl RequestServerImpl {
-    pub fn new(stream_manage:Addr<BiStreamManage>,invoker:InvokerHandler) -> Self {
-        Self { stream_manage,invoker}
+    pub fn new(bistream_manage_addr:Addr<BiStreamManage>,invoker:InvokerHandler) -> Self {
+        Self { bistream_manage_addr,invoker}
     }
 }
 
@@ -32,9 +32,9 @@ impl request_server::Request for RequestServerImpl {
         let remote_addr = request.remote_addr().unwrap();
         let mut request_meta = RequestMeta::default();
         request_meta.client_ip = remote_addr.ip().to_string();
-        request_meta.connection_id = remote_addr.to_string();
+        request_meta.connection_id = Arc::new(remote_addr.to_string());
         let payload = request.into_inner();
-        self.stream_manage.do_send(BiStreamManageCmd::ActiveClinet(Arc::new(request_meta.connection_id.clone())));
+        self.bistream_manage_addr.do_send(BiStreamManageCmd::ActiveClinet(request_meta.connection_id.clone()));
         println!("request_server request:{},client_id:{}",PayloadUtils::get_payload_string(&payload),&request_meta.connection_id);
         match self.invoker.handle(payload,request_meta).await {
             Ok(res) => {
@@ -51,12 +51,12 @@ impl request_server::Request for RequestServerImpl {
 }
 
 pub struct BiRequestStreamServerImpl{
-    stream_manage:Addr<BiStreamManage>,
+    bistream_manage_addr:Addr<BiStreamManage>,
 }
 
 impl BiRequestStreamServerImpl {
-    pub fn new(stream_manage:Addr<BiStreamManage>) -> Self {
-        Self { stream_manage }
+    pub fn new(bistream_manage_addr:Addr<BiStreamManage>) -> Self {
+        Self { bistream_manage_addr }
     }
 }
 
@@ -72,8 +72,8 @@ impl BiRequestStream for BiRequestStreamServerImpl {
         let req = request.into_inner();
         let (tx,rx) = tokio::sync::mpsc::channel(10);
         let r_stream = tokio_stream::wrappers::ReceiverStream::new(rx);
-        let conn = BiStreamConn::new(tx, client_id.clone(), req, self.stream_manage.clone());
-        self.stream_manage.do_send(BiStreamManageCmd::AddConn(client_id, conn));
+        let conn = BiStreamConn::new(tx, client_id.clone(), req, self.bistream_manage_addr.clone());
+        self.bistream_manage_addr.do_send(BiStreamManageCmd::AddConn(client_id, conn));
         Ok(tonic::Response::new(r_stream))
     }
 }
