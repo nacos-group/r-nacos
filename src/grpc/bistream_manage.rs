@@ -38,10 +38,27 @@ impl BiStreamManage {
     }
 
     pub fn add_conn(&mut self,client_id:Arc<String>,sender:Addr<BiStreamConn>) {
+        log::info!("add_conn client_id:{}",&client_id);
         let now = now_millis();
         let item = ConnCacheItem::new(now,sender);
-        self.conn_cache.insert(client_id.clone(), item);
+        if let Some(old_conn) = self.conn_cache.insert(client_id.clone(), item) {
+            log::info!("add_conn remove old conn:{}",&client_id);
+            old_conn.conn.do_send(BiStreamSenderCmd::Close);
+        }
         self.active_time_set.add(now+self.detection_time_out, client_id);
+    }
+
+    fn active_client(&mut self,client_id:Arc<String>) {
+        let now = now_millis();
+        log::info!("active_client client_id:{}",&client_id);
+
+        if let Some(item)=self.conn_cache.get_mut(&client_id) {
+            log::info!("active_client success client_id:{}",&client_id);
+            item.last_active_time = now;
+        }
+        else{
+            log::info!("active_client empty client_id:{}",&client_id);
+        }
     }
 
     fn check_active_time_set(&mut self,now:u64){
@@ -66,6 +83,9 @@ impl BiStreamManage {
                 if item.last_active_time + self.detection_time_out + self.response_time_out <= now {
                     del_keys.push(key);
                 }
+                else{
+                    self.active_time_set.add(item.last_active_time+self.detection_time_out, key.clone());
+                }
             }
         }
         if del_keys.len()>0 {
@@ -80,10 +100,10 @@ impl BiStreamManage {
 
 
     pub fn time_out_heartbeat(&self,ctx:&mut actix::Context<Self>) {
-        ctx.run_later(Duration::new(1,0), |act,ctx|{
+        ctx.run_later(Duration::new(3,0), |act,ctx|{
             let now = now_millis();
-            act.check_response_time_set(now);
             act.check_active_time_set(now);
+            act.check_response_time_set(now);
             act.time_out_heartbeat(ctx);
         });
     }
@@ -105,6 +125,7 @@ pub enum BiStreamManageCmd {
     Response(Arc<String>,Payload),
     ConnClose(Arc<String>),
     AddConn(Arc<String>,BiStreamConn),
+    ActiveClinet(Arc<String>),
 }
 
 pub enum BiStreamManageResult {
@@ -120,11 +141,7 @@ impl Handler<BiStreamManageCmd> for BiStreamManage {
                 println!("BiStreamManageCmd payload:{},client_id:{}",PayloadUtils::get_payload_string(&payload),&client_id);
                 if let Some(t)=PayloadUtils::get_payload_type(&payload) {
                     if "ClientDetectionResponse"== t {
-                        let now = now_millis();
-                        if let Some(item)=self.conn_cache.get_mut(&client_id) {
-                            item.last_active_time = now;
-                        }
-                        self.active_time_set.add(now+self.detection_time_out, client_id);
+                        self.active_client(client_id);
                     }
                 }
             },
@@ -133,6 +150,9 @@ impl Handler<BiStreamManageCmd> for BiStreamManage {
             },
             BiStreamManageCmd::AddConn(client_id, conn) => {
                 self.add_conn(client_id, conn.start());
+            },
+            BiStreamManageCmd::ActiveClinet(client_id) => {
+                self.active_client(client_id);
             },
         }
         Ok(BiStreamManageResult::None)

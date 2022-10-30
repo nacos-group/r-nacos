@@ -31,7 +31,7 @@ async fn main() -> Result<(), Box<dyn Error>>  {
 
     tokio::spawn(async move {
         let addr = "0.0.0.0:9848".parse().unwrap();
-        let request_server = RequestServerImpl::new(invoker);
+        let request_server = RequestServerImpl::new(bistream_manage.clone(),invoker);
         let bi_request_stream_server = BiRequestStreamServerImpl::new(bistream_manage);
         Server::builder()
         .add_service(RequestServer::new(request_server))

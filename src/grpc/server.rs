@@ -13,12 +13,13 @@ use super::nacos_proto::bi_request_stream_server::BiRequestStream;
 
 
 pub struct RequestServerImpl{
+    stream_manage:Addr<BiStreamManage>,
     invoker:InvokerHandler,
 }
 
 impl RequestServerImpl {
-    pub fn new(invoker:InvokerHandler) -> Self {
-        Self { invoker}
+    pub fn new(stream_manage:Addr<BiStreamManage>,invoker:InvokerHandler) -> Self {
+        Self { stream_manage,invoker}
     }
 }
 
@@ -33,6 +34,7 @@ impl request_server::Request for RequestServerImpl {
         request_meta.client_ip = remote_addr.ip().to_string();
         request_meta.connection_id = remote_addr.to_string();
         let payload = request.into_inner();
+        self.stream_manage.do_send(BiStreamManageCmd::ActiveClinet(Arc::new(request_meta.connection_id.clone())));
         println!("request_server request:{},client_id:{}",PayloadUtils::get_payload_string(&payload),&request_meta.connection_id);
         match self.invoker.handle(payload,request_meta).await {
             Ok(res) => {
