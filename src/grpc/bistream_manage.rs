@@ -1,6 +1,6 @@
-use std::{collections::HashMap, sync::Arc, time::Duration};
+use std::{collections::{HashMap, HashSet}, sync::Arc, time::Duration};
 
-use crate::now_millis;
+use crate::{now_millis, config::config::ConfigKey};
 
 use super::{bistream_conn::{BiStreamConn, BiStreamSenderCmd}, PayloadUtils, nacos_proto::Payload};
 use actix::prelude::*;
@@ -126,6 +126,7 @@ pub enum BiStreamManageCmd {
     ConnClose(Arc<String>),
     AddConn(Arc<String>,BiStreamConn),
     ActiveClinet(Arc<String>),
+    NotifyConfig(ConfigKey,HashSet<Arc<String>>),
 }
 
 pub enum BiStreamManageResult {
@@ -154,6 +155,7 @@ impl Handler<BiStreamManageCmd> for BiStreamManage {
             BiStreamManageCmd::ActiveClinet(client_id) => {
                 self.active_client(client_id);
             },
+            BiStreamManageCmd::NotifyConfig(config_key, client_id_set) => todo!(),
         }
         Ok(BiStreamManageResult::None)
     }

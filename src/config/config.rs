@@ -1,15 +1,18 @@
 #![allow(unused_imports,unused_assignments,unused_variables,unused_mut,dead_code,unused_must_use)]
 
+use std::sync::Arc;
 use std::time::Duration;
 use chrono::Local;
 use std::collections::HashMap;
 use std::collections::BTreeMap;
 
+use crate::grpc::bistream_manage::BiStreamManage;
 use crate::utils::get_md5;
 
 use actix::prelude::*;
 
 use super::config_db::ConfigDB;
+use super::config_subscribe::Subscriber;
 
 #[derive(Debug,Hash,Eq,Clone)]
 pub struct ConfigKey {
@@ -238,13 +241,16 @@ impl ConfigListener {
 pub struct ConfigActor {
     cache: HashMap<ConfigKey,ConfigValue>,
     listener: ConfigListener,
+    subscriber: Subscriber,
     config_db: ConfigDB,
+
 }
 
 impl ConfigActor {
     pub fn new() -> Self {
         let mut s=Self {
             cache: Default::default(),
+            subscriber: Subscriber::new(),
             listener: ConfigListener::new(),
             config_db: ConfigDB::new(),
         };
@@ -283,11 +289,15 @@ pub enum ConfigCmd {
     GET(ConfigKey),
     DELETE(ConfigKey),
     LISTENER(Vec<ListenerItem>,ListenerSenderType,i64),
+    SetConnManage(Addr<BiStreamManage>),
+    Subscribe(Vec<ListenerItem>,Arc<String>),
+    RemoveSubscribe(Vec<ListenerItem>,Arc<String>),
 }
 
 pub enum ConfigResult {
     DATA(String),
     NULL,
+    ChangeKey(Vec<ConfigKey>),
 }
 
 impl Actor for ConfigActor {
@@ -313,11 +323,14 @@ impl Handler<ConfigCmd> for ConfigActor{
                 }
                 self.config_db.update_config(&key, &config_val);
                 self.cache.insert(key.clone(),config_val);
-                self.listener.notify(key);
+                self.listener.notify(key.clone());
+                self.subscriber.notify(key);
             },
             ConfigCmd::DELETE(key) =>{
                 self.cache.remove(&key);
-                self.listener.notify(key);
+                self.listener.notify(key.clone());
+                self.subscriber.notify(key.clone());
+                self.subscriber.remove_config_key(key);
             },
             ConfigCmd::GET(key) =>{
                 if let Some(v) = self.cache.get(&key) {
@@ -344,6 +357,29 @@ impl Handler<ConfigCmd> for ConfigActor{
                     self.listener.add(items,sender,time);
                     return Ok(ConfigResult::NULL);
                 }
+            },
+            ConfigCmd::SetConnManage(conn_manage) => {
+                self.subscriber.set_conn_manage(conn_manage);
+            }
+            ConfigCmd::Subscribe(items, client_id) => {
+                let mut changes = vec![];
+                for item in &items {
+                    if let Some(v) = self.cache.get(&item.key) {
+                        if v.md5!=item.md5 {
+                            changes.push(item.key.clone());
+                        }
+                    }
+                    else{
+                        changes.push(item.key.clone());
+                    }
+                }
+                self.subscriber.add_subscribe(client_id, items);
+                if changes.len()> 0 {
+                    return Ok(ConfigResult::ChangeKey(changes));
+                }
+            },
+            ConfigCmd::RemoveSubscribe(items, client_id) => {
+                self.subscriber.remove_subscribe(client_id, items);
             },
         }
         Ok(ConfigResult::NULL)

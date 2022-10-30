@@ -32,7 +32,7 @@ impl PayloadHandler for ConfigQueryRequestHandler {
                         response.content = content;
                         response.tag = request.tag;
                     },
-                    ConfigResult::NULL => {
+                    _ => {
                         response.result_code = ERROR_CODE;
                         response.error_code = ERROR_CODE;
                         response.message = Some("config data not exist".to_owned());

@@ -126,7 +126,7 @@ async fn get_config(a:web::Query<ConfigWebParams>,config_addr:web::Data<Addr<Con
                         ConfigResult::DATA(v) => {
                             v.to_owned()
                         },
-                        ConfigResult::NULL => {
+                        _ => {
                             "config data not exist".to_owned()
                         }
                     }
