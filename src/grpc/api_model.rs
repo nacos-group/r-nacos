@@ -103,7 +103,7 @@ pub struct ConfigQueryResponse{
     pub content_type:Option<String>,
     pub md5:Option<String>,
     pub last_modified:u64,
-    pub is_beta:bool,
+    pub beta:bool,
     pub tag: Option<String>,
 }
 
