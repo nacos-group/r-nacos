@@ -3,8 +3,7 @@ use std::sync::Arc;
 use actix::prelude::*;
 //use tokio_stream::StreamExt;
 
-use crate::grpc::handler::RequestMeta;
-use crate::grpc::{PayloadUtils, PayloadHandler};
+use crate::grpc::{PayloadUtils, PayloadHandler, RequestMeta};
 use crate::grpc::nacos_proto::{request_server, Payload};
 
 use super::bistream_conn::BiStreamConn;
@@ -18,8 +17,8 @@ pub struct RequestServerImpl{
 }
 
 impl RequestServerImpl {
-    pub fn new() -> Self {
-        Self { invoker:InvokerHandler::new() }
+    pub fn new(invoker:InvokerHandler) -> Self {
+        Self { invoker}
     }
 }
 
@@ -35,8 +34,17 @@ impl request_server::Request for RequestServerImpl {
         request_meta.connection_id = remote_addr.to_string();
         let payload = request.into_inner();
         println!("request_server request:{},client_id:{}",PayloadUtils::get_payload_string(&payload),&request_meta.connection_id);
-        let res = self.invoker.handle(payload,request_meta);
-        Ok(tonic::Response::new(res))
+        match self.invoker.handle(payload,request_meta).await {
+            Ok(res) => {
+                println!("request_server response:{}",PayloadUtils::get_payload_string(&res));
+                Ok(tonic::Response::new(res))
+            },
+            Err(e) => {
+                //Err(tonic::Status::aborted(e.to_string()))
+                log::error!("request_server handler error:{:?}",e);
+                Ok(tonic::Response::new(PayloadUtils::build_error_payload(500u16,e.to_string())))
+            },
+        }
     }
 }
 

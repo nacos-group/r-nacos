@@ -1,7 +1,8 @@
 
 use actix_web::{App, web::Data};
-use actix::Actor;
+use actix::{Actor};
 use nacos_rust::grpc::bistream_manage::BiStreamManage;
+use nacos_rust::grpc::handler::InvokerHandler;
 use nacos_rust::grpc::nacos_proto::bi_request_stream_server::BiRequestStreamServer;
 use nacos_rust::grpc::nacos_proto::request_server::RequestServer;
 use nacos_rust::grpc::server::BiRequestStreamServerImpl;
@@ -24,9 +25,13 @@ async fn main() -> Result<(), Box<dyn Error>>  {
 
     let bistream_manage = BiStreamManage::new().start();
 
+    let mut invoker = InvokerHandler::new();
+    invoker.add_config_handler(&config_addr);
+
+
     tokio::spawn(async move {
         let addr = "0.0.0.0:9848".parse().unwrap();
-        let request_server = RequestServerImpl::new();
+        let request_server = RequestServerImpl::new(invoker);
         let bi_request_stream_server = BiRequestStreamServerImpl::new(bistream_manage);
         Server::builder()
         .add_service(RequestServer::new(request_server))

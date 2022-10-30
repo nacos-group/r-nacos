@@ -1,6 +1,8 @@
 use std::{collections::HashMap};
 
-use self::{api_model::{BaseResponse}, handler::RequestMeta};
+use self::api_model::BaseResponse;
+use async_trait::async_trait;
+
 
 pub mod handler;
 pub mod nacos_proto;
@@ -9,8 +11,19 @@ pub mod api_model;
 pub mod bistream_manage;
 pub mod bistream_conn;
 
+
+#[derive(Default)]
+pub struct RequestMeta{
+    pub connection_id:String,
+    pub client_ip:String,
+    pub client_version:String,
+    pub labels:HashMap<String,String>,
+}
+
+
+#[async_trait]
 pub trait PayloadHandler {
-    fn handle(&self, request_payload: nacos_proto::Payload,request_meta:RequestMeta) -> nacos_proto::Payload;
+    async fn handle(&self, request_payload: nacos_proto::Payload,request_meta:RequestMeta) -> anyhow::Result<nacos_proto::Payload>;
 }
 
 pub struct PayloadUtils;

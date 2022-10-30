@@ -936,6 +936,8 @@ dependencies = [
  "actix-http",
  "actix-rt",
  "actix-web",
+ "anyhow",
+ "async-trait",
  "chrono",
  "env_logger",
  "flate2",

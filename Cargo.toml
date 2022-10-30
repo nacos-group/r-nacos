@@ -27,6 +27,8 @@ flate2 = "1.0"
 log="0.4"
 tonic = "0.4"
 prost="0.7"
+async-trait = "0.1.58"
+anyhow = "1"
 
 # db
 rusqlite={version="0.25",features = ["bundled"]}

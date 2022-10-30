@@ -60,3 +60,103 @@ pub struct ClientDetectionRequest {
     pub request_id:Option<String>,
     pub headers:HashMap<String,String>,
 }
+
+
+// --- config ---
+
+#[derive(Debug, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct ConfigPublishRequest {
+    pub module:Option<String>,
+    pub request_id:Option<String>,
+    pub headers:HashMap<String,String>,
+    pub data_id: String,
+    pub group: String,
+    pub tenant: String,
+    pub content: String,
+    pub cas_md5: Option<String>,
+    pub addition_map:HashMap<String,String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct ConfigQueryRequest {
+    pub module:Option<String>,
+    pub request_id:Option<String>,
+    pub headers:HashMap<String,String>,
+    pub data_id: String,
+    pub group: String,
+    pub tenant: String,
+    pub tag: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct ConfigQueryResponse{
+    pub result_code:u16,
+    pub error_code:u16,
+    pub message:Option<String>,
+    pub request_id:Option<String>,
+
+    pub content:String,
+    pub encrypted_data_key:Option<String>,
+    pub content_type:Option<String>,
+    pub md5:Option<String>,
+    pub last_modified:u64,
+    pub is_beta:bool,
+    pub tag: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct ConfigRemoveRequest {
+    pub module:Option<String>,
+    pub request_id:Option<String>,
+    pub headers:HashMap<String,String>,
+
+    pub data_id: String,
+    pub group: String,
+    pub tenant: String,
+    pub tag: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct ConfigListenContext {
+    pub data_id: String,
+    pub group: String,
+    pub tenant: String,
+    pub md5: String,
+    pub tag: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct ConfigBatchListenRequest {
+    pub module:Option<String>,
+    pub request_id:Option<String>,
+    pub headers:HashMap<String,String>,
+
+    pub listen: bool,
+    pub config_listen_contexts: Vec<ConfigListenContext>,
+
+}
+
+#[derive(Debug, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct ConfigContext {
+    pub data_id: String,
+    pub group: String,
+    pub tenant: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct ConfigChangeBatchListenResponse{
+    pub result_code:u16,
+    pub error_code:u16,
+    pub message:Option<String>,
+    pub request_id:Option<String>,
+
+    pub changed_configs: Vec<ConfigContext>,
+}
