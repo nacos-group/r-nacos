@@ -26,28 +26,29 @@ pub struct NamingActor {
     service_map:HashMap<String,Service>,
     namespace_group_service:HashMap<String,BTreeSet<String>>,
     last_id:u64,
-    listener_addr:Addr<InnerNamingListener>,
+    listener_addr:Option<Addr<InnerNamingListener>>,
 }
 
 impl NamingActor {
-    pub fn new(listener_addr:Addr<InnerNamingListener>) -> Self {
+    pub fn new(listener_addr:Option<Addr<InnerNamingListener>>) -> Self {
         Self {
             service_map: Default::default(),
             namespace_group_service: Default::default(),
             last_id:0u64,
-            listener_addr,
+            listener_addr:listener_addr,
         }
     }
 
     pub fn new_and_create(period:u64) -> Addr<Self> {
         Self::create(move |ctx|{
-            let addr = ctx.address();
-            let listener_addr = InnerNamingListener::new_and_create(period, Some(addr.clone()));
-            Self::new(listener_addr)
+            //let addr = ctx.address();
+            //let listener_addr = InnerNamingListener::new_and_create(period, Some(addr.clone()));
+            //Self::new(listener_addr)
+            Self::new(None)
         })
     }
 
-    fn get_service(&mut self,key:&ServiceKey) -> Option<&Service> {
+    pub(crate) fn get_service(&mut self,key:&ServiceKey) -> Option<&Service> {
         match self.service_map.get_mut(&key.get_join_service_name()){
             Some(v) => {
                 Some(v)
@@ -56,7 +57,7 @@ impl NamingActor {
         }
     }
     
-    fn create_empty_service(&mut self,key:&ServiceKey) {
+    pub(crate) fn create_empty_service(&mut self,key:&ServiceKey) {
         let namspace_group = key.get_namespace_group();
         let ng_service_name = key.service_name.to_owned();
         if let Some(set) = self.namespace_group_service.get_mut(&namspace_group){
@@ -82,7 +83,7 @@ impl NamingActor {
         }
     }
 
-    fn add_instance(&mut self,key:&ServiceKey,instance:Instance) -> UpdateInstanceType {
+    pub(crate) fn add_instance(&mut self,key:&ServiceKey,instance:Instance) -> UpdateInstanceType {
         let service = self.service_map.get_mut(&key.get_join_service_name()).unwrap();
         service.update_instance(instance,None)
     }
@@ -152,9 +153,11 @@ impl NamingActor {
     }
 
     fn update_listener(&mut self,key:&ServiceKey,cluster_names:&Vec<String>,addr:SocketAddr,only_healthy:bool){
-        let item = ListenerItem::new(cluster_names.clone(),only_healthy,addr);
-        let msg = NamingListenerCmd::Add(key.clone(),item);
-        self.listener_addr.do_send(msg);
+        if let Some(listener_addr) = self.listener_addr.as_ref() {
+            let item = ListenerItem::new(cluster_names.clone(),only_healthy,addr);
+            let msg = NamingListenerCmd::Add(key.clone(),item);
+            listener_addr.do_send(msg);
+        }
     }
 
     pub fn instance_time_out_heartbeat(&self,ctx:&mut actix::Context<Self>) {
@@ -194,7 +197,9 @@ impl Actor for NamingActor {
     fn started(&mut self,ctx: &mut Self::Context) {
         log::info!(" NamingActor started");
         let msg = NamingListenerCmd::InitNamingActor(ctx.address());
-        self.listener_addr.do_send(msg);
+        if let Some(listener_addr) = self.listener_addr.as_ref() {
+            listener_addr.do_send(msg);
+        }
         self.instance_time_out_heartbeat(ctx);
     }
 
@@ -243,10 +248,12 @@ impl Handler<NamingCmd> for NamingActor {
                 Ok(NamingResult::NULL)
             },
             NamingCmd::NotifyListener(service_key,id) => {
-                let map=self.get_instance_map(&service_key, vec![], false);
-                //notify listener
-                let msg = NamingListenerCmd::Notify(service_key,"".to_string(),map,id);
-                self.listener_addr.do_send(msg);
+                if let Some(listener_addr) = self.listener_addr.as_ref() {
+                    let map=self.get_instance_map(&service_key, vec![], false);
+                    //notify listener
+                    let msg = NamingListenerCmd::Notify(service_key,"".to_string(),map,id);
+                    listener_addr.do_send(msg);
+                }
                 Ok(NamingResult::NULL)
             },
         }
@@ -260,7 +267,7 @@ mod tests {
     #[tokio::test()]
     async fn test01(){
         let listener_addr = InnerNamingListener::new_and_create(5000, None);
-        let mut naming = NamingActor::new(listener_addr);
+        let mut naming = NamingActor::new(None);
         let mut instance = Instance::new("127.0.0.1".to_owned(),8080);
         instance.namespace_id = "public".to_owned();
         instance.service_name = "foo".to_owned();
