@@ -1,5 +1,6 @@
 
 pub mod model;
+pub mod service;
 pub mod core;
 pub mod api;
 pub mod api_model;
