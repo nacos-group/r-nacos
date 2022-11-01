@@ -13,8 +13,9 @@ use actix::prelude::*;
 
 use crate::{TimeoutSet,now_millis};
 
-use super::core::{Instance, NamingActor,NamingCmd};
-use super::{core::ServiceKey, udp_actor::{UdpWorker,UdpSenderCmd}};
+use super::core::{ NamingActor,NamingCmd};
+use super::udp_actor::{UdpWorker,UdpSenderCmd};
+use super::model::{Instance,ServiceKey};
 
 
 #[derive(Debug)]

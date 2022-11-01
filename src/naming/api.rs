@@ -1,5 +1,7 @@
 #![allow(unused_imports,unused_assignments,unused_variables)]
-use super::core::{Instance, InstanceUpdateTag,NamingActor,NamingCmd,NamingResult,ServiceKey,NamingUtils};
+use super::core::{NamingActor,NamingCmd,NamingResult};
+use super::model::{Instance,InstanceUpdateTag,ServiceKey};
+use super::NamingUtils;
 use super::super::utils::{select_option_by_clone,get_bool_from_string};
 use super::api_model::{InstanceVO,QueryListResult};
 

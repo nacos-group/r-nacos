@@ -17,3 +17,11 @@ fn now_millis() -> u64 {
         .unwrap()
         .as_millis() as u64
 }
+
+fn now_millis_i64() -> i64 {
+    use std::time::SystemTime;
+    SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as i64
+}
