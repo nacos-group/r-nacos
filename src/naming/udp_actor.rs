@@ -21,7 +21,6 @@ pub struct UdpWorker{
     addr: Option<Addr<InnerNamingListener>>,
     udp_port:u16,
     buf: Option<Vec<u8>>,
-    reading:bool,
 }
 
 impl UdpWorker {
@@ -32,7 +31,6 @@ impl UdpWorker {
             addr,
             udp_port:0,
             buf: Some(vec![]),
-            reading:false,
         }
     }
 
@@ -45,7 +43,6 @@ impl UdpWorker {
             addr:addr,
             udp_port,
             buf: Some(vec![]),
-            reading:false,
         }
     }
 
@@ -75,10 +72,6 @@ impl UdpWorker {
     }
 
     fn init_loop_recv(&mut self, ctx: &mut actix::Context<Self>) {
-        if self.reading {
-            return;
-        }
-        self.reading=true;
         let socket = self.socket.as_ref().unwrap().clone();
         let notify_addr = self.addr.clone();
         let buf = self.buf.replace(Vec::new());
@@ -87,44 +80,28 @@ impl UdpWorker {
             if buf.len()< MAX_DATAGRAM_SIZE {
                 buf =  vec![0u8; MAX_DATAGRAM_SIZE];
             }
-            //let mut buf = buf.unwrap_or_else(|| vec![0u8; MAX_DATAGRAM_SIZE]);
-            //buf=vec![0u8;MAX_DATAGRAM_SIZE];
-            /* 
-            match socket.recv_from(&mut buf).await {
-                Ok((len, addr)) => {
-                    //let mut data:Vec<u8> = Vec::with_capacity(len);
-                    //let mut data: Vec<u8> = vec![0u8; len];
-                    //data.clone_from_slice(&buf[..len]);
-
-                    //let s=String::from_utf8_lossy(&buf[..len]);
-                    //log::debug!("rece from:{} | len:{} | str:{}",&addr,len,s);
-                    if let Some(_notify_addr)=notify_addr {
+            loop {
+                match socket.recv_from(&mut buf).await {
+                    Ok((_len, addr)) => {
+                        //let mut data:Vec<u8> = Vec::with_capacity(len);
+                        //let mut data: Vec<u8> = vec![0u8; len];
+                        //data.clone_from_slice(&buf[..len]);
                         let msg = NamingListenerCmd::Response(addr.clone());
-                        _notify_addr.do_send(msg);
+                        //let s=String::from_utf8_lossy(&buf[..len]);
+                        //println!("rece from:{} | len:{} | str:{}",&addr,len,s);
+                        if let Some(_notify_addr)=&notify_addr {
+                            _notify_addr.do_send(msg);
+                        }
                     }
+                    _ => {break;}
                 }
-                _ => {}
-            }
-            */
-            let mut try_res=socket.try_recv_from(&mut buf);
-            while try_res.is_ok() {
-                let (len,addr) = try_res.as_ref().unwrap();
-                if *len == 0 {
-                    break;
-                }
-                if let Some(_notify_addr)=notify_addr.as_ref() {
-                    let msg = NamingListenerCmd::Response(addr.clone());
-                    _notify_addr.do_send(msg);
-                }
-                try_res = socket.try_recv_from(&mut buf);
             }
             buf
         }
         .into_actor(self)
         .map(|buf, act, ctx| {
             act.buf.replace(buf);
-            act.reading=false;
-            ctx.run_later(Duration::from_micros(10), |act,ctx|{
+            ctx.run_later(Duration::from_secs(1), |act,ctx|{
                 act.init_loop_recv(ctx);
             });
         })

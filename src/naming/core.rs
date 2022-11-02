@@ -41,10 +41,10 @@ impl NamingActor {
 
     pub fn new_and_create(period:u64) -> Addr<Self> {
         Self::create(move |ctx|{
-            //let addr = ctx.address();
-            //let listener_addr = InnerNamingListener::new_and_create(period, Some(addr.clone()));
-            //Self::new(listener_addr)
-            Self::new(None)
+            let addr = ctx.address();
+            let listener_addr = InnerNamingListener::new_and_create(period, Some(addr.clone()));
+            Self::new(Some(listener_addr))
+            //Self::new(None)
         })
     }
 
