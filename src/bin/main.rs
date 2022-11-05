@@ -30,6 +30,8 @@ async fn main() -> Result<(), Box<dyn Error>>  {
 
     let mut invoker = InvokerHandler::new();
     invoker.add_config_handler(&config_addr);
+    invoker.add_naming_handler(&naming_addr);
+
 
 
     tokio::spawn(async move {

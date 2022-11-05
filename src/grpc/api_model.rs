@@ -172,3 +172,51 @@ pub struct ConfigChangeNotifyRequest {
     pub group: String,
     pub tenant: String,
 }
+
+// ----- naming model -----
+
+#[derive(Debug, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct ApiInstance{
+    pub instance_id:Option<String>,
+    pub ip:Option<String>,
+    pub port:u32,
+    pub weight:f32,
+    pub healthy:bool,
+    pub enabled:bool,
+    pub ephemeral: bool,
+    pub cluster_name:Option<String>,
+    pub service_name:Option<String>,
+    pub metadata:HashMap<String,String>,
+    pub instance_heart_beat_interval:i64,
+    pub instance_heart_beat_time_out:i64,
+    pub ip_delete_timeout:i64,
+    pub instance_id_generator:Option<String>
+}
+
+
+#[derive(Debug, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct InstanceRequest{
+    pub module:Option<String>,
+    pub request_id:Option<String>,
+    pub headers:HashMap<String,String>,
+
+    pub namespace:Option<String>,
+    pub service_name:Option<String>,
+    pub group_name:Option<String>,
+
+    pub r#type:Option<String>,
+    pub instance: Option<ApiInstance>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct InstanceResponse {
+    pub result_code:u16,
+    pub error_code:u16,
+    pub message:Option<String>,
+    pub request_id:Option<String>,
+
+    pub r#type:Option<String>,
+}

@@ -1,6 +1,6 @@
-use crate::config::config::ConfigActor;
+use crate::{config::config::ConfigActor, naming::core::NamingActor};
 
-use self::{config_publish::ConfigPublishRequestHandler, config_query::ConfigQueryRequestHandler, config_remove::ConfigRemoveRequestHandler, config_change_batch_listen::ConfigChangeBatchListenRequestHandler};
+use self::{config_publish::ConfigPublishRequestHandler, config_query::ConfigQueryRequestHandler, config_remove::ConfigRemoveRequestHandler, config_change_batch_listen::ConfigChangeBatchListenRequestHandler, naming_instance::InstanceRequestHandler};
 
 use super::{PayloadHandler, PayloadUtils, api_model::{ServerCheckResponse, SUCCESS_CODE, BaseResponse}, RequestMeta, nacos_proto::Payload};
 use actix::Addr;
@@ -10,6 +10,8 @@ pub mod config_publish;
 pub mod config_remove;
 pub mod config_query;
 pub mod config_change_batch_listen;
+
+pub mod naming_instance;
 
 #[derive(Default)]
 pub struct InvokerHandler{
@@ -44,6 +46,10 @@ impl InvokerHandler {
         self.add_handler("ConfigPublishRequest", Box::new(ConfigPublishRequestHandler::new(config_addr.clone())));
         self.add_handler("ConfigRemoveRequest", Box::new(ConfigRemoveRequestHandler::new(config_addr.clone())));
         self.add_handler("ConfigBatchListenRequest", Box::new(ConfigChangeBatchListenRequestHandler::new(config_addr.clone())));
+    }
+
+    pub fn add_naming_handler(&mut self,naming_addr:&Addr<NamingActor>) {
+        self.add_handler("InstanceRequest", Box::new(InstanceRequestHandler::new(naming_addr.clone())));
     }
 }
 
