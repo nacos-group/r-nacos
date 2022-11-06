@@ -1,6 +1,6 @@
 use crate::{config::config::ConfigActor, naming::core::NamingActor};
 
-use self::{config_publish::ConfigPublishRequestHandler, config_query::ConfigQueryRequestHandler, config_remove::ConfigRemoveRequestHandler, config_change_batch_listen::ConfigChangeBatchListenRequestHandler, naming_instance::InstanceRequestHandler};
+use self::{config_publish::ConfigPublishRequestHandler, config_query::ConfigQueryRequestHandler, config_remove::ConfigRemoveRequestHandler, config_change_batch_listen::ConfigChangeBatchListenRequestHandler, naming_instance::InstanceRequestHandler, naming_subscribe_service::SubscribeServiceRequestHandler};
 
 use super::{PayloadHandler, PayloadUtils, api_model::{ServerCheckResponse, SUCCESS_CODE, BaseResponse}, RequestMeta, nacos_proto::Payload};
 use actix::Addr;
@@ -12,6 +12,8 @@ pub mod config_query;
 pub mod config_change_batch_listen;
 
 pub mod naming_instance;
+pub mod naming_subscribe_service;
+
 
 #[derive(Default)]
 pub struct InvokerHandler{
@@ -50,6 +52,7 @@ impl InvokerHandler {
 
     pub fn add_naming_handler(&mut self,naming_addr:&Addr<NamingActor>) {
         self.add_handler("InstanceRequest", Box::new(InstanceRequestHandler::new(naming_addr.clone())));
+        self.add_handler("SubscribeServiceRequest", Box::new(SubscribeServiceRequestHandler::new(naming_addr.clone())));
     }
 }
 
@@ -70,7 +73,7 @@ impl PayloadHandler for InvokerHandler {
                 return handler.handle(request_payload,request_meta).await;
             }
             println!("InvokerHandler not fund handler,type:{}",url);
-            return Ok(PayloadUtils::build_error_payload(302u16,"RequestHandler Not Found".to_owned()))
+            return Ok(PayloadUtils::build_error_payload(302u16,format!("{} RequestHandler Not Found",url)))
         }
         Ok(PayloadUtils::build_error_payload(302u16,"empty type url".to_owned()))
     }

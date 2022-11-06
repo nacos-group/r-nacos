@@ -1,6 +1,6 @@
 #![allow(unused_imports)]
 
-use crate::{grpc::{PayloadHandler, api_model::{ConfigPublishRequest, BaseResponse, InstanceRequest, InstanceResponse, SUCCESS_CODE, ERROR_CODE, ApiInstance}, nacos_proto::Payload, PayloadUtils}, naming::{core::{NamingActor, NamingCmd}, model::Instance, NamingUtils}, now_millis_i64};
+use crate::{grpc::{PayloadHandler, api_model::{InstanceRequest, InstanceResponse, SUCCESS_CODE, ERROR_CODE, Instance as ApiInstance}, nacos_proto::Payload, PayloadUtils}, naming::{core::{NamingActor, NamingCmd}, model::Instance, NamingUtils}, now_millis_i64};
 use actix::prelude::Addr;
 use async_trait::async_trait;
 

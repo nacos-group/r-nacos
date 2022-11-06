@@ -177,7 +177,7 @@ pub struct ConfigChangeNotifyRequest {
 
 #[derive(Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
-pub struct ApiInstance{
+pub struct Instance{
     pub instance_id:Option<String>,
     pub ip:Option<String>,
     pub port:u32,
@@ -188,9 +188,9 @@ pub struct ApiInstance{
     pub cluster_name:Option<String>,
     pub service_name:Option<String>,
     pub metadata:HashMap<String,String>,
-    pub instance_heart_beat_interval:i64,
-    pub instance_heart_beat_time_out:i64,
-    pub ip_delete_timeout:i64,
+    pub instance_heart_beat_interval:Option<i64>,
+    pub instance_heart_beat_time_out:Option<i64>,
+    pub ip_delete_timeout:Option<i64>,
     pub instance_id_generator:Option<String>
 }
 
@@ -207,7 +207,7 @@ pub struct InstanceRequest{
     pub group_name:Option<String>,
 
     pub r#type:Option<String>,
-    pub instance: Option<ApiInstance>,
+    pub instance: Option<Instance>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Default)]
@@ -219,4 +219,45 @@ pub struct InstanceResponse {
     pub request_id:Option<String>,
 
     pub r#type:Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct SubscribeServiceRequest {
+    pub module:Option<String>,
+    pub request_id:Option<String>,
+    pub headers:HashMap<String,String>,
+
+    pub namespace:Option<String>,
+    pub service_name:Option<String>,
+    pub group_name:Option<String>,
+
+    pub subscribe: bool,
+    pub clusters: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct ServiceInfo {
+    pub name: Option<String>,
+    pub group_name: Option<String>,
+    pub clusters: Option<String>,
+    pub cache_millis: i64,
+    pub hosts: Vec<Instance>,
+    pub last_ref_time: i64,
+    pub checksum: i64,
+    #[serde(rename = "allIPs")]
+    pub all_ips:bool,
+    pub reach_protection_threshold: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct SubscribeServiceResponse {
+    pub result_code:u16,
+    pub error_code:u16,
+    pub message:Option<String>,
+    pub request_id:Option<String>,
+
+    pub service_info: Option<ServiceInfo>,
 }
