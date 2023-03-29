@@ -137,6 +137,7 @@ pub enum BiStreamManageCmd {
     AddConn(Arc<String>,BiStreamConn),
     ActiveClinet(Arc<String>),
     NotifyConfig(ConfigKey,HashSet<Arc<String>>),
+    NotifyNaming(),
 }
 
 pub enum BiStreamManageResult {
@@ -180,6 +181,8 @@ impl Handler<BiStreamManageCmd> for BiStreamManage {
                     }
                 }
             },
+            BiStreamManageCmd::NotifyNaming() => todo!(),
+            
         }
         Ok(BiStreamManageResult::None)
     }

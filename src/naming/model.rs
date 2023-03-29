@@ -112,6 +112,21 @@ impl Default for Instance {
     }
 }
 
+#[derive(Debug, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct ServiceInfo {
+    pub name: Option<String>,
+    pub group_name: Option<String>,
+    pub clusters: Option<String>,
+    pub cache_millis: i64,
+    pub hosts: Vec<Instance>,
+    pub last_ref_time: i64,
+    pub checksum: i64,
+    #[serde(rename = "allIPs")]
+    pub all_ips:bool,
+    pub reach_protection_threshold: bool,
+}
+
 #[derive(Debug,Clone)]
 pub struct InstanceUpdateTag{
     pub weight: bool,
@@ -141,11 +156,19 @@ impl Default for InstanceUpdateTag {
 }
 
 
-#[derive(Debug,Clone)]
+#[derive(Debug,Clone,Default,Hash,Eq)]
 pub struct ServiceKey {
     pub namespace_id:String,
     pub group_name:String,
     pub service_name:String,
+}
+
+impl PartialEq for ServiceKey {
+    fn eq(&self, o:&Self) -> bool {
+        self.namespace_id == o.namespace_id
+        && self.group_name == o.group_name
+        && self.service_name == o.service_name
+    }
 }
 
 

@@ -14,9 +14,11 @@ use super::api_model::{QueryListResult};
 use super::model::Instance;
 use super::model::InstanceTimeInfo;
 use super::model::InstanceUpdateTag;
+use super::model::ServiceInfo;
 use super::model::ServiceKey;
 use super::model::UpdateInstanceType;
 use super::service::Service;
+use crate::now_millis_i64;
 use crate::utils::{gz_encode};
 
 use actix::prelude::*;
@@ -97,7 +99,7 @@ impl NamingActor {
         instance.init();
         assert!(instance.check_vaild());
         self.create_empty_service(key);
-        let cluster_name = instance.cluster_name.clone();
+        //let cluster_name = instance.cluster_name.clone();
         let service = self.service_map.get_mut(&key.get_join_service_name()).unwrap();
         service.update_instance(instance, tag)
     }
@@ -121,6 +123,18 @@ impl NamingActor {
             return service.get_instance_map(cluster_names, only_healthy);
         }
         HashMap::new()
+    }
+
+    pub(crate) fn get_service_info(&self,key:&ServiceKey,cluster_names:Vec<String>,only_healthy:bool) -> ServiceInfo {
+        let mut service_info = ServiceInfo::default();
+        service_info.name = Some(key.get_join_service_name());
+        service_info.group_name= Some(key.group_name.clone());
+        service_info.cache_millis = 10000i64;
+        service_info.last_ref_time = now_millis_i64();
+        service_info.reach_protection_threshold = false;
+        service_info.clusters = Some((&cluster_names).join(","));
+        service_info.hosts = self.get_instance_list(key,cluster_names,only_healthy);
+        service_info
     }
 
     pub fn get_instance_list_string(&self,key:&ServiceKey,cluster_names:Vec<String>,only_healthy:bool) -> String {
@@ -178,6 +192,7 @@ pub enum NamingCmd {
     Query(Instance),
     QueryList(ServiceKey,Vec<String>,bool,Option<SocketAddr>),
     QueryListString(ServiceKey,Vec<String>,bool,Option<SocketAddr>),
+    QueryServiceInfo(ServiceKey,Vec<String>,bool),
     QueryServicePage(ServiceKey,usize,usize),
     PeekListenerTimeout,
     NotifyListener(ServiceKey,u64),
@@ -188,6 +203,7 @@ pub enum NamingResult {
     Instance(Instance),
     InstanceList(Vec<Instance>),
     InstanceListString(String),
+    ServiceInfo(ServiceInfo),
     ServicePage((usize,Vec<String>)),
 }
 
@@ -238,6 +254,10 @@ impl Handler<NamingCmd> for NamingActor {
                 }
                 let data= self.get_instance_list_string(&service_key, cluster_names, only_healthy);
                 Ok(NamingResult::InstanceListString(data))
+            },
+            NamingCmd::QueryServiceInfo(service_key,cluster_names,only_healthy) => {
+                let service_info= self.get_service_info(&service_key, cluster_names, only_healthy);
+                Ok(NamingResult::ServiceInfo(service_info))
             },
             NamingCmd::QueryServicePage(service_key, page_size, page_index) => {
                 Ok(NamingResult::ServicePage(self.get_service_list(page_size, page_index, &service_key)))
