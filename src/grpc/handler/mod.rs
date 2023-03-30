@@ -12,6 +12,7 @@ pub mod config_query;
 pub mod config_change_batch_listen;
 
 pub mod naming_instance;
+pub mod batch_naming_instance;
 pub mod naming_subscribe_service;
 pub mod converter;
 

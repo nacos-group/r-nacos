@@ -261,3 +261,29 @@ pub struct SubscribeServiceResponse {
 
     pub service_info: Option<ServiceInfo>,
 }
+
+#[derive(Debug, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct BatchInstanceRequest{
+    pub module:Option<String>,
+    pub request_id:Option<String>,
+    pub headers:HashMap<String,String>,
+
+    pub namespace:Option<String>,
+    pub service_name:Option<String>,
+    pub group_name:Option<String>,
+
+    pub r#type:Option<String>,
+    pub instances: Option<Vec<Instance>>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct BatchInstanceResponse {
+    pub result_code:u16,
+    pub error_code:u16,
+    pub message:Option<String>,
+    pub request_id:Option<String>,
+
+    pub r#type:Option<String>,
+}
