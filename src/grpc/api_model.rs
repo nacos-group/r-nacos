@@ -243,7 +243,7 @@ pub struct ServiceInfo {
     pub group_name: Option<String>,
     pub clusters: Option<String>,
     pub cache_millis: i64,
-    pub hosts: Vec<Instance>,
+    pub hosts: Option<Vec<Instance>>,
     pub last_ref_time: i64,
     pub checksum: i64,
     #[serde(rename = "allIPs")]
@@ -286,4 +286,30 @@ pub struct BatchInstanceResponse {
     pub request_id:Option<String>,
 
     pub r#type:Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct ServiceQueryRequest {
+    pub module:Option<String>,
+    pub request_id:Option<String>,
+    pub headers:HashMap<String,String>,
+
+    pub namespace:Option<String>,
+    pub service_name:Option<String>,
+    pub group_name:Option<String>,
+
+    pub cluster: Option<String>,
+    pub healthy_only: Option<bool>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct ServiceQueryResponse {
+    pub result_code:u16,
+    pub error_code:u16,
+    pub message:Option<String>,
+    pub request_id:Option<String>,
+
+    pub service_info: Option<ServiceInfo>,
 }

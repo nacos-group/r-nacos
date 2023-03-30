@@ -20,7 +20,7 @@ impl ModelConverter {
             checksum:info.checksum,
             all_ips:info.all_ips,
             reach_protection_threshold:info.reach_protection_threshold,
-            hosts : hosts,
+            hosts : Some(hosts),
         }
     }
 
