@@ -313,3 +313,17 @@ pub struct ServiceQueryResponse {
 
     pub service_info: Option<ServiceInfo>,
 }
+
+#[derive(Debug, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct NotifySubscriberRequest {
+    pub module:Option<String>,
+    pub request_id:Option<String>,
+    pub headers:HashMap<String,String>,
+
+    pub namespace:Option<String>,
+    pub service_name:Option<String>,
+    pub group_name:Option<String>,
+
+    pub service_info: Option<ServiceInfo>,
+}

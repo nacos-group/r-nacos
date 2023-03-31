@@ -6,6 +6,7 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::collections::LinkedList;
 use std::net::SocketAddr;
+use std::sync::Arc;
 use std::time::Duration;
 use chrono::Local;
 use serde::{Serialize,Deserialize};
@@ -17,7 +18,10 @@ use super::model::InstanceUpdateTag;
 use super::model::ServiceInfo;
 use super::model::ServiceKey;
 use super::model::UpdateInstanceType;
+use super::naming_subscriber::NamingListenerItem;
+use super::naming_subscriber::Subscriber;
 use super::service::Service;
+use crate::grpc::bistream_manage::BiStreamManage;
 use crate::now_millis_i64;
 use crate::utils::{gz_encode};
 
@@ -29,6 +33,7 @@ pub struct NamingActor {
     namespace_group_service:HashMap<String,BTreeSet<String>>,
     last_id:u64,
     listener_addr:Option<Addr<InnerNamingListener>>,
+    subscriber: Subscriber,
 }
 
 impl NamingActor {
@@ -38,6 +43,7 @@ impl NamingActor {
             namespace_group_service: Default::default(),
             last_id:0u64,
             listener_addr:listener_addr,
+            subscriber: Default::default(),
         }
     }
 
@@ -196,6 +202,10 @@ pub enum NamingCmd {
     QueryServicePage(ServiceKey,usize,usize),
     PeekListenerTimeout,
     NotifyListener(ServiceKey,u64),
+    SetConnManage(Addr<BiStreamManage>),
+    Subscribe(Vec<NamingListenerItem>,Arc<String>),
+    RemoveSubscribe(Vec<NamingListenerItem>,Arc<String>),
+    RemoveSubscribeClient(Arc<String>),
 }
 
 pub enum NamingResult {
@@ -274,6 +284,22 @@ impl Handler<NamingCmd> for NamingActor {
                     let msg = NamingListenerCmd::Notify(service_key,"".to_string(),map,id);
                     listener_addr.do_send(msg);
                 }
+                Ok(NamingResult::NULL)
+            },
+            NamingCmd::SetConnManage(conn_manage) => {
+                self.subscriber.set_conn_manage(conn_manage);
+                Ok(NamingResult::NULL)
+            },
+            NamingCmd::Subscribe(items, client_id) => {
+                self.subscriber.add_subscribe(client_id, items);
+                Ok(NamingResult::NULL)
+            },
+            NamingCmd::RemoveSubscribe(items, client_id) => {
+                self.subscriber.remove_subscribe(client_id, items);
+                Ok(NamingResult::NULL)
+            },
+            NamingCmd::RemoveSubscribeClient(client_id) => {
+                self.subscriber.remove_client_subscribe(client_id);
                 Ok(NamingResult::NULL)
             },
         }

@@ -24,8 +24,7 @@ impl SubscribeServiceRequestHandler {
     }
 
     fn convert_to_service_info(&self,info:ServiceInfo) -> ApiServiceInfo {
-        let converter = ModelConverter;
-        converter.to_api_service_info(info)
+        ModelConverter::to_api_service_info(info)
     }
 
     fn parse_clusters(&self,request:&SubscribeServiceRequest) -> Vec<String> {

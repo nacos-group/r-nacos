@@ -4,7 +4,7 @@ use std::{collections::{HashMap, HashSet}, sync::Arc};
 use actix::prelude::*;
 use crate::grpc::bistream_manage::{BiStreamManage, BiStreamManageCmd};
 
-use super::model::{ServiceKey, Instance};
+use super::model::{ServiceKey, Instance, ServiceInfo};
 
 #[derive(Debug, Clone, Hash, Eq)]
 pub enum ListenerClusterType {
@@ -62,6 +62,7 @@ impl PartialEq for ListenerKey {
     }
 }
 
+#[derive(Debug)]
 pub struct NamingListenerItem {
     pub service_key:ServiceKey,
     pub clusters:Option<HashSet<String>>,
@@ -192,10 +193,12 @@ impl Subscriber {
         }
     }
 
-    pub fn notify(&self,key:ServiceKey,instances:Vec<Arc<Instance>>) {
+    pub fn notify(&self,key:ServiceKey,service_info:Arc<ServiceInfo>) {
         if let Some(conn_manage) = &self.conn_manage {
             if let Some(set) = self.listener.get(&key) {
-                conn_manage.do_send(BiStreamManageCmd::NotifyNaming());
+                for (client_id,clusters) in set {
+                    conn_manage.do_send(BiStreamManageCmd::NotifyNaming(key.clone(),service_info.clone(),client_id.clone(),clusters.clone()));
+                }
             }
         }
     }

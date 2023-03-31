@@ -112,7 +112,7 @@ impl Default for Instance {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Serialize, Deserialize, Default,Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ServiceInfo {
     pub name: Option<String>,
