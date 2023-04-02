@@ -26,6 +26,7 @@ async fn main() -> Result<(), Box<dyn Error>>  {
 
     let mut bistream_manage = BiStreamManage::new();
     bistream_manage.set_config_addr(config_addr.clone());
+    bistream_manage.set_naming_addr(naming_addr.clone());
     let bistream_manage_addr = bistream_manage.start();
     config_addr.do_send(ConfigCmd::SetConnManage(bistream_manage_addr.clone()));
     naming_addr.do_send(NamingCmd::SetConnManage(bistream_manage_addr.clone()));

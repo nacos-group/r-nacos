@@ -1,6 +1,6 @@
 use std::{collections::{HashMap, HashSet}, sync::Arc, time::Duration};
 
-use crate::{now_millis, config::config::{ConfigKey, ConfigActor, ConfigCmd}, naming::model::{ServiceInfo, ServiceKey}};
+use crate::{now_millis, config::config::{ConfigKey, ConfigActor, ConfigCmd}, naming::{model::{ServiceInfo, ServiceKey}, core::{NamingActor, NamingCmd}}};
 
 use super::{bistream_conn::{BiStreamConn, BiStreamSenderCmd}, PayloadUtils, nacos_proto::Payload, api_model::{ConfigChangeNotifyRequest, NotifySubscriberRequest}, handler::converter::ModelConverter};
 use actix::prelude::*;
@@ -27,6 +27,7 @@ pub struct BiStreamManage{
     response_time_out: u64,
     request_id:u64,
     config_addr:Option<Addr<ConfigActor>>,
+    naming_addr:Option<Addr<NamingActor>>,
 }
 
 impl BiStreamManage {
@@ -40,6 +41,10 @@ impl BiStreamManage {
 
     pub fn set_config_addr(&mut self,addr:Addr<ConfigActor>) {
         self.config_addr = Some(addr);
+    }
+
+    pub fn set_naming_addr(&mut self,addr:Addr<NamingActor>) {
+        self.naming_addr = Some(addr);
     }
 
     pub fn add_conn(&mut self,client_id:Arc<String>,sender:Addr<BiStreamConn>) {
@@ -102,8 +107,13 @@ impl BiStreamManage {
             }
         }
         if let Some(config_addr) = &self.config_addr {
-            for key in del_keys {
-                config_addr.do_send(ConfigCmd::RemoveSubscribeClient(key));
+            for key in &del_keys {
+                config_addr.do_send(ConfigCmd::RemoveSubscribeClient(key.clone()));
+            }
+        }
+        if let Some(naming_addr) = &self.naming_addr{
+            for key in &del_keys {
+                naming_addr.do_send(NamingCmd::RemoveSubscribeClient(key.clone()));
             }
         }
     }
