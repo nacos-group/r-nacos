@@ -137,7 +137,7 @@ pub enum BiStreamManageCmd {
     AddConn(Arc<String>,BiStreamConn),
     ActiveClinet(Arc<String>),
     NotifyConfig(ConfigKey,HashSet<Arc<String>>),
-    NotifyNaming(ServiceKey,Arc<ServiceInfo>,Arc<String>,Option<HashSet<String>>),
+    NotifyNaming(ServiceKey,HashSet<Arc<String>>,ServiceInfo),
 }
 
 pub enum BiStreamManageResult {
@@ -181,19 +181,21 @@ impl Handler<BiStreamManageCmd> for BiStreamManage {
                     }
                 }
             },
-            BiStreamManageCmd::NotifyNaming(service_key,service_info,client_id,clusters) => {
-                if let Some(item) = self.conn_cache.get(&client_id){
-                    let service_info = ModelConverter::arc_to_api_service_info(service_info, clusters);
-                    let mut request = NotifySubscriberRequest::default();
-                    request.namespace = Some(service_key.namespace_id);
-                    request.group_name = Some(service_key.group_name);
-                    request.service_name = Some(service_key.service_name);
-                    request.service_info = Some(service_info);
-                    let payload = Arc::new(PayloadUtils::build_payload(
-                        "NotifySubscriberRequest",
-                        serde_json::to_string(&request).unwrap(),
-                    ));
-                    item.conn.do_send(BiStreamSenderCmd::Send(payload));
+            BiStreamManageCmd::NotifyNaming(service_key,client_id_set,service_info) => {
+                let service_info = ModelConverter::to_api_service_info(service_info);
+                let mut request = NotifySubscriberRequest::default();
+                request.namespace = Some(service_key.namespace_id);
+                request.group_name = Some(service_key.group_name);
+                request.service_name = Some(service_key.service_name);
+                request.service_info = Some(service_info);
+                let payload = Arc::new(PayloadUtils::build_payload(
+                    "NotifySubscriberRequest",
+                    serde_json::to_string(&request).unwrap(),
+                ));
+                for item in &client_id_set {
+                    if let Some(item) = self.conn_cache.get(item){
+                        item.conn.do_send(BiStreamSenderCmd::Send(payload.clone()));
+                    }
                 }
             },
         }

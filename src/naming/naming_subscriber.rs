@@ -193,12 +193,14 @@ impl Subscriber {
         }
     }
 
-    pub fn notify(&self,key:ServiceKey,service_info:Arc<ServiceInfo>) {
+    pub fn notify(&self,key:ServiceKey,service_info:ServiceInfo) {
         if let Some(conn_manage) = &self.conn_manage {
             if let Some(set) = self.listener.get(&key) {
-                for (client_id,clusters) in set {
-                    conn_manage.do_send(BiStreamManageCmd::NotifyNaming(key.clone(),service_info.clone(),client_id.clone(),clusters.clone()));
+                let mut client_id_set = HashSet::new();
+                for item in set.keys() {
+                    client_id_set.insert(item.clone());
                 }
+                conn_manage.do_send(BiStreamManageCmd::NotifyNaming(key, client_id_set,service_info));
             }
         }
     }
