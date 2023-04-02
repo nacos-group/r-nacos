@@ -5,7 +5,7 @@ use inner_mem_cache::TimeoutSet;
 use crate::now_millis;
 
 pub trait NotifyEvent {
-    fn on_event(&self) -> anyhow::Result<()>;
+    fn on_event(self) -> anyhow::Result<()>;
     fn merge(&mut self,other:Self) -> anyhow::Result<()>;
 }
 

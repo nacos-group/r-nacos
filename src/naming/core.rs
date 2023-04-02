@@ -18,9 +18,12 @@ use super::model::InstanceUpdateTag;
 use super::model::ServiceInfo;
 use super::model::ServiceKey;
 use super::model::UpdateInstanceType;
+use super::naming_delay_nofity::DelayNotifyActor;
+use super::naming_delay_nofity::DelayNotifyCmd;
 use super::naming_subscriber::NamingListenerItem;
 use super::naming_subscriber::Subscriber;
 use super::service::Service;
+use crate::common::delay_notify;
 use crate::grpc::bistream_manage::BiStreamManage;
 use crate::now_millis_i64;
 use crate::utils::{gz_encode};
@@ -33,17 +36,23 @@ pub struct NamingActor {
     namespace_group_service:HashMap<String,BTreeSet<String>>,
     last_id:u64,
     listener_addr:Option<Addr<InnerNamingListener>>,
+    delay_notify_addr: Option<Addr<DelayNotifyActor>>,
     subscriber: Subscriber,
 }
 
 impl NamingActor {
-    pub fn new(listener_addr:Option<Addr<InnerNamingListener>>) -> Self {
+    pub fn new(listener_addr:Option<Addr<InnerNamingListener>>,delay_notify_addr:Option<Addr<DelayNotifyActor>>) -> Self {
+        let mut subscriber = Subscriber::default();
+        if let Some(delay_notify) = delay_notify_addr.as_ref() {
+            subscriber.set_notify_addr(delay_notify.clone());
+        }
         Self {
             service_map: Default::default(),
             namespace_group_service: Default::default(),
             last_id:0u64,
             listener_addr:listener_addr,
-            subscriber: Default::default(),
+            subscriber: subscriber,
+            delay_notify_addr: delay_notify_addr,
         }
     }
 
@@ -51,7 +60,8 @@ impl NamingActor {
         Self::create(move |ctx|{
             let addr = ctx.address();
             let listener_addr = InnerNamingListener::new_and_create(period, Some(addr.clone()));
-            Self::new(Some(listener_addr))
+            let delay_notify_addr = DelayNotifyActor::new().start();
+            Self::new(Some(listener_addr),Some(delay_notify_addr))
             //Self::new(None)
         })
     }
@@ -287,7 +297,9 @@ impl Handler<NamingCmd> for NamingActor {
                 Ok(NamingResult::NULL)
             },
             NamingCmd::SetConnManage(conn_manage) => {
-                self.subscriber.set_conn_manage(conn_manage);
+                if let Some(notify_addr) = self.delay_notify_addr.as_ref() {
+                    notify_addr.do_send(DelayNotifyCmd::SetConnManageAddr(conn_manage));
+                }
                 Ok(NamingResult::NULL)
             },
             NamingCmd::Subscribe(items, client_id) => {
@@ -313,7 +325,7 @@ mod tests {
     #[tokio::test()]
     async fn test01(){
         let listener_addr = InnerNamingListener::new_and_create(5000, None);
-        let mut naming = NamingActor::new(None);
+        let mut naming = NamingActor::new(None,None);
         let mut instance = Instance::new("127.0.0.1".to_owned(),8080);
         instance.namespace_id = "public".to_owned();
         instance.service_name = "foo".to_owned();

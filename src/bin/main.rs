@@ -6,6 +6,7 @@ use nacos_rust::grpc::handler::InvokerHandler;
 use nacos_rust::grpc::nacos_proto::bi_request_stream_server::BiRequestStreamServer;
 use nacos_rust::grpc::nacos_proto::request_server::RequestServer;
 use nacos_rust::grpc::server::BiRequestStreamServerImpl;
+use nacos_rust::naming::core::NamingCmd;
 use nacos_rust::{naming::core::NamingActor, grpc::server::RequestServerImpl};
 use nacos_rust::config::config::{ConfigActor, ConfigCmd};
 use tonic::transport::Server;
@@ -27,6 +28,7 @@ async fn main() -> Result<(), Box<dyn Error>>  {
     bistream_manage.set_config_addr(config_addr.clone());
     let bistream_manage_addr = bistream_manage.start();
     config_addr.do_send(ConfigCmd::SetConnManage(bistream_manage_addr.clone()));
+    naming_addr.do_send(NamingCmd::SetConnManage(bistream_manage_addr.clone()));
 
     let mut invoker = InvokerHandler::new();
     invoker.add_config_handler(&config_addr);

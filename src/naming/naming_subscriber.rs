@@ -4,7 +4,7 @@ use std::{collections::{HashMap, HashSet}, sync::Arc};
 use actix::prelude::*;
 use crate::grpc::bistream_manage::{BiStreamManage, BiStreamManageCmd};
 
-use super::model::{ServiceKey, Instance, ServiceInfo};
+use super::{model::{ServiceKey, Instance, ServiceInfo}, naming_delay_nofity::{DelayNotifyActor, DelayNotifyCmd}};
 
 #[derive(Debug, Clone, Hash, Eq)]
 pub enum ListenerClusterType {
@@ -73,7 +73,7 @@ pub struct NamingListenerItem {
 pub struct Subscriber {
     listener: HashMap<ServiceKey,HashMap<Arc<String>,Option<HashSet<String>>>>,
     client_keys: HashMap<Arc<String>,HashSet<ServiceKey>>,
-    conn_manage: Option<Addr<BiStreamManage>>,
+    notify_addr: Option<Addr<DelayNotifyActor>>,
 }
 
 impl Subscriber {
@@ -81,12 +81,12 @@ impl Subscriber {
         Self {
             listener: Default::default(),
             client_keys: Default::default(),
-            conn_manage:Default::default(),
+            notify_addr:Default::default(),
         }
     }
 
-    pub fn set_conn_manage(&mut self,conn_manage:Addr<BiStreamManage>) {
-        self.conn_manage = Some(conn_manage);
+    pub fn set_notify_addr(&mut self,notify_addr:Addr<DelayNotifyActor>) {
+        self.notify_addr = Some(notify_addr);
     }
 
     pub fn add_subscribe(&mut self,client_id:Arc<String>,items:Vec<NamingListenerItem>) {
@@ -194,13 +194,13 @@ impl Subscriber {
     }
 
     pub fn notify(&self,key:ServiceKey,service_info:ServiceInfo) {
-        if let Some(conn_manage) = &self.conn_manage {
+        if let Some(notify_addr) = &self.notify_addr {
             if let Some(set) = self.listener.get(&key) {
                 let mut client_id_set = HashSet::new();
                 for item in set.keys() {
                     client_id_set.insert(item.clone());
                 }
-                conn_manage.do_send(BiStreamManageCmd::NotifyNaming(key, client_id_set,service_info));
+                notify_addr.do_send(DelayNotifyCmd::Notify(key, client_id_set,service_info));
             }
         }
     }
