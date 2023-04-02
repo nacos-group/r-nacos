@@ -7,6 +7,7 @@ pub mod api_model;
 pub mod listener;
 pub mod udp_actor;
 pub mod naming_subscriber;
+pub mod naming_delay_nofity;
 
 pub struct NamingUtils;
 
