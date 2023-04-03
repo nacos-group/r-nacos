@@ -35,10 +35,10 @@ impl request_server::Request for RequestServerImpl {
         request_meta.connection_id = Arc::new(remote_addr.to_string());
         let payload = request.into_inner();
         self.bistream_manage_addr.do_send(BiStreamManageCmd::ActiveClinet(request_meta.connection_id.clone()));
-        println!("request_server request:{},client_id:{}",PayloadUtils::get_payload_string(&payload),&request_meta.connection_id);
+        log::info!("request_server request:{},client_id:{}",PayloadUtils::get_payload_string(&payload),&request_meta.connection_id);
         match self.invoker.handle(payload,request_meta).await {
             Ok(res) => {
-                println!("request_server response:{}",PayloadUtils::get_payload_string(&res));
+                log::info!("request_server response:{}",PayloadUtils::get_payload_string(&res));
                 Ok(tonic::Response::new(res))
             },
             Err(e) => {

@@ -108,7 +108,9 @@ impl NamingActor {
 
     pub fn remove_instance(&mut self,key:&ServiceKey ,cluster_name:&str,instance_id:&str) -> UpdateInstanceType {
         let service = self.service_map.get_mut(&key.get_join_service_name()).unwrap();
-        service.remove_instance(cluster_name, instance_id)
+        let tag = service.remove_instance(cluster_name, instance_id);
+        self.subscriber.notify(key.clone());
+        tag
     }
 
     pub fn update_instance(&mut self,key:&ServiceKey,mut instance:Instance,tag:Option<InstanceUpdateTag>) -> UpdateInstanceType {
@@ -117,7 +119,21 @@ impl NamingActor {
         self.create_empty_service(key);
         //let cluster_name = instance.cluster_name.clone();
         let service = self.service_map.get_mut(&key.get_join_service_name()).unwrap();
-        service.update_instance(instance, tag)
+        let tag = service.update_instance(instance, tag);
+        //change notify
+        match &tag {
+            UpdateInstanceType::New => {
+                self.subscriber.notify(key.clone());
+            },
+            UpdateInstanceType::Remove => {
+                self.subscriber.notify(key.clone());
+            },
+            UpdateInstanceType::UpdateValue => {
+                self.subscriber.notify(key.clone());
+            },
+            _ => {}
+        }
+        tag
     }
 
     pub fn get_instance(&self,key:&ServiceKey,cluster_name:&str,instance_id:&str) -> Option<Instance> {
@@ -143,7 +159,8 @@ impl NamingActor {
 
     pub(crate) fn get_service_info(&self,key:&ServiceKey,cluster_names:Vec<String>,only_healthy:bool) -> ServiceInfo {
         let mut service_info = ServiceInfo::default();
-        service_info.name = Some(key.get_join_service_name());
+        //service_info.name = Some(key.get_join_service_name());
+        service_info.name = Some(key.service_name.clone());
         service_info.group_name= Some(key.group_name.clone());
         service_info.cache_millis = 10000i64;
         service_info.last_ref_time = now_millis_i64();
@@ -236,6 +253,9 @@ impl Actor for NamingActor {
         if let Some(listener_addr) = self.listener_addr.as_ref() {
             listener_addr.do_send(msg);
         }
+        if let Some(delay_notify_addr) = self.delay_notify_addr.as_ref() {
+            delay_notify_addr.do_send(DelayNotifyCmd::SetNamingAddr(ctx.address()));
+        }
         self.instance_time_out_heartbeat(ctx);
     }
 
@@ -303,7 +323,11 @@ impl Handler<NamingCmd> for NamingActor {
                 Ok(NamingResult::NULL)
             },
             NamingCmd::Subscribe(items, client_id) => {
-                self.subscriber.add_subscribe(client_id, items);
+                self.subscriber.add_subscribe(client_id, items.clone());
+                //debug
+                for item in items {
+                    self.subscriber.notify(item.service_key);
+                }
                 Ok(NamingResult::NULL)
             },
             NamingCmd::RemoveSubscribe(items, client_id) => {

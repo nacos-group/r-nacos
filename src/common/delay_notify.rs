@@ -1,4 +1,4 @@
-use std::{hash::Hash, collections::HashMap};
+use std::{hash::Hash, collections::HashMap, sync::Arc};
 
 use inner_mem_cache::TimeoutSet;
 
@@ -44,7 +44,7 @@ where
     }
 
     pub fn notify(&mut self,key:&K) -> anyhow::Result<()> {
-        if let Some(v) = self.notify_map.remove(key) {
+        if let Some(mut v) = self.notify_map.remove(key) {
             v.on_event()?;
         }
         /*
@@ -61,4 +61,15 @@ where
         }
         Ok(())
     }
+
+    pub fn timeout(&mut self) -> anyhow::Result<Vec<T>> {
+        let mut l = vec![];
+        for key in self.timeout_set.timeout(now_millis()) {
+            if let Some(v) = self.notify_map.remove(&key) {
+                l.push(v);
+            }
+        }
+        Ok(l)
+    }
+
 }

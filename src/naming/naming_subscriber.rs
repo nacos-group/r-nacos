@@ -62,7 +62,7 @@ impl PartialEq for ListenerKey {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug,Clone)]
 pub struct NamingListenerItem {
     pub service_key:ServiceKey,
     pub clusters:Option<HashSet<String>>,
@@ -193,14 +193,15 @@ impl Subscriber {
         }
     }
 
-    pub fn notify(&self,key:ServiceKey,service_info:ServiceInfo) {
+    pub fn notify(&self,key:ServiceKey) {
+        log::info!("naming_subscriber notify {:?}",&key);
         if let Some(notify_addr) = &self.notify_addr {
             if let Some(set) = self.listener.get(&key) {
                 let mut client_id_set = HashSet::new();
                 for item in set.keys() {
                     client_id_set.insert(item.clone());
                 }
-                notify_addr.do_send(DelayNotifyCmd::Notify(key, client_id_set,service_info));
+                notify_addr.do_send(DelayNotifyCmd::Notify(key, client_id_set));
             }
         }
     }
