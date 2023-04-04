@@ -58,11 +58,11 @@ impl NamingActor {
 
     pub fn new_and_create(period:u64) -> Addr<Self> {
         Self::create(move |ctx|{
-            let addr = ctx.address();
-            let listener_addr = InnerNamingListener::new_and_create(period, Some(addr.clone()));
+            //let addr = ctx.address();
+            //let listener_addr = InnerNamingListener::new_and_create(period, Some(addr.clone()));
             let delay_notify_addr = DelayNotifyActor::new().start();
-            Self::new(Some(listener_addr),Some(delay_notify_addr))
-            //Self::new(None)
+            //Self::new(Some(listener_addr),Some(delay_notify_addr))
+            Self::new(None,Some(delay_notify_addr))
         })
     }
 
