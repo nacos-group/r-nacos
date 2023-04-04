@@ -125,6 +125,9 @@ impl InstanceWebQueryListParams {
 
     fn get_addr(&self) -> Option<SocketAddr> {
         if let Some(port) = &self.udp_port {
+            if *port==0u16 {
+                return None;
+            }
             if let Some(ip_str) = &self.client_ip {
                 match ip_str.parse(){
                     Ok(ip) => {
