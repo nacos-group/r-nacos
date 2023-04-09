@@ -22,7 +22,8 @@ async fn main() -> Result<(), Box<dyn Error>>  {
     std::env::set_var("RUST_LOG","actix_web=debug,actix_server=info,info");
     env_logger::init();
     let config_addr = ConfigActor::new().start();
-    let naming_addr = NamingActor::new_and_create(5000);
+    //let naming_addr = NamingActor::new_and_create();
+    let naming_addr = NamingActor::create_at_new_system();
 
     let mut bistream_manage = BiStreamManage::new();
     bistream_manage.set_config_addr(config_addr.clone());

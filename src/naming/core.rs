@@ -31,6 +31,7 @@ use crate::utils::{gz_encode};
 use actix::prelude::*;
 
 
+#[derive(Default)]
 pub struct NamingActor {
     service_map:HashMap<String,Service>,
     namespace_group_service:HashMap<String,BTreeSet<String>>,
@@ -56,7 +57,7 @@ impl NamingActor {
         }
     }
 
-    pub fn new_and_create(period:u64) -> Addr<Self> {
+    pub fn new_and_create() -> Addr<Self> {
         Self::create(move |ctx|{
             //let addr = ctx.address();
             //let listener_addr = InnerNamingListener::new_and_create(period, Some(addr.clone()));
@@ -64,6 +65,20 @@ impl NamingActor {
             //Self::new(Some(listener_addr),Some(delay_notify_addr))
             Self::new(None,Some(delay_notify_addr))
         })
+    }
+
+    pub fn create_at_new_system() -> Addr<Self> {
+        let (tx,rx) = std::sync::mpsc::sync_channel(1);
+        std::thread::spawn(move || {
+            let rt = System::new();
+            let addrs = rt.block_on(async {
+                Self::default().start()
+            });
+            tx.send(addrs).unwrap();
+            rt.run().unwrap();
+        });
+        let addrs = rx.recv().unwrap();
+        addrs
     }
 
     pub(crate) fn get_service(&mut self,key:&ServiceKey) -> Option<&Service> {
@@ -255,6 +270,11 @@ impl Actor for NamingActor {
         }
         if let Some(delay_notify_addr) = self.delay_notify_addr.as_ref() {
             delay_notify_addr.do_send(DelayNotifyCmd::SetNamingAddr(ctx.address()));
+        }
+        else{
+            let delay_notify_addr = DelayNotifyActor::new().start();
+            delay_notify_addr.do_send(DelayNotifyCmd::SetNamingAddr(ctx.address()));
+            self.delay_notify_addr = Some(delay_notify_addr);
         }
         self.instance_time_out_heartbeat(ctx);
     }
