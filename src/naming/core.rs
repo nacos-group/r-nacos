@@ -68,11 +68,12 @@ impl NamingActor {
     }
 
     pub fn create_at_new_system() -> Addr<Self> {
+        let delay_notify_addr = DelayNotifyActor::new().start();
         let (tx,rx) = std::sync::mpsc::sync_channel(1);
         std::thread::spawn(move || {
             let rt = System::new();
             let addrs = rt.block_on(async {
-                Self::default().start()
+                Self::new(None,Some(delay_notify_addr)).start()
             });
             tx.send(addrs).unwrap();
             rt.run().unwrap();
@@ -263,7 +264,6 @@ impl Actor for NamingActor {
     type Context = Context<Self>;
 
     fn started(&mut self,ctx: &mut Self::Context) {
-        log::info!(" NamingActor started");
         let msg = NamingListenerCmd::InitNamingActor(ctx.address());
         if let Some(listener_addr) = self.listener_addr.as_ref() {
             listener_addr.do_send(msg);
@@ -276,6 +276,7 @@ impl Actor for NamingActor {
             delay_notify_addr.do_send(DelayNotifyCmd::SetNamingAddr(ctx.address()));
             self.delay_notify_addr = Some(delay_notify_addr);
         }
+        log::info!(" NamingActor started");
         self.instance_time_out_heartbeat(ctx);
     }
 
@@ -308,7 +309,7 @@ impl Handler<NamingCmd> for NamingActor {
                 Ok(NamingResult::InstanceList(list))
             },
             NamingCmd::QueryListString(service_key,cluster_names,only_healthy,addr) => {
-                println!("QUERY_LIST_STRING addr: {:?}",&addr);
+                //println!("QUERY_LIST_STRING addr: {:?}",&addr);
                 if let Some(addr) = addr {
                     self.update_listener(&service_key, &cluster_names, addr,only_healthy);
                 }
