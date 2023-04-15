@@ -270,7 +270,6 @@ impl NamingActor {
 
     fn clear_one_empty_service(&mut self,service_map_key:String){
         if let Some(service) = self.service_map.get(&service_map_key) {
-            println!("clear_one_empty_service,{},{}",&service_map_key,&service.instance_size);
             if service.instance_size <= 0 {
                 self.service_map.remove(&service_map_key);
                 log::info!("clear_empty_service:{}",&service_map_key);
