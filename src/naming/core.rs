@@ -124,8 +124,13 @@ impl NamingActor {
 
     pub fn remove_instance(&mut self,key:&ServiceKey ,cluster_name:&str,instance_id:&str) -> UpdateInstanceType {
         let service = self.service_map.get_mut(&key.get_join_service_name()).unwrap();
-        let tag = service.remove_instance(cluster_name, instance_id);
-        self.subscriber.notify(key.clone());
+        let tag = service.remove_instance(instance_id);
+        match &tag {
+            UpdateInstanceType::Remove => {
+                self.subscriber.notify(key.clone());
+            },
+            _ => {}
+        };
         tag
     }
 
@@ -154,7 +159,7 @@ impl NamingActor {
 
     pub fn get_instance(&self,key:&ServiceKey,cluster_name:&str,instance_id:&str) -> Option<Instance> {
         if let Some(service) = self.service_map.get(&key.get_join_service_name()) {
-            return service.get_instance(cluster_name, instance_id);
+            return service.get_instance(instance_id);
         }
         None
     }
@@ -167,10 +172,18 @@ impl NamingActor {
     }
 
     pub fn get_instance_map(&self,key:&ServiceKey,cluster_names:Vec<String>,only_healthy:bool) -> HashMap<String,Vec<Instance>> {
+        let mut map: HashMap<String, Vec<Instance>>=HashMap::new();
         if let Some(service) = self.service_map.get(&key.get_join_service_name()) {
-            return service.get_instance_map(cluster_names, only_healthy);
+            for item in service.get_instance_list(cluster_names, only_healthy) {
+                if let Some(list) = map.get_mut(&item.cluster_name) {
+                    list.push(item)
+                }
+                else{
+                    map.insert(item.cluster_name.to_owned(), vec![item]);
+                }
+            }
         }
-        HashMap::new()
+        map
     }
 
     pub(crate) fn get_service_info(&self,key:&ServiceKey,cluster_names:Vec<String>,only_healthy:bool) -> ServiceInfo {
@@ -381,6 +394,7 @@ async fn query_healthy_instances(){
 
     println!("-------------");
     let items = naming.get_instance_list(&key, vec!["DEFUALT".to_owned()], true);
+    assert!(items.len()>0);
     println!("DEFUALT list:{}",serde_json::to_string(&items).unwrap());
     let items = naming.get_instance_list(&key, vec![], true);
     assert!(items.len()>0);
