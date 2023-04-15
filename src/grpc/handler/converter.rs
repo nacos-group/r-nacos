@@ -1,6 +1,5 @@
 use std::collections::HashSet;
 use std::sync::Arc;
-use std::sync::atomic::Ordering;
 
 use crate::grpc::api_model::{ServiceInfo as ApiServiceInfo,Instance as ApiInstance};
 use crate::naming::NamingUtils;
@@ -46,7 +45,7 @@ impl ModelConverter {
             ip: Some(instance.ip),
             port: instance.port,
             weight: instance.weight,
-            healthy: instance.healthy.load(Ordering::Relaxed),
+            healthy: instance.healthy,
             enabled: instance.enabled,
             ephemeral: instance.ephemeral,
             cluster_name: Some(instance.cluster_name),

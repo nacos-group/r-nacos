@@ -85,11 +85,9 @@ impl ListenerValue {
         for cluster_name in cluster_names {
             if let Some(l) = instances.get(&cluster_name) {
                 for item in l {
-                    /* 
                     if only_healthy && item.healthy {
                         continue;
                     }
-                    */
                     list.push(item);
                 }
             }

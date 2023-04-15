@@ -128,8 +128,11 @@ impl Service {
     }
 
     pub(crate) fn update_instance_healthy_unvaild(&mut self,instance_id:&str) {
-        if let Some(i) = self.instances.get_mut(instance_id){
-            i.healthy.swap(false,Ordering::Relaxed);
+        let a = self.instances.remove(instance_id);
+        if let Some(i) = self.instances.remove(instance_id) {
+            let mut i = i.as_ref().clone();
+            i.healthy=false;
+            self.instances.insert(instance_id.to_owned(), Arc::new(i));
         }
     }
 
@@ -139,7 +142,7 @@ impl Service {
 
     pub(crate) fn get_all_instances(&self,only_healthy:bool) -> Vec<Arc<Instance>> {
         self.instances.values().filter(|x|
-            x.enabled && (x.healthy.load(Ordering::Relaxed) || !only_healthy)).map(|x|x.clone()).collect::<Vec<_>>()
+            x.enabled && (x.healthy || !only_healthy)).map(|x|x.clone()).collect::<Vec<_>>()
     }
 
     /*

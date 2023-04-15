@@ -98,7 +98,7 @@ impl InstanceVO {
             port: instance.port,
             cluster_name: instance.cluster_name.to_owned(),
             weight: instance.weight,
-            healthy: instance.healthy.load(Ordering::Relaxed),
+            healthy: instance.healthy,
             instance_id: instance.id.to_owned(),
             metadata: instance.metadata.clone(),
             marked: Some(true),

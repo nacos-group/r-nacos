@@ -1,5 +1,5 @@
 
-use std::{collections::HashMap, sync::{Arc, atomic::{AtomicI64, Ordering, AtomicBool}}};
+use std::{collections::HashMap, sync::Arc};
 
 use serde::{Serialize,Deserialize};
 
@@ -12,13 +12,13 @@ pub struct Instance {
     pub port:u32,
     pub weight:f32,
     pub enabled:bool,
-    pub healthy:Arc<AtomicBool>,
+    pub healthy:bool,
     pub ephemeral: bool,
     pub cluster_name:String,
     pub service_name:String,
     pub group_name:String,
     pub metadata:HashMap<String,String>,
-    pub last_modified_millis:Arc<AtomicI64>,
+    pub last_modified_millis:i64,
     pub namespace_id:String,
     pub app_name:String,
 }
@@ -36,7 +36,7 @@ impl Instance{
     }
 
     pub fn init(&mut self) {
-        self.last_modified_millis = Arc::new(AtomicI64::new(now_millis_i64()));
+        self.last_modified_millis = now_millis_i64();
         if self.id.len()==0 {
             self.generate_key();
         }
@@ -52,7 +52,7 @@ impl Instance{
 
     pub fn update_info(&self,o:&Self,tag:Option<InstanceUpdateTag>) -> bool {
         let is_update=self.enabled != o.enabled 
-        || self.healthy.load(Ordering::Relaxed) != o.healthy.load(Ordering::Relaxed)
+        || self.healthy != o.healthy
         || self.weight != o.weight
         || self.ephemeral != o.ephemeral
         || self.metadata != o.metadata
@@ -89,7 +89,7 @@ impl Instance{
     }
 
     pub(crate) fn get_time_info(&self) -> InstanceTimeInfo {
-        InstanceTimeInfo::new(self.id.to_owned(),self.last_modified_millis.load(Ordering::Relaxed))
+        InstanceTimeInfo::new(self.id.to_owned(),self.last_modified_millis)
     }
 }
 
@@ -101,7 +101,7 @@ impl Default for Instance {
             port:Default::default(),
             weight:1f32,
             enabled:true,
-            healthy:Arc::new(AtomicBool::new(true)),
+            healthy:true,
             ephemeral:true,
             cluster_name:"DEFAULT".to_owned(),
             service_name:Default::default(),
