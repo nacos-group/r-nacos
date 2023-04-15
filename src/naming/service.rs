@@ -13,11 +13,12 @@ pub struct Service {
     pub metadata:HashMap<String,String>,
     pub protect_threshold:f32,
     pub last_modified_millis:i64,
-    pub has_instance:bool,
+    //pub has_instance:bool,
 
     pub namespace_id:String,
     pub app_name:String,
     pub check_sum:String,
+    pub(crate) instance_size:i64,
     //pub cluster_map:HashMap<String,Cluster>,
 
     pub(crate) instances: HashMap<String,Arc<Instance>>,
@@ -68,6 +69,7 @@ impl Service {
             */
         }
         else{
+            self.instance_size+=1;
             rtype=UpdateInstanceType::New;
         }
         if update_mark {
@@ -120,6 +122,7 @@ impl Service {
 
     pub(crate) fn remove_instance(&mut self,instance_id:&str) -> UpdateInstanceType {
         if let Some(_)=self.instances.remove(instance_id){
+            self.instance_size-=1;
             UpdateInstanceType::Remove
         }
         else{
@@ -128,7 +131,6 @@ impl Service {
     }
 
     pub(crate) fn update_instance_healthy_unvaild(&mut self,instance_id:&str) {
-        let a = self.instances.remove(instance_id);
         if let Some(i) = self.instances.remove(instance_id) {
             let mut i = i.as_ref().clone();
             i.healthy=false;
@@ -238,4 +240,8 @@ impl Service {
         (remove_list,update_list)
     }
      */
+
+    pub fn get_service_key(&self) -> ServiceKey {
+        ServiceKey::new(&self.namespace_id,&self.group_name,&self.service_name)
+    }
 }

@@ -184,7 +184,7 @@ impl ServiceKey {
     }
 
     pub fn get_join_service_name(&self) -> String {
-        format!("{}@@{}",self.group_name,self.service_name)
+        format!("{}@@{}@@{}",self.namespace_id,self.group_name,self.service_name)
     }
 
     pub fn get_namespace_group(&self) -> String {

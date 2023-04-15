@@ -23,10 +23,13 @@ use super::naming_delay_nofity::DelayNotifyCmd;
 use super::naming_subscriber::NamingListenerItem;
 use super::naming_subscriber::Subscriber;
 use super::service::Service;
+use crate::common::NamingSysConfig;
 use crate::common::delay_notify;
 use crate::grpc::bistream_manage::BiStreamManage;
+use crate::now_millis;
 use crate::now_millis_i64;
 use crate::utils::{gz_encode};
+use inner_mem_cache::TimeoutSet;
 
 use actix::prelude::*;
 
@@ -39,6 +42,8 @@ pub struct NamingActor {
     listener_addr:Option<Addr<InnerNamingListener>>,
     delay_notify_addr: Option<Addr<DelayNotifyActor>>,
     subscriber: Subscriber,
+    sys_config: NamingSysConfig,
+    empty_service_set: TimeoutSet<String>,
 }
 
 impl NamingActor {
@@ -54,6 +59,8 @@ impl NamingActor {
             listener_addr:listener_addr,
             subscriber: subscriber,
             delay_notify_addr: delay_notify_addr,
+            sys_config: NamingSysConfig::new(),
+            empty_service_set: Default::default(),
         }
     }
 
@@ -105,6 +112,7 @@ impl NamingActor {
         match self.get_service(key) {
             Some(_) => {},
             None => {
+                let service_map_key = key.get_join_service_name();
                 let mut service = Service::default();
                 let current_time = Local::now().timestamp_millis();
                 service.service_name = key.service_name.to_owned();
@@ -113,24 +121,42 @@ impl NamingActor {
                 service.last_modified_millis = current_time;
                 service.recalculate_checksum();
                 self.service_map.insert(key.get_join_service_name(),service);
+                self.empty_service_set.add(now_millis()+self.sys_config.service_time_out_millis,service_map_key);
             }
         }
     }
 
+    fn do_notify(&mut self,tag:&UpdateInstanceType,key:ServiceKey) {
+        match tag {
+            UpdateInstanceType::New => {
+                self.subscriber.notify(key);
+            },
+            UpdateInstanceType::Remove => {
+                self.subscriber.notify(key);
+            },
+            UpdateInstanceType::UpdateValue => {
+                self.subscriber.notify(key);
+            },
+            _ => {}
+        }
+    }
+
     pub(crate) fn add_instance(&mut self,key:&ServiceKey,instance:Instance) -> UpdateInstanceType {
-        let service = self.service_map.get_mut(&key.get_join_service_name()).unwrap();
-        service.update_instance(instance,None)
+        let service_map_key = key.get_join_service_name();
+        let service = self.service_map.get_mut(&service_map_key).unwrap();
+        let tag = service.update_instance(instance,None);
+        self.do_notify(&tag, key.clone());
+        tag
     }
 
     pub fn remove_instance(&mut self,key:&ServiceKey ,cluster_name:&str,instance_id:&str) -> UpdateInstanceType {
-        let service = self.service_map.get_mut(&key.get_join_service_name()).unwrap();
+        let service_map_key = key.get_join_service_name();
+        let service = self.service_map.get_mut(&service_map_key).unwrap();
         let tag = service.remove_instance(instance_id);
-        match &tag {
-            UpdateInstanceType::Remove => {
-                self.subscriber.notify(key.clone());
-            },
-            _ => {}
-        };
+        if service.instance_size <= 0 {
+            self.empty_service_set.add(now_millis()+self.sys_config.service_time_out_millis,service_map_key);
+        }
+        self.do_notify(&tag, key.clone());
         tag
     }
 
@@ -142,18 +168,7 @@ impl NamingActor {
         let service = self.service_map.get_mut(&key.get_join_service_name()).unwrap();
         let tag = service.update_instance(instance, tag);
         //change notify
-        match &tag {
-            UpdateInstanceType::New => {
-                self.subscriber.notify(key.clone());
-            },
-            UpdateInstanceType::Remove => {
-                self.subscriber.notify(key.clone());
-            },
-            UpdateInstanceType::UpdateValue => {
-                self.subscriber.notify(key.clone());
-            },
-            _ => {}
-        }
+        self.do_notify(&tag, key.clone());
         tag
     }
 
@@ -211,10 +226,20 @@ impl NamingActor {
         let offline_time = current_time - 30000;
         let mut remove_list = vec![];
         let mut update_list = vec![];
+        let mut size=0;
+        let now = now_millis();
         for item in self.service_map.values_mut(){
             let (mut rlist,mut ulist)=item.time_check(healthy_time, offline_time);
+            size+=rlist.len() + ulist.len();
             remove_list.append(&mut rlist);
             update_list.append(&mut ulist);
+            if remove_list.len() > 0 && item.instance_size <=0 {
+                let service_map_key = item.get_service_key().get_join_service_name();
+                self.empty_service_set.add(now+self.sys_config.service_time_out_millis,service_map_key);
+            }
+            if size>=self.sys_config.once_time_check_size {
+                break;
+            }
         }
         (remove_list,update_list)
     }
@@ -236,8 +261,26 @@ impl NamingActor {
         }
     }
 
+    fn clear_empty_service(&mut self){
+        //println!("clear_empty_service");
+        for service_map_key in self.empty_service_set.timeout(now_millis()) {
+            self.clear_one_empty_service(service_map_key)
+        }
+    }
+
+    fn clear_one_empty_service(&mut self,service_map_key:String){
+        if let Some(service) = self.service_map.get(&service_map_key) {
+            println!("clear_one_empty_service,{},{}",&service_map_key,&service.instance_size);
+            if service.instance_size <= 0 {
+                self.service_map.remove(&service_map_key);
+                log::info!("clear_empty_service:{}",&service_map_key);
+            }
+        }
+    }
+
     pub fn instance_time_out_heartbeat(&self,ctx:&mut actix::Context<Self>) {
-        ctx.run_later(Duration::new(3,0), |act,ctx|{
+        ctx.run_later(Duration::from_millis(1000), |act,ctx|{
+            act.clear_empty_service();
             let addr = ctx.address();
             addr.do_send(NamingCmd::PeekListenerTimeout);
             act.instance_time_out_heartbeat(ctx);
