@@ -26,3 +26,7 @@ fn now_millis_i64() -> i64 {
         .unwrap()
         .as_millis() as i64
 }
+
+#[cfg(test)]
+mod tests {
+}

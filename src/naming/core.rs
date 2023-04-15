@@ -363,39 +363,40 @@ impl Handler<NamingCmd> for NamingActor {
     }
 }
 
-#[cfg(test)]
-mod tests {
+
+#[actix_rt::test]
+async fn query_healthy_instances(){
     use tokio::net::UdpSocket;
     use super::*;
-    #[tokio::test()]
-    async fn test01(){
-        let listener_addr = InnerNamingListener::new_and_create(5000, None);
-        let mut naming = NamingActor::new(None,None);
-        let mut instance = Instance::new("127.0.0.1".to_owned(),8080);
-        instance.namespace_id = "public".to_owned();
-        instance.service_name = "foo".to_owned();
-        instance.group_name = "DEFUALT".to_owned();
-        instance.cluster_name= "DEFUALT".to_owned();
-        instance.init();
-        let key = instance.get_service_key();
-        naming.update_instance(&key, instance, None);
+    //let listener_addr = InnerNamingListener::new_and_create(5000, None);
+    let mut naming = NamingActor::new(None,None);
+    let mut instance = Instance::new("127.0.0.1".to_owned(),8080);
+    instance.namespace_id = "public".to_owned();
+    instance.service_name = "foo".to_owned();
+    instance.group_name = "DEFUALT".to_owned();
+    instance.cluster_name= "DEFUALT".to_owned();
+    instance.init();
+    let key = instance.get_service_key();
+    naming.update_instance(&key, instance, None);
 
-        println!("-------------");
-        let items = naming.get_instance_list(&key, vec!["DEFUALT".to_owned()], true);
-        println!("DEFUALT list:{}",serde_json::to_string(&items).unwrap());
-        let items = naming.get_instance_list(&key, vec![], true);
-        println!("empty cluster list:{}",serde_json::to_string(&items).unwrap());
-        std::thread::sleep(std::time::Duration::from_millis(18000));
-        naming.time_check();
-        println!("-------------");
-        let items = naming.get_instance_list(&key, vec![], false);
-        println!("empty cluster list:{}",serde_json::to_string(&items).unwrap());
-        std::thread::sleep(std::time::Duration::from_millis(18000));
-        naming.time_check();
-        println!("-------------");
-        let items = naming.get_instance_list(&key, vec![], false);
-        println!("empty cluster list:{}",serde_json::to_string(&items).unwrap());
+    println!("-------------");
+    let items = naming.get_instance_list(&key, vec!["DEFUALT".to_owned()], true);
+    println!("DEFUALT list:{}",serde_json::to_string(&items).unwrap());
+    let items = naming.get_instance_list(&key, vec![], true);
+    assert!(items.len()>0);
+    println!("empty cluster list:{}",serde_json::to_string(&items).unwrap());
+    tokio::time::sleep(Duration::from_millis(16000)).await;
+    naming.time_check();
+    println!("-------------");
+    let items = naming.get_instance_list(&key, vec![], false);
+    assert!(items.len()>0);
+    println!("empty cluster list:{}",serde_json::to_string(&items).unwrap());
+    tokio::time::sleep(Duration::from_millis(16000)).await;
+    naming.time_check();
+    println!("-------------");
+    let items = naming.get_instance_list(&key, vec![], false);
+    assert!(items.len()==0);
+    println!("empty cluster list:{}",serde_json::to_string(&items).unwrap());
 
-    }
 }
 
