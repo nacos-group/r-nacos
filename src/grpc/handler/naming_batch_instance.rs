@@ -1,5 +1,7 @@
 #![allow(unused_imports)]
 
+use std::sync::{Arc, atomic::{AtomicI64, AtomicBool}};
+
 use crate::{
     grpc::{
         api_model::{
@@ -63,13 +65,13 @@ impl BatchInstanceRequestHandler {
                     port: input.port,
                     weight: input.weight,
                     enabled: input.enabled,
-                    healthy: input.healthy,
+                    healthy: Arc::new(AtomicBool::new(input.healthy)),
                     ephemeral: input.ephemeral,
                     cluster_name: input.cluster_name.unwrap_or("DEFAULT".to_owned()),
                     service_name: service_name,
                     group_name: group_name.to_owned(),
                     metadata: input.metadata,
-                    last_modified_millis: now_millis_i64(),
+                    last_modified_millis: Arc::new(AtomicI64::new(now_millis_i64())),
                     namespace_id: namesapce_id.to_owned(),
                     app_name: "".to_owned(),
                 };

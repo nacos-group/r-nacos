@@ -1,5 +1,5 @@
 
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::{Arc, atomic::{AtomicI64, Ordering, AtomicBool}}};
 
 use serde::{Serialize,Deserialize};
 
@@ -12,13 +12,13 @@ pub struct Instance {
     pub port:u32,
     pub weight:f32,
     pub enabled:bool,
-    pub healthy:bool,
+    pub healthy:Arc<AtomicBool>,
     pub ephemeral: bool,
     pub cluster_name:String,
     pub service_name:String,
     pub group_name:String,
     pub metadata:HashMap<String,String>,
-    pub last_modified_millis:i64,
+    pub last_modified_millis:Arc<AtomicI64>,
     pub namespace_id:String,
     pub app_name:String,
 }
@@ -36,7 +36,7 @@ impl Instance{
     }
 
     pub fn init(&mut self) {
-        self.last_modified_millis = now_millis_i64();
+        self.last_modified_millis = Arc::new(AtomicI64::new(now_millis_i64()));
         if self.id.len()==0 {
             self.generate_key();
         }
@@ -50,15 +50,16 @@ impl Instance{
         true
     }
 
-    pub fn update_info(&mut self,o:Self,tag:Option<InstanceUpdateTag>) -> bool {
+    pub fn update_info(&self,o:&Self,tag:Option<InstanceUpdateTag>) -> bool {
         let is_update=self.enabled != o.enabled 
-        || self.healthy != o.healthy
+        || self.healthy.load(Ordering::Relaxed) != o.healthy.load(Ordering::Relaxed)
         || self.weight != o.weight
         || self.ephemeral != o.ephemeral
         || self.metadata != o.metadata
         ;
-        self.healthy = o.healthy;
-        self.last_modified_millis = o.last_modified_millis;
+        //self.last_modified_millis.swap(o.last_modified_millis.load(Ordering::Relaxed),Ordering::Relaxed);
+        /*
+        //self.healthy = o.healthy;
         if let Some(tag) = tag {
             if tag.weight {
                 self.weight = o.weight;
@@ -79,6 +80,7 @@ impl Instance{
             self.enabled = o.enabled;
             self.ephemeral = o.ephemeral;
         }
+        */
         is_update
     }
 
@@ -87,7 +89,7 @@ impl Instance{
     }
 
     pub(crate) fn get_time_info(&self) -> InstanceTimeInfo {
-        InstanceTimeInfo::new(self.id.to_owned(),self.last_modified_millis)
+        InstanceTimeInfo::new(self.id.to_owned(),self.last_modified_millis.load(Ordering::Relaxed))
     }
 }
 
@@ -99,7 +101,7 @@ impl Default for Instance {
             port:Default::default(),
             weight:1f32,
             enabled:true,
-            healthy:true,
+            healthy:Arc::new(AtomicBool::new(true)),
             ephemeral:true,
             cluster_name:"DEFAULT".to_owned(),
             service_name:Default::default(),
@@ -112,14 +114,14 @@ impl Default for Instance {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Default,Clone)]
+#[derive(Debug,Serialize, Deserialize , Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ServiceInfo {
     pub name: Option<String>,
     pub group_name: Option<String>,
     pub clusters: Option<String>,
     pub cache_millis: i64,
-    pub hosts: Vec<Instance>,
+    pub hosts: Option<Vec<Arc<Instance>>>,
     pub last_ref_time: i64,
     pub checksum: i64,
     #[serde(rename = "allIPs")]

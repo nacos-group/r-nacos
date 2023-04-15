@@ -80,14 +80,16 @@ impl ListenerValue {
         }
     }
 
-    fn get_instance_list<'a>(cluster_names:Vec<String>,only_healthy:bool,instances:&'a HashMap<String,Vec<Instance>>) -> Vec<&'a Instance> {
+    fn get_instance_list<'a>(cluster_names:Vec<String>,only_healthy:bool,instances:&'a HashMap<String,Vec<Arc<Instance>>>) -> Vec<&'a Arc<Instance>> {
         let mut list = vec![];
-        for cluster_name in &cluster_names {
-            if let Some(l) = instances.get(cluster_name) {
+        for cluster_name in cluster_names {
+            if let Some(l) = instances.get(&cluster_name) {
                 for item in l {
-                    if only_healthy && !item.healthy {
+                    /* 
+                    if only_healthy && item.healthy {
                         continue;
                     }
+                    */
                     list.push(item);
                 }
             }
@@ -95,13 +97,13 @@ impl ListenerValue {
         list
     }
 
-    fn get_instance_list_string(key:&ServiceKey,cluster_names:Vec<String>,only_healthy:bool,instances:&HashMap<String,Vec<Instance>>) -> String {
+    fn get_instance_list_string(key:&ServiceKey,cluster_names:Vec<String>,only_healthy:bool,instances:&HashMap<String,Vec<Arc<Instance>>>) -> String {
         let clusters = (&cluster_names).join(",");
         let list = Self::get_instance_list(cluster_names, only_healthy,instances);
         QueryListResult::get_ref_instance_list_string(clusters, key, list)
     }
 
-    fn build_msg(service_key:&ServiceKey,instances:&HashMap<String,Vec<Instance>>,item:&ListenerItem) -> Vec<u8>{
+    fn build_msg(service_key:&ServiceKey,instances:&HashMap<String,Vec<Arc<Instance>>>,item:&ListenerItem) -> Vec<u8>{
         let mut cluster_names = vec![];
         if item.clusters.is_empty() {
             for key in instances.keys(){
@@ -121,7 +123,7 @@ impl ListenerValue {
         gz_encode(msg_str.as_bytes(), 1024)
 }
 
-    fn build_cache(&mut self,service_key:&ServiceKey,sign:String,instances:&HashMap<String,Vec<Instance>>,period:u64) -> HashMap<String,Arc<Vec<u8>>>{
+    fn build_cache(&mut self,service_key:&ServiceKey,sign:String,instances:&HashMap<String,Vec<Arc<Instance>>>,period:u64) -> HashMap<String,Arc<Vec<u8>>>{
         let mut cache = HashMap::new();
         for item in self.items.values() {
             if !cache.contains_key(&item.clusters_key) {
@@ -132,7 +134,7 @@ impl ListenerValue {
         cache
     }
 
-    fn notify(&mut self,service_key:ServiceKey,sign:String,instances:&HashMap<String,Vec<Instance>>,period:u64,sender:&Addr<UdpWorker>) -> Vec<SocketAddr> {
+    fn notify(&mut self,service_key:ServiceKey,sign:String,instances:&HashMap<String,Vec<Arc<Instance>>>,period:u64,sender:&Addr<UdpWorker>) -> Vec<SocketAddr> {
         let now = now_millis();
         let remove_time = now- max(2*period,10);
         let mut removes=vec![]; 
@@ -239,7 +241,7 @@ impl InnerNamingListener {
     }
 
     // 定时心跳通知
-    fn notify(&mut self,service_key:ServiceKey,sign:String,instances:HashMap<String,Vec<Instance>>) {
+    fn notify(&mut self,service_key:ServiceKey,sign:String,instances:HashMap<String,Vec<Arc<Instance>>>) {
         let listener_key = Self::get_listener_key(&service_key);
         let mut is_empty=false;
         let mut clients = vec![];
@@ -318,7 +320,7 @@ pub enum NamingListenerCmd{
     InitNamingActor(Addr<NamingActor>),
     Add(ServiceKey,ListenerItem),
     Response(SocketAddr),
-    Notify(ServiceKey,String,HashMap<String,Vec<Instance>>,u64),
+    Notify(ServiceKey,String,HashMap<String,Vec<Arc<Instance>>>,u64),
     AddHeartbeat(ServiceKey,u64),
 }
 

@@ -13,6 +13,8 @@ use serde::{Serialize,Deserialize};
 use actix::prelude::*;
 use std::collections::HashMap;
 use std::net::SocketAddr;
+use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
 
 #[derive(Debug,Serialize,Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -66,7 +68,7 @@ impl InstanceWebParams {
         }
         instance.weight = self.weight.unwrap_or(1f32);
         instance.enabled = get_bool_from_string(&self.enabled, true);
-        instance.healthy= get_bool_from_string(&self.healthy, true);
+        instance.healthy= Arc::new(AtomicBool::new(get_bool_from_string(&self.healthy, true)));
         instance.ephemeral= get_bool_from_string(&self.ephemeral, true);
         instance.cluster_name = self.cluster_name.as_ref().unwrap_or(&"DEFAULT".to_owned()).to_owned();
         instance.namespace_id= self.namespace_id.as_ref().unwrap_or(&"public".to_owned()).to_owned();

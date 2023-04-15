@@ -157,22 +157,22 @@ impl NamingActor {
         tag
     }
 
-    pub fn get_instance(&self,key:&ServiceKey,cluster_name:&str,instance_id:&str) -> Option<Instance> {
+    pub fn get_instance(&self,key:&ServiceKey,cluster_name:&str,instance_id:&str) -> Option<Arc<Instance>> {
         if let Some(service) = self.service_map.get(&key.get_join_service_name()) {
             return service.get_instance(instance_id);
         }
         None
     }
 
-    pub fn get_instance_list(&self,key:&ServiceKey,cluster_names:Vec<String>,only_healthy:bool) -> Vec<Instance> {
+    pub fn get_instance_list(&self,key:&ServiceKey,cluster_names:Vec<String>,only_healthy:bool) -> Vec<Arc<Instance>> {
         if let Some(service) = self.service_map.get(&key.get_join_service_name()) {
             return service.get_instance_list(cluster_names, only_healthy);
         }
         vec![]
     }
 
-    pub fn get_instance_map(&self,key:&ServiceKey,cluster_names:Vec<String>,only_healthy:bool) -> HashMap<String,Vec<Instance>> {
-        let mut map: HashMap<String, Vec<Instance>>=HashMap::new();
+    pub fn get_instance_map(&self,key:&ServiceKey,cluster_names:Vec<String>,only_healthy:bool) -> HashMap<String,Vec<Arc<Instance>>> {
+        let mut map: HashMap<String, Vec<Arc<Instance>>>=HashMap::new();
         if let Some(service) = self.service_map.get(&key.get_join_service_name()) {
             for item in service.get_instance_list(cluster_names, only_healthy) {
                 if let Some(list) = map.get_mut(&item.cluster_name) {
@@ -195,7 +195,7 @@ impl NamingActor {
         service_info.last_ref_time = now_millis_i64();
         service_info.reach_protection_threshold = false;
         service_info.clusters = Some((&cluster_names).join(","));
-        service_info.hosts = self.get_instance_list(key,cluster_names,only_healthy);
+        service_info.hosts = Some(self.get_instance_list(key,cluster_names,only_healthy));
         service_info
     }
 
@@ -266,8 +266,8 @@ pub enum NamingCmd {
 
 pub enum NamingResult {
     NULL,
-    Instance(Instance),
-    InstanceList(Vec<Instance>),
+    Instance(Arc<Instance>),
+    InstanceList(Vec<Arc<Instance>>),
     InstanceListString(String),
     ServiceInfo(ServiceInfo),
     ServicePage((usize,Vec<String>)),

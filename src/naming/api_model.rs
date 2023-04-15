@@ -3,6 +3,8 @@ use super::model::{Instance,ServiceKey};
 use chrono::Local;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::Arc;
+use std::sync::atomic::Ordering;
 
 #[derive(Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
@@ -26,7 +28,7 @@ impl QueryListResult {
     pub fn get_instance_list_string(
         clusters: String,
         key: &ServiceKey,
-        v: Vec<Instance>,
+        v: Vec<Arc<Instance>>,
     ) -> String {
         let mut result = QueryListResult::default();
         result.name = key.get_join_service_name();
@@ -48,7 +50,7 @@ impl QueryListResult {
     pub fn get_ref_instance_list_string(
         clusters: String,
         key: &ServiceKey,
-        v: Vec<&Instance>,
+        v: Vec<&Arc<Instance>>,
     ) -> String {
         let mut result = QueryListResult::default();
         result.name = key.get_join_service_name();
@@ -96,7 +98,7 @@ impl InstanceVO {
             port: instance.port,
             cluster_name: instance.cluster_name.to_owned(),
             weight: instance.weight,
-            healthy: instance.healthy,
+            healthy: instance.healthy.load(Ordering::Relaxed),
             instance_id: instance.id.to_owned(),
             metadata: instance.metadata.clone(),
             marked: Some(true),

@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 use std::sync::Arc;
+use std::sync::atomic::Ordering;
 
 use crate::grpc::api_model::{ServiceInfo as ApiServiceInfo,Instance as ApiInstance};
 use crate::naming::NamingUtils;
@@ -13,7 +14,12 @@ pub(crate) struct ModelConverter;
 
 impl ModelConverter {
     pub fn to_api_service_info(info:ServiceInfo) -> ApiServiceInfo {
-        let hosts=info.hosts.into_iter().map(|e|Self::to_api_instance(e)).collect::<Vec<_>>();
+        let mut hosts = vec![];
+        if let Some(info_hosts) = info.hosts.as_ref() {
+            for e in info_hosts.as_slice() {
+                hosts.push(Self::to_api_instance(e.as_ref().to_owned()));
+            }
+        }
         ApiServiceInfo{
             name:info.name,
             group_name:info.group_name,
@@ -40,7 +46,7 @@ impl ModelConverter {
             ip: Some(instance.ip),
             port: instance.port,
             weight: instance.weight,
-            healthy: instance.healthy,
+            healthy: instance.healthy.load(Ordering::Relaxed),
             enabled: instance.enabled,
             ephemeral: instance.ephemeral,
             cluster_name: Some(instance.cluster_name),
@@ -54,15 +60,23 @@ impl ModelConverter {
         let hosts = 
         if let Some(cluster_filter) = cluster_filter {
             let mut hosts = vec![];
-            for e in &info.hosts {
-                if cluster_filter.contains(&e.cluster_name) {
-                    hosts.push(Self::to_api_instance(e.to_owned()));
+            if let Some(info_hosts) = info.hosts.as_ref() {
+                for e in info_hosts.as_slice() {
+                    if cluster_filter.contains(&e.cluster_name) {
+                        hosts.push(Self::to_api_instance(e.as_ref().to_owned()));
+                    }
                 }
             }
             hosts
         }
         else{
-            info.hosts.clone().into_iter().map(|e|Self::to_api_instance(e)).collect::<Vec<_>>()
+            let mut hosts = vec![];
+            if let Some(info_hosts) = info.hosts.as_ref() {
+                for e in info_hosts.as_slice() {
+                    hosts.push(Self::to_api_instance(e.as_ref().to_owned()));
+                }
+            }
+            hosts
         };
         //let hosts=info.hosts.clone().into_iter().map(|e|self.to_api_instance(e)).collect::<Vec<_>>();
         ApiServiceInfo{
