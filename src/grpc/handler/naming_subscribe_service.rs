@@ -29,15 +29,6 @@ impl SubscribeServiceRequestHandler {
         ModelConverter::to_api_service_info(info)
     }
 
-    fn parse_clusters(&self,request:&SubscribeServiceRequest) -> Vec<String> {
-        let mut clusters = vec![];
-        if let Some(cluster_str) = request.clusters.as_ref() {
-            clusters = cluster_str.split(",").into_iter()
-                .filter(|e|{e.len()>0}).map(|e|{e.to_owned()}).collect::<Vec<_>>();
-        }
-        clusters
-    }
-
     fn build_subscribe_cmd(&self,subscribe:bool,service_key:ServiceKey,connection_id:Arc<String>) -> NamingCmd {
         let item = NamingListenerItem {
             service_key,
@@ -58,13 +49,13 @@ impl PayloadHandler for SubscribeServiceRequestHandler {
         let body_vec = request_payload.body.unwrap_or_default().value;
         let request:SubscribeServiceRequest = serde_json::from_slice(&body_vec)?;
         let mut response = SubscribeServiceResponse::default();
-        let clusters = self.parse_clusters(&request);
+        let cluster =if let Some(v) =request.clusters.as_ref() {v.clone()} else {"".to_owned()};
         let namespace = request.namespace.as_ref().unwrap_or(&"public".to_owned()).to_owned();
         let key = ServiceKey::new(&namespace
             ,&request.group_name.unwrap_or_default(),&request.service_name.unwrap_or_default());
         let subscribe_cmd = self.build_subscribe_cmd(request.subscribe, key.clone(), request_meta.connection_id.clone());
         self.naming_addr.do_send(subscribe_cmd);
-        let cmd = NamingCmd::QueryServiceInfo(key,clusters,true);
+        let cmd = NamingCmd::QueryServiceInfo(key,cluster,true);
         match self.naming_addr.send(cmd).await{
             Ok(res) => {
                 let result: NamingResult = res.unwrap();

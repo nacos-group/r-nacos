@@ -69,8 +69,8 @@ impl InstanceWebParams {
         instance.enabled = get_bool_from_string(&self.enabled, true);
         instance.healthy= get_bool_from_string(&self.healthy, true);
         instance.ephemeral= get_bool_from_string(&self.ephemeral, true);
-        instance.cluster_name = self.cluster_name.as_ref().unwrap_or(&"DEFAULT".to_owned()).to_owned();
-        instance.namespace_id= self.namespace_id.as_ref().unwrap_or(&"public".to_owned()).to_owned();
+        instance.cluster_name = NamingUtils::default_cluster(self.cluster_name.as_ref().unwrap_or(&"".to_owned()).to_owned());
+        instance.namespace_id= NamingUtils::default_namespace(self.namespace_id.as_ref().unwrap_or(&"".to_owned()).to_owned());
         let metadata_str= self.metadata.as_ref().unwrap_or(&"{}".to_owned()).to_owned();
         match serde_json::from_str::<HashMap<String,String>>(&metadata_str) {
             Ok(metadata) => {
@@ -97,7 +97,7 @@ pub struct InstanceWebQueryListParams {
 }
 
 impl InstanceWebQueryListParams {
-    fn to_clusters_key(&self) -> Result<(ServiceKey,Vec<String>),String> {
+    fn to_clusters_key(&self) -> Result<(ServiceKey,String),String> {
         let mut service_name = "".to_owned();
         let mut group_name = "".to_owned();
         let grouped_name = self.service_name.as_ref().unwrap().to_owned();
@@ -113,15 +113,17 @@ impl InstanceWebQueryListParams {
                 group_name = _group_name.to_owned();
             }
         }
-        let namespace_id = self.namespace_id.as_ref().unwrap_or(&"public".to_owned()).to_owned();
+        let namespace_id = NamingUtils::default_namespace(self.namespace_id.as_ref().unwrap_or(&"".to_owned()).to_owned());
         let key = ServiceKey::new(&namespace_id,&group_name,&service_name);
 
+        /* 
         let mut clusters = vec![];
         if let Some(cluster_str) = self.clusters.as_ref() {
             clusters = cluster_str.split(",").into_iter()
                 .filter(|e|{e.len()>0}).map(|e|{e.to_owned()}).collect::<Vec<_>>();
         }
-        Ok((key,clusters))
+        */
+        Ok((key,self.clusters.as_ref().unwrap_or(&"".to_owned()).to_owned()))
     }
 
     fn get_addr(&self) -> Option<SocketAddr> {
@@ -182,8 +184,8 @@ impl BeatRequest {
             }
         }
         instance.ephemeral = get_bool_from_string(&self.ephemeral, true);
-        instance.cluster_name = self.cluster_name.as_ref().unwrap_or(&"DEFAULT".to_owned()).to_owned();
-        instance.namespace_id= self.namespace_id.as_ref().unwrap_or(&"public".to_owned()).to_owned();
+        instance.cluster_name = NamingUtils::default_cluster(self.cluster_name.as_ref().unwrap_or(&"".to_owned()).to_owned());
+        instance.namespace_id= NamingUtils::default_namespace(self.namespace_id.as_ref().unwrap_or(&"".to_owned()).to_owned());
         instance.generate_key();
         Ok(instance)
     }
@@ -213,7 +215,7 @@ impl BeatInfo {
             instance.service_name = service_name;
             instance.group_name = group_name;
         }
-        instance.cluster_name = self.cluster.as_ref().unwrap_or(&"DEFAULT".to_owned()).to_owned();
+        instance.cluster_name = NamingUtils::default_cluster(self.cluster.as_ref().unwrap_or(&"".to_owned()).to_owned());
         if let Some(metadata) = self.metadata.as_ref() {
             instance.metadata = metadata.clone();
         }
@@ -349,8 +351,8 @@ pub async fn query_service(param:web::Query<ServiceQueryListRequest>,naming_addr
 pub async fn query_service_list(param:web::Query<ServiceQueryListRequest>,naming_addr:web::Data<Addr<NamingActor>>) -> impl Responder {
     let page_size = param.page_size.unwrap_or(0x7fffffff);
     let page_index = param.page_no.unwrap_or(1);
-    let namespace_id = param.namespace_id.as_ref().unwrap_or(&"public".to_owned()).to_owned();
-    let group = param.group_name.as_ref().unwrap_or(&"DEFAULT_GROUP".to_owned()).to_owned();
+    let namespace_id = NamingUtils::default_namespace(param.namespace_id.as_ref().unwrap_or(&"".to_owned()).to_owned());
+    let group = NamingUtils::default_group(param.group_name.as_ref().unwrap_or(&"".to_owned()).to_owned());
     let key = ServiceKey::new(&namespace_id,&group,"");
     let return_val = match naming_addr.send(NamingCmd::QueryServicePage(key,page_size,page_index)).await {
         Ok(res) => {

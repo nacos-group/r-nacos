@@ -6,6 +6,11 @@ use actix_web::rt;
 
 use super::{model::{Instance, InstanceTimeInfo, InstanceUpdateTag, UpdateInstanceType, ServiceKey}, api_model::QueryListResult};
 
+pub struct ServiceMetadata<'a> {
+    pub protect_threshold:f32,
+    pub metadata:&'a HashMap<String,String>
+}
+
 #[derive(Debug,Clone,Default)]
 pub struct Service {
     pub service_name:String,

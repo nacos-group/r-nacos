@@ -10,6 +10,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use chrono::Local;
 use serde::{Serialize,Deserialize};
+use super::NamingUtils;
 use super::listener::{InnerNamingListener,NamingListenerCmd,ListenerItem};
 use super::api_model::{QueryListResult};
 use super::model::Instance;
@@ -295,8 +296,8 @@ pub enum NamingCmd {
     Delete(Instance),
     Query(Instance),
     QueryList(ServiceKey,Vec<String>,bool,Option<SocketAddr>),
-    QueryListString(ServiceKey,Vec<String>,bool,Option<SocketAddr>),
-    QueryServiceInfo(ServiceKey,Vec<String>,bool),
+    QueryListString(ServiceKey,String,bool,Option<SocketAddr>),
+    QueryServiceInfo(ServiceKey,String,bool),
     QueryServicePage(ServiceKey,usize,usize),
     PeekListenerTimeout,
     NotifyListener(ServiceKey,u64),
@@ -363,15 +364,17 @@ impl Handler<NamingCmd> for NamingActor {
                 let list = self.get_instance_list(&service_key, cluster_names, only_healthy);
                 Ok(NamingResult::InstanceList(list))
             },
-            NamingCmd::QueryListString(service_key,cluster_names,only_healthy,addr) => {
+            NamingCmd::QueryListString(service_key,cluster_str,only_healthy,addr) => {
                 //println!("QUERY_LIST_STRING addr: {:?}",&addr);
+                let  cluster_names = NamingUtils::split_filters(&cluster_str);
                 if let Some(addr) = addr {
                     self.update_listener(&service_key, &cluster_names, addr,only_healthy);
                 }
                 let data= self.get_instance_list_string(&service_key, cluster_names, only_healthy);
                 Ok(NamingResult::InstanceListString(data))
             },
-            NamingCmd::QueryServiceInfo(service_key,cluster_names,only_healthy) => {
+            NamingCmd::QueryServiceInfo(service_key,cluster_str,only_healthy) => {
+                let  cluster_names = NamingUtils::split_filters(&cluster_str);
                 let service_info= self.get_service_info(&service_key, cluster_names, only_healthy);
                 Ok(NamingResult::ServiceInfo(service_info))
             },

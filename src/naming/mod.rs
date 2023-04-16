@@ -8,8 +8,13 @@ pub mod listener;
 pub mod udp_actor;
 pub mod naming_subscriber;
 pub mod naming_delay_nofity;
+pub(crate) mod filter;
 
 pub struct NamingUtils;
+
+pub const DEFAULT_NAMESPACE: &str = "public";
+pub const DEFAULT_CLUSTER : &str = "DEFAULT";
+pub const DEFAULT_GROUP : &str = "DEFAULT_GROUP";
 
 impl NamingUtils {
     pub fn get_group_and_service_name(service_name:&str,group_name:&str) -> String {
@@ -46,4 +51,22 @@ impl NamingUtils {
             }
         }
     }
+
+    pub fn split_filters(cluster_str:&str) -> Vec<String> {
+        cluster_str.split(",").into_iter()
+                .filter(|e|{e.len()>0}).map(|e|{e.to_owned()}).collect::<Vec<_>>()
+    }
+
+    pub fn default_namespace(val:String) -> String {
+        if val.is_empty() { DEFAULT_NAMESPACE.to_owned() } else{ val }
+    }
+
+    pub fn default_cluster(val:String) -> String {
+        if val.is_empty() { DEFAULT_CLUSTER.to_owned()} else {val}
+    }
+
+    pub fn default_group(val:String) -> String {
+        if val.is_empty() { DEFAULT_GROUP.to_owned()} else {val}
+    }
+
 }
