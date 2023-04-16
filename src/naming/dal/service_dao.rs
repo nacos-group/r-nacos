@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use rsql_builder::B;
 use rusqlite::Connection;
-use crate::common::rusqlite_utils::{sqlite_execute,sqlite_fetch};
+use crate::common::rusqlite_utils::{sqlite_execute,sqlite_fetch, sqlite_fetch_count};
 use super::service_do::{ServiceParam, ServiceDO};
 
 pub struct ServiceSql;
@@ -19,6 +19,13 @@ impl ServiceSql{
     pub fn query_prepare(&self,param:&ServiceParam) -> (String,Vec<serde_json::Value>) {
         B::prepare(
             B::new_sql("select id, namespace_id, service_name, group_name, instance_size, healthy_size, threshold, metadata, extend_info, create_time, last_time from tb_service")
+            .push_build(&mut self.conditions(param))
+        )
+    }
+
+    pub fn query_count_prepare(&self,param:&ServiceParam) -> (String,Vec<serde_json::Value>) {
+        B::prepare(
+            B::new_sql("select count(1) from tb_service")
             .push_build(&mut self.conditions(param))
         )
     }
@@ -149,8 +156,12 @@ impl ServiceDao {
         sqlite_execute(&self.conn,sql,args) 
     }
 
-    pub fn fetch(&self,sql:&str,args:&Vec<serde_json::Value>) -> Vec<ServiceDO> {
-        sqlite_fetch(&self.conn,sql,args,ServiceDO::from_row).unwrap()
+    pub fn fetch(&self,sql:&str,args:&Vec<serde_json::Value>) -> Result<Vec<ServiceDO>,String> {
+        sqlite_fetch(&self.conn,sql,args,ServiceDO::from_row)
+    }
+
+    pub fn fetch_count(&self,sql:&str,args:&Vec<serde_json::Value>) -> Result<u64,String> {
+        sqlite_fetch_count(&self.conn,sql,args)
     }
 
     pub fn insert(&self,record:&ServiceDO) -> Result<usize,String> {
@@ -168,8 +179,14 @@ impl ServiceDao {
         self.execute(&sql, &args)
     }
 
-    pub fn query(&self,param:&ServiceParam) -> Vec<ServiceDO> {
+    pub fn query(&self,param:&ServiceParam) -> Result<Vec<ServiceDO>,String> {
         let (sql,args) = self.inner.query_prepare(param);
         self.fetch(&sql, &args)
     }
+
+    pub fn query_count(&self,param:&ServiceParam) -> Result<u64,String> {
+        let (sql,args) = self.inner.query_count_prepare(param);
+        self.fetch_count(&sql, &args)
+    }
+
 }

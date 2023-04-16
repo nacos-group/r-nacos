@@ -64,3 +64,18 @@ where F: Fn(&Row) -> T + Send
             Err(e) => Err(e.to_string())
         }
 }
+
+pub fn sqlite_fetch_count(conn:&Connection,sql:&str,args:&Vec<serde_json::Value>) -> Result<u64,String> 
+{
+    let mut stmt = conn.prepare(&sql).unwrap();
+        let r = stmt.query_map(params_from_iter(
+            convert_json_params(&args).iter()), |r|{r.get(0)});
+        match r {
+            Ok(res) => {
+                let list:Vec<u64>=res.into_iter().map(|e|e.unwrap()).collect();
+                let r:u64=list.get(0).unwrap().to_owned();
+                Ok(r)
+            },
+            Err(e) => Err(e.to_string())
+        }
+}
