@@ -6,9 +6,9 @@ use actix_web::rt;
 
 use super::{model::{Instance, InstanceTimeInfo, InstanceUpdateTag, UpdateInstanceType, ServiceKey}, api_model::QueryListResult};
 
-pub struct ServiceMetadata<'a> {
+#[derive(Debug,Clone,Default)]
+pub struct ServiceMetadata {
     pub protect_threshold:f32,
-    pub metadata:&'a HashMap<String,String>
 }
 
 #[derive(Debug,Clone,Default)]
@@ -248,5 +248,9 @@ impl Service {
 
     pub fn get_service_key(&self) -> ServiceKey {
         ServiceKey::new(&self.namespace_id,&self.group_name,&self.service_name)
+    }
+
+    pub fn get_metadata(&self) -> ServiceMetadata {
+        ServiceMetadata { protect_threshold: self.protect_threshold }
     }
 }

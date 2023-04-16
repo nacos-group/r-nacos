@@ -11,6 +11,7 @@ use std::time::Duration;
 use chrono::Local;
 use serde::{Serialize,Deserialize};
 use super::NamingUtils;
+use super::filter::InstanceFilterUtils;
 use super::listener::{InnerNamingListener,NamingListenerCmd,ListenerItem};
 use super::api_model::{QueryListResult};
 use super::model::Instance;
@@ -24,6 +25,7 @@ use super::naming_delay_nofity::DelayNotifyCmd;
 use super::naming_subscriber::NamingListenerItem;
 use super::naming_subscriber::Subscriber;
 use super::service::Service;
+use super::service::ServiceMetadata;
 use crate::common::NamingSysConfig;
 use crate::common::delay_notify;
 use crate::grpc::bistream_manage::BiStreamManage;
@@ -180,11 +182,30 @@ impl NamingActor {
         None
     }
 
-    pub fn get_instance_list(&self,key:&ServiceKey,cluster_names:Vec<String>,only_healthy:bool) -> Vec<Arc<Instance>> {
+    pub fn get_instance_list(&self,key:&ServiceKey,cluster_str:&str,only_healthy:bool) -> Vec<Arc<Instance>> {
+        let cluster_names = NamingUtils::split_filters(&cluster_str);
         if let Some(service) = self.service_map.get(&key.get_join_service_name()) {
-            return service.get_instance_list(cluster_names, only_healthy);
+            return InstanceFilterUtils::default_instance_filter(service.get_instance_list(cluster_names, only_healthy)
+                ,Some(service.get_metadata()));
         }
         vec![]
+    }
+
+    pub fn get_instances_and_metadata(&self,key:&ServiceKey,cluster_str:&str,only_healthy:bool) -> (Vec<Arc<Instance>>,Option<ServiceMetadata>) {
+        let cluster_names = NamingUtils::split_filters(&cluster_str);
+        if let Some(service) = self.service_map.get(&key.get_join_service_name()) {
+            return (service.get_instance_list(cluster_names, only_healthy),Some(service.get_metadata()));
+        }
+        (vec![],None)
+    }
+
+    pub fn get_metadata(&self,key:&ServiceKey) -> Option<ServiceMetadata> {
+        if let Some(service) = self.service_map.get(&key.get_join_service_name()) {
+            Some(service.get_metadata())
+        }
+        else{
+            None
+        }
     }
 
     pub fn get_instance_map(&self,key:&ServiceKey,cluster_names:Vec<String>,only_healthy:bool) -> HashMap<String,Vec<Arc<Instance>>> {
@@ -202,7 +223,7 @@ impl NamingActor {
         map
     }
 
-    pub(crate) fn get_service_info(&self,key:&ServiceKey,cluster_names:Vec<String>,only_healthy:bool) -> ServiceInfo {
+    pub(crate) fn get_service_info(&self,key:&ServiceKey,cluster_str:String,only_healthy:bool) -> ServiceInfo {
         let mut service_info = ServiceInfo::default();
         //service_info.name = Some(key.get_join_service_name());
         service_info.name = Some(key.service_name.clone());
@@ -210,15 +231,15 @@ impl NamingActor {
         service_info.cache_millis = 10000i64;
         service_info.last_ref_time = now_millis_i64();
         service_info.reach_protection_threshold = false;
-        service_info.clusters = Some((&cluster_names).join(","));
-        service_info.hosts = Some(self.get_instance_list(key,cluster_names,only_healthy));
-        service_info
+        let (hosts,metadata) = self.get_instances_and_metadata(key,&cluster_str,only_healthy);
+        service_info.hosts = Some(hosts);
+        service_info.clusters = Some(cluster_str);
+        InstanceFilterUtils::default_service_filter(service_info, metadata)
     }
 
-    pub fn get_instance_list_string(&self,key:&ServiceKey,cluster_names:Vec<String>,only_healthy:bool) -> String {
-        let clusters = (&cluster_names).join(",");
-        let list = self.get_instance_list(key, cluster_names, only_healthy);
-        QueryListResult::get_instance_list_string(clusters, key, list)
+    pub fn get_instance_list_string(&self,key:&ServiceKey,cluster_str:String,only_healthy:bool) -> String {
+        let list = self.get_instance_list(key, &cluster_str, only_healthy);
+        QueryListResult::get_instance_list_string(cluster_str, key, list)
     }
 
     pub fn time_check(&mut self) -> (Vec<String>,Vec<String>) {
@@ -295,7 +316,7 @@ pub enum NamingCmd {
     Update(Instance,Option<InstanceUpdateTag>),
     Delete(Instance),
     Query(Instance),
-    QueryList(ServiceKey,Vec<String>,bool,Option<SocketAddr>),
+    QueryList(ServiceKey,String,bool,Option<SocketAddr>),
     QueryListString(ServiceKey,String,bool,Option<SocketAddr>),
     QueryServiceInfo(ServiceKey,String,bool),
     QueryServicePage(ServiceKey,usize,usize),
@@ -357,11 +378,12 @@ impl Handler<NamingCmd> for NamingActor {
                 }
                 Ok(NamingResult::NULL)
             },
-            NamingCmd::QueryList(service_key,cluster_names,only_healthy,addr) => {
+            NamingCmd::QueryList(service_key,cluster_str,only_healthy,addr) => {
+                let  cluster_names = NamingUtils::split_filters(&cluster_str);
                 if let Some(addr) = addr {
                     self.update_listener(&service_key, &cluster_names, addr,only_healthy);
                 }
-                let list = self.get_instance_list(&service_key, cluster_names, only_healthy);
+                let list = self.get_instance_list(&service_key, &cluster_str, only_healthy);
                 Ok(NamingResult::InstanceList(list))
             },
             NamingCmd::QueryListString(service_key,cluster_str,only_healthy,addr) => {
@@ -370,12 +392,12 @@ impl Handler<NamingCmd> for NamingActor {
                 if let Some(addr) = addr {
                     self.update_listener(&service_key, &cluster_names, addr,only_healthy);
                 }
-                let data= self.get_instance_list_string(&service_key, cluster_names, only_healthy);
+                let data= self.get_instance_list_string(&service_key, cluster_str, only_healthy);
                 Ok(NamingResult::InstanceListString(data))
             },
             NamingCmd::QueryServiceInfo(service_key,cluster_str,only_healthy) => {
                 let  cluster_names = NamingUtils::split_filters(&cluster_str);
-                let service_info= self.get_service_info(&service_key, cluster_names, only_healthy);
+                let service_info= self.get_service_info(&service_key, cluster_str, only_healthy);
                 Ok(NamingResult::ServiceInfo(service_info))
             },
             NamingCmd::QueryServicePage(service_key, page_size, page_index) => {
@@ -436,24 +458,27 @@ async fn query_healthy_instances(){
     instance.init();
     let key = instance.get_service_key();
     naming.update_instance(&key, instance, None);
+    if let Some(service) = naming.service_map.get_mut(&key.get_join_service_name()) {
+        service.protect_threshold = 0.1;
+    }
 
     println!("-------------");
-    let items = naming.get_instance_list(&key, vec!["DEFUALT".to_owned()], true);
+    let items = naming.get_instance_list(&key, "", true);
     assert!(items.len()>0);
     println!("DEFUALT list:{}",serde_json::to_string(&items).unwrap());
-    let items = naming.get_instance_list(&key, vec![], true);
+    let items = naming.get_instance_list(&key, "", true);
     assert!(items.len()>0);
     println!("empty cluster list:{}",serde_json::to_string(&items).unwrap());
     tokio::time::sleep(Duration::from_millis(16000)).await;
     naming.time_check();
     println!("-------------");
-    let items = naming.get_instance_list(&key, vec![], false);
+    let items = naming.get_instance_list(&key, "", false);
     assert!(items.len()>0);
     println!("empty cluster list:{}",serde_json::to_string(&items).unwrap());
     tokio::time::sleep(Duration::from_millis(16000)).await;
     naming.time_check();
     println!("-------------");
-    let items = naming.get_instance_list(&key, vec![], false);
+    let items = naming.get_instance_list(&key, "", false);
     assert!(items.len()==0);
     println!("empty cluster list:{}",serde_json::to_string(&items).unwrap());
 
