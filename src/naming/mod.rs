@@ -9,6 +9,7 @@ pub mod udp_actor;
 pub mod naming_subscriber;
 pub mod naming_delay_nofity;
 pub(crate) mod filter;
+pub(crate) mod dal;
 
 pub struct NamingUtils;
 

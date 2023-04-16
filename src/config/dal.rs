@@ -3,7 +3,7 @@ use rusqlite::{Connection,Row};
 use serde::{Serialize,Deserialize};
 use std::rc::Rc;
 
-use crate::rusqlite_utils::{get_row_value,sqlite_execute,sqlite_fetch};
+use crate::common::rusqlite_utils::{get_row_value,sqlite_execute,sqlite_fetch};
 
 #[derive(Debug,Default,Serialize,Deserialize)]
 pub struct ConfigDO {

@@ -1,5 +1,6 @@
 
 pub mod delay_notify;
+pub mod rusqlite_utils;
 
 #[derive(Default,Clone,Debug)]
 pub struct NamingSysConfig {
