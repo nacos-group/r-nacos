@@ -9,7 +9,10 @@ pub(crate) struct InstanceFilterUtils;
 
 
 impl InstanceFilterUtils {
-    pub fn default_instance_filter(all_instances:Vec<Arc<Instance>>,metadata:Option<ServiceMetadata>) -> Vec<Arc<Instance>>{
+    pub fn filter_healthy_instances(instances:Vec<Arc<Instance>>) -> Vec<Arc<Instance>> {
+        instances.into_iter().filter(|i|i.healthy).collect()
+    }
+    pub fn default_instance_filter(all_instances:Vec<Arc<Instance>>,metadata:Option<ServiceMetadata>,filter_headlthy:bool) -> Vec<Arc<Instance>>{
         if let Some(metadata) = metadata {
             let original_total = all_instances.len();
             // all_instances = from metadata select
@@ -34,10 +37,15 @@ impl InstanceFilterUtils {
                 return instances;
             }
         };
-        all_instances
+        if filter_headlthy {
+            Self::filter_healthy_instances(all_instances)
+        }
+        else{
+            all_instances
+        }
     }
 
-    pub fn default_service_filter(mut service_info:ServiceInfo,metadata:Option<ServiceMetadata>) -> ServiceInfo{
+    pub fn default_service_filter(mut service_info:ServiceInfo,metadata:Option<ServiceMetadata>,filter_headlthy:bool) -> ServiceInfo{
         if let (Some(all_instances),Some(metadata)) = (service_info.hosts.as_ref(),metadata) {
             let original_total = all_instances.len();
             // all_instances = from metadata select
@@ -61,7 +69,16 @@ impl InstanceFilterUtils {
                     }
                 }).collect();
                 service_info.hosts = Some(instances);
+                return service_info;
             }
+        }
+        if filter_headlthy  {
+            service_info.hosts = if let Some(instances) = service_info.hosts {
+                Some(Self::filter_healthy_instances(instances))
+            }
+            else{
+                None
+            };
         }
         service_info
     }

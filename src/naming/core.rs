@@ -185,8 +185,8 @@ impl NamingActor {
     pub fn get_instance_list(&self,key:&ServiceKey,cluster_str:&str,only_healthy:bool) -> Vec<Arc<Instance>> {
         let cluster_names = NamingUtils::split_filters(&cluster_str);
         if let Some(service) = self.service_map.get(&key.get_join_service_name()) {
-            return InstanceFilterUtils::default_instance_filter(service.get_instance_list(cluster_names, only_healthy)
-                ,Some(service.get_metadata()));
+            return InstanceFilterUtils::default_instance_filter(service.get_instance_list(cluster_names, false)
+                ,Some(service.get_metadata()),only_healthy);
         }
         vec![]
     }
@@ -194,7 +194,7 @@ impl NamingActor {
     pub fn get_instances_and_metadata(&self,key:&ServiceKey,cluster_str:&str,only_healthy:bool) -> (Vec<Arc<Instance>>,Option<ServiceMetadata>) {
         let cluster_names = NamingUtils::split_filters(&cluster_str);
         if let Some(service) = self.service_map.get(&key.get_join_service_name()) {
-            return (service.get_instance_list(cluster_names, only_healthy),Some(service.get_metadata()));
+            return (service.get_instance_list(cluster_names,only_healthy),Some(service.get_metadata()));
         }
         (vec![],None)
     }
@@ -231,10 +231,10 @@ impl NamingActor {
         service_info.cache_millis = 10000i64;
         service_info.last_ref_time = now_millis_i64();
         service_info.reach_protection_threshold = false;
-        let (hosts,metadata) = self.get_instances_and_metadata(key,&cluster_str,only_healthy);
+        let (hosts,metadata) = self.get_instances_and_metadata(key,&cluster_str,false);
         service_info.hosts = Some(hosts);
         service_info.clusters = Some(cluster_str);
-        InstanceFilterUtils::default_service_filter(service_info, metadata)
+        InstanceFilterUtils::default_service_filter(service_info, metadata,only_healthy)
     }
 
     pub fn get_instance_list_string(&self,key:&ServiceKey,cluster_str:String,only_healthy:bool) -> String {
