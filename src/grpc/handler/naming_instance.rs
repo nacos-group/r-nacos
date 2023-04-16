@@ -30,10 +30,7 @@ impl InstanceRequestHandler {
             if request.group_name.is_none() {
                 return Err(anyhow::format_err!("groupName is empty!"))
             }
-            let mut group_name = request.group_name.unwrap();
-            if &group_name == "" {
-                group_name = "DEFAULT_GROUP".to_owned();
-            }
+            let group_name = NamingUtils::default_group(request.group_name.unwrap_or_default());
             let service_name = if let Some(v) = input.service_name {
                 v
             }
@@ -51,12 +48,12 @@ impl InstanceRequestHandler {
                 enabled: input.enabled,
                 healthy: input.healthy,
                 ephemeral: input.ephemeral,
-                cluster_name: input.cluster_name.unwrap_or("DEFAULT".to_owned()),
+                cluster_name: NamingUtils::default_cluster(input.cluster_name.unwrap_or_default()),
                 service_name: service_name,
                 group_name: group_name,
                 metadata: input.metadata,
                 last_modified_millis: now_millis_i64(),
-                namespace_id: request.namespace.unwrap_or("public".to_owned()),
+                namespace_id: NamingUtils::default_namespace(request.namespace.unwrap_or_default()),
                 app_name: "".to_owned(),
             };
             instance.generate_key();

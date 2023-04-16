@@ -50,7 +50,7 @@ impl PayloadHandler for SubscribeServiceRequestHandler {
         let request:SubscribeServiceRequest = serde_json::from_slice(&body_vec)?;
         let mut response = SubscribeServiceResponse::default();
         let cluster =if let Some(v) =request.clusters.as_ref() {v.clone()} else {"".to_owned()};
-        let namespace = request.namespace.as_ref().unwrap_or(&"public".to_owned()).to_owned();
+        let namespace = NamingUtils::default_namespace(request.namespace.as_ref().unwrap_or(&"".to_owned()).to_owned());
         let key = ServiceKey::new(&namespace
             ,&request.group_name.unwrap_or_default(),&request.service_name.unwrap_or_default());
         let subscribe_cmd = self.build_subscribe_cmd(request.subscribe, key.clone(), request_meta.connection_id.clone());

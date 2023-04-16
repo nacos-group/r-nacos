@@ -35,7 +35,7 @@ impl PayloadHandler for ServiceQueryRequestHandler {
         let request:ServiceQueryRequest = serde_json::from_slice(&body_vec)?;
         let mut response = ServiceQueryResponse::default();
         let cluster =if let Some(v) =request.cluster.as_ref() {v.clone()} else {"".to_owned()};
-        let namespace = request.namespace.as_ref().unwrap_or(&"public".to_owned()).to_owned();
+        let namespace = NamingUtils::default_namespace(request.namespace.as_ref().unwrap_or(&"".to_owned()).to_owned());
         let key = ServiceKey::new(&namespace
             ,&request.group_name.unwrap_or_default(),&request.service_name.unwrap_or_default());
         let cmd = NamingCmd::QueryServiceInfo(key,cluster,true);

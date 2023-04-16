@@ -41,13 +41,10 @@ impl BatchInstanceRequestHandler {
         if request.group_name.is_none() {
             return Err(anyhow::format_err!("groupName is empty!"));
         }
-        let mut group_name = request.group_name.unwrap_or_default();
-        if &group_name == "" {
-            group_name = "DEFAULT_GROUP".to_owned();
-        }
+        let group_name = NamingUtils::default_group(request.group_name.unwrap_or_default());
         let service_name = request.service_name.unwrap_or_default();
 
-        let namesapce_id = request.namespace.unwrap_or("public".to_owned());
+        let namesapce_id = NamingUtils::default_group(request.namespace.unwrap_or_default());
         let input = request.instances;
         if let Some(instances) = input {
             for input in instances {
@@ -67,7 +64,7 @@ impl BatchInstanceRequestHandler {
                     enabled: input.enabled,
                     healthy: input.healthy,
                     ephemeral: input.ephemeral,
-                    cluster_name: input.cluster_name.unwrap_or("DEFAULT".to_owned()),
+                    cluster_name: NamingUtils::default_cluster(input.cluster_name.unwrap_or_default()),
                     service_name: service_name,
                     group_name: group_name.to_owned(),
                     metadata: input.metadata,
