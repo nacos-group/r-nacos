@@ -13,6 +13,21 @@ impl ServiceSql{
         if let Some(id)=&param.id {
             whr.eq("id",id);
         }
+        if let Some(namespace_id)=&param.namespace_id {
+            whr.eq("namespace_id",namespace_id);
+        }
+        if let Some(group_name)=&param.group_name{
+            whr.eq("group_name",group_name);
+        }
+        if let Some(service_name)=&param.service_name {
+            whr.eq("service_name",service_name);
+        }
+        if let Some(limit)=&param.limit {
+            whr.limit(limit);
+        }
+        if let Some(offset)=&param.offset{
+            whr.offset(offset);
+        }
         whr
     }
 

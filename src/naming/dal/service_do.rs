@@ -15,8 +15,8 @@ pub struct ServiceDO {
     pub threshold:Option<f64>,
     pub metadata:Option<String>,
     pub extend_info:Option<String>,
-    pub create_time:Option<f64>,
-    pub last_time:Option<f64>,
+    pub create_time:Option<i64>,
+    pub last_time:Option<i64>,
 }
 
 impl ServiceDO {
@@ -35,11 +35,46 @@ impl ServiceDO {
         s.last_time = get_row_value(r,"last_time");
         s
     }
+
+    pub fn check_vaild(&self) -> bool {
+        if let (Some(namespace_id),Some(service_name),Some(group_name)) = 
+            (self.namespace_id.as_ref(),self.service_name.as_ref(),self.group_name.as_ref()) {
+            true
+        }
+        else{
+            false
+        }
+    }
+
+    pub fn get_key_param(&self) -> Option<ServiceParam> {
+        if let (Some(namespace_id),Some(service_name),Some(group_name)) = 
+            (self.namespace_id.as_ref(),self.service_name.as_ref(),self.group_name.as_ref()) {
+            Some(ServiceParam::new_by_keys(namespace_id, service_name, group_name))
+        }
+        else{
+            None
+        }
+    }
+
 }
 
 #[derive(Debug,Default,Clone)]
 pub struct ServiceParam{
+    pub namespace_id:Option<String>,
+    pub service_name:Option<String>,
+    pub group_name:Option<String>,
     pub id:Option<i64>,
     pub limit:Option<i64>,
     pub offset:Option<i64>,
+}
+
+impl ServiceParam {
+    pub fn new_by_keys(namespace_id:&str,service_name:&str,group_name:&str) -> Self {
+        Self { 
+            namespace_id:Some(namespace_id.to_owned()),
+            service_name:Some(service_name.to_owned()),
+            group_name:Some(group_name.to_owned()),
+            ..Default::default()
+        }
+    }
 }

@@ -11,6 +11,8 @@ use std::time::Duration;
 use chrono::Local;
 use serde::{Serialize,Deserialize};
 use super::NamingUtils;
+use super::dal::service_actor::ServiceDalActor;
+use super::dal::service_actor::ServiceDalMsg;
 use super::filter::InstanceFilterUtils;
 use super::listener::{InnerNamingListener,NamingListenerCmd,ListenerItem};
 use super::api_model::{QueryListResult};
@@ -37,7 +39,7 @@ use inner_mem_cache::TimeoutSet;
 use actix::prelude::*;
 
 
-#[derive(Default)]
+//#[derive(Default)]
 pub struct NamingActor {
     service_map:HashMap<String,Service>,
     namespace_group_service:HashMap<String,BTreeSet<String>>,
@@ -47,6 +49,7 @@ pub struct NamingActor {
     subscriber: Subscriber,
     sys_config: NamingSysConfig,
     empty_service_set: TimeoutSet<String>,
+    dal_addr: Addr<ServiceDalActor>,
 }
 
 impl NamingActor {
@@ -55,6 +58,7 @@ impl NamingActor {
         if let Some(delay_notify) = delay_notify_addr.as_ref() {
             subscriber.set_notify_addr(delay_notify.clone());
         }
+        let dal_addr = SyncArbiter::start(1,||ServiceDalActor::new());
         Self {
             service_map: Default::default(),
             namespace_group_service: Default::default(),
@@ -64,6 +68,7 @@ impl NamingActor {
             delay_notify_addr: delay_notify_addr,
             sys_config: NamingSysConfig::new(),
             empty_service_set: Default::default(),
+            dal_addr,
         }
     }
 
@@ -123,6 +128,7 @@ impl NamingActor {
                 service.group_name = key.group_name.to_owned();
                 service.last_modified_millis = current_time;
                 service.recalculate_checksum();
+                self.dal_addr.do_send(ServiceDalMsg::AddService(service.get_service_do()));
                 self.service_map.insert(key.get_join_service_name(),service);
                 self.empty_service_set.add(now_millis()+self.sys_config.service_time_out_millis,service_map_key);
             }
@@ -293,6 +299,7 @@ impl NamingActor {
     fn clear_one_empty_service(&mut self,service_map_key:String){
         if let Some(service) = self.service_map.get(&service_map_key) {
             if service.instance_size <= 0 {
+                self.dal_addr.do_send(ServiceDalMsg::DeleteService(service.get_service_do().get_key_param().unwrap()));
                 self.service_map.remove(&service_map_key);
                 log::info!("clear_empty_service:{}",&service_map_key);
             }
