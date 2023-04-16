@@ -257,8 +257,8 @@ impl Service {
     pub fn get_service_do(&self) -> ServiceDO {
         ServiceDO {
             namespace_id:Some(self.namespace_id.to_owned()),
-            service_name:Some(self.namespace_id.to_owned()),
-            group_name:Some(self.namespace_id.to_owned()),
+            service_name:Some(self.service_name.to_owned()),
+            group_name:Some(self.group_name.to_owned()),
             instance_size:Some(self.instance_size.to_owned()),
             ..Default::default()
         }

@@ -333,6 +333,7 @@ pub enum NamingCmd {
     Subscribe(Vec<NamingListenerItem>,Arc<String>),
     RemoveSubscribe(Vec<NamingListenerItem>,Arc<String>),
     RemoveSubscribeClient(Arc<String>),
+    QueryDalAddr,
 }
 
 pub enum NamingResult {
@@ -342,6 +343,7 @@ pub enum NamingResult {
     InstanceListString(String),
     ServiceInfo(ServiceInfo),
     ServicePage((usize,Vec<String>)),
+    DalAddr(Addr<ServiceDalActor>),
 }
 
 impl Actor for NamingActor {
@@ -445,6 +447,9 @@ impl Handler<NamingCmd> for NamingActor {
             NamingCmd::RemoveSubscribeClient(client_id) => {
                 self.subscriber.remove_client_subscribe(client_id);
                 Ok(NamingResult::NULL)
+            },
+            NamingCmd::QueryDalAddr => {
+                Ok(NamingResult::DalAddr(self.dal_addr.clone()))
             },
         }
     }

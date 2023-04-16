@@ -6,7 +6,7 @@ use nacos_rust::grpc::handler::InvokerHandler;
 use nacos_rust::grpc::nacos_proto::bi_request_stream_server::BiRequestStreamServer;
 use nacos_rust::grpc::nacos_proto::request_server::RequestServer;
 use nacos_rust::grpc::server::BiRequestStreamServerImpl;
-use nacos_rust::naming::core::NamingCmd;
+use nacos_rust::naming::core::{NamingCmd, NamingResult};
 use nacos_rust::{naming::core::NamingActor, grpc::server::RequestServerImpl};
 use nacos_rust::config::config::{ConfigActor, ConfigCmd};
 use tonic::transport::Server;
@@ -24,6 +24,13 @@ async fn main() -> Result<(), Box<dyn Error>>  {
     let config_addr = ConfigActor::new().start();
     //let naming_addr = NamingActor::new_and_create();
     let naming_addr = NamingActor::create_at_new_system();
+    let naming_res: NamingResult = naming_addr.send(NamingCmd::QueryDalAddr).await.unwrap().unwrap();
+    let naming_dal_addr = if let NamingResult::DalAddr(addr)=naming_res { 
+        addr 
+    } 
+    else {
+        panic!("error naming_dal_addr")
+    };
 
     let mut bistream_manage = BiStreamManage::new();
     bistream_manage.set_config_addr(config_addr.clone());
@@ -52,9 +59,11 @@ async fn main() -> Result<(), Box<dyn Error>>  {
     HttpServer::new(move || {
         let config_addr = config_addr.clone();
         let naming_addr = naming_addr.clone();
+        let naming_dal_addr = naming_dal_addr.clone();
         App::new()
             .app_data(Data::new(config_addr))
             .app_data(Data::new(naming_addr))
+            .app_data(Data::new(naming_dal_addr))
             .wrap(middleware::Logger::default())
             .configure(app_config)
     })

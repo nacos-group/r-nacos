@@ -1,7 +1,9 @@
 use super::NamingUtils;
+use super::dal::service_do::{ServiceParam, ServiceDO};
 use super::model::{Instance,ServiceKey};
 use chrono::Local;
 use serde::{Deserialize, Serialize};
+use std::cmp;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
@@ -107,4 +109,38 @@ impl InstanceVO {
             ephemeral: Some(instance.ephemeral),
         }
     }
+}
+
+#[derive(Debug,Serialize,Deserialize,Default)]
+#[serde(rename_all = "camelCase")]
+pub struct ServiceQueryOptListRequest {
+    pub page_no:Option<usize>,
+    pub page_size:Option<usize>,
+    pub namespace_id:Option<String>,
+    pub group_name:Option<String>,
+    pub service_name:Option<String>,
+}
+
+impl ServiceQueryOptListRequest {
+    pub fn to_service_param(self) -> ServiceParam {
+        let page_index = cmp::max(0,self.page_no.unwrap_or(1) -1) as i64;
+        let page_size = cmp::max(5,self.page_size.unwrap_or(20)) as i64;
+        let like_group_name = format!("%{}%",self.group_name.unwrap_or_default());
+        let like_service_name= format!("%{}%",self.service_name.unwrap_or_default());
+        ServiceParam { 
+            namespace_id: self.namespace_id, 
+            like_group_name: Some(like_group_name), 
+            like_service_name: Some(like_service_name), 
+            limit:Some(page_size),
+            offset:Some(page_index*page_size),
+            ..Default::default()
+        }
+    }
+}
+
+#[derive(Debug,Serialize,Deserialize,Default)]
+#[serde(rename_all = "camelCase")]
+pub struct ServiceQueryOptListResponse{
+    pub count:u64,
+    pub service:Option<Vec<ServiceDO>>,
 }

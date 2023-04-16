@@ -8,13 +8,15 @@ use super::{service_dao::ServiceDao, service_do::{ServiceDO, ServiceParam}};
 
 use actix::prelude::*;
 
-pub(crate) struct ServiceDalActor {
-    pub service_dao: ServiceDao,
+pub struct ServiceDalActor {
+    pub(crate) service_dao: ServiceDao,
 }
 
 impl ServiceDalActor {
     pub fn new() -> Self {
         let conn = Connection::open_in_memory().unwrap();
+        //let naming_db = std::env::var("naming.db").unwrap_or("naming.db".to_owned());
+        //let conn = Connection::open(&naming_db).unwrap();
         Self::init_table(&conn);
         Self { service_dao: ServiceDao::new(Arc::new(conn))}
     }
@@ -75,12 +77,14 @@ pub enum ServiceDalMsg {
     DeleteService(ServiceParam),
     QueryServiceCount(ServiceParam),
     QueryServiceList(ServiceParam),
+    QueryServiceListWithCount(ServiceParam),
 }
 
 pub enum ServiceDalResult {
     None,
     Count(u64),
     ServiceList(Vec<ServiceDO>),
+    ServiceListWithCount(Vec<ServiceDO>,u64),
 }
 
 impl Handler<ServiceDalMsg> for ServiceDalActor {
@@ -104,6 +108,12 @@ impl Handler<ServiceDalMsg> for ServiceDalActor {
             ServiceDalMsg::QueryServiceList(param) => {
                 let list = self.service_dao.query(&param)?;
                 return Ok(ServiceDalResult::ServiceList(list));
+            },
+            ServiceDalMsg::QueryServiceListWithCount(param) => {
+                let count = self.service_dao.query_count(&param)?;
+                let list = self.service_dao.query(&param)?;
+                println!("QueryServiceListWithCount,{},{}",&count,list.len());
+                return Ok(ServiceDalResult::ServiceListWithCount(list,count));
             },
         }
         Ok(ServiceDalResult::None)

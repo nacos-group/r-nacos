@@ -60,6 +60,7 @@ where F: Fn(&Row) -> T + Send
 
 pub fn sqlite_fetch_count(conn:&Connection,sql:&str,args:&Vec<serde_json::Value>) -> anyhow::Result<u64> 
 {
+    //println!("sqlite_fetch_count, {} | {:?}",&sql,&args);
     let mut stmt = conn.prepare(&sql).unwrap();
     let r = stmt.query_map(params_from_iter(
         convert_json_params(&args).iter()), |r|{r.get(0)});

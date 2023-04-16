@@ -63,6 +63,8 @@ pub struct ServiceParam{
     pub namespace_id:Option<String>,
     pub service_name:Option<String>,
     pub group_name:Option<String>,
+    pub like_service_name:Option<String>,
+    pub like_group_name:Option<String>,
     pub id:Option<i64>,
     pub limit:Option<i64>,
     pub offset:Option<i64>,

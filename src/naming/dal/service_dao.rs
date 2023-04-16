@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use rsql_builder::B;
+use rsql_builder::{B, IBuilder};
 use rusqlite::Connection;
 use crate::common::rusqlite_utils::{sqlite_execute,sqlite_fetch, sqlite_fetch_count};
 use super::service_do::{ServiceParam, ServiceDO};
@@ -19,9 +19,20 @@ impl ServiceSql{
         if let Some(group_name)=&param.group_name{
             whr.eq("group_name",group_name);
         }
+        else if let Some(group_name)=&param.like_group_name{
+            whr.like("group_name",group_name);
+        }
         if let Some(service_name)=&param.service_name {
             whr.eq("service_name",service_name);
         }
+        else if let Some(like_service_name)=&param.like_service_name {
+            whr.like("service_name",like_service_name);
+        }
+        whr
+    }
+
+    fn offset_conditions(&self,param:&ServiceParam) -> B {
+        let mut whr = B::new();
         if let Some(limit)=&param.limit {
             whr.limit(limit);
         }
@@ -32,10 +43,22 @@ impl ServiceSql{
     }
 
     pub fn query_prepare(&self,param:&ServiceParam) -> (String,Vec<serde_json::Value>) {
-        B::prepare(
-            B::new_sql("select id, namespace_id, service_name, group_name, instance_size, healthy_size, threshold, metadata, extend_info, create_time, last_time from tb_service")
+        B::new_sql("select id, namespace_id, service_name, group_name, instance_size, healthy_size, threshold, metadata, extend_info, create_time, last_time from tb_service")
             .push_build(&mut self.conditions(param))
-        )
+            .push_build(&mut self.offset_conditions(param))
+            /* 
+            .push_fn(||{
+                let mut b= B::new();
+                if let Some(limit) = &param.limit{
+                    b.limit(limit);
+                }
+                if let Some(offset ) = &param.offset{
+                    b.offset(offset);
+                }
+                b
+            })
+            */
+            .build()
     }
 
     pub fn query_count_prepare(&self,param:&ServiceParam) -> (String,Vec<serde_json::Value>) {
