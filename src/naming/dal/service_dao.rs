@@ -152,39 +152,39 @@ impl ServiceDao {
         }
     }
 
-    pub fn execute(&self,sql:&str,args:&Vec<serde_json::Value>) -> Result<usize,String>{
+    pub fn execute(&self,sql:&str,args:&Vec<serde_json::Value>) -> anyhow::Result<usize>{
         sqlite_execute(&self.conn,sql,args) 
     }
 
-    pub fn fetch(&self,sql:&str,args:&Vec<serde_json::Value>) -> Result<Vec<ServiceDO>,String> {
+    pub fn fetch(&self,sql:&str,args:&Vec<serde_json::Value>) -> anyhow::Result<Vec<ServiceDO>> {
         sqlite_fetch(&self.conn,sql,args,ServiceDO::from_row)
     }
 
-    pub fn fetch_count(&self,sql:&str,args:&Vec<serde_json::Value>) -> Result<u64,String> {
+    pub fn fetch_count(&self,sql:&str,args:&Vec<serde_json::Value>) -> anyhow::Result<u64> {
         sqlite_fetch_count(&self.conn,sql,args)
     }
 
-    pub fn insert(&self,record:&ServiceDO) -> Result<usize,String> {
+    pub fn insert(&self,record:&ServiceDO) -> anyhow::Result<usize> {
         let (sql,args) = self.inner.insert_prepare(record);
         self.execute(&sql, &args)
     }
 
-    pub fn update(&self,record:&ServiceDO,param:&ServiceParam) -> Result<usize,String> {
+    pub fn update(&self,record:&ServiceDO,param:&ServiceParam) -> anyhow::Result<usize> {
         let (sql,args) = self.inner.update_prepare(record,param);
         self.execute(&sql, &args)
     }
 
-    pub fn delete(&self,param:&ServiceParam) -> Result<usize,String> {
+    pub fn delete(&self,param:&ServiceParam) -> anyhow::Result<usize> {
         let (sql,args) = self.inner.delete_prepare(param);
         self.execute(&sql, &args)
     }
 
-    pub fn query(&self,param:&ServiceParam) -> Result<Vec<ServiceDO>,String> {
+    pub fn query(&self,param:&ServiceParam) -> anyhow::Result<Vec<ServiceDO>> {
         let (sql,args) = self.inner.query_prepare(param);
         self.fetch(&sql, &args)
     }
 
-    pub fn query_count(&self,param:&ServiceParam) -> Result<u64,String> {
+    pub fn query_count(&self,param:&ServiceParam) -> anyhow::Result<u64> {
         let (sql,args) = self.inner.query_count_prepare(param);
         self.fetch_count(&sql, &args)
     }

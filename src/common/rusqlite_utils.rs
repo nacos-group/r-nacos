@@ -39,43 +39,32 @@ pub fn convert_json_params(inputs:&Vec<serde_json::Value>) -> Vec<rusqlite::type
 }
 
 
-pub fn sqlite_execute(conn:&Connection,sql:&str,args:&Vec<serde_json::Value>) -> Result<usize,String> {
+pub fn sqlite_execute(conn:&Connection,sql:&str,args:&Vec<serde_json::Value>) -> anyhow::Result<usize> {
     //println!("sqlite_execute, {} | {:?}",&sql,&args);
     let result = conn.execute(&sql,params_from_iter(
         convert_json_params(args).iter()) );
-    match result {
-        Ok(v) => Ok(v),
-        Err(e) => Err(e.to_string())
-    }
+    Ok(result?)
 }
 
-pub fn sqlite_fetch<T,F>(conn:&Connection,sql:&str,args:&Vec<serde_json::Value>,convert:F) -> Result<Vec<T>,String> 
+pub fn sqlite_fetch<T,F>(conn:&Connection,sql:&str,args:&Vec<serde_json::Value>,convert:F) -> anyhow::Result<Vec<T>> 
 where F: Fn(&Row) -> T + Send
 {
     //println!("sqlite_fetch, {} | {:?}",&sql,&args);
     let mut stmt = conn.prepare(&sql).unwrap();
-        let r = stmt.query_map(params_from_iter(
-            convert_json_params(&args).iter()), |r|{Ok(convert(r))});
-        match r {
-            Ok(res) => {
-                let list:Vec<T>=res.into_iter().map(|e|e.unwrap()).collect();
-                Ok(list)
-            },
-            Err(e) => Err(e.to_string())
-        }
+    let r = stmt.query_map(params_from_iter(
+        convert_json_params(&args).iter()), |r|{Ok(convert(r))});
+    let res = r?;
+    let list:Vec<T>=res.into_iter().map(|e|e.unwrap()).collect();
+    Ok(list)
 }
 
-pub fn sqlite_fetch_count(conn:&Connection,sql:&str,args:&Vec<serde_json::Value>) -> Result<u64,String> 
+pub fn sqlite_fetch_count(conn:&Connection,sql:&str,args:&Vec<serde_json::Value>) -> anyhow::Result<u64> 
 {
     let mut stmt = conn.prepare(&sql).unwrap();
-        let r = stmt.query_map(params_from_iter(
-            convert_json_params(&args).iter()), |r|{r.get(0)});
-        match r {
-            Ok(res) => {
-                let list:Vec<u64>=res.into_iter().map(|e|e.unwrap()).collect();
-                let r:u64=list.get(0).unwrap().to_owned();
-                Ok(r)
-            },
-            Err(e) => Err(e.to_string())
-        }
+    let r = stmt.query_map(params_from_iter(
+        convert_json_params(&args).iter()), |r|{r.get(0)});
+    let res = r?;
+    let list:Vec<u64>=res.into_iter().map(|e|e.unwrap()).collect();
+    let v=list.get(0).unwrap().to_owned();
+    Ok(v)
 }

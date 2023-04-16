@@ -112,6 +112,6 @@ create index if not exists tb_config_history_key_idx on tb_config_history(data_i
 
     pub fn query_config_list(&self) -> Vec<ConfigDO> {
         let param = ConfigParam::default();
-        self.config_dao.query(&param)
+        self.config_dao.query(&param).unwrap()
     }
 }

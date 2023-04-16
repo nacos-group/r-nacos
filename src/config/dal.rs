@@ -160,30 +160,30 @@ impl ConfigDao {
         }
     }
 
-    pub fn execute(&self,sql:&str,args:&Vec<serde_json::Value>) -> Result<usize,String>{
+    pub fn execute(&self,sql:&str,args:&Vec<serde_json::Value>) -> anyhow::Result<usize>{
         sqlite_execute(&self.conn,sql,args) 
     }
 
-    pub fn fetch(&self,sql:&str,args:&Vec<serde_json::Value>) -> Vec<ConfigDO> {
-        sqlite_fetch(&self.conn,sql,args,ConfigDO::from_row).unwrap()
+    pub fn fetch(&self,sql:&str,args:&Vec<serde_json::Value>) -> anyhow::Result<Vec<ConfigDO>> {
+        sqlite_fetch(&self.conn,sql,args,ConfigDO::from_row)
     }
 
-    pub fn insert(&self,record:&ConfigDO) -> Result<usize,String> {
+    pub fn insert(&self,record:&ConfigDO) -> anyhow::Result<usize> {
         let (sql,args) = self.inner.insert_prepare(record);
         self.execute(&sql, &args)
     }
 
-    pub fn update(&self,record:&ConfigDO,param:&ConfigParam) -> Result<usize,String> {
+    pub fn update(&self,record:&ConfigDO,param:&ConfigParam) -> anyhow::Result<usize> {
         let (sql,args) = self.inner.update_prepare(record,param);
         self.execute(&sql, &args)
     }
 
-    pub fn delete(&self,param:&ConfigParam) -> Result<usize,String> {
+    pub fn delete(&self,param:&ConfigParam) -> anyhow::Result<usize> {
         let (sql,args) = self.inner.delete_prepare(param);
         self.execute(&sql, &args)
     }
 
-    pub fn query(&self,param:&ConfigParam) -> Vec<ConfigDO> {
+    pub fn query(&self,param:&ConfigParam) -> anyhow::Result<Vec<ConfigDO>> {
         let (sql,args) = self.inner.query_prepare(param);
         self.fetch(&sql, &args)
     }
@@ -335,30 +335,30 @@ impl ConfigHistoryDao {
         }
     }
 
-    pub fn execute(&self,sql:&str,args:&Vec<serde_json::Value>) -> Result<usize,String>{
+    pub fn execute(&self,sql:&str,args:&Vec<serde_json::Value>) -> anyhow::Result<usize>{
         sqlite_execute(&self.conn,sql,args) 
     }
 
-    pub fn fetch(&self,sql:&str,args:&Vec<serde_json::Value>) -> Vec<ConfigHistoryDO> {
-        sqlite_fetch(&self.conn,sql,args,ConfigHistoryDO::from_row).unwrap()
+    pub fn fetch(&self,sql:&str,args:&Vec<serde_json::Value>) -> anyhow::Result<Vec<ConfigHistoryDO>> {
+        sqlite_fetch(&self.conn,sql,args,ConfigHistoryDO::from_row)
     }
 
-    pub fn insert(&self,record:&ConfigHistoryDO) -> Result<usize,String> {
+    pub fn insert(&self,record:&ConfigHistoryDO) -> anyhow::Result<usize> {
         let (sql,args) = self.inner.insert_prepare(record);
         self.execute(&sql, &args)
     }
 
-    pub fn update(&self,record:&ConfigHistoryDO,param:&ConfigHistoryParam) -> Result<usize,String> {
+    pub fn update(&self,record:&ConfigHistoryDO,param:&ConfigHistoryParam) -> anyhow::Result<usize> {
         let (sql,args) = self.inner.update_prepare(record,param);
         self.execute(&sql, &args)
     }
 
-    pub fn delete(&self,param:&ConfigHistoryParam) -> Result<usize,String> {
+    pub fn delete(&self,param:&ConfigHistoryParam) -> anyhow::Result<usize> {
         let (sql,args) = self.inner.delete_prepare(param);
         self.execute(&sql, &args)
     }
 
-    pub fn query(&self,param:&ConfigHistoryParam) -> Vec<ConfigHistoryDO> {
+    pub fn query(&self,param:&ConfigHistoryParam) -> anyhow::Result<Vec<ConfigHistoryDO>> {
         let (sql,args) = self.inner.query_prepare(param);
         self.fetch(&sql, &args)
     }
