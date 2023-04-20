@@ -417,8 +417,10 @@ pub fn app_config(config:&mut web::ServiceConfig) {
             .service(web::resource("/service/list")
                 .route( web::get().to(query_service_list))
             )
+            /* 
             .service(web::resource("/service/opt/list")
                 .route( web::get().to(query_opt_service_list))
             )
+            */
     );
 }
