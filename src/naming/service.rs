@@ -46,40 +46,49 @@ impl Service {
     }
     */
 
-    pub(crate) fn update_instance(&mut self,instance:Instance,update_tag:Option<InstanceUpdateTag>) -> UpdateInstanceType {
+    pub(crate) fn update_instance(&mut self,mut instance:Instance,update_tag:Option<InstanceUpdateTag>) -> UpdateInstanceType {
         if instance.service_name=="service-consumer" {
             println!("service-consumer update_instance {:?}",&instance);
         }
         let key = instance.id.to_owned();
         let time_info = instance.get_time_info();
-        let mut update_mark = true;
+        //let mut update_mark = true;
         let mut rtype = UpdateInstanceType::None;
-        let new_instance = Arc::new(instance);
-        if let Some(v) =self.instances.insert(key,new_instance.clone()) {
-            let is_update = v.update_info(&new_instance, update_tag);
-            if is_update {
-                rtype=UpdateInstanceType::UpdateValue;
+        let old_instance = self.instances.get(&key);
+        if let Some(old_instance) = old_instance {
+            rtype=UpdateInstanceType::UpdateValue;
+            if let Some(update_tag) = update_tag {
+                if(!update_tag.is_none()){
+                    if !update_tag.enabled {
+                        instance.enabled = old_instance.enabled.to_owned();
+                    }
+                    if !update_tag.ephemeral{
+                        instance.ephemeral = old_instance.ephemeral.to_owned();
+                    }
+                    if !update_tag.weight{
+                        instance.weight = old_instance.weight.to_owned();
+                    }
+                    if !update_tag.metadata{
+                        instance.metadata = old_instance.metadata.to_owned();
+                    }
+                }
+                else{
+                    rtype=UpdateInstanceType::UpdateTime;
+                }
             }
-            else{
-                rtype=UpdateInstanceType::UpdateTime;
-            }
-             /* 
-            // 避免频繁更新
-            let old_last_time  = v.last_modified_millis.load(Ordering::Relaxed);
-            if !is_update && time_info.time < old_last_time + 500 {
-                rtype=UpdateInstanceType::None;
-                update_mark = false;
-                v.last_modified_millis.swap(old_last_time,Ordering::Relaxed);
-            }
-            */
         }
         else{
             self.instance_size+=1;
             rtype=UpdateInstanceType::New;
         }
+        let new_instance = Arc::new(instance);
+        self.instances.insert(key, new_instance);
+        self.update_timeinfos(time_info);
+        /* 
         if update_mark {
             self.update_timeinfos(time_info);
         }
+        */
         rtype
     }
 

@@ -334,7 +334,12 @@ pub async fn beat_instance(a:web::Query<BeatRequest>,b:web::Form<BeatRequest>,na
                 "instance check is invalid".to_owned()
             }
             else{
-                let tag = InstanceUpdateTag::default();
+                let tag = InstanceUpdateTag{
+                    weight:false,
+                    enabled:false,
+                    ephemeral:false,
+                    metadata:false,
+                };
                 let _= naming_addr.send(NamingCmd::Update(instance,Some(tag))).await ;
                 "ok".to_owned()
             }
