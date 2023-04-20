@@ -127,7 +127,7 @@ async fn get_config(a:web::Query<ConfigWebParams>,config_addr:web::Data<Addr<Con
                             v.to_owned()
                         },
                         _ => {
-                            "config data not exist".to_owned()
+                            return HttpResponse::NotFound().body("config data not exist");
                         }
                     }
                 },

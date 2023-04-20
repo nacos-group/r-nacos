@@ -374,6 +374,7 @@ pub async fn query_service_list(param:web::Query<ServiceQueryListRequest>,naming
     return_val
 }
 
+/* 
 pub async fn query_opt_service_list(param:web::Query<ServiceQueryOptListRequest>,service_dal_addr:web::Data<Addr<ServiceDalActor>>) -> impl Responder {
     let serivce_param = param.0.to_service_param();
     match service_dal_addr.send(ServiceDalMsg::QueryServiceListWithCount(serivce_param)).await{
@@ -393,6 +394,7 @@ pub async fn query_opt_service_list(param:web::Query<ServiceQueryOptListRequest>
         Err(_) => {"error".to_owned()}
     }
 }
+*/
 
 pub fn app_config(config:&mut web::ServiceConfig) {
     config.service(
