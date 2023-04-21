@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use serde::{Deserialize, Serialize};
 
@@ -239,8 +239,8 @@ pub struct SubscribeServiceRequest {
 #[derive(Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct ServiceInfo {
-    pub name: Option<String>,
-    pub group_name: Option<String>,
+    pub name: Option<Arc<String>>,
+    pub group_name: Option<Arc<String>>,
     pub clusters: Option<String>,
     pub cache_millis: i64,
     pub hosts: Option<Vec<Instance>>,
@@ -321,9 +321,9 @@ pub struct NotifySubscriberRequest {
     pub request_id:Option<String>,
     pub headers:HashMap<String,String>,
 
-    pub namespace:Option<String>,
-    pub service_name:Option<String>,
-    pub group_name:Option<String>,
+    pub namespace:Option<Arc<String>>,
+    pub service_name:Option<Arc<String>>,
+    pub group_name:Option<Arc<String>>,
 
     pub service_info: Option<ServiceInfo>,
 }

@@ -42,7 +42,7 @@ use actix::prelude::*;
 //#[derive(Default)]
 pub struct NamingActor {
     service_map:HashMap<String,Service>,
-    namespace_group_service:HashMap<String,BTreeSet<String>>,
+    namespace_group_service:HashMap<String,BTreeSet<Arc<String>>>,
     last_id:u64,
     listener_addr:Option<Addr<InnerNamingListener>>,
     delay_notify_addr: Option<Addr<DelayNotifyActor>>,
@@ -272,7 +272,7 @@ impl NamingActor {
         (remove_list,update_list)
     }
 
-    pub fn get_service_list(&self,page_size:usize,page_index:usize,key:&ServiceKey) -> (usize,Vec<String>) {
+    pub fn get_service_list(&self,page_size:usize,page_index:usize,key:&ServiceKey) -> (usize,Vec<Arc<String>>) {
         let offset = page_size * max(page_index-1,0);
         if let Some(set) = self.namespace_group_service.get(&key.get_namespace_group()){
             let size = set.len();
@@ -342,7 +342,7 @@ pub enum NamingResult {
     InstanceList(Vec<Arc<Instance>>),
     InstanceListString(String),
     ServiceInfo(ServiceInfo),
-    ServicePage((usize,Vec<String>)),
+    ServicePage((usize,Vec<Arc<String>>)),
     DalAddr(Addr<ServiceDalActor>),
 }
 

@@ -13,14 +13,14 @@ pub struct ServiceMetadata {
 
 #[derive(Debug,Clone,Default)]
 pub struct Service {
-    pub service_name:String,
-    pub group_name:String,
+    pub service_name:Arc<String>,
+    pub group_name:Arc<String>,
     pub metadata:HashMap<String,String>,
     pub protect_threshold:f32,
     pub last_modified_millis:i64,
     //pub has_instance:bool,
 
-    pub namespace_id:String,
+    pub namespace_id:Arc<String>,
     pub app_name:String,
     pub check_sum:String,
     pub(crate) instance_size:i64,
@@ -263,6 +263,7 @@ impl Service {
         ServiceMetadata { protect_threshold: self.protect_threshold }
     }
 
+    /*
     pub fn get_service_do(&self) -> ServiceDO {
         ServiceDO {
             namespace_id:Some(self.namespace_id.to_owned()),
@@ -272,4 +273,5 @@ impl Service {
             ..Default::default()
         }
     }
+     */
 }

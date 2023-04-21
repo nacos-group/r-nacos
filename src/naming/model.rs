@@ -117,8 +117,8 @@ impl Default for Instance {
 #[derive(Debug,Serialize, Deserialize , Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ServiceInfo {
-    pub name: Option<String>,
-    pub group_name: Option<String>,
+    pub name: Option<Arc<String>>,
+    pub group_name: Option<Arc<String>>,
     pub clusters: Option<String>,
     pub cache_millis: i64,
     pub hosts: Option<Vec<Arc<Instance>>>,
@@ -160,9 +160,9 @@ impl Default for InstanceUpdateTag {
 
 #[derive(Debug,Clone,Default,Hash,Eq)]
 pub struct ServiceKey {
-    pub namespace_id:String,
-    pub group_name:String,
-    pub service_name:String,
+    pub namespace_id:Arc<String>,
+    pub group_name:Arc<String>,
+    pub service_name:Arc<String>,
 }
 
 impl PartialEq for ServiceKey {
@@ -177,10 +177,14 @@ impl PartialEq for ServiceKey {
 impl ServiceKey {
     pub fn new(namespace_id:&str,group_name:&str,serivce_name:&str) -> Self {
         Self {
-            namespace_id:namespace_id.to_owned(),
-            group_name:group_name.to_owned(),
-            service_name:serivce_name.to_owned(),
+            namespace_id:Arc::new(namespace_id.to_owned()),
+            group_name:Arc::new(group_name.to_owned()),
+            service_name:Arc::new(serivce_name.to_owned()),
         }
+    }
+
+    pub fn new_by_arc(namespace_id:Arc<String>,group_name:Arc<String>,service_name:Arc<String>) -> Self {
+        Self { namespace_id, group_name, service_name }
     }
 
     pub fn get_join_service_name(&self) -> String {

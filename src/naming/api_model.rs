@@ -6,7 +6,6 @@ use serde::{Deserialize, Serialize};
 use std::cmp;
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::sync::atomic::Ordering;
 
 #[derive(Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
@@ -22,7 +21,7 @@ pub struct QueryListResult {
     pub env: Option<String>,
     pub protect_threshold: Option<f32>,
     pub reach_local_site_call_threshold: Option<bool>,
-    pub dom: Option<String>,
+    pub dom: Option<Arc<String>>,
     pub metadata: Option<HashMap<String, String>>,
 }
 

@@ -238,7 +238,7 @@ pub struct ServiceQueryListRequest {
 #[derive(Debug,Serialize,Deserialize,Default)]
 pub struct ServiceQueryListResponce {
     pub count:usize,
-    pub doms:Vec<String>,
+    pub doms:Vec<Arc<String>>,
 }
 
 

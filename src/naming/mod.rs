@@ -10,7 +10,7 @@ pub mod naming_subscriber;
 pub mod naming_delay_nofity;
 pub(crate) mod filter;
 pub(crate) mod dal;
-pub mod service_manage;
+pub mod service_index;
 
 pub struct NamingUtils;
 
