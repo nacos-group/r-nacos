@@ -109,12 +109,10 @@ impl NamingActor {
     }
     
     pub(crate) fn create_empty_service(&mut self,key:&ServiceKey) {
-        let namspace_group = key.get_namespace_group();
         let ng_service_name = key.service_name.to_owned();
         match self.get_service(key) {
             Some(_) => {},
             None => {
-                let service_map_key = key.get_join_service_name();
                 let mut service = Service::default();
                 let current_time = Local::now().timestamp_millis();
                 service.service_name = key.service_name.to_owned();
