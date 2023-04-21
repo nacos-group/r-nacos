@@ -43,14 +43,13 @@ use actix::prelude::*;
 
 //#[derive(Default)]
 pub struct NamingActor {
-    service_map:HashMap<String,Service>,
-    namespace_group_service:HashMap<String,BTreeSet<Arc<String>>>,
+    service_map:HashMap<ServiceKey,Service>,
     last_id:u64,
     listener_addr:Option<Addr<InnerNamingListener>>,
     delay_notify_addr: Option<Addr<DelayNotifyActor>>,
     subscriber: Subscriber,
     sys_config: NamingSysConfig,
-    empty_service_set: TimeoutSet<String>,
+    empty_service_set: TimeoutSet<ServiceKey>,
     namespace_index: NamespaceIndex,
     //dal_addr: Addr<ServiceDalActor>,
 }
@@ -64,7 +63,6 @@ impl NamingActor {
         //let dal_addr = SyncArbiter::start(1,||ServiceDalActor::new());
         Self {
             service_map: Default::default(),
-            namespace_group_service: Default::default(),
             last_id:0u64,
             listener_addr:listener_addr,
             subscriber: subscriber,
@@ -102,7 +100,7 @@ impl NamingActor {
     }
 
     pub(crate) fn get_service(&mut self,key:&ServiceKey) -> Option<&Service> {
-        match self.service_map.get_mut(&key.get_join_service_name()){
+        match self.service_map.get_mut(&key){
             Some(v) => {
                 Some(v)
             },
@@ -113,14 +111,6 @@ impl NamingActor {
     pub(crate) fn create_empty_service(&mut self,key:&ServiceKey) {
         let namspace_group = key.get_namespace_group();
         let ng_service_name = key.service_name.to_owned();
-        if let Some(set) = self.namespace_group_service.get_mut(&namspace_group){
-            set.insert(ng_service_name);
-        }
-        else{
-            let mut set = BTreeSet::new();
-            set.insert(ng_service_name);
-            self.namespace_group_service.insert(namspace_group,set);
-        }
         match self.get_service(key) {
             Some(_) => {},
             None => {
@@ -134,8 +124,8 @@ impl NamingActor {
                 service.recalculate_checksum();
                 self.namespace_index.insert_service(key.clone());
                 //self.dal_addr.do_send(ServiceDalMsg::AddService(service.get_service_do()));
-                self.service_map.insert(key.get_join_service_name(),service);
-                self.empty_service_set.add(now_millis()+self.sys_config.service_time_out_millis,service_map_key);
+                self.service_map.insert(key.clone(),service);
+                self.empty_service_set.add(now_millis()+self.sys_config.service_time_out_millis,key.clone());
             }
         }
     }
@@ -156,19 +146,17 @@ impl NamingActor {
     }
 
     pub(crate) fn add_instance(&mut self,key:&ServiceKey,instance:Instance) -> UpdateInstanceType {
-        let service_map_key = key.get_join_service_name();
-        let service = self.service_map.get_mut(&service_map_key).unwrap();
+        let service = self.service_map.get_mut(&key).unwrap();
         let tag = service.update_instance(instance,None);
         self.do_notify(&tag, key.clone());
         tag
     }
 
     pub fn remove_instance(&mut self,key:&ServiceKey ,cluster_name:&str,instance_id:&str) -> UpdateInstanceType {
-        let service_map_key = key.get_join_service_name();
-        let service = self.service_map.get_mut(&service_map_key).unwrap();
+        let service = self.service_map.get_mut(&key).unwrap();
         let tag = service.remove_instance(instance_id);
         if service.instance_size <= 0 {
-            self.empty_service_set.add(now_millis()+self.sys_config.service_time_out_millis,service_map_key);
+            self.empty_service_set.add(now_millis()+self.sys_config.service_time_out_millis,key.clone());
         }
         self.do_notify(&tag, key.clone());
         tag
@@ -179,7 +167,7 @@ impl NamingActor {
         assert!(instance.check_vaild());
         self.create_empty_service(key);
         //let cluster_name = instance.cluster_name.clone();
-        let service = self.service_map.get_mut(&key.get_join_service_name()).unwrap();
+        let service = self.service_map.get_mut(&key).unwrap();
         let tag = service.update_instance(instance, tag);
         //change notify
         self.do_notify(&tag, key.clone());
@@ -187,7 +175,7 @@ impl NamingActor {
     }
 
     pub fn get_instance(&self,key:&ServiceKey,cluster_name:&str,instance_id:&str) -> Option<Arc<Instance>> {
-        if let Some(service) = self.service_map.get(&key.get_join_service_name()) {
+        if let Some(service) = self.service_map.get(&key) {
             return service.get_instance(instance_id);
         }
         None
@@ -195,7 +183,7 @@ impl NamingActor {
 
     pub fn get_instance_list(&self,key:&ServiceKey,cluster_str:&str,only_healthy:bool) -> Vec<Arc<Instance>> {
         let cluster_names = NamingUtils::split_filters(&cluster_str);
-        if let Some(service) = self.service_map.get(&key.get_join_service_name()) {
+        if let Some(service) = self.service_map.get(&key) {
             return InstanceFilterUtils::default_instance_filter(service.get_instance_list(cluster_names, false)
                 ,Some(service.get_metadata()),only_healthy);
         }
@@ -204,14 +192,14 @@ impl NamingActor {
 
     pub fn get_instances_and_metadata(&self,key:&ServiceKey,cluster_str:&str,only_healthy:bool) -> (Vec<Arc<Instance>>,Option<ServiceMetadata>) {
         let cluster_names = NamingUtils::split_filters(&cluster_str);
-        if let Some(service) = self.service_map.get(&key.get_join_service_name()) {
+        if let Some(service) = self.service_map.get(&key) {
             return (service.get_instance_list(cluster_names,only_healthy),Some(service.get_metadata()));
         }
         (vec![],None)
     }
 
     pub fn get_metadata(&self,key:&ServiceKey) -> Option<ServiceMetadata> {
-        if let Some(service) = self.service_map.get(&key.get_join_service_name()) {
+        if let Some(service) = self.service_map.get(&key) {
             Some(service.get_metadata())
         }
         else{
@@ -221,7 +209,7 @@ impl NamingActor {
 
     pub fn get_instance_map(&self,key:&ServiceKey,cluster_names:Vec<String>,only_healthy:bool) -> HashMap<String,Vec<Arc<Instance>>> {
         let mut map: HashMap<String, Vec<Arc<Instance>>>=HashMap::new();
-        if let Some(service) = self.service_map.get(&key.get_join_service_name()) {
+        if let Some(service) = self.service_map.get(&key) {
             for item in service.get_instance_list(cluster_names, only_healthy) {
                 if let Some(list) = map.get_mut(&item.cluster_name) {
                     list.push(item)
@@ -267,23 +255,13 @@ impl NamingActor {
             remove_list.append(&mut rlist);
             update_list.append(&mut ulist);
             if remove_list.len() > 0 && item.instance_size <=0 {
-                let service_map_key = item.get_service_key().get_join_service_name();
-                self.empty_service_set.add(now+self.sys_config.service_time_out_millis,service_map_key);
+                self.empty_service_set.add(now+self.sys_config.service_time_out_millis,item.get_service_key());
             }
             if size>=self.sys_config.once_time_check_size {
                 break;
             }
         }
         (remove_list,update_list)
-    }
-
-    pub fn get_service_list_old(&self,page_size:usize,page_index:usize,key:&ServiceKey) -> (usize,Vec<Arc<String>>) {
-        let offset = page_size * max(page_index-1,0);
-        if let Some(set) = self.namespace_group_service.get(&key.get_namespace_group()){
-            let size = set.len();
-            return (size,set.into_iter().skip(offset).take(page_size).map(|e| e.to_owned()).collect::<Vec<_>>());
-        }
-        (0,vec![])
     }
 
     pub fn get_service_list(&self,page_size:usize,page_index:usize,key:&ServiceKey) -> (usize,Vec<Arc<String>>) {
@@ -315,13 +293,13 @@ impl NamingActor {
         }
     }
 
-    fn clear_one_empty_service(&mut self,service_map_key:String){
+    fn clear_one_empty_service(&mut self,service_map_key:ServiceKey){
         if let Some(service) = self.service_map.get(&service_map_key) {
             if service.instance_size <= 0 {
                 //self.dal_addr.do_send(ServiceDalMsg::DeleteService(service.get_service_do().get_key_param().unwrap()));
                 self.namespace_index.remove_service(&service.get_service_key());
                 self.service_map.remove(&service_map_key);
-                log::info!("clear_empty_service:{}",&service_map_key);
+                log::info!("clear_empty_service:{:?}",&service_map_key);
             }
         }
     }
@@ -491,7 +469,7 @@ async fn query_healthy_instances(){
     instance.init();
     let key = instance.get_service_key();
     naming.update_instance(&key, instance, None);
-    if let Some(service) = naming.service_map.get_mut(&key.get_join_service_name()) {
+    if let Some(service) = naming.service_map.get_mut(&key) {
         service.protect_threshold = 0.1;
     }
 
