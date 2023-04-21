@@ -28,6 +28,8 @@ use super::naming_subscriber::NamingListenerItem;
 use super::naming_subscriber::Subscriber;
 use super::service::Service;
 use super::service::ServiceMetadata;
+use super::service_index::NamespaceIndex;
+use super::service_index::ServiceQueryParam;
 use crate::common::NamingSysConfig;
 use crate::common::delay_notify;
 use crate::grpc::bistream_manage::BiStreamManage;
@@ -49,6 +51,7 @@ pub struct NamingActor {
     subscriber: Subscriber,
     sys_config: NamingSysConfig,
     empty_service_set: TimeoutSet<String>,
+    namespace_index: NamespaceIndex,
     //dal_addr: Addr<ServiceDalActor>,
 }
 
@@ -68,6 +71,7 @@ impl NamingActor {
             delay_notify_addr: delay_notify_addr,
             sys_config: NamingSysConfig::new(),
             empty_service_set: Default::default(),
+            namespace_index: NamespaceIndex::new(),
             //dal_addr,
         }
     }
@@ -128,6 +132,7 @@ impl NamingActor {
                 service.group_name = key.group_name.to_owned();
                 service.last_modified_millis = current_time;
                 service.recalculate_checksum();
+                self.namespace_index.insert_service(key.clone());
                 //self.dal_addr.do_send(ServiceDalMsg::AddService(service.get_service_do()));
                 self.service_map.insert(key.get_join_service_name(),service);
                 self.empty_service_set.add(now_millis()+self.sys_config.service_time_out_millis,service_map_key);
@@ -272,13 +277,27 @@ impl NamingActor {
         (remove_list,update_list)
     }
 
-    pub fn get_service_list(&self,page_size:usize,page_index:usize,key:&ServiceKey) -> (usize,Vec<Arc<String>>) {
+    pub fn get_service_list_old(&self,page_size:usize,page_index:usize,key:&ServiceKey) -> (usize,Vec<Arc<String>>) {
         let offset = page_size * max(page_index-1,0);
         if let Some(set) = self.namespace_group_service.get(&key.get_namespace_group()){
             let size = set.len();
             return (size,set.into_iter().skip(offset).take(page_size).map(|e| e.to_owned()).collect::<Vec<_>>());
         }
         (0,vec![])
+    }
+
+    pub fn get_service_list(&self,page_size:usize,page_index:usize,key:&ServiceKey) -> (usize,Vec<Arc<String>>) {
+        let offset = page_size * max(page_index-1,0);
+        let param = ServiceQueryParam {
+            offset,
+            limit:page_size,
+            namespace_id: Some(key.namespace_id.clone()),
+            group: Some(key.group_name.clone()),
+            ..Default::default()
+        };
+        let (size,list)=self.namespace_index.query_service_page(&param);
+        let service_names = list.into_iter().map(|e|e.service_name).collect::<Vec<_>>();
+        (size,service_names)
     }
 
     fn update_listener(&mut self,key:&ServiceKey,cluster_names:&Vec<String>,addr:SocketAddr,only_healthy:bool){
@@ -300,6 +319,7 @@ impl NamingActor {
         if let Some(service) = self.service_map.get(&service_map_key) {
             if service.instance_size <= 0 {
                 //self.dal_addr.do_send(ServiceDalMsg::DeleteService(service.get_service_do().get_key_param().unwrap()));
+                self.namespace_index.remove_service(&service.get_service_key());
                 self.service_map.remove(&service_map_key);
                 log::info!("clear_empty_service:{}",&service_map_key);
             }

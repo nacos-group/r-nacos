@@ -7,8 +7,8 @@ use super::model::ServiceKey;
 #[derive(Debug,Clone,Default)]
 pub struct ServiceQueryParam {
     pub namespace_id:Option<Arc<String>>,
-    pub group:Option<String>,
-    pub service:Option<String>,
+    pub group:Option<Arc<String>>,
+    pub service:Option<Arc<String>>,
     pub like_group:Option<String>,
     pub like_service:Option<String>,
     pub offset:usize,
@@ -18,7 +18,7 @@ pub struct ServiceQueryParam {
 impl ServiceQueryParam {
     pub fn match_group(&self,g:&Arc<String>) -> bool {
         if let Some(group) = &self.group {
-            if StringUtils::eq(g, group) {
+            if StringUtils::is_empty(group) || StringUtils::eq(g, group) {
                 true
             }
             else{
@@ -39,7 +39,7 @@ impl ServiceQueryParam {
     }
     pub fn match_service(&self,s:&Arc<String>) -> bool {
         if let Some(service) = &self.service{
-            if StringUtils::eq(s, service) {
+            if StringUtils::is_empty(service) || StringUtils::eq(s, service) {
                 true
             }
             else{
