@@ -7,7 +7,7 @@ use super::api_model::{InstanceVO,QueryListResult};
 use super::ops::ops_api::query_opt_service_list;
 
 use actix_web::{
-    App,web,HttpRequest,HttpResponse,Responder,HttpMessage,middleware,HttpServer
+    App,web,HttpRequest,HttpResponse,Responder,HttpMessage,middleware,HttpServer,http::header
 };
 
 use serde::{Serialize,Deserialize};
@@ -244,7 +244,7 @@ pub struct ServiceQueryListResponce {
 
 pub async fn get_instance(param:web::Query<InstanceWebParams>,naming_addr:web::Data<Addr<NamingActor>>) -> impl Responder {
     let instance = param.to_instance();
-    let return_val = match instance {
+    match instance {
         Ok(instance) => {
             match naming_addr.send(NamingCmd::Query(instance)).await {
                 Ok(res) => {
@@ -252,21 +252,27 @@ pub async fn get_instance(param:web::Query<InstanceWebParams>,naming_addr:web::D
                     match result {
                         NamingResult::Instance(v) => {
                             let vo = InstanceVO::from_instance(&v);
-                            serde_json::to_string(&vo).unwrap()
+                            HttpResponse::Ok()
+                                .insert_header(header::ContentType(mime::APPLICATION_JSON))
+                                .body(serde_json::to_string(&vo).unwrap())
                         },
-                        _ => {"error".to_owned()}
+                        _ => {
+                            HttpResponse::InternalServerError().body("error")
+                        }
                     }
                 },
-                Err(_) => {"error".to_owned()}
+                Err(_) => {
+                    HttpResponse::InternalServerError().body("error")
+                }
             }
         },
-        Err(e) => {e}
-    };
-    return_val
+        Err(e) => {
+            HttpResponse::InternalServerError().body(e)
+        }
+    }
 }
 
 pub async fn get_instance_list(param:web::Query<InstanceWebQueryListParams>,naming_addr:web::Data<Addr<NamingActor>>) -> impl Responder {
-    log::debug!("get_instance_list:{:?}",&param);
     let only_healthy = param.healthy_only.unwrap_or(true);
     let addr = param.get_addr();
     let return_val = match param.to_clusters_key() {
@@ -292,46 +298,51 @@ pub async fn get_instance_list(param:web::Query<InstanceWebQueryListParams>,nami
 pub async fn add_instance(a:web::Query<InstanceWebParams>,b:web::Form<InstanceWebParams>,naming_addr:web::Data<Addr<NamingActor>>) -> impl Responder {
     let param = a.select_option(&b);
     let instance = param.to_instance();
-    let return_val = match instance {
+    match instance {
         Ok(instance) => {
             if !instance .check_vaild() {
-                "instance check is invalid".to_owned()
+                HttpResponse::InternalServerError()
+                    .body("instance check is invalid")
             }
             else{
                 let _= naming_addr.send(NamingCmd::Update(instance,None)).await ;
-                "ok".to_owned()
+                HttpResponse::Ok().body("ok")
             }
         },
-        Err(e) => {e}
-    };
-    return_val
+        Err(e) => {
+            HttpResponse::InternalServerError().body(e)
+        }
+    }
 }
 
 pub async fn del_instance(a:web::Query<InstanceWebParams>,b:web::Form<InstanceWebParams>,naming_addr:web::Data<Addr<NamingActor>>) -> impl Responder {
     let param = a.select_option(&b);
     let instance = param.to_instance();
-    let return_val = match instance {
+    match instance {
         Ok(instance) => {
             if !instance .check_vaild() {
-                "instance check is invalid".to_owned()
+                HttpResponse::InternalServerError()
+                    .body("instance check is invalid")
             }
             else{
                 let _= naming_addr.send(NamingCmd::Delete(instance)).await ;
-                "ok".to_owned()
+                HttpResponse::Ok().body("ok")
             }
         },
-        Err(e) => {e}
-    };
-    return_val
+        Err(e) => {
+            HttpResponse::InternalServerError().body(e)
+        }
+    }
 }
 
 pub async fn beat_instance(a:web::Query<BeatRequest>,b:web::Form<BeatRequest>,naming_addr:web::Data<Addr<NamingActor>>) -> impl Responder {
     let param = a.select_option(&b);
     let instance = param.to_instance();
-    let return_val = match instance {
+    match instance {
         Ok(instance) => {
             if !instance .check_vaild() {
-                "instance check is invalid".to_owned()
+                HttpResponse::InternalServerError()
+                    .body("instance check is invalid")
             }
             else{
                 let tag = InstanceUpdateTag{
@@ -341,17 +352,17 @@ pub async fn beat_instance(a:web::Query<BeatRequest>,b:web::Form<BeatRequest>,na
                     metadata:false,
                 };
                 let _= naming_addr.send(NamingCmd::Update(instance,Some(tag))).await ;
-                "ok".to_owned()
+                HttpResponse::Ok().body("ok")
             }
         },
-        Err(e) => {e}
-    };
-    return_val
+        Err(e) => {
+            HttpResponse::InternalServerError().body(e)
+        }
+    }
 }
 
 pub async fn query_service(param:web::Query<ServiceQueryListRequest>,naming_addr:web::Data<Addr<NamingActor>>) -> impl Responder {
-    let return_val ="error".to_owned();
-    return_val
+    HttpResponse::InternalServerError().body("error")
 }
 
 pub async fn query_service_list(param:web::Query<ServiceQueryListRequest>,naming_addr:web::Data<Addr<NamingActor>>) -> impl Responder {
@@ -360,7 +371,7 @@ pub async fn query_service_list(param:web::Query<ServiceQueryListRequest>,naming
     let namespace_id = NamingUtils::default_namespace(param.namespace_id.as_ref().unwrap_or(&"".to_owned()).to_owned());
     let group = NamingUtils::default_group(param.group_name.as_ref().unwrap_or(&"".to_owned()).to_owned());
     let key = ServiceKey::new(&namespace_id,&group,"");
-    let return_val = match naming_addr.send(NamingCmd::QueryServicePage(key,page_size,page_index)).await {
+    match naming_addr.send(NamingCmd::QueryServicePage(key,page_size,page_index)).await {
         Ok(res) => {
             let result: NamingResult = res.unwrap();
             match result {
@@ -369,14 +380,18 @@ pub async fn query_service_list(param:web::Query<ServiceQueryListRequest>,naming
                         count:c,
                         doms:v,
                     };
-                    serde_json::to_string(&resp).unwrap()
+                    HttpResponse::Ok()
+                        .body(serde_json::to_string(&resp).unwrap())
                 },
-                _ => {"error".to_owned()}
+                _ => {
+                    HttpResponse::InternalServerError().body("error")
+                }
             }
         },
-        Err(_) => {"error".to_owned()}
-    };
-    return_val
+        Err(_) => {
+            HttpResponse::InternalServerError().body("error")
+        }
+    }
 }
 
 pub fn app_config(config:&mut web::ServiceConfig) {

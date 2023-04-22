@@ -81,12 +81,12 @@ async fn add_config(a:web::Query<ConfigWebParams>,b:web::Form<ConfigWebParams>,c
                         .body("true")
                 },
                 Err(err) => {
-                    HttpResponse::ExpectationFailed().body(err.to_string())
+                    HttpResponse::InternalServerError().body(err.to_string())
                 }
             }
         },
         Err(e) => {
-            HttpResponse::ExpectationFailed().body(e)
+            HttpResponse::InternalServerError().body(e)
         },
     }
 }
@@ -104,12 +104,12 @@ async fn del_config(a:web::Query<ConfigWebParams>,b:web::Form<ConfigWebParams>,c
                         .body("true")
                 },
                 Err(err) => {
-                    HttpResponse::ExpectationFailed().body(err.to_string())
+                    HttpResponse::InternalServerError().body(err.to_string())
                 }
             }
         },
         Err(e) => {
-            HttpResponse::ExpectationFailed().body(e)
+            HttpResponse::InternalServerError().body(e)
         },
     }
 }
@@ -134,12 +134,12 @@ async fn get_config(a:web::Query<ConfigWebParams>,config_addr:web::Data<Addr<Con
                     }
                 },
                 Err(err) => {
-                    HttpResponse::ExpectationFailed().body(err.to_string())
+                    HttpResponse::InternalServerError().body(err.to_string())
                 }
             }
         },
         Err(e) => {
-            HttpResponse::ExpectationFailed().body(e)
+            HttpResponse::InternalServerError().body(e)
         },
     }
 }
