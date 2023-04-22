@@ -1,4 +1,4 @@
-use std::{sync::Arc, collections::{HashMap, HashSet}};
+use std::{sync::Arc, collections::{BTreeMap, BTreeSet}};
 
 use crate::common::string_utils::StringUtils;
 
@@ -63,7 +63,7 @@ impl ServiceQueryParam {
 #[derive(Debug,Clone,Default)]
 pub struct ServiceIndex {
     //pub namespace_id:Arc<String>,
-    pub(crate) group_service: HashMap<Arc<String>,HashSet<Arc<String>>>,
+    pub(crate) group_service: BTreeMap<Arc<String>,BTreeSet<Arc<String>>>,
     pub(crate) service_size:usize,
 }
 
@@ -80,7 +80,7 @@ impl ServiceIndex {
             }
         }
         else{
-            let mut set = HashSet::new();
+            let mut set = BTreeSet::new();
             set.insert(service);
             self.group_service.insert(group, set);
             self.service_size +=1;
@@ -106,6 +106,7 @@ impl ServiceIndex {
         (b,self.group_service.len())
     }
 
+    /* 
     pub(crate) fn query_service_list(&self,namespace_id:&Arc<String>,group_key:&Arc<String>,service_key:&Arc<String>) 
         -> Vec<ServiceKey> {
         let mut rlist=vec![];
@@ -121,6 +122,7 @@ impl ServiceIndex {
         }
         rlist
     }
+    */
 
     pub(crate) fn query_service_page(&self,namespace_id:&Arc<String>,limit:usize,param:&ServiceQueryParam) 
         -> (usize,Vec<ServiceKey>) {
@@ -146,7 +148,7 @@ impl ServiceIndex {
 
 #[derive(Debug,Clone,Default)]
 pub struct NamespaceIndex {
-    pub namespace_group: HashMap<Arc<String>,ServiceIndex>,
+    pub namespace_group: BTreeMap<Arc<String>,ServiceIndex>,
     pub service_size:usize,
 }
 
