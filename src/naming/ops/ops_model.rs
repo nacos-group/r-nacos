@@ -2,14 +2,14 @@ use std::sync::Arc;
 
 use serde::{Serialize, Deserialize};
 
-use crate::naming::{service_index::ServiceQueryParam, service::ServiceInfoDto};
+use crate::naming::{service_index::ServiceQueryParam, service::ServiceInfoDto, NamingUtils};
 
 #[derive(Debug,Serialize,Deserialize,Default)]
 #[serde(rename_all = "camelCase")]
 pub struct OpsServiceQueryListRequest {
     pub page_no:Option<usize>,
     pub page_size:Option<usize>,
-    pub namespace_id:Option<Arc<String>>,
+    pub namespace_id:Option<String>,
     pub group_name_param:Option<String>,
     pub service_name_param:Option<String>,
     pub access_token:Option<String>,
@@ -25,13 +25,17 @@ impl OpsServiceQueryListRequest {
             ..Default::default()
         };
         if let Some(namespace_id) = self.namespace_id {
-            param.namespace_id = Some(namespace_id);
+            param.namespace_id = Some(Arc::new(NamingUtils::default_namespace(namespace_id)));
         }
         if let Some(group_name_param) = self.group_name_param {
-            param.like_group = Some(group_name_param);
+            if !group_name_param.is_empty(){
+                param.like_group = Some(group_name_param);
+            }
         }
         if let Some(service_name_param) = self.service_name_param {
-            param.like_service= Some(service_name_param);
+            if !service_name_param.is_empty(){
+                param.like_service= Some(service_name_param);
+            }
         }
         Ok(param)
     }
