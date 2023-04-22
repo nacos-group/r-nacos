@@ -1,10 +1,10 @@
 #![allow(unused_imports,unused_assignments,unused_variables)]
 use super::core::{NamingActor,NamingCmd,NamingResult};
-use super::dal::service_actor::{ServiceDalActor, ServiceDalMsg, ServiceDalResult};
 use super::model::{Instance,InstanceUpdateTag,ServiceKey};
 use super::NamingUtils;
 use super::super::utils::{select_option_by_clone,get_bool_from_string};
-use super::api_model::{InstanceVO,QueryListResult, ServiceQueryOptListRequest, ServiceQueryOptListResponse};
+use super::api_model::{InstanceVO,QueryListResult};
+use super::ops::ops_api::query_opt_service_list;
 
 use actix_web::{
     App,web,HttpRequest,HttpResponse,Responder,HttpMessage,middleware,HttpServer
@@ -379,28 +379,6 @@ pub async fn query_service_list(param:web::Query<ServiceQueryListRequest>,naming
     return_val
 }
 
-/* 
-pub async fn query_opt_service_list(param:web::Query<ServiceQueryOptListRequest>,service_dal_addr:web::Data<Addr<ServiceDalActor>>) -> impl Responder {
-    let serivce_param = param.0.to_service_param();
-    match service_dal_addr.send(ServiceDalMsg::QueryServiceListWithCount(serivce_param)).await{
-        Ok(res) => {
-            let result: ServiceDalResult = res.unwrap();
-            match result {
-                ServiceDalResult::ServiceListWithCount(list,count) => {
-                    let resp = ServiceQueryOptListResponse{
-                        count,
-                        service:Some(list),
-                    };
-                    serde_json::to_string(&resp).unwrap()
-                },
-                _ => {"error".to_owned()}
-            }
-        },
-        Err(_) => {"error".to_owned()}
-    }
-}
-*/
-
 pub fn app_config(config:&mut web::ServiceConfig) {
     config.service(
         web::scope("/nacos/v1/ns")
@@ -422,10 +400,9 @@ pub fn app_config(config:&mut web::ServiceConfig) {
             .service(web::resource("/service/list")
                 .route( web::get().to(query_service_list))
             )
-            /* 
-            .service(web::resource("/service/opt/list")
+            //ops
+            .service(web::resource("/catalog/services")
                 .route( web::get().to(query_opt_service_list))
             )
-            */
     );
 }

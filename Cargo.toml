@@ -29,6 +29,7 @@ tonic = "0.4"
 prost="0.7"
 async-trait = "0.1"
 anyhow = "1"
+mime="0.3"
 
 # db
 rusqlite={version="0.25",features = ["bundled"]}

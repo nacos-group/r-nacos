@@ -27,6 +27,7 @@ use super::naming_delay_nofity::DelayNotifyCmd;
 use super::naming_subscriber::NamingListenerItem;
 use super::naming_subscriber::Subscriber;
 use super::service::Service;
+use super::service::ServiceInfoDto;
 use super::service::ServiceMetadata;
 use super::service_index::NamespaceIndex;
 use super::service_index::ServiceQueryParam;
@@ -276,6 +277,17 @@ impl NamingActor {
         (size,service_names)
     }
 
+    pub fn get_service_info_page(&self,param:ServiceQueryParam) -> (usize,Vec<ServiceInfoDto>) {
+        let (size,list)=self.namespace_index.query_service_page(&param);
+        let mut info_list = Vec::with_capacity(list.len());
+        for item in &list {
+            if let Some(service) = self.service_map.get(&item) {
+                info_list.push(service.get_service_info());
+            }
+        }
+        (size,info_list)
+    }
+
     fn update_listener(&mut self,key:&ServiceKey,cluster_names:&Vec<String>,addr:SocketAddr,only_healthy:bool){
         if let Some(listener_addr) = self.listener_addr.as_ref() {
             let item = ListenerItem::new(cluster_names.clone(),only_healthy,addr);
@@ -323,6 +335,8 @@ pub enum NamingCmd {
     QueryListString(ServiceKey,String,bool,Option<SocketAddr>),
     QueryServiceInfo(ServiceKey,String,bool),
     QueryServicePage(ServiceKey,usize,usize),
+    //查询服务实际信息列表
+    QueryServiceInfoPage(ServiceQueryParam),
     PeekListenerTimeout,
     NotifyListener(ServiceKey,u64),
     SetConnManage(Addr<BiStreamManage>),
@@ -339,6 +353,7 @@ pub enum NamingResult {
     InstanceListString(String),
     ServiceInfo(ServiceInfo),
     ServicePage((usize,Vec<Arc<String>>)),
+    ServiceInfoPage((usize,Vec<ServiceInfoDto>)),
     DalAddr(Addr<ServiceDalActor>),
 }
 
@@ -407,6 +422,9 @@ impl Handler<NamingCmd> for NamingActor {
             },
             NamingCmd::QueryServicePage(service_key, page_size, page_index) => {
                 Ok(NamingResult::ServicePage(self.get_service_list(page_size, page_index, &service_key)))
+            },
+            NamingCmd::QueryServiceInfoPage(param) => {
+                Ok(NamingResult::ServiceInfoPage(self.get_service_info_page(param)))
             },
             NamingCmd::PeekListenerTimeout => {
                 self.time_check();

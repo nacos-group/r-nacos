@@ -263,6 +263,17 @@ impl Service {
         ServiceMetadata { protect_threshold: self.protect_threshold }
     }
 
+    pub fn get_service_info(&self) -> ServiceInfoDto {
+        ServiceInfoDto {
+            service_name:self.service_name.clone(),
+            group_name:self.group_name.clone(),
+            instance_size:self.instance_size,
+            healthy_instance_size:self.instance_size,
+            cluster_count:0,
+            trigger_flag:false,
+        }
+    }
+
     /*
     pub fn get_service_do(&self) -> ServiceDO {
         ServiceDO {
@@ -275,3 +286,14 @@ impl Service {
     }
      */
 }
+
+#[derive(Debug,Default,Clone)]
+pub struct ServiceInfoDto {
+    pub service_name:Arc<String>,
+    pub group_name:Arc<String>,
+    pub instance_size:i64,
+    pub healthy_instance_size:i64,
+    pub cluster_count:i64,
+    pub trigger_flag:bool,
+}
+
