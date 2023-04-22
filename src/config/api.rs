@@ -70,53 +70,53 @@ pub struct ConfigWebConfirmedParam{
 
 async fn add_config(a:web::Query<ConfigWebParams>,b:web::Form<ConfigWebParams>,config_addr:web::Data<Addr<ConfigActor>>) -> impl Responder{
     let param= a.select_option(&b).to_confirmed_param();
-    let v = match param {
+    match param {
         Ok(p) => {
             let cmd = ConfigCmd::ADD(ConfigKey::new(&p.data_id,&p.group,&p.tenant),p.content.to_owned());
             match config_addr.send(cmd).await{
                 Ok(res) => {
                     let _:ConfigResult = res.unwrap();
-                    "true".to_owned()
+                    HttpResponse::Ok()
+                        .content_type("text/html; charset=utf-8")
+                        .body("true")
                 },
                 Err(err) => {
-                    err.to_string()
-                    //"error".to_owned()
+                    HttpResponse::ExpectationFailed().body(err.to_string())
                 }
             }
         },
-        Err(e) => {e},
-    };
-    HttpResponse::Ok()
-        .content_type("text/html; charset=utf-8")
-        .body(v)
+        Err(e) => {
+            HttpResponse::ExpectationFailed().body(e)
+        },
+    }
 }
 
 async fn del_config(a:web::Query<ConfigWebParams>,b:web::Form<ConfigWebParams>,config_addr:web::Data<Addr<ConfigActor>>) -> impl Responder{
     let param= a.select_option(&b).to_confirmed_param();
-    let v = match param {
+    match param {
         Ok(p) => {
             let cmd = ConfigCmd::DELETE(ConfigKey::new(&p.data_id,&p.group,&p.tenant));
             match config_addr.send(cmd).await{
                 Ok(res) => {
                     let _:ConfigResult = res.unwrap();
-                    "true".to_owned()
+                    HttpResponse::Ok()
+                        .content_type("text/html; charset=utf-8")
+                        .body("true")
                 },
                 Err(err) => {
-                    err.to_string()
-                    //"error".to_owned()
+                    HttpResponse::ExpectationFailed().body(err.to_string())
                 }
             }
         },
-        Err(e) => {e},
-    };
-    HttpResponse::Ok()
-        .content_type("text/html; charset=utf-8")
-        .body(v)
+        Err(e) => {
+            HttpResponse::ExpectationFailed().body(e)
+        },
+    }
 }
 
 async fn get_config(a:web::Query<ConfigWebParams>,config_addr:web::Data<Addr<ConfigActor>>) -> impl Responder{
     let param= a.to_confirmed_param();
-    let v = match param {
+    match param {
         Ok(p) => {
             let cmd = ConfigCmd::GET(ConfigKey::new(&p.data_id,&p.group,&p.tenant));
             match config_addr.send(cmd).await{
@@ -124,24 +124,24 @@ async fn get_config(a:web::Query<ConfigWebParams>,config_addr:web::Data<Addr<Con
                     let r:ConfigResult = res.unwrap();
                     match r {
                         ConfigResult::DATA(v) => {
-                            v.to_owned()
+                            HttpResponse::Ok()
+                                .content_type("text/html; charset=utf-8")
+                                .body(v)
                         },
                         _ => {
-                            return HttpResponse::NotFound().body("config data not exist");
+                            HttpResponse::NotFound().body("config data not exist")
                         }
                     }
                 },
                 Err(err) => {
-                    err.to_string()
-                    //"error".to_owned()
+                    HttpResponse::ExpectationFailed().body(err.to_string())
                 }
             }
         },
-        Err(e) => {e},
-    };
-    HttpResponse::Ok()
-        .content_type("text/html; charset=utf-8")
-        .body(v)
+        Err(e) => {
+            HttpResponse::ExpectationFailed().body(e)
+        },
+    }
 }
 
 #[derive(Serialize,Deserialize)]
@@ -167,7 +167,7 @@ async fn listener_config(_req:HttpRequest,a:web::Query<ListenerParams>,b:web::Fo
     let list = a.select_option(&b).to_items();
     if list.len() ==0 {
         //println!("listener_config error: listener item len == 0");
-        return HttpResponse::Ok()
+        return HttpResponse::NoContent()
         .content_type("text/html; charset=utf-8")
         .body("error:listener empty")
     }
