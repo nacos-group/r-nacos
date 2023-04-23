@@ -62,7 +62,7 @@ impl Service {
             }
             rtype=UpdateInstanceType::UpdateValue;
             if let Some(update_tag) = update_tag {
-                if(!update_tag.is_none()){
+                if !update_tag.is_none() {
                     if !update_tag.enabled {
                         instance.enabled = old_instance.enabled.to_owned();
                     }

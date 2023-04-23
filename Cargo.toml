@@ -30,6 +30,7 @@ prost="0.7"
 async-trait = "0.1"
 anyhow = "1"
 mime="0.3"
+lazy_static = "1.4"
 
 # db
 rusqlite={version="0.25",features = ["bundled"]}

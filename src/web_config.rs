@@ -8,6 +8,10 @@ use crate::naming::api::{
     app_config as ns_config
 };
 
+use crate::console::api::{
+    app_config as console_config
+};
+
 use crate::auth::mock_token;
 
 
@@ -26,4 +30,5 @@ pub fn app_config(config:&mut web::ServiceConfig){
     ;
     cs_config(config);
     ns_config(config);
+    console_config(config);
 }
