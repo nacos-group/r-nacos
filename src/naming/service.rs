@@ -24,6 +24,7 @@ pub struct Service {
     pub app_name:String,
     pub check_sum:String,
     pub(crate) instance_size:i64,
+    pub(crate) healthy_instance_size:i64,
     //pub cluster_map:HashMap<String,Cluster>,
 
     pub(crate) instances: HashMap<String,Arc<Instance>>,
@@ -56,6 +57,9 @@ impl Service {
         let mut rtype = UpdateInstanceType::None;
         let old_instance = self.instances.get(&key);
         if let Some(old_instance) = old_instance {
+            if !old_instance.healthy {
+                self.healthy_instance_size+=1;
+            }
             rtype=UpdateInstanceType::UpdateValue;
             if let Some(update_tag) = update_tag {
                 if(!update_tag.is_none()){
@@ -79,6 +83,7 @@ impl Service {
         }
         else{
             self.instance_size+=1;
+            self.healthy_instance_size +=1;
             rtype=UpdateInstanceType::New;
         }
         let new_instance = Arc::new(instance);
@@ -135,8 +140,11 @@ impl Service {
     }
 
     pub(crate) fn remove_instance(&mut self,instance_id:&str) -> UpdateInstanceType {
-        if let Some(_)=self.instances.remove(instance_id){
+        if let Some(old)=self.instances.remove(instance_id){
             self.instance_size-=1;
+            if old.healthy {
+                self.healthy_instance_size-=1;
+            }
             UpdateInstanceType::Remove
         }
         else{
@@ -146,6 +154,9 @@ impl Service {
 
     pub(crate) fn update_instance_healthy_unvaild(&mut self,instance_id:&str) {
         if let Some(i) = self.instances.remove(instance_id) {
+            if i.healthy {
+                self.healthy_instance_size -=1;
+            }
             let mut i = i.as_ref().clone();
             i.healthy=false;
             self.instances.insert(instance_id.to_owned(), Arc::new(i));
@@ -268,7 +279,7 @@ impl Service {
             service_name:self.service_name.clone(),
             group_name:self.group_name.clone(),
             instance_size:self.instance_size,
-            healthy_instance_size:self.instance_size,
+            healthy_instance_size:self.healthy_instance_size,
             cluster_count:0,
             trigger_flag:false,
         }
