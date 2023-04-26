@@ -4,6 +4,7 @@ use actix::prelude::*;
 use crate::config::config::ConfigActor;
 
 use super::{NamespaceUtils, model::{ConsoleResult, NamespaceInfo}};
+use super::config_api::query_config_list;
 
 
 pub async fn query_namespace_list(config_addr:web::Data<Addr<ConfigActor>>) -> impl Responder {
@@ -82,6 +83,9 @@ pub fn app_config(config:&mut web::ServiceConfig) {
                 .route( web::post().to(add_namespace))
                 .route( web::put().to(update_namespace))
                 .route( web::delete().to(remove_namespace))
+            )
+            .service(web::resource("/config")
+                .route( web::get().to(query_config_list))
             )
     );
 }

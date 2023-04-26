@@ -8,6 +8,7 @@ use std::collections::BTreeMap;
 
 use crate::grpc::bistream_manage::BiStreamManage;
 use crate::utils::get_md5;
+use serde::{Serialize, Deserialize};
 
 use actix::prelude::*;
 
@@ -68,7 +69,8 @@ impl ConfigValue {
     }
 }
 
-#[derive(Debug,Default,Clone)]
+#[derive(Debug,Serialize,Deserialize,Default)]
+#[serde(rename_all = "camelCase")]
 pub struct ConfigInfoDto {
     pub tenant:Arc<String>,
     pub group:Arc<String>,

@@ -1,3 +1,4 @@
+pub mod config_model;
 
 use std::sync::Arc;
 
@@ -14,15 +15,15 @@ pub struct NamespaceInfo{
 
 #[derive(Clone,Serialize,Deserialize,Default)]
 #[serde(rename_all = "camelCase")]
-pub struct ConsoleResult<T> 
+pub struct ConsoleResult<T>
     where T:Sized + Serialize + Clone + Default
- {
+{
     pub code:i64,
     pub message:Option<String>,
     pub data:Option<T>
 }
 
-impl <T> ConsoleResult<T> 
+impl <T> ConsoleResult<T>
     where T:Sized + Serialize + Clone + Default
 {
     pub fn success(data:T) -> Self{

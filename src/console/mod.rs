@@ -1,6 +1,7 @@
 
 pub mod api;
 pub mod model;
+pub mod config_api;
 
 use std::sync::Arc;
 
