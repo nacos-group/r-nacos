@@ -13,6 +13,7 @@ use actix::prelude::*;
 
 use super::config_db::ConfigDB;
 use super::config_subscribe::Subscriber;
+use crate::config::config_index::{TenantIndex, ConfigQueryParam};
 
 #[derive(Debug,Hash,Eq,Clone)]
 pub struct ConfigKey {
@@ -65,6 +66,15 @@ impl ConfigValue {
             md5:Arc::new(md5),
         }
     }
+}
+
+#[derive(Debug,Default,Clone)]
+pub struct ConfigInfoDto {
+    pub tenant:Arc<String>,
+    pub group:Arc<String>,
+    pub data_id:Arc<String>,
+    pub content:Option<Arc<String>>,
+    pub md5:Option<Arc<String>>,
 }
 
 #[derive(Debug)]
@@ -250,6 +260,7 @@ pub struct ConfigActor {
     cache: HashMap<ConfigKey,ConfigValue>,
     listener: ConfigListener,
     subscriber: Subscriber,
+    tenant_index:TenantIndex,
     config_db: ConfigDB,
 
 }
@@ -260,6 +271,7 @@ impl ConfigActor {
             cache: Default::default(),
             subscriber: Subscriber::new(),
             listener: ConfigListener::new(),
+            tenant_index: Default::default(),
             config_db: ConfigDB::new(),
         };
         s.load_config();
@@ -277,9 +289,25 @@ impl ConfigActor {
                 content:Arc::new(item.content.unwrap()),
                 md5:Arc::new(item.content_md5.unwrap()),
             };
+            self.tenant_index.insert_config(key.clone());
             self.cache.insert(key, val);
 
         }
+    }
+
+    pub fn get_config_info_page(&self,param:&ConfigQueryParam) -> (usize,Vec<ConfigInfoDto>){
+        let (size,list)=self.tenant_index.query_config_page(param);
+        let mut info_list = Vec::with_capacity(size);
+        for item in &list {
+            let info = ConfigInfoDto{
+                tenant:item.tenant.clone(),
+                group:item.group.clone(),
+                data_id:item.data_id.clone(),
+                ..Default::default()
+            };
+            info_list.push(info);
+        }
+        (size,info_list)
     }
 
     pub fn hb(&self,ctx:&mut actix::Context<Self>) {
@@ -296,6 +324,7 @@ pub enum ConfigCmd {
     ADD(ConfigKey,Arc<String>),
     GET(ConfigKey),
     DELETE(ConfigKey),
+    QueryPageInfo(Box<ConfigQueryParam>),
     LISTENER(Vec<ListenerItem>,ListenerSenderType,i64),
     SetConnManage(Addr<BiStreamManage>),
     Subscribe(Vec<ListenerItem>,Arc<String>),
@@ -307,6 +336,7 @@ pub enum ConfigResult {
     DATA(Arc<String>),
     NULL,
     ChangeKey(Vec<ConfigKey>),
+    ConfigInfoPage(usize,Vec<ConfigInfoDto>),
 }
 
 impl Actor for ConfigActor {
@@ -332,11 +362,13 @@ impl Handler<ConfigCmd> for ConfigActor{
                 }
                 self.config_db.update_config(&key, &config_val);
                 self.cache.insert(key.clone(),config_val);
+                self.tenant_index.insert_config(key.clone());
                 self.listener.notify(key.clone());
                 self.subscriber.notify(key);
             },
             ConfigCmd::DELETE(key) =>{
                 self.cache.remove(&key);
+                self.tenant_index.remove_config(&key);
                 self.listener.notify(key.clone());
                 self.subscriber.notify(key.clone());
                 self.subscriber.remove_config_key(key);
@@ -393,6 +425,10 @@ impl Handler<ConfigCmd> for ConfigActor{
             ConfigCmd::RemoveSubscribeClient(client_id) => {
                 self.subscriber.remove_client_subscribe(client_id);
             },
+            ConfigCmd::QueryPageInfo(config_query_param) => {
+                let (size,list) = self.get_config_info_page(config_query_param.as_ref());
+                return Ok(ConfigResult::ConfigInfoPage(size,list));
+            }
         }
         Ok(ConfigResult::NULL)
     }
