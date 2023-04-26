@@ -16,17 +16,25 @@ use super::config_subscribe::Subscriber;
 
 #[derive(Debug,Hash,Eq,Clone)]
 pub struct ConfigKey {
-    pub(crate) data_id:String,
-    pub(crate) group:String,
-    pub(crate) tenant:String,
+    pub(crate) data_id:Arc<String>,
+    pub(crate) group:Arc<String>,
+    pub(crate) tenant:Arc<String>,
 }
 
 impl ConfigKey {
     pub fn new(data_id:&str,group:&str,tenant:&str) -> ConfigKey {
         ConfigKey {
-            data_id:data_id.to_owned(),
-            group:group.to_owned(),
-            tenant:tenant.to_owned(),
+            data_id:Arc::new(data_id.to_owned()),
+            group:Arc::new(group.to_owned()),
+            tenant:Arc::new(tenant.to_owned()),
+        }
+    }
+
+    pub fn new_by_arc(data_id:Arc<String>,group:Arc<String>,tenant:Arc<String>) -> ConfigKey {
+        ConfigKey {
+            data_id,
+            group,
+            tenant,
         }
     }
 
@@ -45,16 +53,16 @@ impl PartialEq for ConfigKey {
 }
 
 pub struct ConfigValue {
-    pub(crate) content:String,
-    pub(crate) md5:String,
+    pub(crate) content:Arc<String>,
+    pub(crate) md5:Arc<String>,
 }
 
 impl ConfigValue {
-    fn new(content:String) -> Self{
+    fn new(content:Arc<String>) -> Self{
         let md5 = get_md5(&content);
         Self {
             content,
-            md5,
+            md5:Arc::new(md5),
         }
     }
 }
@@ -62,11 +70,11 @@ impl ConfigValue {
 #[derive(Debug)]
 pub struct ListenerItem {
     pub key:ConfigKey,
-    pub md5:String,
+    pub md5:Arc<String>,
 }
 
 impl ListenerItem {
-    pub fn new(key:ConfigKey,md5:String) -> Self {
+    pub fn new(key:ConfigKey,md5:Arc<String>) -> Self {
         Self {
             key,
             md5,
@@ -95,14 +103,14 @@ impl ListenerItem {
                 start = i+1;
                 if tmp_list.len() == 2 {
                     let key = ConfigKey::new(&tmp_list[0],&tmp_list[1],"");
-                    list.push(ListenerItem::new(key,end_value));
+                    list.push(ListenerItem::new(key,Arc::new(end_value)));
                 }
                 else{
                     if end_value=="public" {
                         end_value="".to_owned();
                     }
                     let key = ConfigKey::new(&tmp_list[0],&tmp_list[1],&end_value);
-                    list.push(ListenerItem::new(key,tmp_list[2].to_owned()));
+                    list.push(ListenerItem::new(key,Arc::new(tmp_list[2].to_owned())));
                 }
                 tmp_list.clear();
             }
@@ -266,8 +274,8 @@ impl ConfigActor {
                 item.tenant.as_ref().unwrap()
             );
             let val = ConfigValue{
-                content:item.content.unwrap(),
-                md5:item.content_md5.unwrap(),
+                content:Arc::new(item.content.unwrap()),
+                md5:Arc::new(item.content_md5.unwrap()),
             };
             self.cache.insert(key, val);
 
@@ -285,7 +293,7 @@ impl ConfigActor {
 #[derive(Message)]
 #[rtype(result= "Result<ConfigResult, std::io::Error>")]
 pub enum ConfigCmd {
-    ADD(ConfigKey,String),
+    ADD(ConfigKey,Arc<String>),
     GET(ConfigKey),
     DELETE(ConfigKey),
     LISTENER(Vec<ListenerItem>,ListenerSenderType,i64),
@@ -296,7 +304,7 @@ pub enum ConfigCmd {
 }
 
 pub enum ConfigResult {
-    DATA(String),
+    DATA(Arc<String>),
     NULL,
     ChangeKey(Vec<ConfigKey>),
 }

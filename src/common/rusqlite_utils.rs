@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use rusqlite::{Connection,Row,params_from_iter};
 
 fn result2option<T>(r:rusqlite::Result<T>) -> Option<T> {
@@ -7,11 +9,27 @@ fn result2option<T>(r:rusqlite::Result<T>) -> Option<T> {
     }
 }
 
+fn result2ArcOption<T>(r:rusqlite::Result<T>) -> Option<Arc<T>> {
+    match r {
+        Ok(v) => Some(Arc::new(v)),
+        _ => None,
+    }
+}
+
 pub fn get_row_value<T>(r:&Row,name:&str) -> Option<T> 
 where T: rusqlite::types::FromSql 
 {
     match r.column_index(name) {
         Ok(i) => result2option(r.get(i)),
+        _ => None,
+    }
+}
+
+pub fn get_row_arc_value<T>(r:&Row,name:&str) -> Option<Arc<T>> 
+where T: rusqlite::types::FromSql 
+{
+    match r.column_index(name) {
+        Ok(i) => result2ArcOption(r.get(i)),
         _ => None,
     }
 }

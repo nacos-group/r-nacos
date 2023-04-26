@@ -50,11 +50,11 @@ create index if not exists tb_config_history_key_idx on tb_config_history(data_i
 
     fn convert_to_config_do(key:&ConfigKey,val:&ConfigValue) -> ConfigDO {
         let mut config = ConfigDO::default();
-        config.tenant = Some(key.tenant.to_owned());
-        config.group = Some(key.group.to_owned());
-        config.data_id= Some(key.data_id.to_owned());
-        config.content= Some(val.content.to_owned());
-        config.content_md5= Some(val.md5.to_owned());
+        config.tenant = Some(key.tenant.as_ref().to_owned());
+        config.group = Some(key.group.as_ref().to_owned());
+        config.data_id= Some(key.data_id.as_ref().to_owned());
+        config.content= Some(val.content.as_ref().to_owned());
+        config.content_md5= Some(val.md5.as_ref().to_owned());
         let current_time = Local::now().timestamp_millis();
         config.last_time = Some(current_time);
         config
@@ -62,10 +62,10 @@ create index if not exists tb_config_history_key_idx on tb_config_history(data_i
 
     fn convert_to_config_history_do(key:&ConfigKey,val:&ConfigValue) -> ConfigHistoryDO {
         let mut config = ConfigHistoryDO::default();
-        config.tenant = Some(key.tenant.to_owned());
-        config.group = Some(key.group.to_owned());
-        config.data_id= Some(key.data_id.to_owned());
-        config.content= Some(val.content.to_owned());
+        config.tenant = Some(key.tenant.as_ref().to_owned());
+        config.group = Some(key.group.as_ref().to_owned());
+        config.data_id= Some(key.data_id.as_ref().to_owned());
+        config.content= Some(val.content.as_ref().to_owned());
         let current_time = Local::now().timestamp_millis();
         config.last_time = Some(current_time);
         config
@@ -73,17 +73,17 @@ create index if not exists tb_config_history_key_idx on tb_config_history(data_i
 
     fn convert_to_config_param(key:&ConfigKey) -> ConfigParam {
         let mut record = ConfigParam::default();
-        record.tenant = Some(key.tenant.to_owned());
-        record.group = Some(key.group.to_owned());
-        record.data_id = Some(key.data_id.to_owned());
+        record.tenant = Some(key.tenant.as_ref().to_owned());
+        record.group = Some(key.group.as_ref().to_owned());
+        record.data_id = Some(key.data_id.as_ref().to_owned());
         record
     }
 
     fn convert_to_config_history_param(key:&ConfigKey) -> ConfigHistoryParam {
         let mut record = ConfigHistoryParam::default();
-        record.tenant = Some(key.tenant.to_owned());
-        record.group = Some(key.group.to_owned());
-        record.data_id = Some(key.data_id.to_owned());
+        record.tenant = Some(key.tenant.as_ref().to_owned());
+        record.group = Some(key.group.as_ref().to_owned());
+        record.data_id = Some(key.data_id.as_ref().to_owned());
         record
     }
 

@@ -73,7 +73,7 @@ pub struct ConfigPublishRequest {
     pub data_id: String,
     pub group: String,
     pub tenant: String,
-    pub content: String,
+    pub content: Arc<String>,
     pub cas_md5: Option<String>,
     pub addition_map:HashMap<String,String>,
 }
@@ -98,7 +98,7 @@ pub struct ConfigQueryResponse{
     pub message:Option<String>,
     pub request_id:Option<String>,
 
-    pub content:String,
+    pub content:Arc<String>,
     pub encrypted_data_key:Option<String>,
     pub content_type:Option<String>,
     pub md5:Option<String>,
@@ -126,7 +126,7 @@ pub struct ConfigListenContext {
     pub data_id: String,
     pub group: String,
     pub tenant: String,
-    pub md5: String,
+    pub md5: Arc<String>,
     pub tag: Option<String>,
 }
 
@@ -145,9 +145,9 @@ pub struct ConfigBatchListenRequest {
 #[derive(Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct ConfigContext {
-    pub data_id: String,
-    pub group: String,
-    pub tenant: String,
+    pub data_id: Arc<String>,
+    pub group: Arc<String>,
+    pub tenant: Arc<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Default)]
@@ -168,9 +168,9 @@ pub struct ConfigChangeNotifyRequest {
     pub request_id:Option<String>,
     pub headers:HashMap<String,String>,
 
-    pub data_id: String,
-    pub group: String,
-    pub tenant: String,
+    pub data_id: Arc<String>,
+    pub group: Arc<String>,
+    pub tenant: Arc<String>,
 }
 
 // ----- naming model -----

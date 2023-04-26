@@ -37,12 +37,12 @@ impl NamespaceUtils {
                         v
                     },
                     _ => {
-                        "".to_string()
+                        Arc::new("".to_string())
                     }
                 }
             },
             Err(_) => {
-                "".to_string()
+                Arc::new("".to_string())
             }
         };
         if namespace_str.is_empty() {
@@ -69,12 +69,12 @@ impl NamespaceUtils {
                         v
                     },
                     _ => {
-                        "".to_string()
+                        Arc::new("".to_string())
                     }
                 }
             },
             Err(_) => {
-                "".to_string()
+                Arc::new("".to_string())
             }
         };
         if namespace_str.is_empty() {
@@ -90,7 +90,7 @@ impl NamespaceUtils {
 
     pub async fn save_namespace(config_addr:&Addr<ConfigActor>,value:&Vec<NamespaceInfo>) -> anyhow::Result<()> {
         let value_str = serde_json::to_string(value)?;
-        let cmd = ConfigCmd::ADD(ConfigKey::new(SYSCONFIG_NAMESPACE_KEY,SYSCONFIG_GROUP,SYSCONFIG_NAMESPACE),value_str);
+        let cmd = ConfigCmd::ADD(ConfigKey::new(SYSCONFIG_NAMESPACE_KEY,SYSCONFIG_GROUP,SYSCONFIG_NAMESPACE),Arc::new(value_str));
         match config_addr.send(cmd).await{
             Ok(res) => {
                 let _:ConfigResult = res.unwrap();

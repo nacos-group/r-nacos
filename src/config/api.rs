@@ -1,5 +1,6 @@
 use std::cmp::max;
 use std::cmp::min;
+use std::sync::Arc;
 use chrono::Local;
 use super::config::{
     ConfigActor,ConfigCmd,ConfigKey,ConfigResult,ListenerItem,ListenerResult
@@ -72,7 +73,7 @@ async fn add_config(a:web::Query<ConfigWebParams>,b:web::Form<ConfigWebParams>,c
     let param= a.select_option(&b).to_confirmed_param();
     match param {
         Ok(p) => {
-            let cmd = ConfigCmd::ADD(ConfigKey::new(&p.data_id,&p.group,&p.tenant),p.content.to_owned());
+            let cmd = ConfigCmd::ADD(ConfigKey::new(&p.data_id,&p.group,&p.tenant),Arc::new(p.content.to_owned()));
             match config_addr.send(cmd).await{
                 Ok(res) => {
                     let _:ConfigResult = res.unwrap();
@@ -126,7 +127,7 @@ async fn get_config(a:web::Query<ConfigWebParams>,config_addr:web::Data<Addr<Con
                         ConfigResult::DATA(v) => {
                             HttpResponse::Ok()
                                 .content_type("text/html; charset=utf-8")
-                                .body(v)
+                                .body(v.as_ref().as_bytes().to_vec())
                         },
                         _ => {
                             HttpResponse::NotFound().body("config data not exist")
