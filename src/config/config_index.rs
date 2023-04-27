@@ -116,7 +116,7 @@ impl ConfigIndex {
                 for s in set {
                     if param.match_data_id(s) {
                         if index>=param.offset && index<end_index {
-                            let key = ConfigKey::new_by_arc(tenant.clone(), g.clone(), s.clone());
+                            let key = ConfigKey::new_by_arc(s.clone(), g.clone(), tenant.clone());
                             rlist.push(key);
                         }
                         index+=1;

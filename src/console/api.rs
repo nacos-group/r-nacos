@@ -84,7 +84,7 @@ pub fn app_config(config:&mut web::ServiceConfig) {
                 .route( web::put().to(update_namespace))
                 .route( web::delete().to(remove_namespace))
             )
-            .service(web::resource("/config")
+            .service(web::resource("/configs")
                 .route( web::get().to(query_config_list))
             )
     );
