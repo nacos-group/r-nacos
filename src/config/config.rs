@@ -301,13 +301,16 @@ impl ConfigActor {
         let (size,list)=self.tenant_index.query_config_page(param);
         let mut info_list = Vec::with_capacity(size);
         for item in &list {
-            let info = ConfigInfoDto{
-                tenant:item.tenant.clone(),
-                group:item.group.clone(),
-                data_id:item.data_id.clone(),
-                ..Default::default()
-            };
-            info_list.push(info);
+            if let Some(value)=self.cache.get(item){
+                let info = ConfigInfoDto{
+                    tenant:item.tenant.clone(),
+                    group:item.group.clone(),
+                    data_id:item.data_id.clone(),
+                    md5:Some(value.md5.clone()),
+                    ..Default::default()
+                };
+                info_list.push(info);
+            }
         }
         (size,info_list)
     }
