@@ -26,11 +26,12 @@ impl PayloadHandler for ConfigQueryRequestHandler {
                 //let res:ConfigResult = res.unwrap();
                 let r:ConfigResult = res.unwrap();
                 match r {
-                    ConfigResult::DATA(content) => {
+                    ConfigResult::DATA(content,md5) => {
                         //v.to_owned()
                         response.result_code = SUCCESS_CODE;
                         response.content = content;
                         response.tag = request.tag;
+                        response.md5 = Some(md5);
                     },
                     _ => {
                         response.result_code = ERROR_CODE;

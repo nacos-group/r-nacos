@@ -307,7 +307,8 @@ impl ConfigActor {
                     group:item.group.clone(),
                     data_id:item.data_id.clone(),
                     md5:Some(value.md5.clone()),
-                    ..Default::default()
+                    content:Some(value.content.clone()),
+                    //..Default::default()
                 };
                 info_list.push(info);
             }
@@ -338,7 +339,7 @@ pub enum ConfigCmd {
 }
 
 pub enum ConfigResult {
-    DATA(Arc<String>),
+    DATA(Arc<String>,Arc<String>),
     NULL,
     ChangeKey(Vec<ConfigKey>),
     ConfigInfoPage(usize,Vec<ConfigInfoDto>),
@@ -380,7 +381,7 @@ impl Handler<ConfigCmd> for ConfigActor{
             },
             ConfigCmd::GET(key) =>{
                 if let Some(v) = self.cache.get(&key) {
-                    return Ok(ConfigResult::DATA(v.content.to_owned()));
+                    return Ok(ConfigResult::DATA(v.content.clone(),v.md5.clone()));
                 }
             },
             ConfigCmd::LISTENER(items,sender,time) => {
