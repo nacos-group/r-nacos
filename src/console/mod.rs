@@ -34,7 +34,7 @@ impl NamespaceUtils {
             Ok(res) => {
                 let r:ConfigResult = res.unwrap();
                 match r {
-                    ConfigResult::DATA(v) => {
+                    ConfigResult::DATA(v,_md5) => {
                         v
                     },
                     _ => {
@@ -66,7 +66,7 @@ impl NamespaceUtils {
             Ok(res) => {
                 let r:ConfigResult = res.unwrap();
                 match r {
-                    ConfigResult::DATA(v) => {
+                    ConfigResult::DATA(v,_md5) => {
                         v
                     },
                     _ => {
