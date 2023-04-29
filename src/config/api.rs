@@ -127,7 +127,7 @@ async fn get_config(a:web::Query<ConfigWebParams>,config_addr:web::Data<Addr<Con
                         ConfigResult::DATA(v,md5) => {
                             HttpResponse::Ok()
                                 .content_type("text/html; charset=utf-8")
-                                .insert_header(("CONTENT-MD5",md5.as_ref().to_string()))
+                                .insert_header(("content-md5",md5.as_ref().to_string()))
                                 .body(v.as_ref().as_bytes().to_vec())
                         },
                         _ => {

@@ -306,9 +306,9 @@ impl ConfigActor {
                     tenant:item.tenant.clone(),
                     group:item.group.clone(),
                     data_id:item.data_id.clone(),
-                    md5:Some(value.md5.clone()),
-                    content:Some(value.content.clone()),
-                    //..Default::default()
+                    //md5:Some(value.md5.clone()),
+                    //content:Some(value.content.clone()),
+                    ..Default::default()
                 };
                 info_list.push(info);
             }
