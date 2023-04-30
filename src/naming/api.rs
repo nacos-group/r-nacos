@@ -3,7 +3,7 @@ use super::core::{NamingActor,NamingCmd,NamingResult};
 use super::model::{Instance,InstanceUpdateTag,ServiceKey};
 use super::NamingUtils;
 use super::super::utils::{select_option_by_clone,get_bool_from_string};
-use super::api_model::{InstanceVO,QueryListResult};
+use super::api_model::{InstanceVO,QueryListResult, ServiceInfoParam};
 use super::ops::ops_api::query_opt_service_list;
 
 use actix_web::{
@@ -274,25 +274,30 @@ pub async fn get_instance(param:web::Query<InstanceWebParams>,naming_addr:web::D
 
 pub async fn get_instance_list(param:web::Query<InstanceWebQueryListParams>,naming_addr:web::Data<Addr<NamingActor>>) -> impl Responder {
     let only_healthy = param.healthy_only.unwrap_or(true);
-    let addr = param.get_addr();
-    let return_val = match param.to_clusters_key() {
+    let addr = param.get_addr(); 
+    match param.to_clusters_key() {
         Ok((key,clusters)) => {
             match naming_addr.send(NamingCmd::QueryListString(key.clone(),clusters,only_healthy,addr)).await {
                 Ok(res) => {
                     let result: NamingResult = res.unwrap();
                     match result {
                         NamingResult::InstanceListString(v) => {
-                            v
+                            HttpResponse::Ok().body(v)
                         },
-                        _ => {"error".to_owned()}
+                        _ => {
+                            HttpResponse::InternalServerError().body("error")
+                        }
                     }
                 },
-                Err(_) => {"error".to_owned()}
+                Err(err) => {
+                    HttpResponse::InternalServerError().body(err.to_string())
+                }
             }
         },
-        Err(e) => {e}
-    };
-    return_val
+        Err(err) => {
+            HttpResponse::InternalServerError().body(err.to_string())
+        }
+    }
 }
 
 pub async fn add_instance(a:web::Query<InstanceWebParams>,b:web::Form<InstanceWebParams>,naming_addr:web::Data<Addr<NamingActor>>) -> impl Responder {
@@ -365,6 +370,47 @@ pub async fn query_service(param:web::Query<ServiceQueryListRequest>,naming_addr
     HttpResponse::InternalServerError().body("error")
 }
 
+pub async fn update_service(param0:web::Form<ServiceInfoParam>,param1:web::Query<ServiceInfoParam>,naming_addr:web::Data<Addr<NamingActor>>) -> impl Responder {
+    let param = ServiceInfoParam::merge_value(param0.0, param1.0);
+    match param.to_service_info() {
+        Ok(service_info) => {
+            let _= naming_addr.send(NamingCmd::UpdateService(service_info)).await ;
+            HttpResponse::Ok().body("ok")
+        },
+        Err(err) => {
+            HttpResponse::InternalServerError().body(err.to_string())
+        },
+    }
+}
+
+pub async fn remove_service(param0:web::Form<ServiceInfoParam>,param1:web::Query<ServiceInfoParam>,naming_addr:web::Data<Addr<NamingActor>>) -> impl Responder {
+    let param = ServiceInfoParam::merge_value(param0.0, param1.0);
+    match param.to_service_info() {
+        Ok(service_info) => { 
+            let key =service_info.to_service_key(); 
+            match naming_addr.send(NamingCmd::RemoveService(key)).await {
+                Ok(res) => {
+                    let res: anyhow::Result<NamingResult> = res;
+                    match res {
+                        Ok(_) => {
+                            HttpResponse::Ok().body("ok")
+                        },
+                        Err(err) => {
+                            HttpResponse::InternalServerError().body(err.to_string())
+                        },
+                    }
+                },
+                Err(err) => {
+                    HttpResponse::InternalServerError().body(err.to_string())
+                }
+            }
+        },
+        Err(err) => {
+            HttpResponse::InternalServerError().body(err.to_string())
+        },
+    }
+}
+
 pub async fn query_service_list(param:web::Query<ServiceQueryListRequest>,naming_addr:web::Data<Addr<NamingActor>>) -> impl Responder {
     let page_size = param.page_size.unwrap_or(0x7fffffff);
     let page_index = param.page_no.unwrap_or(1);
@@ -410,6 +456,9 @@ pub fn app_config(config:&mut web::ServiceConfig) {
                 .route( web::get().to(get_instance_list))
             )
             .service(web::resource("/service")
+                .route( web::post().to(update_service))
+                .route( web::put().to(update_service))
+                .route( web::delete().to(remove_service))
                 .route( web::get().to(query_service))
             )
             .service(web::resource("/service/list")

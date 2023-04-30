@@ -135,8 +135,12 @@ impl NamingActor {
         let key = ServiceKey::new_by_arc(service_info.namespace_id,service_info.group_name,service_info.service_name);
         match self.get_service(&key) {
             Some(service) => {
-                service.protect_threshold = service_info.protect_threshold;
-                service.metadata = service_info.metadata;
+                if let Some(protect_threshold) = service_info.protect_threshold {
+                    service.protect_threshold = protect_threshold;
+                }
+                if let Some(metadata) = service_info.metadata {
+                    service.metadata = metadata;
+                }
             },
             None => {
                 let mut service = Service::default();
@@ -145,8 +149,12 @@ impl NamingActor {
                 service.namespace_id = key.namespace_id.clone();
                 service.group_name = key.group_name.clone();
                 service.last_modified_millis = current_time;
-                service.metadata = service_info.metadata;
-                service.protect_threshold = service_info.protect_threshold;
+                if let Some(protect_threshold) = service_info.protect_threshold {
+                    service.protect_threshold = protect_threshold;
+                }
+                if let Some(metadata) = service_info.metadata {
+                    service.metadata = metadata;
+                }
                 service.recalculate_checksum();
                 self.namespace_index.insert_service(key.clone());
                 //self.dal_addr.do_send(ServiceDalMsg::AddService(service.get_service_do()));
@@ -580,7 +588,7 @@ fn test_add_service(){
         service_name: service_key.service_name.clone(), 
         group_name: service_key.group_name.clone(), 
         metadata: Default::default(), 
-        protect_threshold: 0.5, 
+        protect_threshold: Some(0.5), 
     };
     assert!(naming.namespace_index.service_size==0);
     naming.update_service(service_info);
@@ -607,7 +615,7 @@ fn test_remove_has_instance_service(){
         service_name: service_key.service_name.clone(), 
         group_name: service_key.group_name.clone(), 
         metadata: Default::default(), 
-        protect_threshold: 0.5, 
+        protect_threshold: Some(0.5), 
     };
     assert!(naming.namespace_index.service_size==1);
     naming.update_service(service_info);

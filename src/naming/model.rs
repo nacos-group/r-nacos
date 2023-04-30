@@ -136,8 +136,17 @@ pub struct ServiceDetailDto{
     pub namespace_id:Arc<String>,
     pub service_name:Arc<String>,
     pub group_name:Arc<String>,
-    pub metadata:HashMap<String,String>,
-    pub protect_threshold:f32,
+    pub metadata:Option<HashMap<String,String>>,
+    pub protect_threshold:Option<f32>,
+}
+
+impl ServiceDetailDto {
+    pub(crate) fn to_service_key(&self) -> ServiceKey {
+        ServiceKey::new_by_arc(
+            self.namespace_id.clone(), 
+            self.group_name.clone(), 
+            self.service_name.clone())
+    }
 }
 
 #[derive(Debug,Clone)]
