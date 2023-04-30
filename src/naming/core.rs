@@ -11,6 +11,7 @@ use std::time::Duration;
 use chrono::Local;
 use serde::{Serialize,Deserialize};
 use super::NamingUtils;
+use super::dal::service_actor;
 use super::dal::service_actor::ServiceDalActor;
 use super::dal::service_actor::ServiceDalMsg;
 use super::filter::InstanceFilterUtils;
@@ -19,6 +20,7 @@ use super::api_model::{QueryListResult};
 use super::model::Instance;
 use super::model::InstanceTimeInfo;
 use super::model::InstanceUpdateTag;
+use super::model::ServiceDetailDto;
 use super::model::ServiceInfo;
 use super::model::ServiceKey;
 use super::model::UpdateInstanceType;
@@ -100,7 +102,7 @@ impl NamingActor {
         addrs
     }
 
-    pub(crate) fn get_service(&mut self,key:&ServiceKey) -> Option<&Service> {
+    pub(crate) fn get_service(&mut self,key:&ServiceKey) -> Option<&mut Service> {
         match self.service_map.get_mut(&key){
             Some(v) => {
                 Some(v)
@@ -116,9 +118,9 @@ impl NamingActor {
             None => {
                 let mut service = Service::default();
                 let current_time = Local::now().timestamp_millis();
-                service.service_name = key.service_name.to_owned();
-                service.namespace_id = key.namespace_id.to_owned();
-                service.group_name = key.group_name.to_owned();
+                service.service_name = key.service_name.clone();
+                service.namespace_id = key.namespace_id.clone();
+                service.group_name = key.group_name.clone();
                 service.last_modified_millis = current_time;
                 service.recalculate_checksum();
                 self.namespace_index.insert_service(key.clone());
@@ -126,6 +128,46 @@ impl NamingActor {
                 self.service_map.insert(key.clone(),service);
                 self.empty_service_set.add(now_millis()+self.sys_config.service_time_out_millis,key.clone());
             }
+        }
+    }
+
+    pub(crate) fn update_service(&mut self,service_info:ServiceDetailDto){
+        let key = ServiceKey::new_by_arc(service_info.namespace_id,service_info.group_name,service_info.service_name);
+        match self.get_service(&key) {
+            Some(service) => {
+                service.protect_threshold = service_info.protect_threshold;
+                service.metadata = service_info.metadata;
+            },
+            None => {
+                let mut service = Service::default();
+                let current_time = Local::now().timestamp_millis();
+                service.service_name = key.service_name.clone();
+                service.namespace_id = key.namespace_id.clone();
+                service.group_name = key.group_name.clone();
+                service.last_modified_millis = current_time;
+                service.metadata = service_info.metadata;
+                service.protect_threshold = service_info.protect_threshold;
+                service.recalculate_checksum();
+                self.namespace_index.insert_service(key.clone());
+                //self.dal_addr.do_send(ServiceDalMsg::AddService(service.get_service_do()));
+                self.service_map.insert(key.clone(),service);
+                self.empty_service_set.add(now_millis()+self.sys_config.service_time_out_millis,key.clone());
+            }
+        }
+    }
+
+    fn remove_empty_service(&mut self,service_map_key:ServiceKey) -> anyhow::Result<()>{
+        if let Some(service) = self.service_map.get(&service_map_key) {
+            if service.instance_size <= 0 {
+                self.clear_one_empty_service(service_map_key.clone());
+                Ok(())
+            }
+            else{
+                Err(anyhow::anyhow!("The service has instances,it can't remove!"))
+            }
+        }
+        else{
+            Ok(())
         }
     }
 
@@ -326,7 +368,7 @@ impl NamingActor {
 
 
 #[derive(Debug,Message)]
-#[rtype(result = "Result<NamingResult,std::io::Error>")]
+#[rtype(result = "anyhow::Result<NamingResult>")]
 pub enum NamingCmd {
     Update(Instance,Option<InstanceUpdateTag>),
     Delete(Instance),
@@ -337,6 +379,9 @@ pub enum NamingCmd {
     QueryServicePage(ServiceKey,usize,usize),
     //查询服务实际信息列表
     QueryServiceInfoPage(ServiceQueryParam),
+    CreateService(ServiceDetailDto),
+    UpdateService(ServiceDetailDto),
+    RemoveService(ServiceKey),
     PeekListenerTimeout,
     NotifyListener(ServiceKey,u64),
     SetConnManage(Addr<BiStreamManage>),
@@ -380,7 +425,7 @@ impl Actor for NamingActor {
 }
 
 impl Handler<NamingCmd> for NamingActor {
-    type Result = Result<NamingResult,std::io::Error>;
+    type Result = anyhow::Result<NamingResult>;
 
     fn handle(&mut self,msg:NamingCmd,ctx: &mut Context<Self>) -> Self::Result {
         match msg {
@@ -466,6 +511,18 @@ impl Handler<NamingCmd> for NamingActor {
                 //Ok(NamingResult::DalAddr(self.dal_addr.clone()))
                 Ok(NamingResult::NULL)
             },
+            NamingCmd::CreateService(service_info) => {
+                self.update_service(service_info);
+                Ok(NamingResult::NULL)
+            },
+            NamingCmd::UpdateService(service_info) => {
+                self.update_service(service_info);
+                Ok(NamingResult::NULL)
+            },
+            NamingCmd::RemoveService(service_key) => {
+                self.remove_empty_service(service_key)?;
+                Ok(NamingResult::NULL)
+            },
         }
     }
 }
@@ -511,3 +568,55 @@ async fn query_healthy_instances(){
 
 }
 
+
+#[test]
+fn test_add_service(){
+    use tokio::net::UdpSocket;
+    use super::*;
+    let mut naming = NamingActor::new(None,None);
+    let service_key = ServiceKey::new("1","1","1");
+    let service_info = ServiceDetailDto { 
+        namespace_id: service_key.namespace_id.clone(), 
+        service_name: service_key.service_name.clone(), 
+        group_name: service_key.group_name.clone(), 
+        metadata: Default::default(), 
+        protect_threshold: 0.5, 
+    };
+    assert!(naming.namespace_index.service_size==0);
+    naming.update_service(service_info);
+    assert!(naming.namespace_index.service_size==1);
+    naming.remove_empty_service(service_key).unwrap();
+    assert!(naming.namespace_index.service_size==0);
+}
+
+#[test]
+fn test_remove_has_instance_service(){
+    use tokio::net::UdpSocket;
+    use super::*;
+    let mut naming = NamingActor::new(None,None);
+    let mut instance = Instance::new("127.0.0.1".to_owned(),8080);
+    instance.namespace_id = "public".to_owned();
+    instance.service_name = "foo".to_owned();
+    instance.group_name = "DEFUALT".to_owned();
+    instance.cluster_name= "DEFUALT".to_owned();
+    instance.init();
+    let service_key = instance.get_service_key();
+    naming.update_instance(&service_key, instance.clone(), None);
+    let service_info = ServiceDetailDto { 
+        namespace_id: service_key.namespace_id.clone(), 
+        service_name: service_key.service_name.clone(), 
+        group_name: service_key.group_name.clone(), 
+        metadata: Default::default(), 
+        protect_threshold: 0.5, 
+    };
+    assert!(naming.namespace_index.service_size==1);
+    naming.update_service(service_info);
+    assert!(naming.namespace_index.service_size==1);
+    assert!(naming.remove_empty_service(service_key.clone()).is_err());
+    assert!(naming.namespace_index.service_size==1);
+
+    naming.remove_instance(&service_key, &instance.cluster_name, &instance.id);
+    assert!(naming.namespace_index.service_size==1);
+    assert!(naming.remove_empty_service(service_key.clone()).is_ok());
+    assert!(naming.namespace_index.service_size==0);
+}

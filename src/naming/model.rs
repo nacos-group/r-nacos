@@ -127,6 +127,17 @@ pub struct ServiceInfo {
     #[serde(rename = "allIPs")]
     pub all_ips:bool,
     pub reach_protection_threshold: bool,
+    //pub metadata:Option<HashMap<String,String>>,
+}
+
+#[derive(Debug,Serialize, Deserialize , Default, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ServiceDetailDto{
+    pub namespace_id:Arc<String>,
+    pub service_name:Arc<String>,
+    pub group_name:Arc<String>,
+    pub metadata:HashMap<String,String>,
+    pub protect_threshold:f32,
 }
 
 #[derive(Debug,Clone)]

@@ -282,6 +282,8 @@ impl Service {
             healthy_instance_size:self.healthy_instance_size,
             cluster_count:0,
             trigger_flag:false,
+            metadata:Some(self.metadata.clone()),
+            protect_threshold:Some(self.protect_threshold),
         }
     }
 
@@ -306,5 +308,7 @@ pub struct ServiceInfoDto {
     pub healthy_instance_size:i64,
     pub cluster_count:i64,
     pub trigger_flag:bool,
+    pub metadata:Option<HashMap<String,String>>,
+    pub protect_threshold:Option<f32>,
 }
 
