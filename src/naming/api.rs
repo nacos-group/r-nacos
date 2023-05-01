@@ -68,7 +68,8 @@ impl InstanceWebParams {
         }
         instance.weight = self.weight.unwrap_or(1f32);
         instance.enabled = get_bool_from_string(&self.enabled, true);
-        instance.healthy= get_bool_from_string(&self.healthy, true);
+        //instance.healthy= get_bool_from_string(&self.healthy, true);
+        instance.healthy= true;
         instance.ephemeral= get_bool_from_string(&self.ephemeral, true);
         instance.cluster_name = NamingUtils::default_cluster(self.cluster_name.as_ref().unwrap_or(&"".to_owned()).to_owned());
         instance.namespace_id= NamingUtils::default_namespace(self.namespace_id.as_ref().unwrap_or(&"".to_owned()).to_owned());
@@ -320,6 +321,47 @@ pub async fn add_instance(a:web::Query<InstanceWebParams>,b:web::Form<InstanceWe
     }
 }
 
+pub async fn update_instance(a:web::Query<InstanceWebParams>,b:web::Form<InstanceWebParams>,naming_addr:web::Data<Addr<NamingActor>>) -> impl Responder {
+    let param = a.select_option(&b);
+    let update_tag=InstanceUpdateTag{
+        weight: match &param.weight{
+            Some(v) => { *v!=1.0f32 },
+            None => {false},
+        },
+        metadata: match &param.metadata{
+            //Some(v) => !v.is_empty() && v!="{}",
+            Some(v) => !v.is_empty(),
+            None => {false},
+        },
+        enabled: match &param.enabled{
+            Some(v)=> {true},
+            None=>{false},
+        },
+        ephemeral: match &param.ephemeral{
+            Some(v)=> {true},
+            None=>{false},
+        },
+        //from_update: true,
+    };
+    let instance = param.to_instance();
+    match instance {
+        Ok(instance) => {
+            if !instance .check_vaild() {
+                HttpResponse::InternalServerError()
+                    .body("instance check is invalid")
+            }
+            else{
+                
+                let _= naming_addr.send(NamingCmd::Update(instance,Some(update_tag))).await ;
+                HttpResponse::Ok().body("ok")
+            }
+        },
+        Err(e) => {
+            HttpResponse::InternalServerError().body(e)
+        }
+    }
+}
+
 pub async fn del_instance(a:web::Query<InstanceWebParams>,b:web::Form<InstanceWebParams>,naming_addr:web::Data<Addr<NamingActor>>) -> impl Responder {
     let param = a.select_option(&b);
     let instance = param.to_instance();
@@ -355,6 +397,7 @@ pub async fn beat_instance(a:web::Query<BeatRequest>,b:web::Form<BeatRequest>,na
                     enabled:false,
                     ephemeral:false,
                     metadata:false,
+                    //from_update:false,
                 };
                 let _= naming_addr.send(NamingCmd::Update(instance,Some(tag))).await ;
                 HttpResponse::Ok().body("ok")
@@ -446,7 +489,7 @@ pub fn app_config(config:&mut web::ServiceConfig) {
             .service(web::resource("/instance")
                 .route( web::get().to(get_instance))
                 .route( web::post().to(add_instance))
-                .route( web::put().to(add_instance))
+                .route( web::put().to(update_instance))
                 .route( web::delete().to(del_instance))
             )
             .service(web::resource("/instance/beat")

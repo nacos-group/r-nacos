@@ -48,9 +48,11 @@ impl Service {
     */
 
     pub(crate) fn update_instance(&mut self,mut instance:Instance,update_tag:Option<InstanceUpdateTag>) -> UpdateInstanceType {
+        /* 
         if instance.service_name=="service-consumer" {
-            println!("service-consumer update_instance {:?}",&instance);
+            //println!("service-consumer update_instance {:?}",&instance);
         }
+        */
         let key = instance.id.to_owned();
         let time_info = instance.get_time_info();
         //let mut update_mark = true;
@@ -73,10 +75,15 @@ impl Service {
                         instance.weight = old_instance.weight.to_owned();
                     }
                     if !update_tag.metadata{
-                        instance.metadata = old_instance.metadata.to_owned();
+                        instance.metadata = old_instance.metadata.clone();
                     }
                 }
                 else{
+                    //不更新
+                    instance.enabled = old_instance.enabled.to_owned();
+                    instance.ephemeral = old_instance.ephemeral.to_owned();
+                    instance.weight = old_instance.weight.to_owned();
+                    instance.metadata = old_instance.metadata.clone();
                     rtype=UpdateInstanceType::UpdateTime;
                 }
             }
