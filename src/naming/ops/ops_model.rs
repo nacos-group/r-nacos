@@ -50,19 +50,25 @@ pub struct OpsServiceDto {
     pub ip_count: Option<u64>,
     pub healthy_instance_count: Option<u64>,
     pub trigger_flag: Option<bool>,
-    pub metadata:Option<HashMap<String,String>>,
+    pub metadata:Option<String>,
     pub protect_threshold:Option<f32>,
 }
 
 impl From<ServiceInfoDto> for OpsServiceDto {
     fn from(value: ServiceInfoDto) -> Self {
+        let metadata = if let Some(metadata) = &value.metadata {
+            Some(serde_json::to_string(metadata).unwrap())
+        }
+        else{
+            None
+        };
         Self { name: Some(value.service_name)
             , group_name: Some(value.group_name)
             , cluster_count: Some(value.cluster_count as u64)
             , ip_count: Some(value.instance_size as u64)
             , healthy_instance_count: Some(value.healthy_instance_size as u64)
             , trigger_flag: Some(value.trigger_flag) 
-            , metadata : value.metadata
+            , metadata : metadata
             , protect_threshold : value.protect_threshold
         }
     }
