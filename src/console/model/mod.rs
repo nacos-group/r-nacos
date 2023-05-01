@@ -1,4 +1,5 @@
 pub mod config_model;
+pub mod naming_model;
 
 use std::sync::Arc;
 

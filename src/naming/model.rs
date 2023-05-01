@@ -6,6 +6,7 @@ use serde::{Serialize,Deserialize};
 use crate::now_millis_i64;
 
 #[derive(Debug,Clone,Serialize,Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Instance {
     pub id:String,
     pub ip:String,

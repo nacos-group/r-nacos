@@ -233,7 +233,7 @@ impl NamingActor {
     pub fn get_instance_list(&self,key:&ServiceKey,cluster_str:&str,only_healthy:bool) -> Vec<Arc<Instance>> {
         let cluster_names = NamingUtils::split_filters(&cluster_str);
         if let Some(service) = self.service_map.get(&key) {
-            return InstanceFilterUtils::default_instance_filter(service.get_instance_list(cluster_names, false)
+            return InstanceFilterUtils::default_instance_filter(service.get_instance_list(cluster_names, false,true)
                 ,Some(service.get_metadata()),only_healthy);
         }
         vec![]
@@ -242,7 +242,7 @@ impl NamingActor {
     pub fn get_instances_and_metadata(&self,key:&ServiceKey,cluster_str:&str,only_healthy:bool) -> (Vec<Arc<Instance>>,Option<ServiceMetadata>) {
         let cluster_names = NamingUtils::split_filters(&cluster_str);
         if let Some(service) = self.service_map.get(&key) {
-            return (service.get_instance_list(cluster_names,only_healthy),Some(service.get_metadata()));
+            return (service.get_instance_list(cluster_names,only_healthy,true),Some(service.get_metadata()));
         }
         (vec![],None)
     }
@@ -259,7 +259,7 @@ impl NamingActor {
     pub fn get_instance_map(&self,key:&ServiceKey,cluster_names:Vec<String>,only_healthy:bool) -> HashMap<String,Vec<Arc<Instance>>> {
         let mut map: HashMap<String, Vec<Arc<Instance>>>=HashMap::new();
         if let Some(service) = self.service_map.get(&key) {
-            for item in service.get_instance_list(cluster_names, only_healthy) {
+            for item in service.get_instance_list(cluster_names, only_healthy,true) {
                 if let Some(list) = map.get_mut(&item.cluster_name) {
                     list.push(item)
                 }
@@ -382,6 +382,7 @@ pub enum NamingCmd {
     Delete(Instance),
     Query(Instance),
     QueryList(ServiceKey,String,bool,Option<SocketAddr>),
+    QueryAllInstanceList(ServiceKey),
     QueryListString(ServiceKey,String,bool,Option<SocketAddr>),
     QueryServiceInfo(ServiceKey,String,bool),
     QueryServicePage(ServiceKey,usize,usize),
@@ -530,6 +531,14 @@ impl Handler<NamingCmd> for NamingActor {
             NamingCmd::RemoveService(service_key) => {
                 self.remove_empty_service(service_key)?;
                 Ok(NamingResult::NULL)
+            },
+            NamingCmd::QueryAllInstanceList(key) => {
+                if let Some(service) = self.service_map.get(&key){
+                    Ok(NamingResult::InstanceList(service.get_instance_list(vec![],false,false)))
+                }
+                else{
+                    Ok(NamingResult::InstanceList(vec![]))
+                }
             },
         }
     }

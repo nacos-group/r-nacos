@@ -367,7 +367,7 @@ pub async fn beat_instance(a:web::Query<BeatRequest>,b:web::Form<BeatRequest>,na
 }
 
 pub async fn query_service(param:web::Query<ServiceQueryListRequest>,naming_addr:web::Data<Addr<NamingActor>>) -> impl Responder {
-    HttpResponse::InternalServerError().body("error")
+    HttpResponse::InternalServerError().body("error,not suport at present")
 }
 
 pub async fn update_service(param0:web::Form<ServiceInfoParam>,param1:web::Query<ServiceInfoParam>,naming_addr:web::Data<Addr<NamingActor>>) -> impl Responder {

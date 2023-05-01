@@ -167,9 +167,9 @@ impl Service {
         self.instances.get(instance_key).map_or(None, |i|Some(i.clone()))
     }
 
-    pub(crate) fn get_all_instances(&self,only_healthy:bool) -> Vec<Arc<Instance>> {
+    pub(crate) fn get_all_instances(&self,only_healthy:bool,only_enable:bool) -> Vec<Arc<Instance>> {
         self.instances.values().filter(|x|
-            x.enabled && (x.healthy || !only_healthy)).map(|x|x.clone()).collect::<Vec<_>>()
+            (x.enabled || !only_enable) && (x.healthy || !only_healthy)).map(|x|x.clone()).collect::<Vec<_>>()
     }
 
     /*
@@ -200,8 +200,8 @@ impl Service {
     }
     */
     
-    pub(crate) fn get_instance_list(&self,cluster_names:Vec<String>,only_healthy:bool) -> Vec<Arc<Instance>> {
-        self.get_all_instances(only_healthy)
+    pub(crate) fn get_instance_list(&self,cluster_names:Vec<String>,only_healthy:bool,only_enable:bool) -> Vec<Arc<Instance>> {
+        self.get_all_instances(only_healthy,only_enable)
         /* 
         let mut names = cluster_names;
         if names.len()==0 {
