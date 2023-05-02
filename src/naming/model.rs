@@ -156,7 +156,7 @@ pub struct InstanceUpdateTag{
     pub metadata: bool,
     pub enabled: bool,
     pub ephemeral: bool,
-    //pub from_update:bool,
+    pub from_update:bool,
 }
 
 impl InstanceUpdateTag {
@@ -175,7 +175,7 @@ impl Default for InstanceUpdateTag {
             metadata: true,
             enabled: true,
             ephemeral: true,
-            //from_update: false,
+            from_update: false,
         }
     }
 }

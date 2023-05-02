@@ -5,7 +5,7 @@ use std::sync::{Arc, atomic::{AtomicI64, AtomicBool}};
 use crate::{
     grpc::{PayloadHandler, nacos_proto::Payload, PayloadUtils,
         api_model::{InstanceRequest, InstanceResponse, SUCCESS_CODE, ERROR_CODE, Instance as ApiInstance}}, 
-    naming::{core::{NamingActor, NamingCmd}, model::Instance, NamingUtils}, 
+    naming::{core::{NamingActor, NamingCmd}, model::{Instance, InstanceUpdateTag}, NamingUtils}, 
     now_millis_i64
 };
 use actix::prelude::Addr;
@@ -81,7 +81,14 @@ impl PayloadHandler for InstanceRequestHandler {
         let cmd = if is_de_register {
             NamingCmd::Delete(instance)
         } else {
-            NamingCmd::Update(instance, None)
+            let update_tag=InstanceUpdateTag{
+                weight: instance.weight != 1.0f32,
+                metadata: true,
+                enabled: !instance.enabled,
+                ephemeral: false,
+                from_update: false,
+            };
+            NamingCmd::Update(instance, Some(update_tag))
         } ;
         let mut response = InstanceResponse::default();
         match self.naming_addr.send(cmd).await{

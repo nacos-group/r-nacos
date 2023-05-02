@@ -303,6 +303,19 @@ pub async fn get_instance_list(param:web::Query<InstanceWebQueryListParams>,nami
 
 pub async fn add_instance(a:web::Query<InstanceWebParams>,b:web::Form<InstanceWebParams>,naming_addr:web::Data<Addr<NamingActor>>) -> impl Responder {
     let param = a.select_option(&b);
+    let update_tag=InstanceUpdateTag{
+        weight: match &param.weight{
+            Some(v) => { *v!=1.0f32 },
+            None => {false},
+        },
+        metadata: match &param.metadata{
+            Some(v) => !v.is_empty(),
+            None => {false},
+        },
+        enabled: false,
+        ephemeral: false,
+        from_update: false,
+    };
     let instance = param.to_instance();
     match instance {
         Ok(instance) => {
@@ -341,7 +354,7 @@ pub async fn update_instance(a:web::Query<InstanceWebParams>,b:web::Form<Instanc
             Some(v)=> {true},
             None=>{false},
         },
-        //from_update: true,
+        from_update: true,
     };
     let instance = param.to_instance();
     match instance {
@@ -397,7 +410,7 @@ pub async fn beat_instance(a:web::Query<BeatRequest>,b:web::Form<BeatRequest>,na
                     enabled:false,
                     ephemeral:false,
                     metadata:false,
-                    //from_update:false,
+                    from_update:false,
                 };
                 let _= naming_addr.send(NamingCmd::Update(instance,Some(tag))).await ;
                 HttpResponse::Ok().body("ok")
