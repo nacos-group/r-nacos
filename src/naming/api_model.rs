@@ -81,7 +81,7 @@ pub struct InstanceVO {
     pub weight: f32,
     pub healthy: bool,
     pub instance_id: String,
-    pub metadata: HashMap<String, String>,
+    pub metadata: Arc<HashMap<String, String>>,
     pub marked: Option<bool>,
     pub enabled: Option<bool>,
     pub service_name: Option<String>,

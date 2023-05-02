@@ -18,7 +18,7 @@ pub struct Instance {
     pub cluster_name:String,
     pub service_name:String,
     pub group_name:String,
-    pub metadata:HashMap<String,String>,
+    pub metadata:Arc<HashMap<String,String>>,
     pub last_modified_millis:i64,
     pub namespace_id:String,
     pub app_name:String,

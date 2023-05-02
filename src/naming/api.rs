@@ -49,11 +49,11 @@ impl InstanceWebParams {
         }
     }
 
-    fn to_instance(&self) -> Result<Instance,String> {
+    fn to_instance(self) -> Result<Instance,String> {
         let mut instance = Instance::default();
-        instance.ip = self.ip.as_ref().unwrap().to_owned();
-        instance.port = self.port.as_ref().unwrap().to_owned();
-        let grouped_name = self.service_name.as_ref().unwrap().to_owned();
+        instance.ip = self.ip.unwrap();
+        instance.port = self.port.unwrap();
+        let grouped_name = self.service_name.unwrap();
         if let Some((group_name,service_name)) = NamingUtils::split_group_and_serivce_name(&grouped_name) {
             instance.service_name = service_name;
             instance.group_name = group_name;
@@ -61,9 +61,9 @@ impl InstanceWebParams {
         else{
             return Err("serivceName is unvaild!".to_owned());
         }
-        if let Some(group_name) = self.group_name.as_ref() {
+        if let Some(group_name) = self.group_name {
             if group_name.len() > 0 {
-                instance.group_name = group_name.to_owned();
+                instance.group_name = group_name;
             }
         }
         instance.weight = self.weight.unwrap_or(1f32);
@@ -76,7 +76,7 @@ impl InstanceWebParams {
         let metadata_str= self.metadata.as_ref().unwrap_or(&"{}".to_owned()).to_owned();
         match serde_json::from_str::<HashMap<String,String>>(&metadata_str) {
             Ok(metadata) => {
-                instance.metadata = metadata;
+                instance.metadata = Arc::new(metadata);
             },
             Err(_) => {}
         };
@@ -169,12 +169,13 @@ impl BeatRequest {
         }
     }
 
-    pub fn to_instance(&self) -> Result<Instance,String> {
+    pub fn to_instance(self) -> Result<Instance,String> {
         let beat = self.beat.as_ref().unwrap();
         let beat_info = serde_json::from_str::<BeatInfo>(beat).unwrap();
+        let service_name_option = beat_info.service_name.clone();
         let mut instance = beat_info.to_instance();
-        if beat_info.service_name.is_none() {
-            let grouped_name = self.service_name.as_ref().unwrap().to_owned();
+        if service_name_option.is_none() {
+            let grouped_name = self.service_name.unwrap();
             if let Some((group_name,service_name)) = NamingUtils::split_group_and_serivce_name(&grouped_name) {
                 instance.service_name = service_name;
                 instance.group_name = group_name;
@@ -208,20 +209,20 @@ pub struct BeatInfo {
 }
 
 impl BeatInfo {
-    pub fn to_instance(&self) -> Instance {
+    pub fn to_instance(self) -> Instance {
         let mut instance = Instance::default();
-        instance.ip = self.ip.as_ref().unwrap().to_owned();
-        instance.port = self.port.as_ref().unwrap().to_owned();
+        instance.ip = self.ip.unwrap();
+        instance.port = self.port.unwrap();
         let grouped_name = self.service_name.as_ref().unwrap().to_owned();
         if let Some((group_name,service_name)) = NamingUtils::split_group_and_serivce_name(&grouped_name) {
             instance.service_name = service_name;
             instance.group_name = group_name;
         }
         instance.cluster_name = NamingUtils::default_cluster(self.cluster.as_ref().unwrap_or(&"".to_owned()).to_owned());
-        if let Some(metadata) = self.metadata.as_ref() {
-            instance.metadata = metadata.clone();
+        if let Some(metadata) = self.metadata {
+            instance.metadata = Arc::new(metadata);
         }
-        instance.generate_key();
+        //instance.generate_key();
         instance
     }
 }
@@ -244,7 +245,7 @@ pub struct ServiceQueryListResponce {
 
 
 pub async fn get_instance(param:web::Query<InstanceWebParams>,naming_addr:web::Data<Addr<NamingActor>>) -> impl Responder {
-    let instance = param.to_instance();
+    let instance = param.0.to_instance();
     match instance {
         Ok(instance) => {
             match naming_addr.send(NamingCmd::Query(instance)).await {
