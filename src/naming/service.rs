@@ -29,7 +29,7 @@ pub struct Service {
     pub(crate) healthy_instance_size:i64,
     //pub cluster_map:HashMap<String,Cluster>,
 
-    pub(crate) instances: HashMap<String,Arc<Instance>>,
+    pub(crate) instances: HashMap<InstanceShortKey,Arc<Instance>>,
     pub(crate) timeinfos: LinkedList<InstanceTimeInfo>,
     pub(crate) instance_metadata_map:HashMap<InstanceShortKey,InstanceMetaData>
 
@@ -56,7 +56,7 @@ impl Service {
             //println!("service-consumer update_instance {:?}",&instance);
         }
         */
-        let key = instance.id.to_owned();
+        let key = instance.get_short_key();
         let time_info = instance.get_time_info();
         //let mut update_mark = true;
         let mut rtype = UpdateInstanceType::None;
@@ -133,7 +133,7 @@ impl Service {
         self.timeinfos.push_back(time_info);
     }
 
-    pub(crate) fn time_check(&mut self,healthy_time:i64,offline_time:i64) -> (Vec<String>,Vec<String>) {
+    pub(crate) fn time_check(&mut self,healthy_time:i64,offline_time:i64) -> (Vec<InstanceShortKey>,Vec<InstanceShortKey>) {
         assert!(healthy_time>=offline_time);
         let mut i=0;
         let t= self.timeinfos.iter();
@@ -145,11 +145,11 @@ impl Service {
             if !item.enable { continue;}
             if item.time <= healthy_time {
                 if item.time <= offline_time {
-                    remove_list.push(item.instance_id.to_owned());
+                    remove_list.push(item.instance_id.clone());
                     remove_index=i;
                 }
                 else{
-                    update_list.push(item.instance_id.to_owned());
+                    update_list.push(item.instance_id.clone());
                 }
             }
             else{
@@ -166,8 +166,8 @@ impl Service {
         (remove_list,update_list)
     }
 
-    pub(crate) fn remove_instance(&mut self,instance_id:&str) -> Option<Arc<Instance>> {
-        if let Some(old)=self.instances.remove(instance_id){
+    pub(crate) fn remove_instance(&mut self,instance_key:&InstanceShortKey) -> Option<Arc<Instance>> {
+        if let Some(old)=self.instances.remove(instance_key){
             self.instance_size-=1;
             if old.healthy {
                 self.healthy_instance_size-=1;
@@ -179,18 +179,18 @@ impl Service {
         }
     }
 
-    pub(crate) fn update_instance_healthy_unvaild(&mut self,instance_id:&str) {
+    pub(crate) fn update_instance_healthy_unvaild(&mut self,instance_id:&InstanceShortKey) {
         if let Some(i) = self.instances.remove(instance_id) {
             if i.healthy {
                 self.healthy_instance_size -=1;
             }
             let mut i = i.as_ref().clone();
             i.healthy=false;
-            self.instances.insert(instance_id.to_owned(), Arc::new(i));
+            self.instances.insert(instance_id.clone(), Arc::new(i));
         }
     }
 
-    pub(crate) fn get_instance(&self,instance_key:&str) -> Option<Arc<Instance>> {
+    pub(crate) fn get_instance(&self,instance_key:&InstanceShortKey) -> Option<Arc<Instance>> {
         self.instances.get(instance_key).map_or(None, |i|Some(i.clone()))
     }
 
@@ -212,86 +212,10 @@ impl Service {
         updateType
     }
     */
-
-    /* 
-    pub(crate) fn get_instance(&self,cluster_name:&str,instance_key:&str) -> Option<Instance> {
-        match self.cluster_map.get(cluster_name){
-            Some(v) => {
-                if let Some(i) = v.get_instance(instance_key) {
-                    Some(i.clone())
-                }
-                else{ None}
-            },
-            None=> None,
-        }
-    }
-    */
     
     pub(crate) fn get_instance_list(&self,_cluster_names:Vec<String>,only_healthy:bool,only_enable:bool) -> Vec<Arc<Instance>> {
         self.get_all_instances(only_healthy,only_enable)
-        /* 
-        let mut names = cluster_names;
-        if names.len()==0 {
-            for item in self.cluster_map.keys() {
-                names.push(item.to_owned());
-            }
-        }
-        for cluster_name in &names {
-            if let Some(c) = self.cluster_map.get(cluster_name) {
-                for item in c.get_all_instances(only_healthy) {
-                    list.push(item.clone());
-                }
-            }
-        }
-        list
-        */
     }
-
-    /*
-    pub(crate) fn get_instance_map(&self,cluster_names:Vec<String>,only_healthy:bool) -> HashMap<String,Vec<Instance>> {
-        let mut map=HashMap::new();
-        let mut names = cluster_names;
-        if names.len()==0 {
-            for item in self.cluster_map.keys() {
-                names.push(item.to_owned());
-            }
-        }
-        for cluster_name in &names {
-            if let Some(c) = self.cluster_map.get(cluster_name) {
-                let mut list = vec![];
-                for item in c.get_all_instances(only_healthy) {
-                    list.push(item.clone());
-                }
-                if list.len()>0 {
-                    map.insert(cluster_name.to_owned(), list);
-                }
-            }
-        }
-        map
-    }
-     */
-
-    /*
-    pub(crate) fn get_instance_list_string(&self,cluster_names:Vec<String>,only_healthy:bool) -> String {
-        let clusters = (&cluster_names).join(",");
-        let list = self.get_instance_list(cluster_names, only_healthy);
-        let key = ServiceKey::new(&self.namespace_id,&self.group_name,&self.service_name);
-        QueryListResult::get_instance_list_string(clusters, &key, list)
-    }
-     */
-
-     /* 
-    pub(crate) fn time_check(&mut self,healthy_time:i64,offline_time:i64) -> (Vec<String>,Vec<String>) {
-        let mut remove_list = vec![];
-        let mut update_list = vec![];
-        for item in self.cluster_map.values_mut() {
-            let (mut rlist,mut ulist)=item.time_check(healthy_time, offline_time);
-            remove_list.append(&mut rlist);
-            update_list.append(&mut ulist);
-        }
-        (remove_list,update_list)
-    }
-     */
 
     pub fn get_service_key(&self) -> ServiceKey {
         ServiceKey::new_by_arc(self.namespace_id.clone(),self.group_name.clone(),self.service_name.clone())
@@ -314,20 +238,8 @@ impl Service {
         }
     }
 
-    /*
-    pub fn get_service_do(&self) -> ServiceDO {
-        ServiceDO {
-            namespace_id:Some(self.namespace_id.to_owned()),
-            service_name:Some(self.service_name.to_owned()),
-            group_name:Some(self.group_name.to_owned()),
-            instance_size:Some(self.instance_size.to_owned()),
-            ..Default::default()
-        }
-    }
-     */
-
     pub(crate) fn exist_priority_metadata(&self,instance_key:&InstanceShortKey) -> bool {
-        self.instance_metadata_map.get(&instance_key).is_some()
+        self.instance_metadata_map.contains_key(&instance_key)
     }
 }
 

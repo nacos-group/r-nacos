@@ -205,7 +205,7 @@ impl NamingActor {
         tag
     }
 
-    pub fn remove_instance(&mut self,key:&ServiceKey ,cluster_name:&str,instance_id:&str) -> UpdateInstanceType {
+    pub fn remove_instance(&mut self,key:&ServiceKey ,cluster_name:&str,instance_id:&InstanceShortKey) -> UpdateInstanceType {
         let service = self.service_map.get_mut(&key).unwrap();
         let old_instance = service.remove_instance(instance_id);
         let now = now_millis();
@@ -239,7 +239,7 @@ impl NamingActor {
         tag
     }
 
-    pub fn get_instance(&self,key:&ServiceKey,cluster_name:&str,instance_id:&str) -> Option<Arc<Instance>> {
+    pub fn get_instance(&self,key:&ServiceKey,cluster_name:&str,instance_id:&InstanceShortKey) -> Option<Arc<Instance>> {
         if let Some(service) = self.service_map.get(&key) {
             return service.get_instance(instance_id);
         }
@@ -306,7 +306,7 @@ impl NamingActor {
         QueryListResult::get_instance_list_string(cluster_str, key, list)
     }
 
-    pub fn time_check(&mut self) -> (Vec<String>,Vec<String>) {
+    pub fn time_check(&mut self) -> (Vec<InstanceShortKey>,Vec<InstanceShortKey>) {
         let current_time = Local::now().timestamp_millis();
         let healthy_time = current_time - 15000;
         let offline_time = current_time - 30000;
@@ -321,10 +321,9 @@ impl NamingActor {
             update_list.append(&mut ulist);
             if remove_list.len() > 0 {
                 let service_key = item.get_service_key();
-                for id in &remove_list {
-                    let short_key = InstanceShortKey::new_from_instance_id(&id);
+                for short_key in &remove_list {
                     if item.exist_priority_metadata(&short_key) {
-                        let instance_key = InstanceKey::new_by_service_key(&service_key, short_key.ip, short_key.port);
+                        let instance_key = InstanceKey::new_by_service_key(&service_key, short_key.ip.clone(), short_key.port);
                         self.instance_metadate_set.add(now+self.sys_config.instance_metadata_time_out_millis,instance_key);
                     }
                 }
@@ -400,7 +399,9 @@ impl NamingActor {
         let service_key = instance_key.get_service_key();
         if let Some(service) = self.service_map.get_mut(&service_key) {
             let short_key = instance_key.get_short_key();
-            service.instance_metadata_map.remove(&short_key);
+            if !service.instances.contains_key(&short_key){
+                service.instance_metadata_map.remove(&short_key);
+            }
         }
     }
 
@@ -484,11 +485,11 @@ impl Handler<NamingCmd> for NamingActor {
                 Ok(NamingResult::NULL)
             },
             NamingCmd::Delete(instance) => {
-                self.remove_instance(&instance.get_service_key(), &instance.cluster_name, &instance.id);
+                self.remove_instance(&instance.get_service_key(), &instance.cluster_name, &instance.get_short_key());
                 Ok(NamingResult::NULL)
             },
             NamingCmd::Query(instance) => {
-                if let Some(i) = self.get_instance(&instance.get_service_key(),&instance.cluster_name, &instance.id) {
+                if let Some(i) = self.get_instance(&instance.get_service_key(),&instance.cluster_name, &instance.get_short_key()) {
                     return Ok(NamingResult::Instance(i));
                 }
                 Ok(NamingResult::NULL)
@@ -673,7 +674,7 @@ fn test_remove_has_instance_service(){
     assert!(naming.remove_empty_service(service_key.clone()).is_err());
     assert!(naming.namespace_index.service_size==1);
 
-    naming.remove_instance(&service_key, &instance.cluster_name, &instance.id);
+    naming.remove_instance(&service_key, &instance.cluster_name, &instance.get_short_key());
     assert!(naming.namespace_index.service_size==1);
     assert!(naming.remove_empty_service(service_key.clone()).is_ok());
     assert!(naming.namespace_index.service_size==0);

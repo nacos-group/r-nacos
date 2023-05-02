@@ -33,7 +33,8 @@ impl Instance{
     }
 
     pub fn generate_key(&mut self) {
-        self.id = format!("{}#{}#{}#{}#{}",&self.ip,&self.port,&self.cluster_name,&self.service_name,&self.group_name)
+        //self.id = format!("{}#{}#{}#{}#{}",&self.ip,&self.port,&self.cluster_name,&self.service_name,&self.group_name)
+        self.id = format!("{}#{}",&self.ip,&self.port)
     }
 
     pub fn init(&mut self) {
@@ -93,8 +94,12 @@ impl Instance{
         InstanceShortKey { ip:self.ip.clone(), port:self.port.to_owned() }
     }
 
+    pub fn get_id_string(&self) -> String {
+        format!("{}#{}",&self.ip,&self.port)
+    }
+
     pub(crate) fn get_time_info(&self) -> InstanceTimeInfo {
-        InstanceTimeInfo::new(self.id.to_owned(),self.last_modified_millis)
+        InstanceTimeInfo::new(self.get_short_key(),self.last_modified_millis)
     }
 }
 
@@ -296,12 +301,12 @@ impl PartialEq for InstanceShortKey {
 #[derive(Debug,Clone,Default,Hash,Eq)]
 pub(crate) struct InstanceTimeInfo {
     pub(crate) time:i64,
-    pub(crate) instance_id:String,
+    pub(crate) instance_id:InstanceShortKey,
     pub(crate) enable:bool,
 }
 
 impl InstanceTimeInfo {
-    pub(crate) fn new(instance_id:String,time:i64) -> Self {
+    pub(crate) fn new(instance_id:InstanceShortKey,time:i64) -> Self {
         Self {
             time,
             instance_id,
