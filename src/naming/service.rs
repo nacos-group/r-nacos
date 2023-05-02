@@ -1,15 +1,17 @@
 #![allow(unused_assignments,unused_imports)]
 
-use std::{collections::{HashMap, LinkedList}, sync::{Arc, atomic::Ordering}};
+use std::{collections::{HashMap, LinkedList}, sync::{Arc, atomic::Ordering}, hash::Hash};
 
 use actix_web::rt;
 
-use super::{model::{Instance, InstanceTimeInfo, InstanceUpdateTag, UpdateInstanceType, ServiceKey}, api_model::QueryListResult, dal::service_do::ServiceDO};
+use super::{model::{Instance, InstanceTimeInfo, InstanceUpdateTag, UpdateInstanceType, ServiceKey, InstanceShortKey}, api_model::QueryListResult, dal::service_do::ServiceDO};
 
 #[derive(Debug,Clone,Default)]
 pub struct ServiceMetadata {
     pub protect_threshold:f32,
 }
+
+type InstanceMetaData=Arc<HashMap<String,String>>;
 
 #[derive(Debug,Clone,Default)]
 pub struct Service {
@@ -29,6 +31,7 @@ pub struct Service {
 
     pub(crate) instances: HashMap<String,Arc<Instance>>,
     pub(crate) timeinfos: LinkedList<InstanceTimeInfo>,
+    pub(crate) instance_metadata_map:HashMap<InstanceShortKey,InstanceMetaData>
 
 }
 
@@ -57,6 +60,7 @@ impl Service {
         let time_info = instance.get_time_info();
         //let mut update_mark = true;
         let mut rtype = UpdateInstanceType::None;
+        let short_key =instance.get_short_key();
         let old_instance = self.instances.get(&key);
         if let Some(old_instance) = old_instance {
             if !old_instance.healthy {
@@ -77,6 +81,18 @@ impl Service {
                     if !update_tag.metadata{
                         instance.metadata = old_instance.metadata.clone();
                     }
+                    else{
+                        if update_tag.from_update {
+                            //从控制台设置的metadata
+                            self.instance_metadata_map.insert(short_key, instance.metadata.clone());
+                        }
+                        else{
+                            if let Some(priority_metadata) = self.instance_metadata_map.get(&short_key) {
+                                //sdk更新尝试使用高优先级metadata
+                                instance.metadata = priority_metadata.clone();
+                            }
+                        }
+                    }
                 }
                 else{
                     //不更新
@@ -89,6 +105,10 @@ impl Service {
             }
         }
         else{
+            //新增的尝试使用高优先级metadata
+            if let Some(priority_metadata) = self.instance_metadata_map.get(&short_key) {
+                instance.metadata = priority_metadata.clone();
+            }
             self.instance_size+=1;
             self.healthy_instance_size +=1;
             rtype=UpdateInstanceType::New;

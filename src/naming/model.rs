@@ -89,6 +89,10 @@ impl Instance{
         ServiceKey::new(&self.namespace_id,&self.group_name,&self.service_name)
     }
 
+    pub fn get_short_key(&self) -> InstanceShortKey {
+        InstanceShortKey { ip:self.ip.clone(), port:self.port.to_owned() }
+    }
+
     pub(crate) fn get_time_info(&self) -> InstanceTimeInfo {
         InstanceTimeInfo::new(self.id.to_owned(),self.last_modified_millis)
     }
@@ -212,6 +216,59 @@ impl ServiceKey {
 
     pub fn get_join_service_name(&self) -> String {
         format!("{}@@{}",self.group_name,self.service_name)
+    }
+}
+
+#[derive(Debug,Clone,Default,Hash,Eq)]
+pub struct InstanceKey {
+    pub namespace_id:Arc<String>,
+    pub group_name:Arc<String>,
+    pub service_name:Arc<String>,
+    pub ip:Arc<String>,
+    pub port:u32
+}
+
+impl InstanceKey{
+    pub fn new_by_service_key(key:&ServiceKey,ip:Arc<String>,port:u32) -> Self {
+        Self { 
+            namespace_id: key.namespace_id.clone(), 
+            group_name: key.group_name.clone(), 
+            service_name: key.service_name.clone(), 
+            ip,
+            port,
+        }
+    }
+}
+
+impl PartialEq for InstanceKey {
+    fn eq(&self, o:&Self) -> bool {
+        self.namespace_id == o.namespace_id
+        && self.group_name == o.group_name
+        && self.service_name == o.service_name
+        && self.ip == o.ip
+        && self.port == o.port
+    }
+}
+
+#[derive(Debug,Clone,Default,Hash,Eq)]
+pub struct InstanceShortKey {
+    pub ip:Arc<String>,
+    pub port:u32
+}
+
+impl InstanceShortKey {
+    pub fn new(ip:Arc<String>,port:u32) -> Self {
+        Self{
+            ip,
+            port
+        }
+    }
+}
+
+impl PartialEq for InstanceShortKey {
+    fn eq(&self, o:&Self) -> bool {
+        self.ip == o.ip
+        && self.port == o.port
     }
 }
 
