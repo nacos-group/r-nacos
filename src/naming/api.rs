@@ -51,7 +51,7 @@ impl InstanceWebParams {
 
     fn to_instance(self) -> Result<Instance,String> {
         let mut instance = Instance::default();
-        instance.ip = self.ip.unwrap();
+        instance.ip = Arc::new(self.ip.unwrap());
         instance.port = self.port.unwrap();
         let grouped_name = self.service_name.unwrap();
         if let Some((group_name,service_name)) = NamingUtils::split_group_and_serivce_name(&grouped_name) {
@@ -211,7 +211,7 @@ pub struct BeatInfo {
 impl BeatInfo {
     pub fn to_instance(self) -> Instance {
         let mut instance = Instance::default();
-        instance.ip = self.ip.unwrap();
+        instance.ip = Arc::new(self.ip.unwrap());
         instance.port = self.port.unwrap();
         let grouped_name = self.service_name.as_ref().unwrap().to_owned();
         if let Some((group_name,service_name)) = NamingUtils::split_group_and_serivce_name(&grouped_name) {

@@ -179,7 +179,7 @@ pub struct ConfigChangeNotifyRequest {
 #[serde(rename_all = "camelCase")]
 pub struct Instance{
     pub instance_id:Option<String>,
-    pub ip:Option<String>,
+    pub ip:Option<Arc<String>>,
     pub port:u32,
     pub weight:f32,
     pub healthy:bool,

@@ -75,7 +75,7 @@ impl QueryListResult {
 #[serde(rename_all = "camelCase")]
 pub struct InstanceVO {
     pub service: String,
-    pub ip: String,
+    pub ip: Arc<String>,
     pub port: u32,
     pub cluster_name: String,
     pub weight: f32,
@@ -95,7 +95,7 @@ impl InstanceVO {
                 &instance.service_name,
                 &instance.group_name,
             ),
-            ip: instance.ip.to_owned(),
+            ip: instance.ip.clone(),
             port: instance.port,
             cluster_name: instance.cluster_name.to_owned(),
             weight: instance.weight,

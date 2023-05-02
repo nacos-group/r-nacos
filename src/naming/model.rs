@@ -9,7 +9,7 @@ use crate::now_millis_i64;
 #[serde(rename_all = "camelCase")]
 pub struct Instance {
     pub id:String,
-    pub ip:String,
+    pub ip:Arc<String>,
     pub port:u32,
     pub weight:f32,
     pub enabled:bool,
@@ -27,7 +27,7 @@ pub struct Instance {
 impl Instance{
     pub fn new(ip:String,port:u32) -> Self {
         let mut s = Self::default();
-        s.ip = ip;
+        s.ip = Arc::new(ip);
         s.port = port;
         s
     }
