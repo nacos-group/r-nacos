@@ -18,6 +18,8 @@ use super::filter::InstanceFilterUtils;
 use super::listener::{InnerNamingListener,NamingListenerCmd,ListenerItem};
 use super::api_model::{QueryListResult};
 use super::model::Instance;
+use super::model::InstanceKey;
+use super::model::InstanceShortKey;
 use super::model::InstanceTimeInfo;
 use super::model::InstanceUpdateTag;
 use super::model::ServiceDetailDto;
@@ -53,6 +55,7 @@ pub struct NamingActor {
     subscriber: Subscriber,
     sys_config: NamingSysConfig,
     empty_service_set: TimeoutSet<ServiceKey>,
+    instance_metadate_set:TimeoutSet<InstanceKey>,
     namespace_index: NamespaceIndex,
     //dal_addr: Addr<ServiceDalActor>,
 }
@@ -73,6 +76,7 @@ impl NamingActor {
             sys_config: NamingSysConfig::new(),
             empty_service_set: Default::default(),
             namespace_index: NamespaceIndex::new(),
+            instance_metadate_set: Default::default(),
             //dal_addr,
         }
     }
@@ -203,9 +207,21 @@ impl NamingActor {
 
     pub fn remove_instance(&mut self,key:&ServiceKey ,cluster_name:&str,instance_id:&str) -> UpdateInstanceType {
         let service = self.service_map.get_mut(&key).unwrap();
-        let tag = service.remove_instance(instance_id);
+        let old_instance = service.remove_instance(instance_id);
+        let now = now_millis();
+        let tag = if let Some(old_instance) = old_instance {
+            let short_key = old_instance.get_short_key();
+            if service.exist_priority_metadata(&short_key) {
+                let instance_key = InstanceKey::new_by_service_key(key, short_key.ip, short_key.port);
+                self.instance_metadate_set.add(now+self.sys_config.instance_metadata_time_out_millis,instance_key);
+            }
+            UpdateInstanceType::Remove
+        }
+        else{
+            UpdateInstanceType::None
+        };
         if service.instance_size <= 0 {
-            self.empty_service_set.add(now_millis()+self.sys_config.service_time_out_millis,key.clone());
+            self.empty_service_set.add(now+self.sys_config.service_time_out_millis,key.clone());
         }
         self.do_notify(&tag, key.clone());
         tag
@@ -303,8 +319,18 @@ impl NamingActor {
             size+=rlist.len() + ulist.len();
             remove_list.append(&mut rlist);
             update_list.append(&mut ulist);
-            if remove_list.len() > 0 && item.instance_size <=0 {
-                self.empty_service_set.add(now+self.sys_config.service_time_out_millis,item.get_service_key());
+            if remove_list.len() > 0 {
+                let service_key = item.get_service_key();
+                for id in &remove_list {
+                    let short_key = InstanceShortKey::new_from_instance_id(&id);
+                    if item.exist_priority_metadata(&short_key) {
+                        let instance_key = InstanceKey::new_by_service_key(&service_key, short_key.ip, short_key.port);
+                        self.instance_metadate_set.add(now+self.sys_config.instance_metadata_time_out_millis,instance_key);
+                    }
+                }
+                if item.instance_size <=0 {
+                    self.empty_service_set.add(now+self.sys_config.service_time_out_millis,item.get_service_key());
+                }
             }
             if size>=self.sys_config.once_time_check_size {
                 break;
@@ -364,9 +390,24 @@ impl NamingActor {
         }
     }
 
+    fn clear_timeout_instance_metadata(&mut self){
+        for instance_key in self.instance_metadate_set.timeout(now_millis()){
+            self.clear_one_timeout_instance_metadata(instance_key);
+        }
+    }
+
+    fn clear_one_timeout_instance_metadata(&mut self,instance_key:InstanceKey){
+        let service_key = instance_key.get_service_key();
+        if let Some(service) = self.service_map.get_mut(&service_key) {
+            let short_key = instance_key.get_short_key();
+            service.instance_metadata_map.remove(&short_key);
+        }
+    }
+
     pub fn instance_time_out_heartbeat(&self,ctx:&mut actix::Context<Self>) {
-        ctx.run_later(Duration::from_millis(1000), |act,ctx|{
+        ctx.run_later(Duration::from_millis(2000), |act,ctx|{
             act.clear_empty_service();
+            act.clear_timeout_instance_metadata();
             let addr = ctx.address();
             addr.do_send(NamingCmd::PeekListenerTimeout);
             act.instance_time_out_heartbeat(ctx);

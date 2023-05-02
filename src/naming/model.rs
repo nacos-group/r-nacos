@@ -238,6 +238,14 @@ impl InstanceKey{
             port,
         }
     }
+
+    pub fn get_service_key(&self) -> ServiceKey {
+        ServiceKey::new_by_arc(self.namespace_id.clone(),self.group_name.clone(),self.service_name.clone())
+    }
+
+    pub fn get_short_key(&self) -> InstanceShortKey {
+        InstanceShortKey { ip:self.ip.clone(), port: self.port.to_owned() }
+    }
 }
 
 impl PartialEq for InstanceKey {
@@ -261,6 +269,18 @@ impl InstanceShortKey {
         Self{
             ip,
             port
+        }
+    }
+
+    pub fn new_from_instance_id(id:&str) -> Self {
+        let items:Vec<&str>=id.split('#').collect();
+        assert!(items.len()>1);
+        let ip_str = items[0];
+        let port_str = items[1];
+        let port:u32 = port_str.parse().unwrap_or_default();
+        Self {
+            ip: Arc::new(ip_str.to_owned()),
+            port,
         }
     }
 }

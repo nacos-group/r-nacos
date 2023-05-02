@@ -166,16 +166,16 @@ impl Service {
         (remove_list,update_list)
     }
 
-    pub(crate) fn remove_instance(&mut self,instance_id:&str) -> UpdateInstanceType {
+    pub(crate) fn remove_instance(&mut self,instance_id:&str) -> Option<Arc<Instance>> {
         if let Some(old)=self.instances.remove(instance_id){
             self.instance_size-=1;
             if old.healthy {
                 self.healthy_instance_size-=1;
             }
-            UpdateInstanceType::Remove
+            Some(old)
         }
         else{
-            UpdateInstanceType::None
+            None
         }
     }
 
@@ -227,7 +227,7 @@ impl Service {
     }
     */
     
-    pub(crate) fn get_instance_list(&self,cluster_names:Vec<String>,only_healthy:bool,only_enable:bool) -> Vec<Arc<Instance>> {
+    pub(crate) fn get_instance_list(&self,_cluster_names:Vec<String>,only_healthy:bool,only_enable:bool) -> Vec<Arc<Instance>> {
         self.get_all_instances(only_healthy,only_enable)
         /* 
         let mut names = cluster_names;
@@ -294,7 +294,7 @@ impl Service {
      */
 
     pub fn get_service_key(&self) -> ServiceKey {
-        ServiceKey::new(&self.namespace_id,&self.group_name,&self.service_name)
+        ServiceKey::new_by_arc(self.namespace_id.clone(),self.group_name.clone(),self.service_name.clone())
     }
 
     pub fn get_metadata(&self) -> ServiceMetadata {
@@ -325,6 +325,10 @@ impl Service {
         }
     }
      */
+
+    pub(crate) fn exist_priority_metadata(&self,instance_key:&InstanceShortKey) -> bool {
+        self.instance_metadata_map.get(&instance_key).is_some()
+    }
 }
 
 #[derive(Debug,Default,Clone)]
