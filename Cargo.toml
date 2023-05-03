@@ -7,7 +7,7 @@ license = "MIT/Apache-2.0"
 description = "Nacos re-implemented in Rust."
 repository = "https://github.com/heqingpan/rnacos"
 readme = "README.md"
-keywords = ["nacos","rnacos","nacos server","registry server","config server"]
+keywords = ["nacos","rnacos","registry","config"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
