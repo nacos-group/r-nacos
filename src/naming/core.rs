@@ -11,9 +11,6 @@ use std::time::Duration;
 use chrono::Local;
 use serde::{Serialize,Deserialize};
 use super::NamingUtils;
-use super::dal::service_actor;
-use super::dal::service_actor::ServiceDalActor;
-use super::dal::service_actor::ServiceDalMsg;
 use super::filter::InstanceFilterUtils;
 use super::listener::{InnerNamingListener,NamingListenerCmd,ListenerItem};
 use super::api_model::{QueryListResult};
@@ -450,7 +447,6 @@ pub enum NamingResult {
     ServiceInfo(ServiceInfo),
     ServicePage((usize,Vec<Arc<String>>)),
     ServiceInfoPage((usize,Vec<ServiceInfoDto>)),
-    DalAddr(Addr<ServiceDalActor>),
 }
 
 impl Actor for NamingActor {

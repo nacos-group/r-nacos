@@ -1,3 +1,5 @@
+#![allow(unused_imports)]
+
 use actix_web::{
     web, HttpRequest, HttpResponse, Responder, http::header,
 };
@@ -5,7 +7,6 @@ use actix_web::{
 use actix::prelude::{
     Addr,
 };
-use serde::{Serialize, Deserialize};
 use crate::config::config::{ConfigActor, ConfigCmd, ConfigResult};
 use crate::console::model::config_model::{OpsConfigQueryListRequest, OpsConfigOptQueryListResponse};
 

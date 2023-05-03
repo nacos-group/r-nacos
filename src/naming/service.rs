@@ -4,7 +4,7 @@ use std::{collections::{HashMap, LinkedList}, sync::{Arc, atomic::Ordering}, has
 
 use actix_web::rt;
 
-use super::{model::{Instance, InstanceTimeInfo, InstanceUpdateTag, UpdateInstanceType, ServiceKey, InstanceShortKey}, api_model::QueryListResult, dal::service_do::ServiceDO};
+use super::{model::{Instance, InstanceTimeInfo, InstanceUpdateTag, UpdateInstanceType, ServiceKey, InstanceShortKey}, api_model::QueryListResult};
 
 #[derive(Debug,Clone,Default)]
 pub struct ServiceMetadata {

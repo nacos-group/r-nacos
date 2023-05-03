@@ -52,7 +52,7 @@ impl Instance{
         true
     }
 
-    pub fn update_info(&self,o:&Self,tag:Option<InstanceUpdateTag>) -> bool {
+    pub fn update_info(&self,o:&Self,_tag:Option<InstanceUpdateTag>) -> bool {
         let is_update=self.enabled != o.enabled 
         || self.healthy != o.healthy
         || self.weight != o.weight

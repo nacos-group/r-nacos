@@ -1,3 +1,5 @@
+#![allow(unused_imports)]
+
 use actix_web::{http::header, web, HttpRequest, HttpResponse, Responder};
 
 use actix::prelude::Addr;
@@ -11,7 +13,7 @@ pub async fn query_ops_instances_list(
 ) -> impl Responder {
     match param.0.to_service_key() {
         Ok(key) => match naming_addr.send(NamingCmd::QueryAllInstanceList(key)).await {
-            Ok(res) => match (res as anyhow::Result<NamingResult>) {
+            Ok(res) => match res as anyhow::Result<NamingResult> {
                 Ok(result) => match result {
                     NamingResult::InstanceList(list) => {
                         let resp = OpsNamingQueryListResponse {

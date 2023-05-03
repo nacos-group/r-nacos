@@ -1,8 +1,6 @@
 pub mod config_model;
 pub mod naming_model;
 
-use std::sync::Arc;
-
 use serde::{Serialize, Deserialize};
 
 #[derive(Debug,Clone,Serialize,Deserialize,Default)]

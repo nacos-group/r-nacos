@@ -1,7 +1,5 @@
 use std::{sync::Arc};
 
-use tonic::metadata;
-
 use super::{model::{ServiceInfo, Instance}, service::ServiceMetadata};
 
 

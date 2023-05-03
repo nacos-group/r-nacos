@@ -1,3 +1,5 @@
+#![allow(unused_imports)]
+
 use std::{sync::Arc, collections::HashMap};
 
 use serde::{Serialize, Deserialize};

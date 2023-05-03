@@ -1,3 +1,4 @@
+#![allow(unused_imports)]
 
 use std::{time::Duration, collections::HashSet, sync::Arc};
 
@@ -81,7 +82,7 @@ impl DelayNotifyActor {
                             }
                         };
                     },
-                    Err(err) => {
+                    Err(_err) => {
                         log::error!("fill_event_data_and_notify error");
                     }
                 };

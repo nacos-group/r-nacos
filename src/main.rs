@@ -1,3 +1,4 @@
+#![allow(unused_imports)]
 
 use actix_web::{App, web::Data};
 use actix::{Actor};

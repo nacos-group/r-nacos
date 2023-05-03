@@ -1,3 +1,5 @@
+#![allow(dead_code,unused_imports)]
+
 use std::{hash::Hash, collections::HashMap, sync::Arc};
 
 use inner_mem_cache::TimeoutSet;
@@ -44,7 +46,7 @@ where
     }
 
     pub fn notify(&mut self,key:&K) -> anyhow::Result<()> {
-        if let Some(mut v) = self.notify_map.remove(key) {
+        if let Some(v) = self.notify_map.remove(key) {
             v.on_event()?;
         }
         /*

@@ -1,8 +1,9 @@
+#![allow(dead_code)]
+
 use std::collections::HashSet;
 use std::sync::Arc;
 
 use crate::grpc::api_model::{ServiceInfo as ApiServiceInfo,Instance as ApiInstance};
-use crate::naming::NamingUtils;
 use crate::naming::model::{ServiceInfo,Instance};
 
 
