@@ -74,3 +74,5 @@ jobs:
           export SDKROOT=$(xcrun --sdk macosx --show-sdk-path)
           rustup target add aarch64-apple-darwin
           cargo build --release --target aarch64-apple-darwin
+
+

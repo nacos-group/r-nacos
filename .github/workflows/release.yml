@@ -66,17 +66,6 @@ jobs:
         run: |
           cargo build --release --target ${{ matrix.target }}
 
-      - name: Build macOS universal2
-        if: matrix.target == 'x86_64-apple-darwin'
-        env:
-          DEVELOPER_DIR: /Applications/Xcode.app/Contents/Developer
-          MACOSX_DEPLOYMENT_TARGET: '10.9'
-        run: |
-          # set SDKROOT for C dependencies like ring and bzip2
-          export SDKROOT=$(xcrun --sdk macosx --show-sdk-path)
-          rustup target add aarch64-apple-darwin
-          cargo build --release --target aarch64-apple-darwin
-
       - name: Archive binary (windows)
         if: matrix.os == 'windows-latest'
         run: |
@@ -89,12 +78,6 @@ jobs:
           cd target/release
           tar czvf ../../${{ matrix.name }} ${{ github.event.repository.name }}
           cd -
-      - name: Archive binary (macOS aarch64)
-        if: matrix.os == 'macos-latest'
-        run: |
-          cd target/aarch64-apple-darwin/release
-          tar czvf ../../../rnacos-aarch64-apple-darwin.tar.gz ${{ github.event.repository.name }}
-          cd -
 
       - name: Upload binary artifacts
         uses: actions/upload-artifact@v3
@@ -103,6 +86,55 @@ jobs:
           path: |
             *.tar.gz
             *.zip
+
+  build-aarch64-apple:
+    name: Build ${{ matrix.target }}
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - x86_64-apple-darwin
+        include:
+          - target: x86_64-apple-darwin
+            os: macos-latest
+            name: rnacos-x86_64-apple-darwin.tar.gz
+    runs-on: ${{ matrix.os }}
+    steps:
+      # Largely inspired by https://github.com/starship/starship/blob/35a0a20f5c4fea6a08e1b91ff631b089eef8fc50/.github/workflows/deploy.yml
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install GNU tar (macOS)
+        if: matrix.os == 'macos-latest'
+        run: |
+          brew install gnu-tar
+          echo "/usr/local/opt/gnu-tar/libexec/gnubin" >> $GITHUB_PATH
+
+      - name: Build macOS universal2
+        if: matrix.target == 'x86_64-apple-darwin'
+        env:
+          DEVELOPER_DIR: /Applications/Xcode.app/Contents/Developer
+          MACOSX_DEPLOYMENT_TARGET: '10.9'
+        run: |
+          # set SDKROOT for C dependencies like ring and bzip2
+          export SDKROOT=$(xcrun --sdk macosx --show-sdk-path)
+          rustup target add aarch64-apple-darwin
+          cargo build --release --target aarch64-apple-darwin
+
+      - name: Archive binary (macOS aarch64)
+        if: matrix.os == 'macos-latest'
+        run: |
+          cd target/aarch64-apple-darwin/release
+          tar czvf ../../../rnacos-aarch64-apple-darwin.tar.gz ${{ github.event.repository.name }}
+          cd -
+      - name: Upload binary artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: binaries
+          path: |
+            *.tar.gz
 
   release-github:
     permissions:
@@ -113,7 +145,7 @@ jobs:
     name: Publish to GitHub releases
     runs-on: ubuntu-latest
     if: "startsWith(github.ref, 'refs/tags/')"
-    needs: [ build ]
+    needs: [ build, build-aarch64-apple ]
     steps:
       - uses: actions/download-artifact@v3
         with:
