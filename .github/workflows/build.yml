@@ -1,0 +1,72 @@
+on:
+  pull_request:
+    branches: [ "master" ]
+
+
+jobs:
+  build:
+    name: Build ${{ matrix.target }}
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - x86_64-unknown-linux-musl
+          - x86_64-apple-darwin
+          - x86_64-pc-windows-msvc
+          - i686-pc-windows-msvc
+          - aarch64-pc-windows-msvc
+        include:
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-latest
+            name: rnacos-x86_64-unknown-linux-musl.tar.gz
+          - target: x86_64-apple-darwin
+            os: macos-latest
+            name: rnacos-x86_64-apple-darwin.tar.gz
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            name: rnacos-x86_64-pc-windows-msvc.zip
+          - target: i686-pc-windows-msvc
+            os: windows-latest
+            name: rnacos-i686-pc-windows-msvc.zip
+          - target: aarch64-pc-windows-msvc
+            os: windows-latest
+            name: rnacos-aarch64-pc-windows-msvc.zip
+    runs-on: ${{ matrix.os }}
+    steps:
+      # Largely inspired by https://github.com/starship/starship/blob/35a0a20f5c4fea6a08e1b91ff631b089eef8fc50/.github/workflows/deploy.yml
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install musl tools
+        if: matrix.os == 'ubuntu-latest'
+        run: sudo apt-get install -y musl-tools
+
+      # Install gnu-tar because BSD tar is buggy
+      # https://github.com/actions/cache/issues/403
+      - name: Install GNU tar (macOS)
+        if: matrix.os == 'macos-latest'
+        run: |
+          brew install gnu-tar
+          echo "/usr/local/opt/gnu-tar/libexec/gnubin" >> $GITHUB_PATH
+
+      - name: Build 
+        if: matrix.target != 'x86_64-unknown-linux-musl'
+        run: cargo build --release
+
+      - name: Build wheel (with sdist)
+        if: matrix.target == 'x86_64-unknown-linux-musl'
+        run: |
+          cargo run --release --target ${{ matrix.target }}
+
+      - name: Build wheel (macOS universal2)
+        if: matrix.target == 'x86_64-apple-darwin'
+        env:
+          DEVELOPER_DIR: /Applications/Xcode.app/Contents/Developer
+          MACOSX_DEPLOYMENT_TARGET: '10.9'
+        run: |
+          # set SDKROOT for C dependencies like ring and bzip2
+          export SDKROOT=$(xcrun --sdk macosx --show-sdk-path)
+          rustup target add aarch64-apple-darwin
+          cargo build --release --target aarch64-apple-darwin
