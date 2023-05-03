@@ -61,12 +61,12 @@ jobs:
         if: matrix.target != 'x86_64-unknown-linux-musl'
         run: cargo build --release
 
-      - name: Build wheel (with sdist)
+      - name: Build linux-musl
         if: matrix.target == 'x86_64-unknown-linux-musl'
         run: |
           cargo run --release --target ${{ matrix.target }}
 
-      - name: Build wheel (macOS universal2)
+      - name: Build macOS universal2
         if: matrix.target == 'x86_64-apple-darwin'
         env:
           DEVELOPER_DIR: /Applications/Xcode.app/Contents/Developer
@@ -80,14 +80,14 @@ jobs:
       - name: Archive binary (windows)
         if: matrix.os == 'windows-latest'
         run: |
-          cd target/${{ matrix.target }}/release
-          7z a ../../../${{ matrix.name }} ${{ github.event.repository.name }}.exe
+          cd target/release
+          7z a ../../${{ matrix.name }} ${{ github.event.repository.name }}.exe
           cd -
       - name: Archive binary (linux and macOS)
         if: matrix.os != 'windows-latest'
         run: |
-          cd target/${{ matrix.target }}/release
-          tar czvf ../../../${{ matrix.name }} ${{ github.event.repository.name }}
+          cd target/release
+          tar czvf ../../${{ matrix.name }} ${{ github.event.repository.name }}
           cd -
       - name: Archive binary (macOS aarch64)
         if: matrix.os == 'macos-latest'

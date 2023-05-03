@@ -1,6 +1,8 @@
 name: build
 
 on:
+#  push:
+#    branches: [ "master" ]
   pull_request:
     branches: [ "master" ]
 
@@ -57,12 +59,12 @@ jobs:
         if: matrix.target != 'x86_64-unknown-linux-musl'
         run: cargo build --release
 
-      - name: Build wheel (with sdist)
+      - name: Build linux-musl
         if: matrix.target == 'x86_64-unknown-linux-musl'
         run: |
           cargo run --release --target ${{ matrix.target }}
 
-      - name: Build wheel (macOS universal2)
+      - name: Build macOS universal2
         if: matrix.target == 'x86_64-apple-darwin'
         env:
           DEVELOPER_DIR: /Applications/Xcode.app/Contents/Developer
