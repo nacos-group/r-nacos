@@ -73,10 +73,16 @@ jobs:
           7z a ../../${{ matrix.name }} ${{ github.event.repository.name }}.exe
           cd -
       - name: Archive binary (linux and macOS)
-        if: matrix.os != 'windows-latest'
+        if: ${{  matrix.os != 'windows-latest' && matrix.target !='x86_64-unknown-linux-musl' }}
         run: |
           cd target/release
           tar czvf ../../${{ matrix.name }} ${{ github.event.repository.name }}
+          cd -
+      - name: Archive binary (linux-musl)
+        if: matrix.target =='x86_64-unknown-linux-musl'
+        run: |
+          cd target/x86_64-unknown-linux-musl/release
+          tar czvf ../../../${{ matrix.name }} ${{ github.event.repository.name }}
           cd -
 
       - name: Upload binary artifacts
