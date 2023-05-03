@@ -27,6 +27,8 @@ async fn main() -> Result<(), Box<dyn Error>>  {
     let sys_config = AppSysConfig::init_from_env();
     let http_addr = sys_config.get_http_addr();
     let grpc_addr = sys_config.get_grpc_addr();
+    log::info!("http server addr:{}",&http_addr);
+    log::info!("grpc server addr:{}",&grpc_addr);
 
     let config_addr = ConfigActor::new().start();
     //let naming_addr = NamingActor::new_and_create();
@@ -55,7 +57,7 @@ async fn main() -> Result<(), Box<dyn Error>>  {
         .await.unwrap();
     });
 
-    HttpServer::new(move || {
+    let mut server = HttpServer::new(move || {
         let config_addr = config_addr.clone();
         let naming_addr = naming_addr.clone();
         //let naming_dal_addr = naming_dal_addr.clone();
@@ -65,9 +67,11 @@ async fn main() -> Result<(), Box<dyn Error>>  {
             //.app_data(Data::new(naming_dal_addr))
             .wrap(middleware::Logger::default())
             .configure(app_config)
-    })
-    //.workers(8)
-    .bind(http_addr)?
+    });
+    if let Some(num) = sys_config.http_workers {
+        server=server.workers(num);
+    }
+    server.bind(http_addr)?
     .run()
     .await?;
     Ok(())

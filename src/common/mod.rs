@@ -23,8 +23,9 @@ impl NamingSysConfig {
 #[derive(Default,Clone,Debug)]
 pub struct AppSysConfig{
     pub config_db_file:String,
-    pub http_port:u32,
-    pub grpc_port:u32,
+    pub http_port:u16,
+    pub http_workers:Option<usize>,
+    pub grpc_port:u16,
 }
 
 impl AppSysConfig {
@@ -33,13 +34,17 @@ impl AppSysConfig {
         let http_port=std::env::var("RNACOS_HTTP_PORT")
             .unwrap_or("8848".to_owned())
             .parse().unwrap_or(8848);
+        let http_workers = std::env::var("RNACOS_HTTP_WORKERS")
+            .unwrap_or("".to_owned())
+            .parse().ok();
         let grpc_port = std::env::var("RNACOS_GRPC_PORT")
             .unwrap_or("".to_owned())
             .parse().unwrap_or(http_port+1000);
         Self { 
             config_db_file, 
             http_port,
-            grpc_port 
+            grpc_port,
+            http_workers,
         }
     }
 
