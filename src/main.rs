@@ -1,18 +1,18 @@
 
 use actix_web::{App, web::Data};
 use actix::{Actor};
-use nacos_rust::grpc::bistream_manage::BiStreamManage;
-use nacos_rust::grpc::handler::InvokerHandler;
-use nacos_rust::grpc::nacos_proto::bi_request_stream_server::BiRequestStreamServer;
-use nacos_rust::grpc::nacos_proto::request_server::RequestServer;
-use nacos_rust::grpc::server::BiRequestStreamServerImpl;
-use nacos_rust::naming::core::{NamingCmd, NamingResult};
-use nacos_rust::{naming::core::NamingActor, grpc::server::RequestServerImpl};
-use nacos_rust::config::config::{ConfigActor, ConfigCmd};
+use rnacos::grpc::bistream_manage::BiStreamManage;
+use rnacos::grpc::handler::InvokerHandler;
+use rnacos::grpc::nacos_proto::bi_request_stream_server::BiRequestStreamServer;
+use rnacos::grpc::nacos_proto::request_server::RequestServer;
+use rnacos::grpc::server::BiRequestStreamServerImpl;
+use rnacos::naming::core::{NamingCmd, NamingResult};
+use rnacos::{naming::core::NamingActor, grpc::server::RequestServerImpl};
+use rnacos::config::config::{ConfigActor, ConfigCmd};
 use tonic::transport::Server;
 use std::error::Error;
 
-use nacos_rust::web_config::app_config;
+use rnacos::web_config::app_config;
 use actix_web::{
     middleware,HttpServer,
 };
@@ -24,7 +24,7 @@ async fn main() -> Result<(), Box<dyn Error>>  {
     let config_addr = ConfigActor::new().start();
     //let naming_addr = NamingActor::new_and_create();
     let naming_addr = NamingActor::create_at_new_system();
-    let naming_res: NamingResult = naming_addr.send(NamingCmd::QueryDalAddr).await.unwrap().unwrap();
+    //let naming_res: NamingResult = naming_addr.send(NamingCmd::QueryDalAddr).await.unwrap().unwrap();
     /*
     let naming_dal_addr = if let NamingResult::DalAddr(addr)=naming_res { 
         addr 
