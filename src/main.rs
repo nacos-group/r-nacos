@@ -2,6 +2,7 @@
 
 use actix_web::{App, web::Data};
 use actix::{Actor};
+use rnacos::common::AppSysConfig;
 use rnacos::grpc::bistream_manage::BiStreamManage;
 use rnacos::grpc::handler::InvokerHandler;
 use rnacos::grpc::nacos_proto::bi_request_stream_server::BiRequestStreamServer;
@@ -21,19 +22,15 @@ use actix_web::{
 #[actix_web::main]
 async fn main() -> Result<(), Box<dyn Error>>  {
     std::env::set_var("RUST_LOG","actix_web=debug,actix_server=info,info");
+    dotenv::dotenv().ok();
     env_logger::init();
+    let sys_config = AppSysConfig::init_from_env();
+    let http_addr = sys_config.get_http_addr();
+    let grpc_addr = sys_config.get_grpc_addr();
+
     let config_addr = ConfigActor::new().start();
     //let naming_addr = NamingActor::new_and_create();
     let naming_addr = NamingActor::create_at_new_system();
-    //let naming_res: NamingResult = naming_addr.send(NamingCmd::QueryDalAddr).await.unwrap().unwrap();
-    /*
-    let naming_dal_addr = if let NamingResult::DalAddr(addr)=naming_res { 
-        addr 
-    } 
-    else {
-        panic!("error naming_dal_addr")
-    };
-     */
 
     let mut bistream_manage = BiStreamManage::new();
     bistream_manage.set_config_addr(config_addr.clone());
@@ -47,9 +44,8 @@ async fn main() -> Result<(), Box<dyn Error>>  {
     invoker.add_naming_handler(&naming_addr);
 
 
-
     tokio::spawn(async move {
-        let addr = "0.0.0.0:9848".parse().unwrap();
+        let addr = grpc_addr.parse().unwrap();
         let request_server = RequestServerImpl::new(bistream_manage_addr.clone(),invoker);
         let bi_request_stream_server = BiRequestStreamServerImpl::new(bistream_manage_addr);
         Server::builder()
@@ -70,8 +66,8 @@ async fn main() -> Result<(), Box<dyn Error>>  {
             .wrap(middleware::Logger::default())
             .configure(app_config)
     })
-    .workers(8)
-    .bind("0.0.0.0:8848")?
+    //.workers(8)
+    .bind(http_addr)?
     .run()
     .await?;
     Ok(())

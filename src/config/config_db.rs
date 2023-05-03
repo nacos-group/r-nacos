@@ -1,6 +1,8 @@
 use std::rc::Rc;
 use chrono::Local;
 use rusqlite::Connection;
+use crate::common::AppSysConfig;
+
 use super::{config::{ConfigKey, ConfigValue}, dal::{ConfigDO, ConfigDao, ConfigHistoryDO, ConfigHistoryDao, ConfigParam,ConfigHistoryParam}};
 
 pub struct ConfigDB {
@@ -10,7 +12,8 @@ pub struct ConfigDB {
 
 impl ConfigDB {
     pub fn new() -> Self {
-        let config_db = std::env::var("config.db").unwrap_or("config.db".to_owned());
+        let sys_config = AppSysConfig::init_from_env();
+        let config_db = sys_config.config_db_file;
         let conn = Connection::open(&config_db).unwrap();
         Self::init(&conn);
         let conn = Rc::new(conn);
