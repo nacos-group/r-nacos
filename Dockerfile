@@ -11,19 +11,20 @@ FROM --platform=$BUILDPLATFORM messense/rust-musl-cross:aarch64-musl as builder-
 ARG TARGETARCH
 FROM builder-$TARGETARCH as builder
 
+RUN echo $CARGO_BUILD_TARGET && \
+    echo $BUILDPLATFORM && \
+    echo $TARGETARCH
+
 ENV USER root
 ENV PATH /root/.cargo/bin:$PATH
 
 # Compile dependencies only for build caching
 ADD Cargo.toml /rnacos/Cargo.toml
 RUN cd /rnacos && \ 
-    --mount=type=cache,target=/root/.cargo/git \
-    --mount=type=cache,target=/root/.cargo/registry \
-    --mount=type=cache,target=/rnacos/target,sharing=locked \
     mkdir /rnacos/src && \
     touch  /rnacos/src/lib.rs && \
     echo 'fn main() { println!("Dummy") }' > /rnacos/src/main.rs && \
-    cargo rustc --target $CARGO_BUILD_TARGET --bin rnacos --manifest-path /rnacos/Cargo.toml --release --features password-storage -- -C link-arg=-s
+    cargo build --release
 
 ADD . /rnacos/
 
@@ -31,11 +32,8 @@ ADD . /rnacos/
 RUN touch /rnacos/src/lib.rs /rnacos/src/main.rs
 
 RUN cd /rnacos && \ 
-    --mount=type=cache,target=/root/.cargo/git \
-    --mount=type=cache,target=/root/.cargo/registry \
-    --mount=type=cache,target=/rnacos/target,sharing=locked \
-    cargo rustc --target $CARGO_BUILD_TARGET --bin rnacos --manifest-path /rnacos/Cargo.toml --release --features password-storage -- -C link-arg=-s \
-    && mv /rnacos/target/$CARGO_BUILD_TARGET/release/rnacos /usr/bin/rnacos
+    cargo build --release && \
+    mv /rnacos/target/$CARGO_BUILD_TARGET/release/rnacos /usr/bin/rnacos
 
 FROM base-$TARGETARCH
 
