@@ -12,7 +12,6 @@ ARG TARGETARCH
 FROM builder-$TARGETARCH as builder
 
 RUN echo $CARGO_BUILD_TARGET && \
-    echo $BUILDPLATFORM && \
     echo $TARGETARCH
 
 ENV USER root
@@ -32,7 +31,7 @@ ADD . /rnacos/
 RUN touch /rnacos/src/lib.rs /rnacos/src/main.rs
 
 RUN cd /rnacos && \ 
-    cargo build --release && \
+    cargo build --release --target $CARGO_BUILD_TARGET && \
     mv /rnacos/target/$CARGO_BUILD_TARGET/release/rnacos /usr/bin/rnacos
 
 FROM base-$TARGETARCH
