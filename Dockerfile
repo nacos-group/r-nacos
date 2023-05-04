@@ -16,7 +16,8 @@ ENV PATH /root/.cargo/bin:$PATH
 
 # Compile dependencies only for build caching
 ADD Cargo.toml /rnacos/Cargo.toml
-RUN --mount=type=cache,target=/root/.cargo/git \
+RUN cd /rnacos && \ 
+    --mount=type=cache,target=/root/.cargo/git \
     --mount=type=cache,target=/root/.cargo/registry \
     --mount=type=cache,target=/rnacos/target,sharing=locked \
     mkdir /rnacos/src && \
@@ -29,8 +30,7 @@ ADD . /rnacos/
 # Manually update the timestamps as ADD keeps the local timestamps and cargo would then believe the cache is fresh
 RUN touch /rnacos/src/lib.rs /rnacos/src/main.rs
 
-
-RUN cd /rnacos \
+RUN cd /rnacos && \ 
     --mount=type=cache,target=/root/.cargo/git \
     --mount=type=cache,target=/root/.cargo/registry \
     --mount=type=cache,target=/rnacos/target,sharing=locked \
