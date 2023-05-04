@@ -14,14 +14,27 @@ FROM builder-$TARGETARCH as builder
 ENV USER root
 ENV PATH /root/.cargo/bin:$PATH
 
+# Compile dependencies only for build caching
+ADD Cargo.toml /rnacos/Cargo.toml
+RUN --mount=type=cache,target=/root/.cargo/git \
+    --mount=type=cache,target=/root/.cargo/registry \
+    --mount=type=cache,target=/rnacos/target,sharing=locked \
+    mkdir /rnacos/src && \
+    touch  /rnacos/src/lib.rs && \
+    echo 'fn main() { println!("Dummy") }' > /rnacos/src/main.rs && \
+    cargo rustc --target $CARGO_BUILD_TARGET --bin rnacos --manifest-path /rnacos/Cargo.toml --release --features password-storage -- -C link-arg=-s
+
 ADD . /rnacos/
 
 # Manually update the timestamps as ADD keeps the local timestamps and cargo would then believe the cache is fresh
 RUN touch /rnacos/src/lib.rs /rnacos/src/main.rs
 
 RUN cd /rnacos \
-    &&  cargo build --release \
-    && mv /rnacos/target/release/rnacos /usr/bin/rnacos
+    --mount=type=cache,target=/root/.cargo/git \
+    --mount=type=cache,target=/root/.cargo/registry \
+    --mount=type=cache,target=/rnacos/target,sharing=locked \
+    cargo rustc --target $CARGO_BUILD_TARGET --bin rnacos --manifest-path /rnacos/Cargo.toml --release --features password-storage -- -C link-arg=-s \
+    && mv /rnacos/target/$CARGO_BUILD_TARGET/release/rnacos /usr/bin/rnacos
 
 FROM base-$TARGETARCH
 
