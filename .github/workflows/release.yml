@@ -3,6 +3,9 @@ name: Release
 
 on:
   push:
+    branches:
+      - ignore 
+#      - master
     tags: [ 'v*' ]
   workflow_dispatch:
 
