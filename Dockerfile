@@ -11,6 +11,7 @@ FROM --platform=$BUILDPLATFORM messense/rust-musl-cross:aarch64-musl as builder-
 ARG TARGETARCH
 FROM builder-$TARGETARCH as builder
 
+ENV USER root
 ENV PATH /root/.cargo/bin:$PATH
 
 ADD . /rnacos/
@@ -18,7 +19,8 @@ ADD . /rnacos/
 # Manually update the timestamps as ADD keeps the local timestamps and cargo would then believe the cache is fresh
 RUN touch /rnacos/src/lib.rs /rnacos/src/main.rs
 
-RUN cargo build --release \
+RUN cd /rnacos \
+    &&  cargo build --release \
     && mv /rnacos/target/release/rnacos /usr/bin/rnacos
 
 FROM base-$TARGETARCH
