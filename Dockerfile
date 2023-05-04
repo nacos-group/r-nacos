@@ -29,6 +29,7 @@ ADD . /rnacos/
 # Manually update the timestamps as ADD keeps the local timestamps and cargo would then believe the cache is fresh
 RUN touch /rnacos/src/lib.rs /rnacos/src/main.rs
 
+
 RUN cd /rnacos \
     --mount=type=cache,target=/root/.cargo/git \
     --mount=type=cache,target=/root/.cargo/registry \
