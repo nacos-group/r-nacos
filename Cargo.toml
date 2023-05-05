@@ -58,5 +58,5 @@ features = [
 
 [build-dependencies]
 anyhow="1"
-reqwest = { version = "0.11", features = ["blocking"]}
+reqwest = { version = "0.11", features = ["blocking","rustls-tls"],default-features = false }
 zip="0.6"
