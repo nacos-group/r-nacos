@@ -13,7 +13,7 @@ FROM builder-$TARGETARCH as builder
 
 RUN echo $CARGO_BUILD_TARGET && \
     echo $TARGETARCH && \
-    yum install -y libffi-devel openssh-clients
+    apt install -y openssh-client
 
 ENV USER root
 ENV PATH /root/.cargo/bin:$PATH
