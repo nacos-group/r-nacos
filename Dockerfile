@@ -13,7 +13,7 @@ FROM builder-$TARGETARCH as builder
 
 RUN echo $CARGO_BUILD_TARGET && \
     echo $TARGETARCH && \
-    apt install -y openssh-client  pkg-config
+    apt install -y openssh-client
 
 ENV USER root
 ENV PATH /root/.cargo/bin:$PATH
