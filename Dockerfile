@@ -24,7 +24,7 @@ RUN cd /rnacos && \
     cargo build --release --target $CARGO_BUILD_TARGET && \
     mv /rnacos/target/$CARGO_BUILD_TARGET/release/rnacos /usr/bin/rnacos
 
-FROM base-$TARGETARCH
+FROM alpine
 
 ENV PATH /root/.cargo/bin:$PATH
 ENV USER root
