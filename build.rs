@@ -12,7 +12,7 @@ fn main() -> anyhow::Result<()> {
     let project_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
     let project_dir_path = Path::new(&project_dir);
     let web_dir = project_dir_path.join("target").join("rnacos-web");
-    load_web_resouce()?;
+    load_web_resouce().ok();
     if !web_dir.exists() {
         std::fs::create_dir_all(web_dir);
     }
