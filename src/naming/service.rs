@@ -19,6 +19,7 @@ type InstanceMetaData=Arc<HashMap<String,String>>;
 pub struct Service {
     pub service_name:Arc<String>,
     pub group_name:Arc<String>,
+    pub group_service:Arc<String>,
     pub metadata:HashMap<String,String>,
     pub protect_threshold:f32,
     pub last_modified_millis:i64,
@@ -59,6 +60,10 @@ impl Service {
             //println!("service-consumer update_instance {:?}",&instance);
         }
         */
+        instance.namespace_id = self.namespace_id.clone();
+        instance.group_name = self.group_name.clone();
+        instance.service_name= self.service_name.clone();
+        instance.group_service= self.group_service.clone();
         let key = instance.get_short_key();
         let time_info = instance.get_time_info();
         //let mut update_mark = true;

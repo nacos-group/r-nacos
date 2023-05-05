@@ -55,15 +55,15 @@ impl InstanceWebParams {
         instance.port = self.port.unwrap();
         let grouped_name = self.service_name.unwrap();
         if let Some((group_name,service_name)) = NamingUtils::split_group_and_serivce_name(&grouped_name) {
-            instance.service_name = service_name;
-            instance.group_name = group_name;
+            instance.service_name = Arc::new(service_name);
+            instance.group_name = Arc::new(group_name);
         }
         else{
             return Err("serivceName is unvaild!".to_owned());
         }
         if let Some(group_name) = self.group_name {
             if group_name.len() > 0 {
-                instance.group_name = group_name;
+                instance.group_name = Arc::new(group_name);
             }
         }
         instance.weight = self.weight.unwrap_or(1f32);
@@ -72,7 +72,7 @@ impl InstanceWebParams {
         instance.healthy= true;
         instance.ephemeral= get_bool_from_string(&self.ephemeral, true);
         instance.cluster_name = NamingUtils::default_cluster(self.cluster_name.as_ref().unwrap_or(&"".to_owned()).to_owned());
-        instance.namespace_id= NamingUtils::default_namespace(self.namespace_id.as_ref().unwrap_or(&"".to_owned()).to_owned());
+        instance.namespace_id= Arc::new(NamingUtils::default_namespace(self.namespace_id.as_ref().unwrap_or(&"".to_owned()).to_owned()));
         let metadata_str= self.metadata.as_ref().unwrap_or(&"{}".to_owned()).to_owned();
         match serde_json::from_str::<HashMap<String,String>>(&metadata_str) {
             Ok(metadata) => {
@@ -177,18 +177,18 @@ impl BeatRequest {
         if service_name_option.is_none() {
             let grouped_name = self.service_name.unwrap();
             if let Some((group_name,service_name)) = NamingUtils::split_group_and_serivce_name(&grouped_name) {
-                instance.service_name = service_name;
-                instance.group_name = group_name;
+                instance.service_name = Arc::new(service_name);
+                instance.group_name = Arc::new(group_name);
             }
             if let Some(group_name) = self.group_name.as_ref(){
                 if group_name.len()>0{
-                    instance.group_name = group_name.to_owned();
+                    instance.group_name = Arc::new(group_name.to_owned());
                 }
             }
         }
         instance.ephemeral = get_bool_from_string(&self.ephemeral, true);
         instance.cluster_name = NamingUtils::default_cluster(self.cluster_name.as_ref().unwrap_or(&"".to_owned()).to_owned());
-        instance.namespace_id= NamingUtils::default_namespace(self.namespace_id.as_ref().unwrap_or(&"".to_owned()).to_owned());
+        instance.namespace_id= Arc::new(NamingUtils::default_namespace(self.namespace_id.as_ref().unwrap_or(&"".to_owned()).to_owned()));
         instance.generate_key();
         Ok(instance)
     }
@@ -215,8 +215,8 @@ impl BeatInfo {
         instance.port = self.port.unwrap();
         let grouped_name = self.service_name.as_ref().unwrap().to_owned();
         if let Some((group_name,service_name)) = NamingUtils::split_group_and_serivce_name(&grouped_name) {
-            instance.service_name = service_name;
-            instance.group_name = group_name;
+            instance.service_name = Arc::new(service_name);
+            instance.group_name = Arc::new(group_name);
         }
         instance.cluster_name = NamingUtils::default_cluster(self.cluster.as_ref().unwrap_or(&"".to_owned()).to_owned());
         if let Some(metadata) = self.metadata {

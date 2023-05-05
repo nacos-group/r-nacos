@@ -41,23 +41,23 @@ impl BatchInstanceRequestHandler {
         if request.group_name.is_none() {
             return Err(anyhow::format_err!("groupName is empty!"));
         }
-        let group_name = NamingUtils::default_group(request.group_name.unwrap_or_default());
+        let group_name = Arc::new(NamingUtils::default_group(request.group_name.unwrap_or_default()));
         let service_name = request.service_name.unwrap_or_default();
 
-        let namesapce_id = NamingUtils::default_group(request.namespace.unwrap_or_default());
+        let namesapce_id = Arc::new(NamingUtils::default_group(request.namespace.unwrap_or_default()));
         let input = request.instances;
         if let Some(instances) = input {
             for input in instances {
                 let service_name = if let Some(v) = input.service_name {
                     v
-                } else if &service_name != "" {
-                    service_name.to_owned()
+                } else if !service_name.is_empty() {
+                    Arc::new(service_name.to_owned())
                 } else {
                     return Err(anyhow::format_err!("serivceName is unvaild!"));
                 };
 
                 let mut instance = Instance {
-                    id: "".to_owned(),
+                    id: Arc::new("".to_owned()),
                     ip: input.ip.unwrap(),
                     port: input.port,
                     weight: input.weight,
@@ -67,9 +67,10 @@ impl BatchInstanceRequestHandler {
                     cluster_name: NamingUtils::default_cluster(input.cluster_name.unwrap_or_default()),
                     service_name: service_name,
                     group_name: group_name.to_owned(),
+                    group_service: Default::default(),
                     metadata: input.metadata,
                     last_modified_millis: now_millis_i64(),
-                    namespace_id: namesapce_id.to_owned(),
+                    namespace_id: namesapce_id.clone(),
                     app_name: "".to_owned(),
                 };
                 instance.generate_key();

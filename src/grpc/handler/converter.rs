@@ -17,7 +17,7 @@ impl ModelConverter {
         let mut hosts = vec![];
         if let Some(info_hosts) = info.hosts.as_ref() {
             for e in info_hosts.as_slice() {
-                hosts.push(Self::to_api_instance(e.as_ref().to_owned()));
+                hosts.push(Self::to_api_instance(e.as_ref().clone()));
             }
         }
         ApiServiceInfo{
@@ -40,7 +40,7 @@ impl ModelConverter {
             &instance.group_name,
         );
         */
-        let service_name = instance.service_name;
+        let service_name = instance.group_service;
         ApiInstance{
             instance_id:Some(instance.id),
             ip: Some(instance.ip),

@@ -122,6 +122,7 @@ impl NamingActor {
                 service.service_name = key.service_name.clone();
                 service.namespace_id = key.namespace_id.clone();
                 service.group_name = key.group_name.clone();
+                service.group_service = Arc::new(NamingUtils::get_group_and_service_name(&key.service_name.as_ref(), &key.group_name.as_ref()));
                 service.last_modified_millis = current_time;
                 service.recalculate_checksum();
                 self.namespace_index.insert_service(key.clone());
@@ -149,6 +150,7 @@ impl NamingActor {
                 service.service_name = key.service_name.clone();
                 service.namespace_id = key.namespace_id.clone();
                 service.group_name = key.group_name.clone();
+                service.group_service = Arc::new(NamingUtils::get_group_and_service_name(&key.service_name.as_ref(), &key.group_name.as_ref()));
                 service.last_modified_millis = current_time;
                 if let Some(protect_threshold) = service_info.protect_threshold {
                     service.protect_threshold = protect_threshold;
@@ -593,9 +595,9 @@ async fn query_healthy_instances(){
     //let listener_addr = InnerNamingListener::new_and_create(5000, None);
     let mut naming = NamingActor::new(None,None);
     let mut instance = Instance::new("127.0.0.1".to_owned(),8080);
-    instance.namespace_id = "public".to_owned();
-    instance.service_name = "foo".to_owned();
-    instance.group_name = "DEFUALT".to_owned();
+    instance.namespace_id = Arc::new("public".to_owned());
+    instance.service_name = Arc::new("foo".to_owned());
+    instance.group_name = Arc::new("DEFUALT".to_owned());
     instance.cluster_name= "DEFUALT".to_owned();
     instance.init();
     let key = instance.get_service_key();
@@ -653,9 +655,9 @@ fn test_remove_has_instance_service(){
     use super::*;
     let mut naming = NamingActor::new(None,None);
     let mut instance = Instance::new("127.0.0.1".to_owned(),8080);
-    instance.namespace_id = "public".to_owned();
-    instance.service_name = "foo".to_owned();
-    instance.group_name = "DEFUALT".to_owned();
+    instance.namespace_id = Arc::new("public".to_owned());
+    instance.service_name = Arc::new("foo".to_owned());
+    instance.group_name = Arc::new("DEFUALT".to_owned());
     instance.cluster_name= "DEFUALT".to_owned();
     instance.init();
     let service_key = instance.get_service_key();

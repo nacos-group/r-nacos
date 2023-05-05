@@ -8,7 +8,7 @@ use crate::now_millis_i64;
 #[derive(Debug,Clone,Serialize,Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Instance {
-    pub id:String,
+    pub id:Arc<String>,
     pub ip:Arc<String>,
     pub port:u32,
     pub weight:f32,
@@ -16,11 +16,12 @@ pub struct Instance {
     pub healthy:bool,
     pub ephemeral: bool,
     pub cluster_name:String,
-    pub service_name:String,
-    pub group_name:String,
+    pub service_name:Arc<String>,
+    pub group_name:Arc<String>,
+    pub group_service:Arc<String>,
     pub metadata:Arc<HashMap<String,String>>,
     pub last_modified_millis:i64,
-    pub namespace_id:String,
+    pub namespace_id:Arc<String>,
     pub app_name:String,
 }
 
@@ -34,7 +35,7 @@ impl Instance{
 
     pub fn generate_key(&mut self) {
         //self.id = format!("{}#{}#{}#{}#{}",&self.ip,&self.port,&self.cluster_name,&self.service_name,&self.group_name)
-        self.id = format!("{}#{}",&self.ip,&self.port)
+        self.id = Arc::new(format!("{}#{}",&self.ip,&self.port))
     }
 
     pub fn init(&mut self) {
@@ -87,7 +88,8 @@ impl Instance{
     }
 
     pub fn get_service_key(&self) -> ServiceKey {
-        ServiceKey::new(&self.namespace_id,&self.group_name,&self.service_name)
+        //ServiceKey::new(&self.namespace_id,&self.group_name,&self.service_name)
+        ServiceKey::new_by_arc(self.namespace_id.clone(),self.group_name.clone(),self.service_name.clone())
     }
 
     pub fn get_short_key(&self) -> InstanceShortKey {
@@ -116,6 +118,7 @@ impl Default for Instance {
             cluster_name:"DEFAULT".to_owned(),
             service_name:Default::default(),
             group_name:Default::default(),
+            group_service:Default::default(),
             metadata:Default::default(),
             last_modified_millis:Default::default(),
             namespace_id:Default::default(),

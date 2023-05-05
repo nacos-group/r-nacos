@@ -72,37 +72,35 @@ impl QueryListResult {
 #[derive(Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct InstanceVO {
-    pub service: String,
+    pub service: Arc<String>,
     pub ip: Arc<String>,
     pub port: u32,
     pub cluster_name: String,
     pub weight: f32,
     pub healthy: bool,
-    pub instance_id: String,
+    pub instance_id: Arc<String>,
     pub metadata: Arc<HashMap<String, String>>,
     pub marked: Option<bool>,
     pub enabled: Option<bool>,
-    pub service_name: Option<String>,
+    pub service_name: Option<Arc<String>>,
     pub ephemeral: Option<bool>,
 }
 
 impl InstanceVO {
     pub fn from_instance(instance: &Instance) -> Self {
         Self {
-            service: NamingUtils::get_group_and_service_name(
-                &instance.service_name,
-                &instance.group_name,
-            ),
+            service: instance.group_service.clone(),
             ip: instance.ip.clone(),
             port: instance.port,
             cluster_name: instance.cluster_name.to_owned(),
             weight: instance.weight,
             healthy: instance.healthy,
-            instance_id: instance.id.to_owned(),
+            instance_id: instance.id.clone(),
             metadata: instance.metadata.clone(),
             marked: Some(true),
             enabled: Some(instance.enabled),
-            service_name: Some(instance.service_name.to_owned()),
+            //service_name: Some(instance.service_name.clone()),
+            service_name: Some(instance.group_service.clone()),
             ephemeral: Some(instance.ephemeral),
         }
     }
