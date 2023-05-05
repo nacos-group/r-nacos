@@ -4,6 +4,8 @@ use std::{collections::{HashMap, LinkedList}, sync::{Arc, atomic::Ordering}, has
 
 use actix_web::rt;
 
+use crate::now_millis;
+
 use super::{model::{Instance, InstanceTimeInfo, InstanceUpdateTag, UpdateInstanceType, ServiceKey, InstanceShortKey}, api_model::QueryListResult};
 
 #[derive(Debug,Clone,Default)]
@@ -25,6 +27,7 @@ pub struct Service {
     pub namespace_id:Arc<String>,
     pub app_name:String,
     pub check_sum:String,
+    pub(crate) last_empty_times:u64,
     pub(crate) instance_size:i64,
     pub(crate) healthy_instance_size:i64,
     //pub cluster_map:HashMap<String,Cluster>,
@@ -169,6 +172,9 @@ impl Service {
     pub(crate) fn remove_instance(&mut self,instance_key:&InstanceShortKey) -> Option<Arc<Instance>> {
         if let Some(old)=self.instances.remove(instance_key){
             self.instance_size-=1;
+            if self.instance_size==0 {
+                self.last_empty_times = now_millis();
+            }
             if old.healthy {
                 self.healthy_instance_size-=1;
             }

@@ -168,7 +168,8 @@ impl NamingActor {
     fn remove_empty_service(&mut self,service_map_key:ServiceKey) -> anyhow::Result<()>{
         if let Some(service) = self.service_map.get(&service_map_key) {
             if service.instance_size <= 0 {
-                self.clear_one_empty_service(service_map_key.clone());
+                //控制台发起的不校验过期时间标记
+                self.clear_one_empty_service(service_map_key.clone(),0x7fff_ffff_ffff_ffff);
                 Ok(())
             }
             else{
@@ -370,14 +371,16 @@ impl NamingActor {
 
     fn clear_empty_service(&mut self){
         //println!("clear_empty_service");
-        for service_map_key in self.empty_service_set.timeout(now_millis()) {
-            self.clear_one_empty_service(service_map_key)
+        let now = now_millis();
+        for service_map_key in self.empty_service_set.timeout(now) {
+            self.clear_one_empty_service(service_map_key,now)
         }
     }
 
-    fn clear_one_empty_service(&mut self,service_map_key:ServiceKey){
+    fn clear_one_empty_service(&mut self,service_map_key:ServiceKey,now:u64){
         if let Some(service) = self.service_map.get(&service_map_key) {
-            if service.instance_size <= 0 {
+            if service.instance_size <= 0  
+                && now - self.sys_config.service_time_out_millis >= service.last_empty_times {
                 //self.dal_addr.do_send(ServiceDalMsg::DeleteService(service.get_service_do().get_key_param().unwrap()));
                 self.namespace_index.remove_service(&service.get_service_key());
                 self.service_map.remove(&service_map_key);
