@@ -12,23 +12,13 @@ ARG TARGETARCH
 FROM builder-$TARGETARCH as builder
 
 RUN echo $CARGO_BUILD_TARGET && \
-    echo $TARGETARCH
+    echo $TARGETARCH && \
+    yum install -y libffi-devel openssh-clients
 
 ENV USER root
 ENV PATH /root/.cargo/bin:$PATH
 
-# Compile dependencies only for build caching
-ADD Cargo.toml /rnacos/Cargo.toml
-RUN cd /rnacos && \ 
-    mkdir /rnacos/src && \
-    touch  /rnacos/src/lib.rs && \
-    echo 'fn main() { println!("Dummy") }' > /rnacos/src/main.rs && \
-    cargo build --release
-
 ADD . /rnacos/
-
-# Manually update the timestamps as ADD keeps the local timestamps and cargo would then believe the cache is fresh
-RUN touch /rnacos/src/lib.rs /rnacos/src/main.rs
 
 RUN cd /rnacos && \ 
     cargo build --release --target $CARGO_BUILD_TARGET && \
