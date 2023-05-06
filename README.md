@@ -180,3 +180,34 @@ RNACOS_HTTP_PORT=8848
 1. 目前只支持单机部署，后继考虑支持集群部署。
 2. 配置中心的数据存放在本地 sqlite 中，后继考虑支持其它中心数据库。
 
+
+## 性能
+
+配置中心，不会频繁更新，基本没有性能压力。
+性能主要和注册中心相关。
+
+注册中心单机qps稳定支持在1.1万以上，可以参考下面的压测数据。
+
+rnacos版本：v0.1.1
+压测环境:macos i7四核 /16G  ， 施压、受压机器是同一台机器（会拉低压测结果）。
+压测工具: goose
+
+
+在一万服务实例(1000个服务，每个服务10个实例）场景下对单个 rnacos服务做限流压测（110个用户，每个用户限流100) 。
+qps 稳定在1.1万左右，95%的 rt 在13ms 内；服务进程内存稳定在50 M以内，服务进程cpu稳定在总体30%左右(施压进程 cpu在总体35%左右)
+
+
+qps 稳定在1.1万左右
+
+![](https://github.com/heqingpan/rnacos/raw/master/doc/assets/imgs/20230506173839.png)
+
+95%的 rt 在13ms 内（rt突刺和内部时间器检查有关,有优化空间，目前还可接受）
+
+![](https://github.com/heqingpan/rnacos/raw/master/doc/assets/imgs/20230506173946.png)
+
+压测时的服务列表与实例
+
+![](https://github.com/heqingpan/rnacos/raw/master/doc/assets/imgs/20230506173200.png)
+
+![](https://github.com/heqingpan/rnacos/raw/master/doc/assets/imgs/20230506173351.png)
+
