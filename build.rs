@@ -6,7 +6,7 @@ use std::{
     path::Path,
 };
 
-const WEB_VERSION: &str = "v0.1.1";
+const WEB_VERSION: &str = "v0.1.2";
 
 fn main() -> anyhow::Result<()> {
     let project_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
