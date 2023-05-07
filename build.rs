@@ -6,13 +6,13 @@ use std::{
     path::Path,
 };
 
-const WEB_VERSION: &str = "v0.1.2";
+use rnacos_web_dist_wrap::get_embedded_file;
 
 fn main() -> anyhow::Result<()> {
     let project_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
     let project_dir_path = Path::new(&project_dir);
     let web_dir = project_dir_path.join("target").join("rnacos-web");
-    load_web_resouce().ok();
+    load_web_resouce()?;
     if !web_dir.exists() {
         std::fs::create_dir_all(web_dir);
     }
@@ -26,12 +26,16 @@ fn load_web_resouce() -> anyhow::Result<()> {
     let web_file_path = project_dir_path
         .join("target")
         .join(env::var("PROFILE").unwrap_or("debug".to_owned()))
-        .join(format!("dist.{}.zip", WEB_VERSION));
+        .join(format!("dist.zip"));
     let file_path_str = web_file_path.to_str().unwrap();
-    let file_url = format!("https://github.com/heqingpan/rnacos-console-web/releases/download/{}/dist.zip",WEB_VERSION);
     if !web_file_path.exists() {
-        println!("run downfile");
-        downfile(&file_url, file_path_str)?;
+        println!("down embed file");
+        match get_embedded_file("dist.zip") {
+            Some(content) => {
+                save_file(file_path_str,content.data.to_vec())?;
+            },
+            None => {},
+        }
     }
     if web_file_path.exists() {
         println!("run unzip");
@@ -51,17 +55,6 @@ fn save_file(file_path: &str, body: Vec<u8>) -> anyhow::Result<()> {
     }
     let mut file = OpenOptions::new().create(true).write(true).open(path)?;
     file.write_all(&body)?;
-    Ok(())
-}
-
-fn downfile(url: &str, to: &str) -> anyhow::Result<()> {
-    let resp = reqwest::blocking::get(url)?;
-    let status = resp.status().as_u16();
-    if status != 200 {
-        return Err(anyhow::anyhow!("resp code is not 200"));
-    }
-    let body = resp.bytes()?.to_vec();
-    save_file(to, body).unwrap();
     Ok(())
 }
 
