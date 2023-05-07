@@ -96,6 +96,19 @@ jobs:
             *.tar.gz
             *.zip
 
+  release-crates-io:
+    name: Release crates.io
+    runs-on: ubuntu-latest
+    if: "startsWith(github.ref, 'refs/tags/')"
+    needs: [ build ]
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@stable
+      - name: cargo login
+        run: cargo login ${{ secrets.CRATES_IO_TOKEN }}
+      - name: cargo publish
+        run: cargo publish
+
   release-github:
     permissions:
       # Used to sign the release's artifacts with sigstore-python.
