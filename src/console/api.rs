@@ -3,7 +3,7 @@ use actix::prelude::*;
 
 use crate::config::config::ConfigActor;
 
-use super::{NamespaceUtils, model::{ConsoleResult, NamespaceInfo}, naming_api::query_ops_instances_list};
+use super::{NamespaceUtils, model::{ConsoleResult, NamespaceInfo}, naming_api::query_ops_instances_list, config_api::import_config};
 use super::config_api::query_config_list;
 
 
@@ -86,6 +86,9 @@ pub fn app_config(config:&mut web::ServiceConfig) {
             )
             .service(web::resource("/configs")
                 .route( web::get().to(query_config_list))
+            )
+            .service(web::resource("/config/import")
+                .route( web::post().to(import_config))
             )
             .service(web::resource("/instances")
                 .route( web::get().to(query_ops_instances_list))

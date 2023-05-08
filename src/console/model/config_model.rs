@@ -6,6 +6,13 @@ use crate::config::config::ConfigInfoDto;
 
 #[derive(Debug,Serialize,Deserialize,Default)]
 #[serde(rename_all = "camelCase")]
+pub struct OpsConfigImportInfo{
+    pub tenant:Option<String>,
+}
+
+
+#[derive(Debug,Serialize,Deserialize,Default)]
+#[serde(rename_all = "camelCase")]
 pub struct OpsConfigQueryListRequest {
     pub page_no:Option<usize>,
     pub page_size:Option<usize>,
