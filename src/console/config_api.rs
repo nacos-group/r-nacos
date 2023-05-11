@@ -6,6 +6,7 @@ use std::sync::Arc;
 use actix_multipart::Multipart;
 use actix_multipart::form::MultipartForm;
 use actix_multipart::form::tempfile::TempFile;
+use actix_multipart::form::text::Text;
 use actix_web::{
     web,Error, HttpRequest, HttpResponse, Responder, http::header,
 };
@@ -51,17 +52,23 @@ pub async fn query_config_list(request: web::Query<OpsConfigQueryListRequest>, c
 
 #[derive(Debug, MultipartForm)]
 pub struct UploadForm {
+    #[multipart(rename = "tenant")]
+    pub tenant:Option<Text<String>>,
     #[multipart(rename = "file")]
     pub files: Vec<TempFile>,
 }
 
 
 pub async fn import_config(
+    req: HttpRequest,
     MultipartForm(form): MultipartForm<UploadForm>,
-    config_info: web::Form<OpsConfigImportInfo>,
     config_addr:web::Data<Addr<ConfigActor>>
 ) -> Result<impl Responder, Error> {
-    let tenant = Arc::new(ConfigUtils::default_tenant(config_info.0.tenant.unwrap_or_default()));
+    let tenant = Arc::new(ConfigUtils::default_tenant(match req.headers().get("tenant") {
+        Some(v) => String::from_utf8_lossy(v.as_bytes()).to_string(),
+        None => "".to_owned(),
+    }));
+    //let tenant = Arc::new(ConfigUtils::default_tenant(config_info.0.tenant.unwrap_or_default()));
     for f in form.files {
         match zip::ZipArchive::new(f.file) {
             Ok(mut archive) => {
