@@ -23,6 +23,8 @@ pub struct Instance {
     pub last_modified_millis:i64,
     pub namespace_id:Arc<String>,
     pub app_name:String,
+    pub from_grpc:bool,
+    pub client_id:Arc<String>,
 }
 
 impl Instance{
@@ -123,6 +125,8 @@ impl Default for Instance {
             last_modified_millis:Default::default(),
             namespace_id:Default::default(),
             app_name:Default::default(),
+            from_grpc:false,
+            client_id:Default::default(),
         }
     }
 }

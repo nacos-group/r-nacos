@@ -36,6 +36,7 @@ impl BatchInstanceRequestHandler {
 
     pub(crate) fn convert_to_instances(
         request: BatchInstanceRequest,
+        client_id:Arc<String>
     ) -> anyhow::Result<Vec<Instance>> {
         let mut list = vec![];
         if request.group_name.is_none() {
@@ -47,6 +48,7 @@ impl BatchInstanceRequestHandler {
         let namesapce_id = Arc::new(NamingUtils::default_group(request.namespace.unwrap_or_default()));
         let input = request.instances;
         if let Some(instances) = input {
+            let last_modified_millis = now_millis_i64();
             for input in instances {
                 let service_name = if let Some(v) = input.service_name {
                     v
@@ -69,9 +71,11 @@ impl BatchInstanceRequestHandler {
                     group_name: group_name.to_owned(),
                     group_service: Default::default(),
                     metadata: input.metadata,
-                    last_modified_millis: now_millis_i64(),
+                    last_modified_millis: last_modified_millis.to_owned(),
                     namespace_id: namesapce_id.clone(),
                     app_name: "".to_owned(),
+                    from_grpc:true,
+                    client_id:client_id.clone(),
                 };
                 instance.generate_key();
                 list.push(instance);
@@ -88,7 +92,7 @@ impl PayloadHandler for BatchInstanceRequestHandler {
     async fn handle(
         &self,
         request_payload: crate::grpc::nacos_proto::Payload,
-        _request_meta: crate::grpc::RequestMeta,
+        request_meta: crate::grpc::RequestMeta,
     ) -> anyhow::Result<Payload> {
         let body_vec = request_payload.body.unwrap_or_default().value;
         let request: BatchInstanceRequest = serde_json::from_slice(&body_vec)?;
@@ -98,7 +102,7 @@ impl PayloadHandler for BatchInstanceRequestHandler {
                 is_de_register = true;
             }
         }
-        let instances = Self::convert_to_instances(request)?;
+        let instances = Self::convert_to_instances(request,request_meta.connection_id)?;
         let mut response = InstanceResponse::default();
         for instance in instances {
             let cmd = if is_de_register {

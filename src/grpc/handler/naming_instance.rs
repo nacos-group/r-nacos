@@ -24,7 +24,7 @@ impl InstanceRequestHandler {
         Self { naming_addr }
     }
 
-    pub(crate) fn convert_to_instance(request:InstanceRequest) -> anyhow::Result<Instance> {
+    pub(crate) fn convert_to_instance(request:InstanceRequest,client_id:Arc<String>) -> anyhow::Result<Instance> {
         let input = request.instance;
         if let Some(input) = input {
             if request.group_name.is_none() {
@@ -56,6 +56,8 @@ impl InstanceRequestHandler {
                 last_modified_millis: now_millis_i64(),
                 namespace_id: Arc::new(NamingUtils::default_namespace(request.namespace.unwrap_or_default())),
                 app_name: "".to_owned(),
+                from_grpc:true,
+                client_id:client_id
             };
             instance.generate_key();
             Ok(instance)
@@ -69,7 +71,7 @@ impl InstanceRequestHandler {
 
 #[async_trait]
 impl PayloadHandler for InstanceRequestHandler {
-    async fn handle(&self, request_payload: crate::grpc::nacos_proto::Payload,_request_meta:crate::grpc::RequestMeta) -> anyhow::Result<Payload> {
+    async fn handle(&self, request_payload: crate::grpc::nacos_proto::Payload,request_meta:crate::grpc::RequestMeta) -> anyhow::Result<Payload> {
         let body_vec = request_payload.body.unwrap_or_default().value;
         let request:InstanceRequest = serde_json::from_slice(&body_vec)?;
         let mut is_de_register = false;
@@ -78,7 +80,7 @@ impl PayloadHandler for InstanceRequestHandler {
                 is_de_register=true;
             }
         }
-        let instance = Self::convert_to_instance(request)?;
+        let instance = Self::convert_to_instance(request,request_meta.connection_id)?;
         let cmd = if is_de_register {
             NamingCmd::Delete(instance)
         } else {

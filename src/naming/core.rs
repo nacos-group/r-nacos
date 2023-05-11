@@ -54,6 +54,7 @@ pub struct NamingActor {
     empty_service_set: TimeoutSet<ServiceKey>,
     instance_metadate_set:TimeoutSet<InstanceKey>,
     namespace_index: NamespaceIndex,
+    pub(crate) client_instance_set:HashMap<Arc<String>,HashSet<InstanceKey>>,
     //dal_addr: Addr<ServiceDalActor>,
 }
 
@@ -74,6 +75,7 @@ impl NamingActor {
             empty_service_set: Default::default(),
             namespace_index: NamespaceIndex::new(),
             instance_metadate_set: Default::default(),
+            client_instance_set: Default::default(),
             //dal_addr,
         }
     }
@@ -198,12 +200,14 @@ impl NamingActor {
         }
     }
 
+    /*
     pub(crate) fn add_instance(&mut self,key:&ServiceKey,instance:Instance) -> UpdateInstanceType {
         let service = self.service_map.get_mut(&key).unwrap();
         let tag = service.update_instance(instance,None);
         self.do_notify(&tag, key.clone());
         tag
     }
+     */
 
     pub fn remove_instance(&mut self,key:&ServiceKey ,cluster_name:&str,instance_id:&InstanceShortKey) -> UpdateInstanceType {
         let service = self.service_map.get_mut(&key).unwrap();
@@ -233,10 +237,32 @@ impl NamingActor {
         self.create_empty_service(key);
         //let cluster_name = instance.cluster_name.clone();
         let service = self.service_map.get_mut(&key).unwrap();
+        if instance.from_grpc && !instance.client_id.is_empty() {
+            let client_id = instance.client_id.clone();
+            let key = InstanceKey::new_by_service_key(key, instance.ip.clone(), instance.port.to_owned());
+            if let Some(set)=self.client_instance_set.get_mut(&client_id) {
+                set.insert(key.clone());
+            }
+            else{
+                let mut set = HashSet::new();
+                set.insert(key.clone());
+                self.client_instance_set.insert(client_id, set);
+            }
+        }
         let tag = service.update_instance(instance, tag);
         //change notify
         self.do_notify(&tag, key.clone());
         tag
+    }
+
+    pub(crate) fn remove_client_instance(&mut self,client_id:&Arc<String>) {
+        if let Some(keys)=self.client_instance_set.remove(client_id) {
+            for instance_key in keys {
+                let service_key = instance_key.get_service_key();
+                let short_key = instance_key.get_short_key();
+                self.remove_instance(&service_key,"",&short_key);
+            }
+        }
     }
 
     pub fn get_instance(&self,key:&ServiceKey,cluster_name:&str,instance_id:&InstanceShortKey) -> Option<Arc<Instance>> {
@@ -440,7 +466,7 @@ pub enum NamingCmd {
     SetConnManage(Addr<BiStreamManage>),
     Subscribe(Vec<NamingListenerItem>,Arc<String>),
     RemoveSubscribe(Vec<NamingListenerItem>,Arc<String>),
-    RemoveSubscribeClient(Arc<String>),
+    RemoveClient(Arc<String>),
     QueryDalAddr,
 }
 
@@ -555,8 +581,9 @@ impl Handler<NamingCmd> for NamingActor {
                 self.subscriber.remove_subscribe(client_id, items);
                 Ok(NamingResult::NULL)
             },
-            NamingCmd::RemoveSubscribeClient(client_id) => {
-                self.subscriber.remove_client_subscribe(client_id);
+            NamingCmd::RemoveClient(client_id) => {
+                self.subscriber.remove_client_subscribe(client_id.clone());
+                self.remove_client_instance(&client_id);
                 Ok(NamingResult::NULL)
             },
             NamingCmd::QueryDalAddr => {

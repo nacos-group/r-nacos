@@ -113,7 +113,7 @@ impl BiStreamManage {
         }
         if let Some(naming_addr) = &self.naming_addr{
             for key in &del_keys {
-                naming_addr.do_send(NamingCmd::RemoveSubscribeClient(key.clone()));
+                naming_addr.do_send(NamingCmd::RemoveClient(key.clone()));
             }
         }
     }

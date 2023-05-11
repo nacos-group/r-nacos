@@ -65,7 +65,6 @@ impl Service {
         instance.service_name= self.service_name.clone();
         instance.group_service= self.group_service.clone();
         let key = instance.get_short_key();
-        let time_info = instance.get_time_info();
         //let mut update_mark = true;
         let mut rtype = UpdateInstanceType::None;
         let short_key =instance.get_short_key();
@@ -111,6 +110,9 @@ impl Service {
                     rtype=UpdateInstanceType::UpdateTime;
                 }
             }
+            if old_instance.from_grpc {
+                instance.from_grpc = old_instance.from_grpc;
+            }
         }
         else{
             //新增的尝试使用高优先级metadata
@@ -122,8 +124,12 @@ impl Service {
             rtype=UpdateInstanceType::New;
         }
         let new_instance = Arc::new(instance);
+        //grpc 不走timecheck
+        if !new_instance.from_grpc {
+            let time_info = new_instance.get_time_info();
+            self.update_timeinfos(time_info);
+        }
         self.instances.insert(key, new_instance);
-        self.update_timeinfos(time_info);
         /* 
         if update_mark {
             self.update_timeinfos(time_info);
