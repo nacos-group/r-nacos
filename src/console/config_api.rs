@@ -92,6 +92,7 @@ pub async fn import_config(
                             Ok(v) => v,
                             Err(_) => continue,
                         };
+                        //println!("update load, {:?}:{}",&config_key,&value);
                         config_addr.do_send(ConfigCmd::ADD(config_key,Arc::new(value)));
                     }
                 }
