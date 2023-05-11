@@ -73,11 +73,11 @@ impl PayloadHandler for InvokerHandler {
                 response.connection_id = Some(request_meta.connection_id.as_ref().to_owned());
                 return Ok(PayloadUtils::build_payload("ServerCheckResponse", serde_json::to_string(&response)?))
             }
-            println!("InvokerHandler type:{}",url);
+            //println!("InvokerHandler type:{}",url);
             if let Some(handler) = self.match_handler(url) {
                 return handler.handle(request_payload,request_meta).await;
             }
-            println!("InvokerHandler not fund handler,type:{}",url);
+            log::warn!("InvokerHandler not fund handler,type:{}",url);
             return Ok(PayloadUtils::build_error_payload(302u16,format!("{} RequestHandler Not Found",url)))
         }
         Ok(PayloadUtils::build_error_payload(302u16,"empty type url".to_owned()))

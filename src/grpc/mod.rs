@@ -58,6 +58,16 @@ impl PayloadUtils {
         }
     }
 
+    pub fn get_payload_header(payload: &nacos_proto::Payload) -> String {
+        let mut str = String::default();
+        if let Some(meta) = &payload.metadata {
+            str.push_str(&format!("type:{},", meta.r#type));
+            str.push_str(&format!("client_ip:{},", meta.client_ip));
+            str.push_str(&format!("header:{:?},", meta.headers));
+        }
+        str
+    }
+
     pub fn get_payload_string(payload: &nacos_proto::Payload) -> String {
         let mut str = String::default();
         if let Some(meta) = &payload.metadata {

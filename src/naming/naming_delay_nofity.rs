@@ -68,7 +68,7 @@ impl DelayNotifyActor {
     async fn fill_event_data_and_notify(naming_addr: Option<Addr<NamingActor>>, events: Vec<NamingDelayEvent>) {
         if let Some(naming_addr) = naming_addr {
             for mut event in events {
-                println!("fill_event_data_and_notify, {:?}",&event.key);
+                //println!("fill_event_data_and_notify, {:?}",&event.key);
                 let cmd = NamingCmd::QueryServiceInfo(event.key.clone(),"".to_owned(), true);
                 match naming_addr.send(cmd).await{
                     Ok(res) => {

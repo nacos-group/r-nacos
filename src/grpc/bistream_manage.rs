@@ -60,22 +60,22 @@ impl BiStreamManage {
 
     fn active_client(&mut self,client_id:Arc<String>) {
         let now = now_millis();
-        log::info!("active_client client_id:{}",&client_id);
-
         if let Some(item)=self.conn_cache.get_mut(&client_id) {
-            log::info!("active_client success client_id:{}",&client_id);
+            //log::info!("active_client success client_id:{}",&client_id);
             item.last_active_time = now;
         }
         else{
-            log::info!("active_client empty client_id:{}",&client_id);
+            //log::info!("active_client empty client_id:{}",&client_id);
         }
     }
 
     fn check_active_time_set(&mut self,now:u64){
         let keys=self.active_time_set.timeout(now);
+        /*
         if keys.len()>0 {
             log::info!("check_active_time_set time size:{}",keys.len());
         }
+         */
         for key in keys{
             if let Some(item)=self.conn_cache.get(&key) {
                 item.conn.do_send(BiStreamSenderCmd::Detection(self.request_id.to_string()));
@@ -160,7 +160,7 @@ impl Handler<BiStreamManageCmd> for BiStreamManage {
     fn handle(&mut self, msg: BiStreamManageCmd, _ctx: &mut Context<Self>) -> Self::Result {
         match msg {
             BiStreamManageCmd::Response(client_id,payload)=> {
-                println!("BiStreamManageCmd payload:{},client_id:{}",PayloadUtils::get_payload_string(&payload),&client_id);
+                //println!("BiStreamManageCmd payload:{},client_id:{}",PayloadUtils::get_payload_string(&payload),&client_id);
                 if let Some(t)=PayloadUtils::get_payload_type(&payload) {
                     if "ClientDetectionResponse"== t {
                         self.active_client(client_id);
@@ -169,6 +169,12 @@ impl Handler<BiStreamManageCmd> for BiStreamManage {
             },
             BiStreamManageCmd::ConnClose(client_id) => {
                 self.conn_cache.remove(&client_id);
+                if let Some(config_addr)=&self.config_addr {
+                    config_addr.do_send(ConfigCmd::RemoveSubscribeClient(client_id.clone()))
+                }
+                if let Some(naming_addr)=&self.naming_addr {
+                    naming_addr.do_send(NamingCmd::RemoveClient(client_id));
+                }
             },
             BiStreamManageCmd::AddConn(client_id, conn) => {
                 self.add_conn(client_id, conn.start());
