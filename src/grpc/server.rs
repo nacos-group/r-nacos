@@ -1,8 +1,10 @@
 use std::sync::Arc;
+use std::time::Instant;
 
 use actix::prelude::*;
 //use tokio_stream::StreamExt;
 
+use crate::grpc::bistream_manage::BiStreamManageResult;
 use crate::grpc::{PayloadUtils, PayloadHandler, RequestMeta};
 use crate::grpc::nacos_proto::{request_server, Payload};
 
@@ -29,21 +31,47 @@ impl request_server::Request for RequestServerImpl {
         &self,
         request: tonic::Request<Payload>,
     ) -> Result<tonic::Response<Payload>,tonic::Status> {
+        let instant = std::time::Instant::now();
         let remote_addr = request.remote_addr().unwrap();
         let mut request_meta = RequestMeta::default();
         request_meta.client_ip = remote_addr.ip().to_string();
         request_meta.connection_id = Arc::new(remote_addr.to_string());
         let payload = request.into_inner();
-        self.bistream_manage_addr.do_send(BiStreamManageCmd::ActiveClinet(request_meta.connection_id.clone()));
-        log::info!("request_server request:{},client_id:{}",PayloadUtils::get_payload_header(&payload),&request_meta.connection_id);
-        match self.invoker.handle(payload,request_meta).await {
+        //self.bistream_manage_addr.do_send(BiStreamManageCmd::ActiveClinet(request_meta.connection_id.clone()));
+        let active_result=self.bistream_manage_addr.send(BiStreamManageCmd::ActiveClinet(request_meta.connection_id.clone())).await;
+        match active_result {
+            Ok(result) => {
+                let result: anyhow::Result<BiStreamManageResult> = result;
+                match result {
+                    Ok(_) => {},
+                    Err(err) => {
+                        let err_msg = err.to_string();
+                        log::error!("{}",&err_msg);
+                        //return Err(tonic::Status::unknown(err_msg));
+                        return Ok(tonic::Response::new(PayloadUtils::build_error_payload(301, err_msg)));
+                    },
+                }
+            }
+            Err(err) => {
+                let err_msg = err.to_string();
+                log::error!("{}",err_msg);
+                //return Err(tonic::Status::unknown(err_msg));
+                return Ok(tonic::Response::new(PayloadUtils::build_error_payload(301, err_msg)));
+            }
+        };
+        let request_log_info=format!("|grpc|client_request|{}|{:?}",&request_meta.connection_id,&PayloadUtils::get_payload_type(&payload));
+        let handle_result = self.invoker.handle(payload,request_meta).await;
+        let duration = instant.duration_since(Instant::now()).as_secs_f64();
+        match handle_result {
             Ok(res) => {
-                log::info!("request_server response:{}",PayloadUtils::get_payload_header(&res));
+                //log::info!("{}|ok|{}",PayloadUtils::get_payload_header(&res));
+                log::info!("{}|ok|{}",request_log_info,duration);
                 Ok(tonic::Response::new(res))
             },
             Err(e) => {
                 //Err(tonic::Status::aborted(e.to_string()))
-                log::error!("request_server handler error:{:?}",e);
+                //log::error!("request_server handler error:{:?}",e);
+                log::error!("{}|err|{}|{:?}",request_log_info,duration,e);
                 Ok(tonic::Response::new(PayloadUtils::build_error_payload(500u16,e.to_string())))
             },
         }

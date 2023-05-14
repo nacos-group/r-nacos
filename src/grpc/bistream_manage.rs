@@ -58,14 +58,16 @@ impl BiStreamManage {
         self.active_time_set.add(now+self.detection_time_out, client_id);
     }
 
-    fn active_client(&mut self,client_id:Arc<String>) {
+    fn active_client(&mut self,client_id:Arc<String>) -> anyhow::Result<()> {
         let now = now_millis();
         if let Some(item)=self.conn_cache.get_mut(&client_id) {
             //log::info!("active_client success client_id:{}",&client_id);
             item.last_active_time = now;
+            Ok(())
         }
         else{
             //log::info!("active_client empty client_id:{}",&client_id);
+            Err(anyhow::anyhow!("Connection is unregistered."))
         }
     }
 
@@ -140,7 +142,7 @@ impl Actor for BiStreamManage {
 }
 
 #[derive(Message)]
-#[rtype(result = "Result<BiStreamManageResult,std::io::Error>")]
+#[rtype(result = "anyhow::Result<BiStreamManageResult>")]
 pub enum BiStreamManageCmd {
     Response(Arc<String>,Payload),
     ConnClose(Arc<String>),
@@ -155,7 +157,7 @@ pub enum BiStreamManageResult {
 }
 
 impl Handler<BiStreamManageCmd> for BiStreamManage {
-    type Result = Result<BiStreamManageResult, std::io::Error>;
+    type Result = anyhow::Result<BiStreamManageResult>;
 
     fn handle(&mut self, msg: BiStreamManageCmd, _ctx: &mut Context<Self>) -> Self::Result {
         match msg {
@@ -180,7 +182,7 @@ impl Handler<BiStreamManageCmd> for BiStreamManage {
                 self.add_conn(client_id, conn.start());
             },
             BiStreamManageCmd::ActiveClinet(client_id) => {
-                self.active_client(client_id);
+                self.active_client(client_id)?;
             },
             BiStreamManageCmd::NotifyConfig(config_key, client_id_set) => {
                 let mut request = ConfigChangeNotifyRequest::default();
