@@ -165,7 +165,7 @@ impl Handler<BiStreamManageCmd> for BiStreamManage {
                 //println!("BiStreamManageCmd payload:{},client_id:{}",PayloadUtils::get_payload_string(&payload),&client_id);
                 if let Some(t)=PayloadUtils::get_payload_type(&payload) {
                     if "ClientDetectionResponse"== t {
-                        self.active_client(client_id);
+                        self.active_client(client_id).ok();
                     }
                 }
             },

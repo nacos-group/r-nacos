@@ -34,13 +34,13 @@ impl BiStreamConn {
             let client_id = self.client_id.clone();
             async move { 
                 if let Some(item) = receiver_stream.next().await {
-                    if let Ok(_payload) = item {
-                        //println!("receive frist msg:{}",PayloadUtils::get_payload_string(&payload));
+                    if let Ok(payload) = item {
+                        println!("BiStreamConn receive frist msg:{}",PayloadUtils::get_payload_string(&payload));
                     }
                 }
                 while let Some(item) = receiver_stream.next().await {
                     if let Ok(payload) = item {
-                        //println!("receive msg:{}",PayloadUtils::get_payload_string(&payload));
+                        println!("BiStreamConn receive msg:{}",PayloadUtils::get_payload_string(&payload));
                         manage.do_send(BiStreamManageCmd::Response(client_id.clone(), payload));
                     }
                     else{
