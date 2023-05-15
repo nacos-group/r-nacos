@@ -194,7 +194,7 @@ impl Subscriber {
     }
 
     pub fn notify(&self,key:ServiceKey) {
-        log::info!("naming_subscriber notify {:?}",&key);
+        //log::info!("naming_subscriber notify {:?}",&key);
         if let Some(notify_addr) = &self.notify_addr {
             if let Some(set) = self.listener.get(&key) {
                 let mut client_id_set = HashSet::new();
