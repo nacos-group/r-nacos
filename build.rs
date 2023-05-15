@@ -1,6 +1,6 @@
 #![allow(unused_must_use)]
 use std::{
-    env,
+    //env,
     fs::{self, OpenOptions},
     io::{self, Write},
     path::Path,
@@ -9,7 +9,8 @@ use std::{
 use rnacos_web_dist_wrap::get_embedded_file;
 
 fn main() -> anyhow::Result<()> {
-    let project_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
+    //let project_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
+    let project_dir = "".to_string();
     let project_dir_path = Path::new(&project_dir);
     let web_dir = project_dir_path.join("target").join("rnacos-web");
     load_web_resouce()?;
@@ -20,16 +21,17 @@ fn main() -> anyhow::Result<()> {
 }
 
 fn load_web_resouce() -> anyhow::Result<()> {
-    let project_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
+    //let project_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
+    let project_dir = "".to_string();
     let project_dir_path = Path::new(&project_dir);
     let web_dir = project_dir_path.join("target").join("rnacos-web");
     let web_file_path = project_dir_path
         .join("target")
-        .join(env::var("PROFILE").unwrap_or("debug".to_owned()))
+        //.join(env::var("PROFILE").unwrap_or("debug".to_owned()))
         .join(format!("dist.zip"));
     let file_path_str = web_file_path.to_str().unwrap();
     if !web_file_path.exists() {
-        println!("down embed file");
+        //println!("down embed file");
         match get_embedded_file("dist.zip") {
             Some(content) => {
                 save_file(file_path_str,content.data.to_vec())?;
@@ -38,7 +40,7 @@ fn load_web_resouce() -> anyhow::Result<()> {
         }
     }
     if web_file_path.exists() {
-        println!("run unzip");
+        //println!("run unzip");
         unzip(file_path_str, web_dir.to_str().unwrap(), true)?;
     }
     Ok(())
