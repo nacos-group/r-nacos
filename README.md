@@ -9,6 +9,14 @@ rnacos是一个轻量、快速、稳定的服务，包含注册中心、配置�
 
 rnacos兼容nacos client sdk用到的协议（包含1.x的http OpenApi，和2.x的grpc协议），支持使用nacos服务的应用平迁到 rnacos。
 
+### rnacos架构图
+
+![](https://github.com/heqingpan/rnacos/raw/master/doc/assets/imgs/rnacos_L2_0.1.4.svg)
+
+
+
+前端应用因依赖nodejs,所以单独放到另一个项目 [rnacos-console-web](https://github.com/heqingpan/rnacos-console-web) ,再通过cargo 把打包好的前端资源引入到本项目,避免开发rust时还要依赖nodejs。
+
 ## 开发原由
 
 一方面自己学习 rust 后想，写个中间件实践rust网络并发编程。
@@ -27,6 +35,7 @@ rnacos兼容nacos client sdk用到的协议（包含1.x的http OpenApi，和2.x�
 2. 个人资源云服务部署的 nacos，可以考虑换成rnacos。资源占用率低: 包10M 左右，不依赖 JDK；运行时 cpu 小于0.5% ，小于5M（具体和实例有关）。
 3. 其它非集群部署的 nacos ，理论上都支持迁移到 rnacos。 
 4. 目前 rnacos 只支持单机部署，其支持容量在一万个服务实例以上。在一万服务实例场景下压测，qps 可以稳定在1.2左右，内存稳定在50 M以下，cpu稳定在33%左右（和压测环境有关）。
+
 
 ## 快速开始
 
@@ -165,8 +174,8 @@ RNACOS_HTTP_PORT=8848
 
 配置中心：
 
-1. 暂不支持配置的导入、导出，后继计划支持导入、导出，其格式兼容 nacos 的导出格式
-2. 暂不支持tag 的高级查询
+1. 暂不支持配置的导出，后继计划支持导出，其格式兼容 nacos 的导出格式; 目前已支持导入
+2. 暂不支持tag的高级查询
 3. 暂不支持配置历史记录查看与恢复
 4. 暂不支持查询配置监听记录
 
@@ -194,6 +203,8 @@ RNACOS_HTTP_PORT=8848
 
 rnacos server版本：v0.1.1 
 java nacos server版本: 2.1.0
+
+因wrk,goose暂时不支持grpc协议，只压测http协议接口。
 
 
 ### 配置中心
@@ -257,7 +268,7 @@ java nacos server版本: 2.1.0
 ### 一、 对单机功能补全
 
 1. 配置中心
-	1. 控制台支持导入导出
+	1. 控制台支持导出
 	2. 查询配置历史变更记录
 	3. 支持历史记录回滚。
 	4. 支持恢复发布，与 tag配置隔离
