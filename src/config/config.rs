@@ -302,7 +302,7 @@ impl ConfigActor {
         let mut info_list = Vec::with_capacity(size);
         for item in &list {
             if let Some(value)=self.cache.get(item){
-                let info = ConfigInfoDto{
+                let mut info = ConfigInfoDto{
                     tenant:item.tenant.clone(),
                     group:item.group.clone(),
                     data_id:item.data_id.clone(),
@@ -310,6 +310,10 @@ impl ConfigActor {
                     //content:Some(value.content.clone()),
                     ..Default::default()
                 };
+                if param.query_context {
+                    info.content = Some(value.content.clone());
+                    info.md5 = Some(value.md5.clone());
+                }
                 info_list.push(info);
             }
         }
