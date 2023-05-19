@@ -15,14 +15,17 @@ use crate::console::api::{
 use crate::auth::mock_token;
 
 use mime_guess::from_path;
-use rust_embed::RustEmbed;
+use rnacos_web_dist_wrap::get_embedded_file;
 
+/* 
+use rust_embed::RustEmbed;
 #[derive(RustEmbed)]
 #[folder = "target/rnacos-web"]
 struct Asset;
+*/
 
 fn handle_embedded_file(path: &str) -> HttpResponse {
-    match Asset::get(path) {
+    match get_embedded_file(path) {
         Some(content) => {
             HttpResponse::Ok()
             .content_type(from_path(path).first_or_octet_stream().as_ref())
@@ -68,11 +71,7 @@ pub fn console_web_config(config:&mut web::ServiceConfig){
         .service(assets)
         .service(web::resource("/index.html").route(web::get().to(index)))
         .service(web::resource("/404").route(web::get().to(index)))
-        .service(web::resource("/manage/{a}").route(web::get().to(index)))
-        .service(web::resource("/manage/{a}/{b}").route(web::get().to(index)))
-        .service(web::resource("/manage/{a}/{b}/{c}").route(web::get().to(index)))
-        .service(web::resource("/p/{a}").route(web::get().to(index)))
-        .service(web::resource("/p/{a}/{b}").route(web::get().to(index)))
-        .service(web::resource("/p/{a}/{b}/{c}").route(web::get().to(index)))
+        .service(web::resource("/manage/{_:.*}").route(web::get().to(index)))
+        .service(web::resource("/p/{_:.*}").route(web::get().to(index)))
     ;
 }
