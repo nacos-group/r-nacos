@@ -48,5 +48,5 @@ jobs:
           push: true
           tags: |
             ${{ steps.meta.outputs.tags }}
-            ${{ secrets.DOCKERHUB_USERNAME }}/rnacos:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/rnacos:stable
           labels: ${{ steps.meta.outputs.labels }}

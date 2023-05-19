@@ -57,8 +57,8 @@ windows 解压后直接运行 rnacos.exe 即可。
 方式2:  通过docker 运行
 
 ```
-docker pull qingpan/rnacos:latest
-docker run --name mynacos -p 8848:8848 -p 9848:9848 -d qingpan/rnacos:latest
+docker pull qingpan/rnacos:stable
+docker run --name mynacos -p 8848:8848 -p 9848:9848 -d qingpan/rnacos:stable
 ```
 
 docker 的容器运行目录是 /io，会从这个目录读写配置文件
@@ -174,7 +174,7 @@ RNACOS_HTTP_PORT=8848
 
 配置中心：
 
-1. 暂不支持配置的导出，后继计划支持导出，其格式兼容 nacos 的导出格式; 目前已支持导入
+1. 已支持配置导入、导出,其文件格式与nacos兼容
 2. 暂不支持tag的高级查询
 3. 暂不支持配置历史记录查看与恢复
 4. 暂不支持查询配置监听记录
@@ -204,7 +204,7 @@ RNACOS_HTTP_PORT=8848
 rnacos server版本：v0.1.1 
 java nacos server版本: 2.1.0
 
-因wrk,goose暂时不支持grpc协议，只压测http协议接口。
+**因wrk,goose暂时不支持grpc协议，暂时只压测http协议接口**
 
 
 ### 配置中心
