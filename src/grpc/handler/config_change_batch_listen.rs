@@ -26,7 +26,11 @@ impl PayloadHandler for ConfigChangeBatchListenRequestHandler {
             let key = ConfigKey::new(&item.data_id, &item.group, &item.tenant);
             listener_items.push(ListenerItem::new(key, item.md5));
         }
-        let cmd = ConfigCmd::Subscribe(listener_items,request_meta.connection_id);
+        let cmd = if request.listen {
+            ConfigCmd::Subscribe(listener_items,request_meta.connection_id)
+        } else {
+            ConfigCmd::RemoveSubscribe(listener_items,request_meta.connection_id)
+        };
         let mut response = ConfigChangeBatchListenResponse::default();
         match self.config_addr.send(cmd).await{
             Ok(res) => {
