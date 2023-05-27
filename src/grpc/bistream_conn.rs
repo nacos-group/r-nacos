@@ -77,6 +77,13 @@ impl Actor for BiStreamConn {
     }
 }
 
+
+impl Supervised for BiStreamConn {
+    fn restarting(&mut self, _ctx: &mut <Self as Actor>::Context) {
+        log::warn!("BiStreamConn restart ...");
+    }
+}
+
 #[derive(Debug, Message)]
 #[rtype(result = "Result<BiStreamSenderResult,std::io::Error>")]
 pub enum BiStreamSenderCmd {

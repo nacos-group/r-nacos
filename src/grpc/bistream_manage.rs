@@ -141,6 +141,13 @@ impl Actor for BiStreamManage {
     }
 }
 
+
+impl Supervised for BiStreamManage {
+    fn restarting(&mut self, _ctx: &mut <Self as Actor>::Context) {
+        log::warn!("BiStreamManage restart ...");
+    }
+}
+
 #[derive(Message)]
 #[rtype(result = "anyhow::Result<BiStreamManageResult>")]
 pub enum BiStreamManageCmd {

@@ -358,6 +358,12 @@ impl Actor for ConfigActor {
     }
 }
 
+impl Supervised for ConfigActor {
+    fn restarting(&mut self, _ctx: &mut <Self as Actor>::Context) {
+        log::warn!("ConfigActor restart ...");
+    }
+}
+
 impl Handler<ConfigCmd> for ConfigActor{
     type Result = Result<ConfigResult,std::io::Error>;
 

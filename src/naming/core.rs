@@ -210,7 +210,11 @@ impl NamingActor {
      */
 
     pub fn remove_instance(&mut self,key:&ServiceKey ,cluster_name:&str,instance_id:&InstanceShortKey) -> UpdateInstanceType {
-        let service = self.service_map.get_mut(&key).unwrap();
+        let service =if let Some(service)= self.service_map.get_mut(&key) {
+            service
+        }else{
+            return UpdateInstanceType::None;
+        };
         let old_instance = service.remove_instance(instance_id);
         let now = now_millis();
         let tag = if let Some(old_instance) = old_instance {
@@ -500,6 +504,12 @@ impl Actor for NamingActor {
         self.instance_time_out_heartbeat(ctx);
     }
 
+}
+
+impl Supervised for NamingActor {
+    fn restarting(&mut self, _ctx: &mut <Self as Actor>::Context) {
+        log::warn!("NamingActor restart ...");
+    }
 }
 
 impl Handler<NamingCmd> for NamingActor {

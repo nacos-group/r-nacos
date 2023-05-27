@@ -311,6 +311,13 @@ impl Actor for InnerNamingListener {
     }
 }
 
+impl Supervised for InnerNamingListener {
+    fn restarting(&mut self, _ctx: &mut <Self as Actor>::Context) {
+        log::warn!("InnerNamingListener restart ...");
+    }
+}
+
+
 
 #[derive(Message)]
 #[rtype(result = "Result<(),std::io::Error>")]

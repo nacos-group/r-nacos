@@ -102,6 +102,12 @@ impl Actor for DelayNotifyActor {
     }
 }
 
+impl Supervised for DelayNotifyActor {
+    fn restarting(&mut self, _ctx: &mut <Self as Actor>::Context) {
+        log::warn!("DelayNotifyActor restart ...");
+    }
+}
+
 #[derive(Message)]
 #[rtype(result = "anyhow::Result<DelayNotifyResult>")]
 pub enum DelayNotifyCmd {
