@@ -117,4 +117,11 @@ create index if not exists tb_config_history_key_idx on tb_config_history(data_i
         let param = ConfigParam::default();
         self.config_dao.query(&param).unwrap()
     }
+
+    pub fn query_config_history_page(&self,param:&ConfigHistoryParam) -> (usize,Vec<ConfigHistoryDO>) {
+        let size = self.config_history_dao.query_count(param).unwrap_or_default();
+        let list = self.config_history_dao.query(param).unwrap_or_default();
+        (size as usize,list)
+    }
+
 }

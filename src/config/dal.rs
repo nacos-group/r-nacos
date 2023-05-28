@@ -1,9 +1,9 @@
-use rsql_builder::B;
+use rsql_builder::{B, IBuilder};
 use rusqlite::{Connection,Row};
 use serde::{Serialize,Deserialize};
 use std::rc::Rc;
 
-use crate::common::rusqlite_utils::{get_row_value,sqlite_execute,sqlite_fetch};
+use crate::common::rusqlite_utils::{get_row_value,sqlite_execute,sqlite_fetch, sqlite_fetch_count};
 
 #[derive(Debug,Default,Serialize,Deserialize)]
 pub struct ConfigDO {
@@ -218,6 +218,8 @@ pub struct ConfigHistoryParam{
     pub data_id:Option<String>,
     pub group:Option<String>,
     pub tenant:Option<String>,
+    pub order_by:Option<String>,
+    pub order_by_desc:Option<bool>,
     pub limit:Option<i64>,
     pub offset:Option<i64>,
 }
@@ -241,9 +243,36 @@ impl ConfigHistorySql{
         whr
     }
 
+    fn offset_conditions(&self,param:&ConfigHistoryParam) -> B {
+        let mut whr = B::new();
+        if let Some(field) = &param.order_by {
+            let desc = param.order_by_desc.clone().unwrap_or(false);
+            if field.eq_ignore_ascii_case("last_time") {
+                whr.order_by("last_time", desc);
+            }
+            if field.eq_ignore_ascii_case("id") {
+                whr.order_by("id", desc);
+            }
+        }
+        if let Some(limit)=&param.limit {
+            whr.limit(limit);
+        }
+        if let Some(offset)=&param.offset{
+            whr.offset(offset);
+        }
+        whr
+    }
+
     pub fn query_prepare(&self,param:&ConfigHistoryParam) -> (String,Vec<serde_json::Value>) {
+        B::new_sql("select id, data_id, `group`, tenant, content, last_time from tb_config_history")
+            .push_build(&mut self.conditions(param))
+            .push_build(&mut self.offset_conditions(param))
+            .build()
+    }
+
+    pub fn query_count_prepare(&self,param:&ConfigHistoryParam) -> (String,Vec<serde_json::Value>) {
         B::prepare(
-            B::new_sql("select id, data_id, group, tenant, content, last_time from tb_config_history")
+            B::new_sql("select count(1) from tb_config_history")
             .push_build(&mut self.conditions(param))
         )
     }
@@ -343,6 +372,10 @@ impl ConfigHistoryDao {
         sqlite_fetch(&self.conn,sql,args,ConfigHistoryDO::from_row)
     }
 
+    pub fn fetch_count(&self,sql:&str,args:&Vec<serde_json::Value>) -> anyhow::Result<u64> {
+        sqlite_fetch_count(&self.conn,sql,args)
+    }
+
     pub fn insert(&self,record:&ConfigHistoryDO) -> anyhow::Result<usize> {
         let (sql,args) = self.inner.insert_prepare(record);
         self.execute(&sql, &args)
@@ -361,6 +394,11 @@ impl ConfigHistoryDao {
     pub fn query(&self,param:&ConfigHistoryParam) -> anyhow::Result<Vec<ConfigHistoryDO>> {
         let (sql,args) = self.inner.query_prepare(param);
         self.fetch(&sql, &args)
+    }
+
+    pub fn query_count(&self,param:&ConfigHistoryParam) -> anyhow::Result<u64> {
+        let (sql,args) = self.inner.query_count_prepare(param);
+        self.fetch_count(&sql, &args)
     }
 }
 

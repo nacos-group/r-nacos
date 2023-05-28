@@ -22,6 +22,7 @@ use tokio_stream::StreamExt;
 use uuid::Uuid;
 use zip::{ZipArchive, ZipWriter};
 
+use super::model::PageResult;
 use super::model::config_model::OpsConfigImportInfo;
 
 pub async fn query_config_list(
@@ -35,6 +36,38 @@ pub async fn query_config_list(
             match r {
                 ConfigResult::ConfigInfoPage(size, list) => {
                     let response = OpsConfigOptQueryListResponse {
+                        count: size as u64,
+                        list,
+                    };
+                    let v = serde_json::to_string(&response).unwrap();
+                    HttpResponse::Ok()
+                        .insert_header(header::ContentType(mime::APPLICATION_JSON))
+                        .body(v)
+                }
+                _ => HttpResponse::InternalServerError().body("config result error"),
+            }
+        }
+        Err(err) => HttpResponse::InternalServerError().body(err.to_string()),
+    }
+}
+
+pub async fn query_history_config_page(
+    request: web::Query<OpsConfigQueryListRequest>,
+    config_addr: web::Data<Addr<ConfigActor>>,
+) -> impl Responder {
+    let param = match request.0.to_history_param() {
+        Ok(param) => {param},
+        Err(err) => {
+            return HttpResponse::InternalServerError().body(err.to_string());
+        },
+    };
+    let cmd = ConfigCmd::QueryHistoryPageInfo(Box::new(param));
+    match config_addr.send(cmd).await {
+        Ok(res) => {
+            let r: ConfigResult = res.unwrap();
+            match r {
+                ConfigResult::ConfigHistoryInfoPage(size, list) => {
+                    let response = PageResult {
                         count: size as u64,
                         list,
                     };

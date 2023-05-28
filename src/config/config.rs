@@ -14,6 +14,7 @@ use actix::prelude::*;
 
 use super::config_db::ConfigDB;
 use super::config_subscribe::Subscriber;
+use super::dal::ConfigHistoryParam;
 use crate::config::config_index::{TenantIndex, ConfigQueryParam};
 
 #[derive(Debug,Hash,Eq,Clone)]
@@ -77,6 +78,15 @@ pub struct ConfigInfoDto {
     pub data_id:Arc<String>,
     pub content:Option<Arc<String>>,
     pub md5:Option<Arc<String>>,
+}
+
+#[derive(Debug,Serialize,Deserialize,Default,Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ConfigHistoryInfoDto {
+    pub tenant:Option<String>,
+    pub group:Option<String>,
+    pub data_id:Option<String>,
+    pub modified_time:Option<i64>,  //给历史记录使用
 }
 
 #[derive(Debug)]
@@ -320,6 +330,19 @@ impl ConfigActor {
         (size,info_list)
     }
 
+    pub(crate) fn get_history_info_page(&self,param:&ConfigHistoryParam) -> (usize,Vec<ConfigHistoryInfoDto>) {
+        let (size,list) = self.config_db.query_config_history_page(param);
+        let info_list = list.into_iter().map(|e|ConfigHistoryInfoDto{
+            tenant:e.tenant,
+            group:e.group,
+            data_id:e.data_id,
+            modified_time:e.last_time,
+
+        }).collect();
+        (size,info_list)
+
+    }
+
     pub fn hb(&self,ctx:&mut actix::Context<Self>) {
         ctx.run_later(Duration::from_millis(500), |act,ctx|{
             act.listener.timeout();
@@ -335,6 +358,7 @@ pub enum ConfigCmd {
     GET(ConfigKey),
     DELETE(ConfigKey),
     QueryPageInfo(Box<ConfigQueryParam>),
+    QueryHistoryPageInfo(Box<ConfigHistoryParam>),
     LISTENER(Vec<ListenerItem>,ListenerSenderType,i64),
     SetConnManage(Addr<BiStreamManage>),
     Subscribe(Vec<ListenerItem>,Arc<String>),
@@ -347,6 +371,7 @@ pub enum ConfigResult {
     NULL,
     ChangeKey(Vec<ConfigKey>),
     ConfigInfoPage(usize,Vec<ConfigInfoDto>),
+    ConfigHistoryInfoPage(usize,Vec<ConfigHistoryInfoDto>),
 }
 
 impl Actor for ConfigActor {
@@ -444,6 +469,10 @@ impl Handler<ConfigCmd> for ConfigActor{
             ConfigCmd::QueryPageInfo(config_query_param) => {
                 let (size,list) = self.get_config_info_page(config_query_param.as_ref());
                 return Ok(ConfigResult::ConfigInfoPage(size,list));
+            },
+            ConfigCmd::QueryHistoryPageInfo(query_param) => {
+                let (size,list) = self.get_history_info_page(query_param.as_ref());
+                return Ok(ConfigResult::ConfigHistoryInfoPage(size, list));
             }
         }
         Ok(ConfigResult::NULL)

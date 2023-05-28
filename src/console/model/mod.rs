@@ -22,6 +22,15 @@ pub struct ConsoleResult<T>
     pub data:Option<T>
 }
 
+#[derive(Clone,Serialize,Deserialize,Default)]
+#[serde(rename_all = "camelCase")]
+pub struct PageResult<T>
+    where T:Sized + Serialize + Clone + Default
+{
+    pub count:u64,
+    pub list:Vec<T>,
+}
+
 impl <T> ConsoleResult<T>
     where T:Sized + Serialize + Clone + Default
 {

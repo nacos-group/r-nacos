@@ -69,7 +69,7 @@ pub fn sqlite_execute(conn:&Connection,sql:&str,args:&Vec<serde_json::Value>) ->
 pub fn sqlite_fetch<T,F>(conn:&Connection,sql:&str,args:&Vec<serde_json::Value>,convert:F) -> anyhow::Result<Vec<T>> 
 where F: Fn(&Row) -> T + Send
 {
-    //println!("sqlite_fetch, {} | {:?}",&sql,&args);
+    println!("sqlite_fetch, {} | {:?}",&sql,&args);
     let mut stmt = conn.prepare(&sql).unwrap();
     let r = stmt.query_map(params_from_iter(
         convert_json_params(&args).iter()), |r|{Ok(convert(r))});
