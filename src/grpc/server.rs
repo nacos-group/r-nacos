@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{SystemTime};
 
 use actix::prelude::*;
 //use tokio_stream::StreamExt;
@@ -31,7 +31,7 @@ impl request_server::Request for RequestServerImpl {
         &self,
         request: tonic::Request<Payload>,
     ) -> Result<tonic::Response<Payload>,tonic::Status> {
-        let instant = std::time::Instant::now();
+        let start=SystemTime::now();
         let remote_addr = request.remote_addr().unwrap();
         let mut request_meta = RequestMeta::default();
         request_meta.client_ip = remote_addr.ip().to_string();
@@ -52,7 +52,7 @@ impl request_server::Request for RequestServerImpl {
                             let err_msg = err.to_string();
                             //log::error!("{}",&err_msg);
                             //return Err(tonic::Status::unknown(err_msg));
-                            let duration = instant.duration_since(Instant::now()).as_secs_f64();
+                            let duration = SystemTime::now().duration_since(start).unwrap_or_default().as_secs_f64();
                             log::error!("{}|err|{}|{}",request_log_info,duration,&err_msg);
                             return Ok(tonic::Response::new(PayloadUtils::build_error_payload(301, err_msg)));
                         }
@@ -64,14 +64,14 @@ impl request_server::Request for RequestServerImpl {
                     let err_msg = err.to_string();
                     //log::error!("{}",err_msg);
                     //return Err(tonic::Status::unknown(err_msg));
-                    let duration = instant.duration_since(Instant::now()).as_secs_f64();
+                    let duration = SystemTime::now().duration_since(start).unwrap_or_default().as_secs_f64();
                     log::error!("{}|err|{}|{}",request_log_info,duration,&err_msg);
                     return Ok(tonic::Response::new(PayloadUtils::build_error_payload(301, err_msg)));
                 }
             }
         };
         let handle_result = self.invoker.handle(payload,request_meta).await;
-        let duration = instant.duration_since(Instant::now()).as_secs_f64();
+        let duration = SystemTime::now().duration_since(start).unwrap_or_default().as_secs_f64();
         match handle_result {
             Ok(res) => {
                 //log::info!("{}|ok|{}",PayloadUtils::get_payload_header(&res));
