@@ -9,14 +9,6 @@ rnacos是一个轻量、快速、稳定的服务，包含注册中心、配置�
 
 rnacos兼容nacos client sdk用到的协议（包含1.x的http OpenApi，和2.x的grpc协议），支持使用nacos服务的应用平迁到 rnacos。
 
-### rnacos架构图
-
-![](https://github.com/heqingpan/rnacos/raw/master/doc/assets/imgs/rnacos_L2_0.1.4.svg)
-
-
-
-前端应用因依赖nodejs,所以单独放到另一个项目 [rnacos-console-web](https://github.com/heqingpan/rnacos-console-web) ,再通过cargo 把打包好的前端资源引入到本项目,避免开发rust时还要依赖nodejs。
-
 ## 开发原由
 
 一方面自己学习 rust 后想，写个中间件实践rust网络并发编程。
@@ -268,14 +260,15 @@ java nacos server版本: 2.1.0
 ### 一、 对单机功能补全
 
 1. 配置中心
-	1. 控制台支持导出
-	2. 查询配置历史变更记录
-	3. 支持历史记录回滚。
-	4. 支持恢复发布，与 tag配置隔离
-	5. 支持查询服务监听列表
+	1.  [x] 控制台支持导出
+	2.  [x] 查询配置历史变更记录
+	3.  [x] 支持历史记录回滚。
+	4.  [ ] 回滚时支持配置内容比较。
+	5.  [ ] 支持恢复发布，与 tag配置隔离 (优先级暂定晚于支持集群部署功能)
+	6.  [ ] 支持查询服务监听列表
 2. 注册中心
-	1. 支持服务路由类型的设置
-	2. 支持查询服务监听列表
+	7.  [ ] 支持服务路由类型的设置(这部分涉及插件,暂定不支持)
+	8.  [ ] 支持查询服务监听列表
 
 ### 二、支持集群部署
 
@@ -285,3 +278,9 @@ java nacos server版本: 2.1.0
 	2. 集群间的数据同步
 3. 其它
 	1. 集群用户认证同步
+
+## rnacos架构图
+
+![](https://github.com/heqingpan/rnacos/raw/master/doc/assets/imgs/rnacos_L2_0.1.4.svg)
+
+前端应用因依赖nodejs,所以单独放到另一个项目 [rnacos-console-web](https://github.com/heqingpan/rnacos-console-web) ,再通过cargo 把打包好的前端资源引入到本项目,避免开发rust时还要依赖nodejs。
