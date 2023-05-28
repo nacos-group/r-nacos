@@ -83,6 +83,7 @@ pub struct ConfigInfoDto {
 #[derive(Debug,Serialize,Deserialize,Default,Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ConfigHistoryInfoDto {
+    pub id:Option<i64>,
     pub tenant:Option<String>,
     pub group:Option<String>,
     pub data_id:Option<String>,
@@ -339,6 +340,7 @@ impl ConfigActor {
             data_id:e.data_id,
             modified_time:e.last_time,
             content:e.content,
+            id:e.id,
         }).collect();
         (size,info_list)
 
