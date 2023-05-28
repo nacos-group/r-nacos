@@ -86,6 +86,7 @@ pub struct ConfigHistoryInfoDto {
     pub tenant:Option<String>,
     pub group:Option<String>,
     pub data_id:Option<String>,
+    pub content:Option<String>,
     pub modified_time:Option<i64>,  //给历史记录使用
 }
 
@@ -337,7 +338,7 @@ impl ConfigActor {
             group:e.group,
             data_id:e.data_id,
             modified_time:e.last_time,
-
+            content:e.content,
         }).collect();
         (size,info_list)
 
