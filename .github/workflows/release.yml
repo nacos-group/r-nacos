@@ -123,18 +123,19 @@ jobs:
       - uses: actions/download-artifact@v3
         with:
           name: binaries
-      - name: Sigstore Sign
-        uses: sigstore/gh-action-sigstore-python@v1.2.3
-        with:
-          inputs: ./*.tar.gz ./*.zip 
-          upload-signing-artifacts: true
+      # 暂时移除签名(生成的文件比较多)
+      #- name: Sigstore Sign
+      #  uses: sigstore/gh-action-sigstore-python@v1.2.3
+      #  with:
+      #    inputs: ./*.tar.gz ./*.zip 
+      #    upload-signing-artifacts: true
       - name: Release
         uses: softprops/action-gh-release@v1
         with:
           files: |
             *.tar.gz
             *.zip
-            *.sig
-            *.crt
+#            *.sig
+#            *.crt
           prerelease: ${{ contains(github.ref, 'alpha') || contains(github.ref, 'beta') }}
           generate_release_notes: true  
