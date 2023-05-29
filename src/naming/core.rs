@@ -209,13 +209,13 @@ impl NamingActor {
     }
      */
 
-    pub fn remove_instance(&mut self,key:&ServiceKey ,cluster_name:&str,instance_id:&InstanceShortKey) -> UpdateInstanceType {
+    pub fn remove_instance(&mut self,key:&ServiceKey ,cluster_name:&str,instance_id:&InstanceShortKey,client_id:Option<&Arc<String>>) -> UpdateInstanceType {
         let service =if let Some(service)= self.service_map.get_mut(&key) {
             service
         }else{
             return UpdateInstanceType::None;
         };
-        let old_instance = service.remove_instance(instance_id);
+        let old_instance = service.remove_instance(instance_id,client_id);
         let now = now_millis();
         let tag = if let Some(old_instance) = old_instance {
             let short_key = old_instance.get_short_key();
@@ -264,7 +264,7 @@ impl NamingActor {
             for instance_key in keys {
                 let service_key = instance_key.get_service_key();
                 let short_key = instance_key.get_short_key();
-                self.remove_instance(&service_key,"",&short_key);
+                self.remove_instance(&service_key,"",&short_key,Some(client_id));
             }
         }
     }
@@ -522,7 +522,7 @@ impl Handler<NamingCmd> for NamingActor {
                 Ok(NamingResult::NULL)
             },
             NamingCmd::Delete(instance) => {
-                self.remove_instance(&instance.get_service_key(), &instance.cluster_name, &instance.get_short_key());
+                self.remove_instance(&instance.get_service_key(), &instance.cluster_name, &instance.get_short_key(),Some(&instance.client_id));
                 Ok(NamingResult::NULL)
             },
             NamingCmd::Query(instance) => {
@@ -712,7 +712,7 @@ fn test_remove_has_instance_service(){
     assert!(naming.remove_empty_service(service_key.clone()).is_err());
     assert!(naming.namespace_index.service_size==1);
 
-    naming.remove_instance(&service_key, &instance.cluster_name, &instance.get_short_key());
+    naming.remove_instance(&service_key, &instance.cluster_name, &instance.get_short_key(),None);
     assert!(naming.namespace_index.service_size==1);
     assert!(naming.remove_empty_service(service_key.clone()).is_ok());
     assert!(naming.namespace_index.service_size==0);

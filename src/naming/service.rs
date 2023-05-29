@@ -172,7 +172,7 @@ impl Service {
         }
         self.timeinfos = self.timeinfos.split_off(remove_index);
         for item in &remove_list {
-            self.remove_instance(&item);
+            self.remove_instance(&item,None);
         }
         for item in &update_list {
             self.update_instance_healthy_unvaild(&item);
@@ -180,7 +180,15 @@ impl Service {
         (remove_list,update_list)
     }
 
-    pub(crate) fn remove_instance(&mut self,instance_key:&InstanceShortKey) -> Option<Arc<Instance>> {
+    pub(crate) fn remove_instance(&mut self,instance_key:&InstanceShortKey,client_id:Option<&Arc<String>>) -> Option<Arc<Instance>> {
+        if let Some(client_id)=client_id {
+            if let Some(old) = self.instances.get(&instance_key) {
+                if !client_id.is_empty() && old.client_id.as_str()!=client_id.as_str() {
+                    //不同的client_id不能删除
+                    return None;
+                }
+            }
+        }
         if let Some(old)=self.instances.remove(instance_key){
             self.instance_size-=1;
             if self.instance_size==0 {
