@@ -61,6 +61,17 @@ pub struct ClientDetectionRequest {
     pub headers:HashMap<String,String>,
 }
 
+#[derive(Debug, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct ConnectResetRequest {
+    pub module:Option<String>,
+    pub request_id:Option<String>,
+    pub headers:HashMap<String,String>,
+
+    pub server_ip:Option<String>,
+    pub server_port:Option<String>,
+}
+
 
 // --- config ---
 

@@ -21,9 +21,9 @@ impl ConnCacheItem {
 #[derive(Default)]
 pub struct BiStreamManage{
     conn_cache:HashMap<Arc<String>,ConnCacheItem>,
-    active_time_set: TimeoutSet<Arc<String>>,
+    //active_time_set: TimeoutSet<Arc<String>>,
     response_time_set : TimeoutSet<Arc<String>>,
-    detection_time_out: u64,
+    //detection_time_out: u64,
     response_time_out: u64,
     request_id:u64,
     config_addr:Option<Addr<ConfigActor>>,
@@ -34,8 +34,8 @@ impl BiStreamManage {
 
     pub fn new() -> Self {
         let mut this= BiStreamManage::default();
-        this.detection_time_out = 5000;
-        this.response_time_out = 5000;
+        //this.detection_time_out = 5000;
+        this.response_time_out = 20000;
         this
     }
 
@@ -55,7 +55,7 @@ impl BiStreamManage {
             log::info!("add_conn remove old conn:{}",&client_id);
             old_conn.conn.do_send(BiStreamSenderCmd::Close);
         }
-        self.active_time_set.add(now+self.detection_time_out, client_id);
+        //self.active_time_set.add(now+self.detection_time_out, client_id);
     }
 
     fn active_client(&mut self,client_id:Arc<String>) -> anyhow::Result<()> {
@@ -71,13 +71,9 @@ impl BiStreamManage {
         }
     }
 
+    /* 
     fn check_active_time_set(&mut self,now:u64){
         let keys=self.active_time_set.timeout(now);
-        /*
-        if keys.len()>0 {
-            log::info!("check_active_time_set time size:{}",keys.len());
-        }
-         */
         for key in keys{
             if let Some(item)=self.conn_cache.get(&key) {
                 item.conn.do_send(BiStreamSenderCmd::Detection(self.request_id.to_string()));
@@ -86,18 +82,21 @@ impl BiStreamManage {
             }
         }
     }
+    */
 
     fn check_response_time_set(&mut self,now:u64){
         let keys=self.response_time_set.timeout(now);
         let mut del_keys = vec![];
         for key in keys {
             if let Some(item)=self.conn_cache.get(&key) {
-                if item.last_active_time + self.detection_time_out + self.response_time_out <= now {
+                if item.last_active_time + self.response_time_out <= now {
                     del_keys.push(key);
                 }
+                /* 
                 else{
                     self.active_time_set.add(item.last_active_time+self.detection_time_out, key.clone());
                 }
+                */
             }
         }
         if del_keys.len()>0 {
@@ -105,6 +104,8 @@ impl BiStreamManage {
         }
         for key in &del_keys {
             if let Some(item) = self.conn_cache.remove(key){
+                self.request_id+=1;
+                item.conn.do_send(BiStreamSenderCmd::Reset(self.request_id.to_string(),None,None));
                 item.conn.do_send(BiStreamSenderCmd::Close);
             }
         }
@@ -124,7 +125,7 @@ impl BiStreamManage {
     pub fn time_out_heartbeat(&self,ctx:&mut actix::Context<Self>) {
         ctx.run_later(Duration::new(3,0), |act,ctx|{
             let now = now_millis();
-            act.check_active_time_set(now);
+            //act.check_active_time_set(now);
             act.check_response_time_set(now);
             act.time_out_heartbeat(ctx);
         });

@@ -88,7 +88,7 @@ impl PayloadHandler for InvokerHandler {
 #[async_trait]
 impl PayloadHandler for HealthCheckRequestHandler {
     async fn handle(&self, _request_payload: super::nacos_proto::Payload,_request_meta:RequestMeta) -> anyhow::Result<Payload> {
-        println!("HealthCheckRequest");
+        //println!("HealthCheckRequest");
         let response = BaseResponse::build_success_response();
         return Ok(PayloadUtils::build_payload("HealthCheckResponse", serde_json::to_string(&response)?))
     }

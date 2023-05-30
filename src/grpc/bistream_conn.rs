@@ -5,6 +5,7 @@ use actix::prelude::*;
 use tokio_stream::StreamExt;
 
 use super::PayloadUtils;
+use super::api_model::ConnectResetRequest;
 use super::bistream_manage::{BiStreamManage, BiStreamManageCmd};
 use super::{api_model::ClientDetectionRequest, nacos_proto::Payload};
 
@@ -59,6 +60,8 @@ impl BiStreamConn {
 
     fn send_payload(&mut self, ctx: &mut Context<Self>,payload:Payload){
         let sender = self.sender.clone();
+        //debug
+        //log::info!("send_payload {}",PayloadUtils::get_payload_string(&payload));
         async move {
             sender.send(Ok(payload)).await
         }
@@ -88,6 +91,7 @@ impl Supervised for BiStreamConn {
 #[rtype(result = "Result<BiStreamSenderResult,std::io::Error>")]
 pub enum BiStreamSenderCmd {
     Detection(String),
+    Reset(String,Option<String>,Option<String>),
     Send(Arc<Payload>),
     Close,
 }
@@ -109,6 +113,18 @@ impl Handler<BiStreamSenderCmd> for BiStreamConn {
                     "ClientDetectionRequest",
                     serde_json::to_string(&request).unwrap(),
                 );
+                self.send_payload(ctx,payload);
+            },
+            BiStreamSenderCmd::Reset(request_id, ip, port) => {
+                let mut request = ConnectResetRequest::default();
+                request.module = Some("internal".to_owned());
+                request.request_id = Some(request_id);
+                let payload = PayloadUtils::build_payload(
+                    "ConnectResetRequest",
+                    serde_json::to_string(&request).unwrap(),
+                );
+                request.server_ip  =ip;
+                request.server_port=port;
                 self.send_payload(ctx,payload);
             },
             BiStreamSenderCmd::Send(payload) => {

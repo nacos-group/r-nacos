@@ -37,6 +37,8 @@ impl request_server::Request for RequestServerImpl {
         request_meta.client_ip = remote_addr.ip().to_string();
         request_meta.connection_id = Arc::new(remote_addr.to_string());
         let payload = request.into_inner();
+        //debug
+        //log::info!("client request: {}",PayloadUtils::get_payload_string(&payload));
         let request_type = PayloadUtils::get_payload_type(&payload).unwrap();
         let request_log_info=format!("|grpc|client_request|{}|{}",&request_meta.connection_id,&request_type);
         let ignore_active_err="ServerCheckRequest".eq(request_type);
@@ -75,6 +77,8 @@ impl request_server::Request for RequestServerImpl {
         match handle_result {
             Ok(res) => {
                 //log::info!("{}|ok|{}",PayloadUtils::get_payload_header(&res));
+                //debug
+                //log::info!("client response: {}",PayloadUtils::get_payload_string(&res));
                 log::info!("{}|ok|{}",request_log_info,duration);
                 Ok(tonic::Response::new(res))
             },
