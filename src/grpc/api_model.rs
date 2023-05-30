@@ -5,6 +5,10 @@ use serde::{Deserialize, Serialize};
 pub const SUCCESS_CODE:u16= 200u16;
 pub const ERROR_CODE:u16= 500u16;
 
+pub const INTERNAL_MODEL:&'static str="internal";
+pub const CONFIG_MODEL:&'static str="config";
+pub const NAMING_MODEL:&'static str="naming";
+
 #[derive(Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct BaseResponse{

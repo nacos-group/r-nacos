@@ -20,15 +20,17 @@ impl PayloadHandler for ConfigRemoveRequestHandler {
         let body_vec = request_payload.body.unwrap_or_default().value;
         let request:ConfigRemoveRequest = serde_json::from_slice(&body_vec)?;
         let cmd = ConfigCmd::DELETE(ConfigKey::new(&request.data_id,&request.group,&request.tenant));
-        let response = match self.config_addr.send(cmd).await{
+        match self.config_addr.send(cmd).await{
             Ok(_res) => {
-                //let res:ConfigResult = res.unwrap();
-                BaseResponse::build_success_response()
+                let mut response = BaseResponse::build_success_response();
+                response.request_id=request.request_id;
+                Ok(PayloadUtils::build_payload("ConfigRemoveResponse", serde_json::to_string(&response)?))
             },
             Err(err) => {
-                BaseResponse::build_error_response(500u16,err.to_string())
+                let mut response = BaseResponse::build_error_response(500u16,err.to_string());
+                response.request_id=request.request_id;
+                Ok(PayloadUtils::build_payload("ErrorResponse", serde_json::to_string(&response)?))
             }
-        };
-        Ok(PayloadUtils::build_payload("ConfigRemoveResponse", serde_json::to_string(&response)?))
+        }
     }
 }

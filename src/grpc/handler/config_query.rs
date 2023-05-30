@@ -21,6 +21,7 @@ impl PayloadHandler for ConfigQueryRequestHandler {
         let request:ConfigQueryRequest = serde_json::from_slice(&body_vec)?;
         let cmd = ConfigCmd::GET(ConfigKey::new(&request.data_id,&request.group,&request.tenant));
         let mut response = ConfigQueryResponse::default();
+        response.request_id=request.request_id;
         match self.config_addr.send(cmd).await{
             Ok(res) => {
                 //let res:ConfigResult = res.unwrap();
@@ -39,13 +40,14 @@ impl PayloadHandler for ConfigQueryRequestHandler {
                         response.message = Some("config data not exist".to_owned());
                     }
                 }
+                Ok(PayloadUtils::build_payload("ConfigQueryResponse", serde_json::to_string(&response)?))
             },
             Err(err) => {
                 response.result_code = ERROR_CODE;
                 response.error_code = ERROR_CODE;
                 response.message = Some(err.to_string());
+                Ok(PayloadUtils::build_payload("ErrorResponse", serde_json::to_string(&response)?))
             }
-        };
-        Ok(PayloadUtils::build_payload("ConfigQueryResponse", serde_json::to_string(&response)?))
+        }
     }
 }

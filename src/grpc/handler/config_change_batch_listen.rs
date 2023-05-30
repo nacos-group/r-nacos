@@ -32,6 +32,7 @@ impl PayloadHandler for ConfigChangeBatchListenRequestHandler {
             ConfigCmd::RemoveSubscribe(listener_items,request_meta.connection_id)
         };
         let mut response = ConfigChangeBatchListenResponse::default();
+        response.request_id=request.request_id;
         match self.config_addr.send(cmd).await{
             Ok(res) => {
                 let r:ConfigResult = res.unwrap();
@@ -50,13 +51,14 @@ impl PayloadHandler for ConfigChangeBatchListenRequestHandler {
                         response.result_code = SUCCESS_CODE;
                     }
                 }
+                Ok(PayloadUtils::build_payload("ConfigChangeBatchListenResponse", serde_json::to_string(&response)?))
             },
             Err(err) => {
                 response.result_code = ERROR_CODE;
                 response.error_code = ERROR_CODE;
                 response.message = Some(err.to_string());
+                Ok(PayloadUtils::build_payload("ErrorResponse", serde_json::to_string(&response)?))
             }
-        };
-        Ok(PayloadUtils::build_payload("ConfigChangeBatchListenResponse", serde_json::to_string(&response)?))
+        }
     }
 }
