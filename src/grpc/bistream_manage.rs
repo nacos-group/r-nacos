@@ -2,7 +2,7 @@ use std::{collections::{HashMap, HashSet}, sync::Arc, time::Duration};
 
 use crate::{now_millis, config::config::{ConfigKey, ConfigActor, ConfigCmd}, naming::{model::{ServiceInfo, ServiceKey}, core::{NamingActor, NamingCmd}}};
 
-use super::{bistream_conn::{BiStreamConn, BiStreamSenderCmd}, PayloadUtils, nacos_proto::Payload, api_model::{ConfigChangeNotifyRequest, NotifySubscriberRequest}, handler::converter::ModelConverter};
+use super::{bistream_conn::{BiStreamConn, BiStreamSenderCmd}, PayloadUtils, nacos_proto::Payload, api_model::{ConfigChangeNotifyRequest, NotifySubscriberRequest, CONFIG_MODEL, NAMING_MODEL}, handler::converter::ModelConverter};
 use actix::prelude::*;
 use inner_mem_cache::TimeoutSet;
 
@@ -71,6 +71,16 @@ impl BiStreamManage {
         }
     }
 
+    fn next_request_id(&mut self) -> String {
+        if self.request_id>= 0x7fff_ffff_ffff_ffff {
+            self.request_id=0;
+        }
+        else{
+            self.request_id+=1;
+        }
+        self.request_id.to_string()
+    }
+
     /* 
     fn check_active_time_set(&mut self,now:u64){
         let keys=self.active_time_set.timeout(now);
@@ -104,8 +114,7 @@ impl BiStreamManage {
         }
         for key in &del_keys {
             if let Some(item) = self.conn_cache.remove(key){
-                self.request_id+=1;
-                item.conn.do_send(BiStreamSenderCmd::Reset(self.request_id.to_string(),None,None));
+                item.conn.do_send(BiStreamSenderCmd::Reset(self.next_request_id(),None,None));
                 item.conn.do_send(BiStreamSenderCmd::Close);
             }
         }
@@ -171,10 +180,10 @@ impl Handler<BiStreamManageCmd> for BiStreamManage {
         match msg {
             BiStreamManageCmd::Response(client_id,payload)=> {
                 //println!("BiStreamManageCmd payload:{},client_id:{}",PayloadUtils::get_payload_string(&payload),&client_id);
-                if let Some(t)=PayloadUtils::get_payload_type(&payload) {
-                    if "ClientDetectionResponse"== t {
-                        self.active_client(client_id).ok();
-                    }
+                if let Some(_t)=PayloadUtils::get_payload_type(&payload) {
+                    self.active_client(client_id).ok();
+                    //if "ClientDetectionResponse"== t {
+                    //}
                 }
             },
             BiStreamManageCmd::ConnClose(client_id) => {
@@ -197,6 +206,8 @@ impl Handler<BiStreamManageCmd> for BiStreamManage {
                 request.group = config_key.group;
                 request.data_id= config_key.data_id;
                 request.tenant= config_key.tenant;
+                request.request_id=Some(self.next_request_id());
+                request.module = Some(CONFIG_MODEL.to_string());
                 let payload = Arc::new(PayloadUtils::build_payload(
                     "ConfigChangeNotifyRequest",
                     serde_json::to_string(&request).unwrap(),
@@ -214,6 +225,8 @@ impl Handler<BiStreamManageCmd> for BiStreamManage {
                 request.group_name = Some(service_key.group_name);
                 request.service_name = Some(service_key.service_name);
                 request.service_info = Some(service_info);
+                request.request_id=Some(self.next_request_id());
+                request.module = Some(NAMING_MODEL.to_string());
                 let payload = Arc::new(PayloadUtils::build_payload(
                     "NotifySubscriberRequest",
                     serde_json::to_string(&request).unwrap(),
