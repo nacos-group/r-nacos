@@ -21,8 +21,9 @@ jobs:
           # mdbook-version: 'latest'
       - name: mdbook build
         run: | 
-        cd book
-        mdbook build
+          cd book
+          mdbook build
+          cd -
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v3
         if: ${{ github.ref == 'refs/heads/master' }}
