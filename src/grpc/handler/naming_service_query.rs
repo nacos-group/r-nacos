@@ -34,6 +34,7 @@ impl PayloadHandler for ServiceQueryRequestHandler {
         let body_vec = request_payload.body.unwrap_or_default().value;
         let request:ServiceQueryRequest = serde_json::from_slice(&body_vec)?;
         let mut response = ServiceQueryResponse::default();
+        response.request_id=request.request_id;
         let cluster =if let Some(v) =request.cluster.as_ref() {v.clone()} else {"".to_owned()};
         let namespace = NamingUtils::default_namespace(request.namespace.as_ref().unwrap_or(&"".to_owned()).to_owned());
         let key = ServiceKey::new(&namespace
@@ -59,6 +60,10 @@ impl PayloadHandler for ServiceQueryRequestHandler {
                 response.result_code = ERROR_CODE;
                 response.error_code = 500u16;
                 response.message = Some(err.to_string());
+                return Ok(PayloadUtils::build_payload(
+                    "ErrorResponse",
+                    serde_json::to_string(&response)?,
+                ));
             }
         };
         Ok(PayloadUtils::build_payload("QueryServiceResponse", serde_json::to_string(&response)?))

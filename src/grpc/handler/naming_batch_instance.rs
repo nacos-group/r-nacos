@@ -96,6 +96,7 @@ impl PayloadHandler for BatchInstanceRequestHandler {
     ) -> anyhow::Result<Payload> {
         let body_vec = request_payload.body.unwrap_or_default().value;
         let request: BatchInstanceRequest = serde_json::from_slice(&body_vec)?;
+        let request_id = request.request_id.clone();
         let mut is_de_register = false;
         if let Some(t) = &request.r#type {
             if t == DE_REGISTER_INSTANCE {
@@ -104,6 +105,7 @@ impl PayloadHandler for BatchInstanceRequestHandler {
         }
         let instances = Self::convert_to_instances(request,request_meta.connection_id)?;
         let mut response = InstanceResponse::default();
+        response.request_id=request_id;
         for instance in instances {
             let cmd = if is_de_register {
                 NamingCmd::Delete(instance)
@@ -132,7 +134,7 @@ impl PayloadHandler for BatchInstanceRequestHandler {
                     response.error_code = 500u16;
                     response.message = Some(err.to_string());
                     return Ok(PayloadUtils::build_payload(
-                        "InstanceResponse",
+                        "ErrorResponse",
                         serde_json::to_string(&response)?,
                     ));
                 }
