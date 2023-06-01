@@ -110,8 +110,10 @@ impl Service {
                     rtype=UpdateInstanceType::UpdateTime;
                 }
             }
-            if old_instance.from_grpc {
+            if !instance.from_grpc && old_instance.from_grpc {
+                //如果新实例来自http,旧实例来自grpc,则保持grpc的实例信息
                 instance.from_grpc = old_instance.from_grpc;
+                instance.client_id = old_instance.client_id.clone();
             }
         }
         else{
