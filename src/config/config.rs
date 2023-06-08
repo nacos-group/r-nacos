@@ -412,6 +412,7 @@ impl Handler<ConfigCmd> for ConfigActor{
             },
             ConfigCmd::DELETE(key) =>{
                 self.cache.remove(&key);
+                self.config_db.del_config(&key);
                 self.tenant_index.remove_config(&key);
                 self.listener.notify(key.clone());
                 self.subscriber.notify(key.clone());
