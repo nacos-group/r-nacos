@@ -14,7 +14,5 @@
 
 ![](https://github.com/heqingpan/rnacos/raw/master/doc/assets/imgs/rnacos_L4_config001.svg)
 
-(https://github.com/heqingpan/rnacos)[rnacos]
-
 
 **待补充...**
