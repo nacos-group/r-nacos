@@ -9,6 +9,8 @@ rnacos是一个轻量、快速、稳定的服务，包含注册中心、配置�
 
 rnacos兼容nacos client sdk用到的协议（包含1.x的http OpenApi，和2.x的grpc协议），支持使用nacos服务的应用平迁到 rnacos。
 
+详细说明可以看 [rnacos book](https://heqingpan.github.io/rnacos/index.html)
+
 ## 开发原由
 
 一方面自己学习 rust 后想，写个中间件实践rust网络并发编程。
