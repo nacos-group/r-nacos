@@ -9,49 +9,60 @@ homepage = "https://github.com/heqingpan/rnacos"
 repository = "https://github.com/heqingpan/rnacos"
 documentation = "https://docs.rs/rnacos/latest"
 readme = "README.md"
-keywords = ["nacos","rnacos","registry","config"]
+keywords = ["nacos", "rnacos", "registry", "config"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [[bin]]
-name="rnacos"
-path="src/main.rs"
+name = "rnacos"
+path = "src/main.rs"
 
 [dependencies]
-serde = {version = "1", features = ["derive","rc"]}
+serde = { version = "1", features = ["derive", "rc"] }
 serde_json = "1"
-serde_urlencoded = "0.6"
-actix-web="4"
-actix-http="3"
+serde_urlencoded = "0.7"
+actix-web = "4"
+actix-http = "3"
 actix = "0.13"
 actix-rt = "2"
 actix-multipart = "0.6"
 actix-multipart-derive = "0.6"
-env_logger = "0.7"
-rust-crypto="0.2"
-tokio = {version="1", features=["full"]}
+env_logger = "0.10"
+rust-crypto = "0.2"
+tokio = { version = "1", features = ["full"] }
 tokio-stream = "0.1"
-chrono = {version = "0.4", features =["serde"] }
+chrono = { version = "0.4", features = ["serde"] }
 flate2 = "1.0"
-log="0.4"
+log = "0.4"
+
 tonic = "0.4"
-prost="0.7"
+
 async-trait = "0.1"
 anyhow = "1"
-mime="0.3"
+mime = "0.3"
 lazy_static = "1.4"
 dotenv = "0.15"
 #rust-embed="6.6.1"
-mime_guess = { version = "2"}
+mime_guess = { version = "2" }
 # db
-rusqlite={version="0.25",features = ["bundled"]}
-rsql_builder="0.1.5"
-inner-mem-cache="0.1.3"
+rusqlite = { version = "0.25", features = ["bundled"] }
+rsql_builder = "0.1.5"
+inner-mem-cache = "0.1.3"
 rnacos-web-dist-wrap = "0.1.9"
 nacos_rust_client = "0.2"
-zip="0.6"
+zip = "0.6"
 tempfile = "3"
 
+# sled db
+sled = "0.34"
+
+# protobuf serde
+prost = "0.7"
+prost-derive = "0.7"
+prost-types = "0.7"
+
+# bytes
+bytes = "1"
 
 [dependencies.uuid]
 version = "1.2.1"
