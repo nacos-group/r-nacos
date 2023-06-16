@@ -178,8 +178,8 @@ impl ListenerItem {
 
 struct OnceListener {
     version: u64,
-    time: i64,
-    list: Vec<ListenerItem>,
+    //time: i64,
+    //list: Vec<ListenerItem>,
 }
 
 pub enum ListenerResult {
@@ -223,8 +223,8 @@ impl ConfigListener {
         self.sender_map.insert(self.version, sender);
         let once_listener = OnceListener {
             version: self.version,
-            time,
-            list: items,
+            //time,
+            //list: items,
         };
         match self.time_listener.get_mut(&time) {
             Some(list) => {
@@ -240,7 +240,7 @@ impl ConfigListener {
         if let Some(list) = self.listener.remove(&key) {
             for v in list {
                 if let Some(sender) = self.sender_map.remove(&v) {
-                    sender.send(ListenerResult::DATA(vec![key.clone()]));
+                    sender.send(ListenerResult::DATA(vec![key.clone()])).ok();
                 }
             }
         }
@@ -255,7 +255,7 @@ impl ConfigListener {
                 for item in list {
                     let v = item.version;
                     if let Some(sender) = self.sender_map.remove(&v) {
-                        sender.send(ListenerResult::NULL);
+                        sender.send(ListenerResult::NULL).ok();
                     }
                 }
             } else {
@@ -406,7 +406,7 @@ impl Handler<ConfigCmd> for ConfigActor {
                         return Ok(ConfigResult::NULL);
                     }
                 }
-                self.config_db.update_config(&key, &config_val);
+                self.config_db.update_config(&key, &config_val).ok();
                 self.cache.insert(key.clone(), config_val);
                 self.tenant_index.insert_config(key.clone());
                 self.listener.notify(key.clone());
@@ -414,7 +414,7 @@ impl Handler<ConfigCmd> for ConfigActor {
             }
             ConfigCmd::DELETE(key) => {
                 self.cache.remove(&key);
-                self.config_db.del_config(&key);
+                self.config_db.del_config(&key).ok();
                 self.tenant_index.remove_config(&key);
                 self.listener.notify(key.clone());
                 self.subscriber.notify(key.clone());
@@ -437,7 +437,7 @@ impl Handler<ConfigCmd> for ConfigActor {
                     }
                 }
                 if changes.len() > 0 || time <= 0 {
-                    sender.send(ListenerResult::DATA(changes));
+                    sender.send(ListenerResult::DATA(changes)).ok();
                     return Ok(ConfigResult::NULL);
                 } else {
                     self.listener.add(items, sender, time);
