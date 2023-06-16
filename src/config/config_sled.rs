@@ -1,10 +1,11 @@
 use std::convert::TryInto;
+use std::sync::MutexGuard;
 
 use super::{
     config::{ConfigKey, ConfigValue},
     dal::ConfigHistoryParam,
 };
-use crate::common::AppSysConfig;
+
 use chrono::Local;
 use prost::Message;
 use serde::{Deserialize, Serialize};
@@ -33,7 +34,7 @@ impl Config {
     }
 
     pub fn get_config_history_key(&self) -> String {
-        let id = self.id.unwrap_or(0);
+        let id = self.id.unwrap_or(1);
         format!("{}_{}_{}_{}", self.tenant, self.group, self.data_id, id)
     }
 }
@@ -48,13 +49,10 @@ pub struct ConfigDB {
 }
 
 impl ConfigDB {
-    pub fn new() -> Self {
-        let sys_config = AppSysConfig::init_from_env();
-        let db = sled::open(sys_config.config_db_dir).unwrap();
+    pub fn new(db: MutexGuard<'_, sled::Db>) -> Self {
         let config_tree = db.open_tree("config").unwrap();
         let config_history_tree = db.open_tree("confighistory").unwrap();
         let config_history_helper = db.open_tree("confighistoryhelper").unwrap();
-
         Self {
             config_tree,
             config_history_tree,
@@ -64,7 +62,7 @@ impl ConfigDB {
 
     pub fn update_config(&self, key: &ConfigKey, val: &ConfigValue) -> anyhow::Result<()> {
         let mut config = Config {
-            id: None,
+            id: Some(1),
             tenant: key.tenant.as_ref().to_owned(),
             group: key.group.as_ref().to_owned(),
             data_id: key.data_id.as_ref().to_owned(),
@@ -72,6 +70,7 @@ impl ConfigDB {
             content_md5: Option::None,
             last_time: Some(Local::now().timestamp_millis()),
         };
+
         let config_key = config.get_config_key();
 
         if let Ok(Some(config_bytes)) = self.config_tree.get(&config_key) {
@@ -83,10 +82,16 @@ impl ConfigDB {
                     .insert(&config_key, &(latest_id + 1).to_ne_bytes())?;
             } else {
                 self.config_history_helper
-                    .insert(&config_key, &0i64.to_ne_bytes())?;
+                    .insert(&config_key, &1i64.to_ne_bytes())?;
             }
+
             let his_key = config.get_config_history_key();
-            self.config_history_tree.insert(his_key, config_bytes)?;
+            // have to update id in old_config_bytes
+            let mut cfg = Config::decode(config_bytes.as_ref())?;
+            cfg.id = config.id;
+            let mut data = Vec::new();
+            cfg.encode(&mut data)?;
+            self.config_history_tree.insert(his_key, data)?;
         }
         // using protobuf as value serialization
         let mut config_bytes = Vec::new();
@@ -102,8 +107,8 @@ impl ConfigDB {
             data_id: key.data_id.as_ref().to_owned(),
             ..Default::default()
         };
-        let config_key = cfg.get_config_key();
 
+        let config_key = cfg.get_config_key();
         if let Ok(Some(_)) = self.config_tree.remove(&config_key) {
             self.config_history_helper.remove(&config_key)?;
             let mut iter = self.config_history_tree.scan_prefix(&config_key);
@@ -158,12 +163,15 @@ impl ConfigDB {
 
 #[cfg(test)]
 mod tests {
+    use crate::common;
+
     use super::*;
     use std::sync::Arc;
 
     #[test]
     fn test() {
-        let config_db = ConfigDB::new();
+        let db = common::DB.lock().unwrap();
+        let config_db = ConfigDB::new(db);
         let key = ConfigKey {
             tenant: Arc::new("dev".to_owned()),
             group: Arc::new("dev".to_owned()),
@@ -183,7 +191,8 @@ mod tests {
 
     #[test]
     fn page_test() {
-        let config_db = ConfigDB::new();
+        let db = common::DB.lock().unwrap();
+        let config_db = ConfigDB::new(db);
         let param = ConfigHistoryParam {
             id: None,
             tenant: Some("dev".to_owned()),
@@ -205,7 +214,8 @@ mod tests {
 
     #[test]
     fn test_del() {
-        let config_db = ConfigDB::new();
+        let db = common::DB.lock().unwrap();
+        let config_db = ConfigDB::new(db);
         let key = ConfigKey {
             tenant: Arc::new("dev".to_owned()),
             group: Arc::new("dev".to_owned()),

@@ -1,8 +1,23 @@
+use lazy_static::lazy_static;
+use std::sync::{Arc, Mutex};
 use uuid::Uuid;
 
 pub mod delay_notify;
 pub mod rusqlite_utils;
 pub mod string_utils;
+
+lazy_static! {
+    // Global app sys config
+    pub static ref APP_SYS_CONFIG: AppSysConfig = AppSysConfig::init_from_env();
+    // Global sled db
+    pub static ref DB: Arc<Mutex<sled::Db>> = Arc::new(Mutex::new(
+        sled::Config::new()
+            .path(&APP_SYS_CONFIG.config_db_dir)
+            .mode(sled::Mode::HighThroughput)
+            .open()
+            .unwrap()
+    ));
+}
 
 #[derive(Default, Clone, Debug)]
 pub struct NamingSysConfig {

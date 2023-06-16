@@ -5,6 +5,7 @@ use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 use std::time::Duration;
 
+use crate::common;
 use crate::grpc::bistream_manage::BiStreamManage;
 use crate::utils::get_md5;
 use serde::{Deserialize, Serialize};
@@ -277,12 +278,13 @@ pub struct ConfigActor {
 
 impl ConfigActor {
     pub fn new() -> Self {
+        let db = common::DB.lock().unwrap();
         let mut s = Self {
             cache: Default::default(),
             subscriber: Subscriber::new(),
             listener: ConfigListener::new(),
             tenant_index: Default::default(),
-            config_db: ConfigDB::new(),
+            config_db: ConfigDB::new(db),
         };
         s.load_config();
         s
