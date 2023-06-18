@@ -4,4 +4,4 @@ config.db
 naming.db
 .idea
 *.DS_Store
-
+/nacos_db
