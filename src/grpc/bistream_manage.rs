@@ -177,9 +177,11 @@ pub enum BiStreamManageCmd {
     ActiveClinet(Arc<String>),
     NotifyConfig(ConfigKey,HashSet<Arc<String>>),
     NotifyNaming(ServiceKey,HashSet<Arc<String>>,ServiceInfo),
+    QueryConnList,
 }
 
 pub enum BiStreamManageResult {
+    ConnList(Vec<Arc<String>>),
     None,
 }
 
@@ -247,6 +249,13 @@ impl Handler<BiStreamManageCmd> for BiStreamManage {
                     }
                 }
             },
+            BiStreamManageCmd::QueryConnList => {
+                let mut list = Vec::with_capacity(self.conn_cache.len());
+                for key in self.conn_cache.keys() {
+                    list.push(key.clone());
+                }
+                return Ok(BiStreamManageResult::ConnList(list));
+            }
         }
         Ok(BiStreamManageResult::None)
     }

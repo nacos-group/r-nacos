@@ -471,6 +471,7 @@ pub enum NamingCmd {
     Subscribe(Vec<NamingListenerItem>,Arc<String>),
     RemoveSubscribe(Vec<NamingListenerItem>,Arc<String>),
     RemoveClient(Arc<String>),
+    QueryClientInstanceCount,
     QueryDalAddr,
 }
 
@@ -482,6 +483,7 @@ pub enum NamingResult {
     ServiceInfo(ServiceInfo),
     ServicePage((usize,Vec<Arc<String>>)),
     ServiceInfoPage((usize,Vec<ServiceInfoDto>)),
+    ClientInstanceCount(Vec<(Arc<String>,usize)>),
 }
 
 impl Actor for NamingActor {
@@ -620,6 +622,13 @@ impl Handler<NamingCmd> for NamingActor {
                     Ok(NamingResult::InstanceList(vec![]))
                 }
             },
+            NamingCmd::QueryClientInstanceCount => {
+                let mut client_instance_count = Vec::with_capacity(self.client_instance_set.len());
+                for (k,v) in &self.client_instance_set {
+                    client_instance_count.push((k.clone(), v.len()));
+                }
+                Ok(NamingResult::ClientInstanceCount(client_instance_count))
+            }
         }
     }
 }

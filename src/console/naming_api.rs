@@ -4,7 +4,7 @@ use actix_web::{http::header, web, HttpRequest, HttpResponse, Responder};
 
 use actix::prelude::Addr;
 
-use super::model::naming_model::{OpsNamingQueryListResponse, QueryAllInstanceListParam};
+use super::model::{naming_model::{OpsNamingQueryListResponse, QueryAllInstanceListParam}, PageResult};
 use crate::naming::core::{NamingActor, NamingCmd, NamingResult};
 
 pub async fn query_ops_instances_list(
@@ -34,3 +34,28 @@ pub async fn query_ops_instances_list(
         Err(err) => HttpResponse::InternalServerError().body(err.to_string()),
     }
 }
+
+pub async fn query_grpc_client_instance_count(
+    naming_addr: web::Data<Addr<NamingActor>>,
+) -> impl Responder {
+    match naming_addr.send(NamingCmd::QueryClientInstanceCount).await {
+        Ok(res) => match res as anyhow::Result<NamingResult> {
+            Ok(result) => match result {
+                NamingResult::ClientInstanceCount(list) => {
+                    let resp = PageResult {
+                        count: list.len() as u64,
+                        list,
+                    };
+                    let v = serde_json::to_string(&resp).unwrap();
+                    HttpResponse::Ok()
+                        .insert_header(header::ContentType(mime::APPLICATION_JSON))
+                        .body(v)
+                }
+                _ => HttpResponse::InternalServerError().body("error result"),
+            },
+            Err(err) => HttpResponse::InternalServerError().body(err.to_string()),
+        },
+        Err(err) => HttpResponse::InternalServerError().body(err.to_string()),
+    }
+}
+

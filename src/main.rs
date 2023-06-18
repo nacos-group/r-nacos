@@ -40,6 +40,7 @@ async fn main() -> Result<(), Box<dyn Error>>  {
     let bistream_manage_addr = bistream_manage.start();
     config_addr.do_send(ConfigCmd::SetConnManage(bistream_manage_addr.clone()));
     naming_addr.do_send(NamingCmd::SetConnManage(bistream_manage_addr.clone()));
+    let bistream_manage_http_addr = bistream_manage_addr.clone();
 
     let mut invoker = InvokerHandler::new();
     invoker.add_config_handler(&config_addr);
@@ -60,10 +61,12 @@ async fn main() -> Result<(), Box<dyn Error>>  {
     let mut server = HttpServer::new(move || {
         let config_addr = config_addr.clone();
         let naming_addr = naming_addr.clone();
+        let bistream_manage_http_addr = bistream_manage_http_addr.clone();
         //let naming_dal_addr = naming_dal_addr.clone();
         App::new()
             .app_data(Data::new(config_addr))
             .app_data(Data::new(naming_addr))
+            .app_data(Data::new(bistream_manage_http_addr))
             //.app_data(Data::new(naming_dal_addr))
             .wrap(middleware::Logger::default())
             .configure(app_config)

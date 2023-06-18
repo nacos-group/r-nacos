@@ -3,7 +3,7 @@ use actix::prelude::*;
 
 use crate::config::config::ConfigActor;
 
-use super::{NamespaceUtils, model::{ConsoleResult, NamespaceInfo}, naming_api::query_ops_instances_list, config_api::{import_config, download_config, query_history_config_page}};
+use super::{NamespaceUtils, model::{ConsoleResult, NamespaceInfo}, naming_api::{query_ops_instances_list, query_grpc_client_instance_count}, config_api::{import_config, download_config, query_history_config_page}, connection_api::query_grpc_connection};
 use super::config_api::query_config_list;
 
 
@@ -98,6 +98,12 @@ pub fn app_config(config:&mut web::ServiceConfig) {
             )
             .service(web::resource("/instances")
                 .route( web::get().to(query_ops_instances_list))
+            )
+            .service(web::resource("/naming/client_instance_count")
+                .route(web::get().to(query_grpc_client_instance_count))
+            )
+            .service(web::resource("/connections")
+                .route(web::get().to(query_grpc_connection))
             )
     );
 }

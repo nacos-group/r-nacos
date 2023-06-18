@@ -3,6 +3,7 @@ pub mod api;
 pub mod model;
 pub mod config_api;
 pub mod naming_api;
+pub mod connection_api;
 
 use std::sync::Arc;
 
