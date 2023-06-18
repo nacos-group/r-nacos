@@ -260,7 +260,7 @@ pub struct ServiceInfo {
     pub cache_millis: i64,
     pub hosts: Option<Vec<Instance>>,
     pub last_ref_time: i64,
-    pub checksum: i64,
+    pub checksum: Option<String>,
     #[serde(rename = "allIPs")]
     pub all_ips:bool,
     pub reach_protection_threshold: bool,
