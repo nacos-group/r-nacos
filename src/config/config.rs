@@ -1,11 +1,10 @@
 use chrono::Local;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
-use std::hash::{Hash, Hasher};
+use std::hash::Hash;
 use std::sync::Arc;
 use std::time::Duration;
 
-use crate::common;
 use crate::grpc::bistream_manage::BiStreamManage;
 use crate::utils::get_md5;
 use serde::{Deserialize, Serialize};
@@ -17,7 +16,7 @@ use super::config_subscribe::Subscriber;
 use super::dal::ConfigHistoryParam;
 use crate::config::config_index::{ConfigQueryParam, TenantIndex};
 
-#[derive(Debug, Eq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone, Hash)]
 pub struct ConfigKey {
     pub(crate) data_id: Arc<String>,
     pub(crate) group: Arc<String>,
@@ -49,17 +48,11 @@ impl ConfigKey {
     }
 }
 
-impl PartialEq for ConfigKey {
-    fn eq(&self, o: &Self) -> bool {
-        self.data_id == o.data_id && self.group == o.group && self.tenant == o.tenant
-    }
-}
-
-impl Hash for ConfigKey {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.build_key().hash(state);
-    }
-}
+// impl PartialEq for ConfigKey {
+//     fn eq(&self, o: &Self) -> bool {
+//         self.data_id == o.data_id && self.group == o.group && self.tenant == o.tenant
+//     }
+// }
 
 pub struct ConfigValue {
     pub(crate) content: Arc<String>,
@@ -276,15 +269,20 @@ pub struct ConfigActor {
     config_db: ConfigDB,
 }
 
+impl Default for ConfigActor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ConfigActor {
     pub fn new() -> Self {
-        let db = common::DB.lock().unwrap();
         let mut s = Self {
-            cache: Default::default(),
+            cache: HashMap::new(),
             subscriber: Subscriber::new(),
             listener: ConfigListener::new(),
-            tenant_index: Default::default(),
-            config_db: ConfigDB::new(db),
+            tenant_index: TenantIndex::new(),
+            config_db: ConfigDB::new(),
         };
         s.load_config();
         s
