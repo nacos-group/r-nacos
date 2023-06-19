@@ -16,20 +16,20 @@ const MAX_HIS_CNT: i64 = 9999;
 
 #[derive(Clone, PartialEq, Message, Deserialize, Serialize)]
 pub struct Config {
-    #[prost(int64, optional, tag = "1")]
-    pub id: Option<i64>,
-    #[prost(string, tag = "2")]
+    #[prost(string, tag = "1")]
     pub tenant: String,
-    #[prost(string, tag = "3")]
+    #[prost(string, tag = "2")]
     pub group: String,
-    #[prost(string, tag = "4")]
+    #[prost(string, tag = "3")]
     pub data_id: String,
-    #[prost(string, optional, tag = "5")]
+    #[prost(string, optional, tag = "4")]
     pub content: Option<String>,
-    #[prost(string, optional, tag = "6")]
+    #[prost(string, optional, tag = "5")]
     pub content_md5: Option<String>,
-    #[prost(int64, optional, tag = "7")]
+    #[prost(int64, optional, tag = "6")]
     pub last_time: Option<i64>,
+    #[prost(int64, optional, tag = "7")]
+    pub id: Option<i64>,
 }
 
 impl Config {
@@ -119,41 +119,47 @@ impl ConfigDB {
 
     pub fn update_config(&mut self, key: &ConfigKey, val: &ConfigValue) -> Result<()> {
         let mut config = Config {
-            id: Some(1),
             tenant: key.tenant.as_ref().to_owned(),
             group: key.group.as_ref().to_owned(),
             data_id: key.data_id.as_ref().to_owned(),
             content: Some(val.content.as_ref().to_owned()),
             content_md5: Option::None,
             last_time: Some(Local::now().timestamp_millis()),
+            id: None,
         };
 
         let config_key = config.get_config_key()?;
 
-        if let Ok(Some(config_bytes)) = self.config_db.get(&config_key) {
-            let mut not_over_limit = true;
-            // deal with history id counter
-            if let Ok(Some(latest_id_bytes)) = self.config_history_helper.get(&config_key) {
-                let mut latest_id = ConfigHistoryId::decode(latest_id_bytes.as_ref())?;
-                if latest_id.id >= MAX_HIS_CNT {
-                    not_over_limit = false;
-                    log::warn!("config history id reach max limit: {}", MAX_HIS_CNT);
-                }
+        // using protobuf as value serialization
+        let mut config_bytes = Vec::new();
+        config.encode(&mut config_bytes)?;
+        self.config_db.insert(&config_key, config_bytes)?;
 
-                if not_over_limit {
-                    config.id = Some(latest_id.id + 1);
-                    latest_id.id += 1;
-                    let mut data = Vec::new();
-                    latest_id.encode(&mut data)?;
-                    self.config_history_helper.insert(&config_key, data)?;
-                }
-            } else {
-                let mut data = Vec::new();
-                let latest_id = ConfigHistoryId { id: 1 };
-                latest_id.encode(&mut data)?;
-                self.config_history_helper.insert(&config_key, data)?;
+        // deal with history id counter
+        let mut not_over_limit = true;
+        if let Ok(Some(latest_id_bytes)) = self.config_history_helper.get(&config_key) {
+            let mut latest_id = ConfigHistoryId::decode(latest_id_bytes.as_ref())?;
+            if latest_id.id >= MAX_HIS_CNT {
+                not_over_limit = false;
+                log::warn!("config history id reach max limit: {}", MAX_HIS_CNT);
             }
 
+            if not_over_limit {
+                config.id = Some(latest_id.id + 1);
+                latest_id.id += 1;
+                let mut id_bytes = Vec::new();
+                latest_id.encode(&mut id_bytes)?;
+                self.config_history_helper.insert(&config_key, id_bytes)?;
+            }
+        } else {
+            config.id = Some(1);
+            let mut id_bytes = Vec::new();
+            let latest_id = ConfigHistoryId { id: 1 };
+            latest_id.encode(&mut id_bytes)?;
+            self.config_history_helper.insert(&config_key, id_bytes)?;
+        }
+
+        if not_over_limit {
             let mut ch = self.config_history.write().unwrap();
             let his_tree = match ch.get(&config_key) {
                 Some(tree) => tree,
@@ -165,21 +171,12 @@ impl ConfigDB {
                 }
             };
 
-            if not_over_limit {
-                // have to update id in old_config_bytes
-                let mut cfg = Config::decode(config_bytes.as_ref())?;
-                cfg.id = config.id;
-                let mut data = Vec::new();
-                cfg.encode(&mut data)?;
-                let his_key = config.get_config_history_key()?;
-                his_tree.insert(his_key, data)?;
-            }
+            let mut his_config_bytes = Vec::new();
+            config.encode(&mut his_config_bytes)?;
+            let his_key = config.get_config_history_key()?;
+            his_tree.insert(his_key, his_config_bytes)?;
         }
 
-        // using protobuf as value serialization
-        let mut config_bytes = Vec::new();
-        config.encode(&mut config_bytes)?;
-        self.config_db.insert(&config_key, config_bytes)?;
         Ok(())
     }
 
@@ -287,7 +284,7 @@ mod tests {
         let mut config_db = ConfigDB::new();
         for i in 1..1000 {
             let key = ConfigKey {
-                tenant: Arc::new("".to_owned()),
+                tenant: Arc::new("dev".to_owned()),
                 group: Arc::new("dev".to_owned()),
                 data_id: Arc::new("iris-app-dev.properties".to_owned()),
             };
