@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::RwLock};
+use std::collections::HashMap;
 
 use crate::common;
 
@@ -33,20 +33,24 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn get_config_key(&self) -> Result<Vec<u8>> {
+    fn get_config_key(&self) -> Result<Vec<u8>> {
         let csk = ConfigSerdeKey {
             tenant: self.tenant.to_owned(),
             group: self.group.to_owned(),
             data_id: self.data_id.to_owned(),
         };
-        let mut v = Vec::new();
-        csk.encode(&mut v)?;
-        Ok(v)
+        Ok(csk.to_key())
     }
 
-    pub fn get_config_history_key(&self) -> Result<Vec<u8>> {
+    fn get_config_history_key(&self) -> Result<Vec<u8>> {
         let vec = format!("{:0>4}", self.id.unwrap_or(1)).as_bytes().to_vec();
         Ok(vec)
+    }
+
+    fn to_bytes(&self) -> Result<Vec<u8>> {
+        let mut v = Vec::new();
+        self.encode(&mut v)?;
+        Ok(v)
     }
 }
 
@@ -63,6 +67,14 @@ struct ConfigSerdeKey {
     pub data_id: String,
 }
 
+impl ConfigSerdeKey {
+    fn to_key(&self) -> Vec<u8> {
+        let mut v = Vec::new();
+        self.encode(&mut v).unwrap();
+        v
+    }
+}
+
 /**
  * Config History Id Protobuf
  */
@@ -72,11 +84,19 @@ struct ConfigHistoryId {
     pub id: i64,
 }
 
+impl ConfigHistoryId {
+    fn to_bytes(&self) -> Result<Vec<u8>> {
+        let mut v = Vec::new();
+        self.encode(&mut v)?;
+        Ok(v)
+    }
+}
+
 pub struct ConfigDB {
     // config data
     config_db: sled::Tree,
     // config history data
-    config_history: RwLock<HashMap<Vec<u8>, sled::Tree>>,
+    config_history: HashMap<Vec<u8>, sled::Tree>,
     // config history id tracker [0001 ~ 9999]
     config_history_helper: sled::Tree,
 }
@@ -90,32 +110,31 @@ impl Default for ConfigDB {
 impl ConfigDB {
     pub fn new() -> Self {
         let db = common::DB.lock().unwrap();
-        let config_tree = db.open_tree("config").unwrap();
+        let config_db = db.open_tree("config").unwrap();
         let config_history_helper = db.open_tree("confighistoryhelper").unwrap();
 
         // init all config_histories
-        let mut map = HashMap::new();
-        let mut iter = config_tree.iter();
+        let mut config_history = HashMap::new();
+        let mut iter = config_db.iter();
         while let Some(Ok((k, _))) = iter.next() {
             let k_bytes = k.to_vec();
             let cht = db.open_tree(&k_bytes).unwrap();
-            map.insert(k_bytes, cht);
+            config_history.insert(k_bytes, cht);
         }
 
         Self {
-            config_db: config_tree,
-            config_history: RwLock::new(map),
+            config_db,
+            config_history,
             config_history_helper,
         }
     }
 
-    // pub fn new_his_tree(&mut self, key: &Vec<u8>) -> Result<()> {
-    //     let mut ch = self.config_history.write().unwrap();
-    //     let db = common::DB.lock().unwrap();
-    //     let tree = db.open_tree(key)?;
-    //     ch.insert(key.to_owned(), tree);
-    //     Ok(())
-    // }
+    pub fn new_his_tree(&mut self, key: &Vec<u8>) -> Result<()> {
+        let db = common::DB.lock().unwrap();
+        let tree = db.open_tree(key)?;
+        self.config_history.insert(key.to_owned(), tree);
+        Ok(())
+    }
 
     pub fn update_config(&mut self, key: &ConfigKey, val: &ConfigValue) -> Result<()> {
         let mut config = Config {
@@ -131,9 +150,7 @@ impl ConfigDB {
         let config_key = config.get_config_key()?;
 
         // using protobuf as value serialization
-        let mut config_bytes = Vec::new();
-        config.encode(&mut config_bytes)?;
-        self.config_db.insert(&config_key, config_bytes)?;
+        self.config_db.insert(&config_key, config.to_bytes()?)?;
 
         // deal with history id counter
         let mut not_over_limit = true;
@@ -147,34 +164,27 @@ impl ConfigDB {
             if not_over_limit {
                 config.id = Some(latest_id.id + 1);
                 latest_id.id += 1;
-                let mut id_bytes = Vec::new();
-                latest_id.encode(&mut id_bytes)?;
-                self.config_history_helper.insert(&config_key, id_bytes)?;
+                self.config_history_helper
+                    .insert(&config_key, latest_id.to_bytes()?)?;
             }
         } else {
             config.id = Some(1);
-            let mut id_bytes = Vec::new();
             let latest_id = ConfigHistoryId { id: 1 };
-            latest_id.encode(&mut id_bytes)?;
-            self.config_history_helper.insert(&config_key, id_bytes)?;
+            self.config_history_helper
+                .insert(&config_key, latest_id.to_bytes()?)?;
         }
 
         if not_over_limit {
-            let mut ch = self.config_history.write().unwrap();
-            let his_tree = match ch.get(&config_key) {
+            let his_tree = match self.config_history.get(&config_key) {
                 Some(tree) => tree,
                 None => {
-                    let db = common::DB.lock().unwrap();
-                    let tree = db.open_tree(&config_key)?;
-                    ch.insert(config_key.to_owned(), tree);
-                    ch.get(&config_key).unwrap()
+                    self.new_his_tree(&config_key)?;
+                    self.config_history.get(&config_key).unwrap()
                 }
             };
 
-            let mut his_config_bytes = Vec::new();
-            config.encode(&mut his_config_bytes)?;
             let his_key = config.get_config_history_key()?;
-            his_tree.insert(his_key, his_config_bytes)?;
+            his_tree.insert(his_key, config.to_bytes()?)?;
         }
 
         Ok(())
@@ -191,12 +201,11 @@ impl ConfigDB {
         let config_key = cfg.get_config_key()?;
         if let Ok(Some(_)) = self.config_db.remove(&config_key) {
             self.config_history_helper.remove(&config_key)?;
-            let mut ch = self.config_history.write().unwrap();
 
-            if ch.get(&config_key).is_some() {
+            if self.config_history.get(&config_key).is_some() {
                 let db = common::DB.lock().unwrap();
                 db.drop_tree(&config_key)?;
-                ch.remove(&config_key);
+                self.config_history.remove(&config_key);
             }
         }
 
@@ -219,16 +228,14 @@ impl ConfigDB {
         param: &ConfigHistoryParam,
     ) -> Result<(usize, Vec<Config>)> {
         if let (Some(t), Some(g), Some(id)) = (&param.tenant, &param.group, &param.data_id) {
-            let config = Config {
+            let config = ConfigSerdeKey {
                 tenant: t.to_owned(),
                 group: g.to_owned(),
                 data_id: id.to_owned(),
-                ..Default::default()
             };
-            let config_key = config.get_config_key()?;
-            let ch = self.config_history.read().unwrap();
+            let config_key = config.to_key();
 
-            if let Some(his_tree) = ch.get(&config_key) {
+            if let Some(his_tree) = self.config_history.get(&config_key) {
                 let total: usize = his_tree.len();
                 let mut ret = vec![];
                 let iter = his_tree.iter().rev();
