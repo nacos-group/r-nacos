@@ -12,8 +12,6 @@ use chrono::Local;
 use prost::Message;
 use serde::{Deserialize, Serialize};
 
-const MAX_HIS_CNT: i64 = 9999;
-
 #[derive(Clone, PartialEq, Message, Deserialize, Serialize)]
 pub struct Config {
     #[prost(string, tag = "1")]
@@ -43,6 +41,7 @@ impl Config {
     }
 
     fn get_config_history_key(&self) -> Result<Vec<u8>> {
+        // FIXME: 如何保证key的顺序
         let vec = format!("{:0>4}", self.id.unwrap_or(1)).as_bytes().to_vec();
         Ok(vec)
     }
@@ -75,30 +74,12 @@ impl ConfigSerdeKey {
     }
 }
 
-/**
- * Config History Id Protobuf
- */
-#[derive(Message)]
-struct ConfigHistoryId {
-    #[prost(int64, tag = "1")]
-    pub id: i64,
-}
-
-impl ConfigHistoryId {
-    fn to_bytes(&self) -> Result<Vec<u8>> {
-        let mut v = Vec::new();
-        self.encode(&mut v)?;
-        Ok(v)
-    }
-}
-
 pub struct ConfigDB {
     // config data
     config_db: sled::Tree,
     // config history data
     config_history: HashMap<Vec<u8>, sled::Tree>,
-    // config history id tracker [0001 ~ 9999]
-    config_history_helper: sled::Tree,
+    config_history_ids: HashMap<Vec<u8>, i64>,
 }
 
 impl Default for ConfigDB {
@@ -111,21 +92,31 @@ impl ConfigDB {
     pub fn new() -> Self {
         let db = common::DB.lock().unwrap();
         let config_db = db.open_tree("config").unwrap();
-        let config_history_helper = db.open_tree("confighistoryhelper").unwrap();
 
-        // init all config_histories
+        // init all config_histories & config_history_ids
         let mut config_history = HashMap::new();
+        let mut config_history_ids = HashMap::new();
         let mut iter = config_db.iter();
+
         while let Some(Ok((k, _))) = iter.next() {
             let k_bytes = k.to_vec();
             let cht = db.open_tree(&k_bytes).unwrap();
+
+            // try to get latest config history id
+            if let Some(Ok((_, v))) = cht.iter().last() {
+                let latest_cfg = Config::decode(v.as_ref()).unwrap();
+                config_history_ids.insert(k_bytes.to_owned(), latest_cfg.id.unwrap_or(0));
+            } else {
+                config_history_ids.insert(k_bytes.to_owned(), 0);
+            }
+
             config_history.insert(k_bytes, cht);
         }
 
         Self {
             config_db,
             config_history,
-            config_history_helper,
+            config_history_ids,
         }
     }
 
@@ -152,40 +143,29 @@ impl ConfigDB {
         // using protobuf as value serialization
         self.config_db.insert(&config_key, config.to_bytes()?)?;
 
-        // deal with history id counter
-        let mut not_over_limit = true;
-        if let Ok(Some(latest_id_bytes)) = self.config_history_helper.get(&config_key) {
-            let mut latest_id = ConfigHistoryId::decode(latest_id_bytes.as_ref())?;
-            if latest_id.id >= MAX_HIS_CNT {
-                not_over_limit = false;
-                log::warn!("config history id reach max limit: {}", MAX_HIS_CNT);
+        // update config history id
+        match self.config_history_ids.get(&config_key) {
+            Some(id) => {
+                config.id = Some(id + 1);
+                self.config_history_ids
+                    .insert(config_key.to_owned(), id + 1);
             }
-
-            if not_over_limit {
-                config.id = Some(latest_id.id + 1);
-                latest_id.id += 1;
-                self.config_history_helper
-                    .insert(&config_key, latest_id.to_bytes()?)?;
+            None => {
+                config.id = Some(1);
+                self.config_history_ids.insert(config_key.to_owned(), 1);
             }
-        } else {
-            config.id = Some(1);
-            let latest_id = ConfigHistoryId { id: 1 };
-            self.config_history_helper
-                .insert(&config_key, latest_id.to_bytes()?)?;
         }
 
-        if not_over_limit {
-            let his_tree = match self.config_history.get(&config_key) {
-                Some(tree) => tree,
-                None => {
-                    self.new_his_tree(&config_key)?;
-                    self.config_history.get(&config_key).unwrap()
-                }
-            };
+        let his_tree = match self.config_history.get(&config_key) {
+            Some(tree) => tree,
+            None => {
+                self.new_his_tree(&config_key)?;
+                self.config_history.get(&config_key).unwrap()
+            }
+        };
 
-            let his_key = config.get_config_history_key()?;
-            his_tree.insert(his_key, config.to_bytes()?)?;
-        }
+        let his_key = config.get_config_history_key()?;
+        his_tree.insert(his_key, config.to_bytes()?)?;
 
         Ok(())
     }
@@ -200,7 +180,7 @@ impl ConfigDB {
 
         let config_key = cfg.get_config_key()?;
         if let Ok(Some(_)) = self.config_db.remove(&config_key) {
-            self.config_history_helper.remove(&config_key)?;
+            self.config_history_ids.remove(&config_key);
 
             if self.config_history.get(&config_key).is_some() {
                 let db = common::DB.lock().unwrap();
