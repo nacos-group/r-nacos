@@ -42,7 +42,8 @@ impl Config {
 
     fn get_config_history_key(&self) -> Result<Vec<u8>> {
         // FIXME: 如何保证key的顺序
-        let vec = format!("{:0>4}", self.id.unwrap_or(1)).as_bytes().to_vec();
+        //let vec = format!("{:0>4}", self.id.unwrap_or(1)).as_bytes().to_vec();
+        let vec = self.id.unwrap_or(1).to_be_bytes().to_vec();
         Ok(vec)
     }
 
