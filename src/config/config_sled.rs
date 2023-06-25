@@ -12,6 +12,8 @@ use chrono::Local;
 use prost::Message;
 use serde::{Deserialize, Serialize};
 
+const CONFIG_HISTORY_TREE_NAME_PREFIX: &str = "config_history_"; 
+
 #[derive(Clone, PartialEq, Message, Deserialize, Serialize)]
 pub struct Config {
     #[prost(string, tag = "1")]
@@ -40,6 +42,10 @@ impl Config {
         Ok(csk.to_key())
     }
 
+    fn get_config_history_tree_name(&self) -> Vec<u8> {
+        Self::build_config_history_tree_name(&mut self.get_config_key().unwrap())
+    }
+
     fn get_config_history_key(&self) -> Result<Vec<u8>> {
         // FIXME: 如何保证key的顺序
         //let vec = format!("{:0>4}", self.id.unwrap_or(1)).as_bytes().to_vec();
@@ -51,6 +57,12 @@ impl Config {
         let mut v = Vec::new();
         self.encode(&mut v)?;
         Ok(v)
+    }
+
+    fn build_config_history_tree_name(config_key:&mut Vec<u8>) -> Vec<u8> {
+        let mut tree_name = CONFIG_HISTORY_TREE_NAME_PREFIX.as_bytes().to_vec();
+        tree_name.append(config_key);
+        tree_name
     }
 }
 
@@ -100,18 +112,18 @@ impl ConfigDB {
         let mut iter = config_db.iter();
 
         while let Some(Ok((k, _))) = iter.next() {
-            let k_bytes = k.to_vec();
-            let cht = db.open_tree(&k_bytes).unwrap();
+            let mut k_bytes = k.to_vec();
+            let config_history_tree_name = Config::build_config_history_tree_name(&mut k_bytes);
+            let cht = db.open_tree(&config_history_tree_name).unwrap();
 
             // try to get latest config history id
             if let Some(Ok((_, v))) = cht.iter().last() {
                 let latest_cfg = Config::decode(v.as_ref()).unwrap();
-                config_history_ids.insert(k_bytes.to_owned(), latest_cfg.id.unwrap_or(0));
+                config_history_ids.insert(config_history_tree_name.to_owned(), latest_cfg.id.unwrap_or(0));
             } else {
-                config_history_ids.insert(k_bytes.to_owned(), 0);
+                config_history_ids.insert(config_history_tree_name.to_owned(), 0);
             }
-
-            config_history.insert(k_bytes, cht);
+            config_history.insert(config_history_tree_name, cht);
         }
 
         Self {
@@ -140,6 +152,7 @@ impl ConfigDB {
         };
 
         let config_key = config.get_config_key()?;
+        let config_history_tree_name = config.get_config_history_tree_name();
 
         // using protobuf as value serialization
         self.config_db.insert(&config_key, config.to_bytes()?)?;
@@ -157,11 +170,11 @@ impl ConfigDB {
             }
         }
 
-        let his_tree = match self.config_history.get(&config_key) {
+        let his_tree = match self.config_history.get(&config_history_tree_name) {
             Some(tree) => tree,
             None => {
-                self.new_his_tree(&config_key)?;
-                self.config_history.get(&config_key).unwrap()
+                self.new_his_tree(&config_history_tree_name)?;
+                self.config_history.get(&config_history_tree_name).unwrap()
             }
         };
 
@@ -180,13 +193,14 @@ impl ConfigDB {
         };
 
         let config_key = cfg.get_config_key()?;
+        let config_history_tree_name = cfg.get_config_history_tree_name();
         if let Ok(Some(_)) = self.config_db.remove(&config_key) {
             self.config_history_ids.remove(&config_key);
 
-            if self.config_history.get(&config_key).is_some() {
+            if self.config_history.get(&config_history_tree_name).is_some() {
                 let db = common::DB.lock().unwrap();
-                db.drop_tree(&config_key)?;
-                self.config_history.remove(&config_key);
+                db.drop_tree(&config_history_tree_name)?;
+                self.config_history.remove(&config_history_tree_name);
             }
         }
 
@@ -214,9 +228,10 @@ impl ConfigDB {
                 group: g.to_owned(),
                 data_id: id.to_owned(),
             };
-            let config_key = config.to_key();
+            let mut config_key = config.to_key();
+            let history_name = Config::build_config_history_tree_name(&mut config_key);
 
-            if let Some(his_tree) = self.config_history.get(&config_key) {
+            if let Some(his_tree) = self.config_history.get(&history_name) {
                 let total: usize = his_tree.len();
                 let mut ret = vec![];
                 let iter = his_tree.iter().rev();
