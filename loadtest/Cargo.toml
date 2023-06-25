@@ -1,0 +1,18 @@
+[package]
+name = "loadtest"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+goose = "^0.17"
+tokio = "1"
+anyhow="1"
+actix = "0.13"
+ratelimiter-rs = "0.1"
+log = "0"
+env_logger = "0.7"
+lazy_static = "1.4"
+rand = "0.8"
+nacos_rust_client = "0.3.0-beta.1"
