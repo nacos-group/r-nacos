@@ -13,7 +13,7 @@ pub struct UserSession {
 impl UserSession {
     fn new(uid: u64) -> Self {
         Self {
-            limiter: QpsLimiter::new(200).set_burst_size(20),
+            limiter: QpsLimiter::new(100).set_burst_size(20),
             uid: uid,
         }
     }

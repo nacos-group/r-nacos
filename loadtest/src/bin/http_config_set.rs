@@ -3,7 +3,7 @@ use std::time::Duration;
 use goose::{
     prelude::*,
 };
-use ratelimiter_rs::{QpsLimiter, now_millis};
+use ratelimiter_rs::{QpsLimiter};
 
 pub struct UserSession {
     pub limiter: QpsLimiter,
@@ -43,7 +43,8 @@ async fn set_config(user: &mut GooseUser) -> TransactionResult {
             return Ok(());
         }
         let path= "/nacos/v1/cs/configs";
-        let data = format!("dataId=001&group=foo&tenant=public&content={}",now_millis());
+        let uuid = uuid::Uuid::new_v4();
+        let data = format!("dataId={:03}&group=foo&tenant=public&content={}",&user_session.uid,uuid);
         let mut request_builder = user.get_request_builder(&GooseMethod::Post, path).unwrap();
         request_builder =
             request_builder.body(data)
