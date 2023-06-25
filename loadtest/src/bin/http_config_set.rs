@@ -1,9 +1,7 @@
 use std::time::Duration;
 
-use goose::{
-    prelude::*,
-};
-use ratelimiter_rs::{QpsLimiter};
+use goose::prelude::*;
+use ratelimiter_rs::QpsLimiter;
 
 pub struct UserSession {
     pub limiter: QpsLimiter,
@@ -14,7 +12,7 @@ impl UserSession {
     fn new(uid: u64) -> Self {
         Self {
             limiter: QpsLimiter::new(100).set_burst_size(20),
-            uid: uid,
+            uid,
         }
     }
 }
@@ -26,9 +24,7 @@ async fn main() -> Result<(), GooseError> {
             scenario!("ConfigSet")
                 .set_weight(1)
                 .unwrap()
-                .register_transaction(
-                    transaction!(set_config).set_name("/nacos/v1/cs/configs"),
-                ),
+                .register_transaction(transaction!(set_config).set_name("/nacos/v1/cs/configs")),
         )
         .execute()
         .await?;
@@ -42,12 +38,15 @@ async fn set_config(user: &mut GooseUser) -> TransactionResult {
             tokio::time::sleep(Duration::from_micros(1)).await;
             return Ok(());
         }
-        let path= "/nacos/v1/cs/configs";
+        let path = "/nacos/v1/cs/configs";
         let uuid = uuid::Uuid::new_v4();
-        let data = format!("dataId={:03}&group=foo&tenant=public&content={}",&user_session.uid,uuid);
+        let data = format!(
+            "dataId={:03}&group=foo&tenant=public&content={}",
+            &user_session.uid, uuid
+        );
         let mut request_builder = user.get_request_builder(&GooseMethod::Post, path).unwrap();
-        request_builder =
-            request_builder.body(data)
+        request_builder = request_builder
+            .body(data)
             .header("Content-Type", "application/x-www-form-urlencoded");
         let goose_request = GooseRequest::builder()
             .set_request_builder(request_builder)

@@ -1,8 +1,6 @@
 use std::time::Duration;
 
-use goose::{
-    prelude::*,
-};
+use goose::prelude::*;
 use ratelimiter_rs::QpsLimiter;
 
 pub struct UserSession {
@@ -14,7 +12,7 @@ impl UserSession {
     fn new(uid: u64) -> Self {
         Self {
             limiter: QpsLimiter::new(100).set_burst_size(20),
-            uid: uid,
+            uid,
         }
     }
 }
@@ -26,9 +24,7 @@ async fn main() -> Result<(), GooseError> {
             scenario!("ConfigQuery")
                 .set_weight(1)
                 .unwrap()
-                .register_transaction(
-                    transaction!(query_config).set_name("/nacos/v1/cs/configs"),
-                ),
+                .register_transaction(transaction!(query_config).set_name("/nacos/v1/cs/configs")),
         )
         .execute()
         .await?;
