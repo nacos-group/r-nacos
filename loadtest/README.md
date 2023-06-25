@@ -1,7 +1,7 @@
 
 # rnacos 压测工程
 
-基于goose写的压测工具，支持对rnacos服务接口做性能压测。
+基于[goose](https://book.goose.rs/)写的压测工具，支持对rnacos服务接口做性能压测。
 
 主要目地是为了确认rnacos性能基线，辅助性能优化，大的版本变更可以用此工具测试对比性能结果。
 
@@ -21,5 +21,11 @@
 每个场景分别对http协议与grpc协议做测试。
 
 ## 压测命令
+
+
+```shell
+# 具体参数可以参考 goose book
+cargo run --bin http_config_query --release --  --host http://127.0.0.1:8848 -r 10 -u 120 -t 60 --report-file report/report_config_06.html
+```
 
 待补充

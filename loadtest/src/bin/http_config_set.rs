@@ -3,7 +3,7 @@ use std::time::Duration;
 use goose::{
     prelude::*,
 };
-use ratelimiter_rs::QpsLimiter;
+use ratelimiter_rs::{QpsLimiter, now_millis};
 
 pub struct UserSession {
     pub limiter: QpsLimiter,
@@ -13,7 +13,7 @@ pub struct UserSession {
 impl UserSession {
     fn new(uid: u64) -> Self {
         Self {
-            limiter: QpsLimiter::new(200).set_burst_size(20),
+            limiter: QpsLimiter::new(100).set_burst_size(20),
             uid: uid,
         }
     }
@@ -23,11 +23,11 @@ impl UserSession {
 async fn main() -> Result<(), GooseError> {
     GooseAttack::initialize()?
         .register_scenario(
-            scenario!("ConfigQuery")
+            scenario!("ConfigSet")
                 .set_weight(1)
                 .unwrap()
                 .register_transaction(
-                    transaction!(query_config).set_name("/nacos/v1/cs/configs"),
+                    transaction!(set_config).set_name("/nacos/v1/cs/configs"),
                 ),
         )
         .execute()
@@ -35,17 +35,19 @@ async fn main() -> Result<(), GooseError> {
     Ok(())
 }
 
-async fn query_config(user: &mut GooseUser) -> TransactionResult {
+async fn set_config(user: &mut GooseUser) -> TransactionResult {
     naming_init_session(user)?;
     if let Some(user_session) = user.get_session_data_mut::<UserSession>() {
         if !user_session.limiter.acquire() {
             tokio::time::sleep(Duration::from_micros(1)).await;
             return Ok(());
         }
-        let data = "/nacos/v1/cs/configs?dataId=001&group=foo&tenant=public";
-        let mut request_builder = user.get_request_builder(&GooseMethod::Get, data).unwrap();
+        let path= "/nacos/v1/cs/configs";
+        let data = format!("dataId=001&group=foo&tenant=public&content={}",now_millis());
+        let mut request_builder = user.get_request_builder(&GooseMethod::Post, path).unwrap();
         request_builder =
-            request_builder.header("Content-Type", "application/x-www-form-urlencoded");
+            request_builder.body(data)
+            .header("Content-Type", "application/x-www-form-urlencoded");
         let goose_request = GooseRequest::builder()
             .set_request_builder(request_builder)
             .build();
