@@ -13,6 +13,13 @@ keywords = ["nacos","rnacos","registry","config"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[workspace]
+
+members = [
+    ".",
+    "loadtest",
+]
+
 [[bin]]
 name="rnacos"
 path="src/main.rs"
