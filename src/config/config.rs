@@ -434,7 +434,7 @@ impl Handler<ConfigCmd> for ConfigActor {
                         changes.push(item.key.clone());
                     }
                 }
-                if changes.len() > 0 || time <= 0 {
+                if !changes.is_empty() || time <= 0 {
                     sender.send(ListenerResult::DATA(changes)).ok();
                     return Ok(ConfigResult::NULL);
                 } else {
@@ -457,7 +457,7 @@ impl Handler<ConfigCmd> for ConfigActor {
                     }
                 }
                 self.subscriber.add_subscribe(client_id, items);
-                if changes.len() > 0 {
+                if !changes.is_empty() {
                     return Ok(ConfigResult::ChangeKey(changes));
                 }
             }

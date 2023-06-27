@@ -18,15 +18,15 @@ pub struct ConfigDO {
 
 impl ConfigDO {
     fn from_row(r:&Row) -> Self {
-        let mut s = Self::default();
-        s.id = get_row_value(r,"id");
-        s.data_id = get_row_value(r,"data_id");
-        s.group = get_row_value(r,"group");
-        s.tenant = get_row_value(r,"tenant");
-        s.content = get_row_value(r,"content");
-        s.content_md5 = get_row_value(r,"content_md5");
-        s.last_time = get_row_value(r,"last_time");
-        s
+        Self {
+            id : get_row_value(r,"id"),
+            data_id : get_row_value(r,"data_id"),
+            group : get_row_value(r,"group"),
+            tenant : get_row_value(r,"tenant"),
+            content : get_row_value(r,"content"),
+            content_md5 : get_row_value(r,"content_md5"),
+            last_time : get_row_value(r,"last_time"),
+        }
     }
 }
 
@@ -155,7 +155,7 @@ pub struct ConfigDao{
 impl ConfigDao {
     pub fn new(conn: Rc<Connection>) -> Self{
         Self{ 
-            conn:conn,
+            conn,
             inner:ConfigSql{},
         }
     }
@@ -201,14 +201,14 @@ pub struct ConfigHistoryDO {
 
 impl ConfigHistoryDO {
     fn from_row(r:&Row) -> Self {
-        let mut s = Self::default();
-        s.id = get_row_value(r,"id");
-        s.data_id = get_row_value(r,"data_id");
-        s.group = get_row_value(r,"group");
-        s.tenant = get_row_value(r,"tenant");
-        s.content = get_row_value(r,"content");
-        s.last_time = get_row_value(r,"last_time");
-        s
+        Self {
+            id : get_row_value(r,"id"),
+            data_id : get_row_value(r,"data_id"),
+            group : get_row_value(r,"group"),
+            tenant : get_row_value(r,"tenant"),
+            content : get_row_value(r,"content"),
+            last_time : get_row_value(r,"last_time"),
+        }
     }
 }
 
@@ -246,7 +246,7 @@ impl ConfigHistorySql{
     fn offset_conditions(&self,param:&ConfigHistoryParam) -> B {
         let mut whr = B::new();
         if let Some(field) = &param.order_by {
-            let desc = param.order_by_desc.clone().unwrap_or(false);
+            let desc = param.order_by_desc.to_owned().unwrap_or(false);
             if field.eq_ignore_ascii_case("last_time") {
                 whr.order_by("last_time", desc);
             }

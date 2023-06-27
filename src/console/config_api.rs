@@ -116,7 +116,7 @@ pub async fn import_config(
                     */
                     let filename = file.name();
                     if !(*filename).ends_with('/') {
-                        let parts = filename.split('/').into_iter().collect::<Vec<_>>();
+                        let parts = filename.split('/').collect::<Vec<_>>();
                         if parts.len() != 2 {
                             continue;
                         }
@@ -142,7 +142,7 @@ pub async fn import_config(
 }
 
 fn zip_file(mut zip:ZipWriter<&mut File>,list:Vec<ConfigInfoDto>) -> anyhow::Result<()> {
-    if list.len() == 0 {
+    if list.is_empty() {
         let options = FileOptions::default()
             .compression_method(zip::CompressionMethod::Stored)
             .unix_permissions(0o755);

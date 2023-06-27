@@ -54,7 +54,7 @@ impl OpsConfigQueryListRequest {
             return Err(anyhow::anyhow!("group or dataId can't empty"))
         }
         let limit = self.page_size.unwrap_or(0xffff_ffff) as i64;
-        let offset = ((self.page_no.unwrap_or(1)-1) as i64 *limit) as i64;
+        let offset = (self.page_no.unwrap_or(1)-1) as i64 *limit;
         let mut param = ConfigHistoryParam{
             limit:Some(limit),
             offset:Some(offset),

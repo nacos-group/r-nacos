@@ -40,7 +40,7 @@ impl ConfigWebParams {
     pub fn to_confirmed_param(&self) -> Result<ConfigWebConfirmedParam,String> {
         let mut param = ConfigWebConfirmedParam::default();
         if let Some(v) = self.data_id.as_ref() {
-            if v.len() ==0 {
+            if v.is_empty() {
                 return Err("dataId is empty".to_owned());
             }
             param.data_id = v.to_owned();
@@ -52,7 +52,7 @@ impl ConfigWebParams {
             param.tenant="".to_owned();
         }
         if let Some(v) = self.content.as_ref() {
-            if v.len() >0 {
+            if !v.is_empty() {
                 param.content = v.to_owned();
             }
         }
@@ -167,7 +167,7 @@ impl ListenerParams{
 
 async fn listener_config(_req:HttpRequest,a:web::Query<ListenerParams>,b:web::Form<ListenerParams>,config_addr:web::Data<Addr<ConfigActor>>) -> impl Responder {
     let list = a.select_option(&b).to_items();
-    if list.len() ==0 {
+    if list.is_empty() {
         //println!("listener_config error: listener item len == 0");
         return HttpResponse::NoContent()
         .content_type("text/html; charset=utf-8")

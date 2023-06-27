@@ -181,7 +181,7 @@ impl BeatRequest {
                 instance.group_name = Arc::new(group_name);
             }
             if let Some(group_name) = self.group_name.as_ref(){
-                if group_name.len()>0{
+                if !group_name.is_empty(){
                     instance.group_name = Arc::new(group_name.to_owned());
                 }
             }

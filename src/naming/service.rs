@@ -88,17 +88,13 @@ impl Service {
                     if !update_tag.metadata{
                         instance.metadata = old_instance.metadata.clone();
                     }
-                    else{
-                        if update_tag.from_update {
-                            //从控制台设置的metadata
-                            self.instance_metadata_map.insert(short_key, instance.metadata.clone());
-                        }
-                        else{
-                            if let Some(priority_metadata) = self.instance_metadata_map.get(&short_key) {
-                                //sdk更新尝试使用高优先级metadata
-                                instance.metadata = priority_metadata.clone();
-                            }
-                        }
+                    else if update_tag.from_update {
+                        //从控制台设置的metadata
+                        self.instance_metadata_map.insert(short_key, instance.metadata.clone());
+                    }
+                    else if let Some(priority_metadata) = self.instance_metadata_map.get(&short_key) {
+                        //sdk更新尝试使用高优先级metadata
+                        instance.metadata = priority_metadata.clone();
                     }
                 }
                 else{

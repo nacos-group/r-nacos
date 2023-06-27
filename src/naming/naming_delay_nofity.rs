@@ -62,7 +62,6 @@ impl DelayNotifyActor {
             let naming_addr = act.naming_addr.clone();
             async move {
                 Self::fill_event_data_and_notify(naming_addr, events).await;
-                ()
             }.into_actor(act)
             .map(|_,act,ctx| {
                 act.notify_heartbeat(ctx);

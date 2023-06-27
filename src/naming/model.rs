@@ -29,10 +29,11 @@ pub struct Instance {
 
 impl Instance{
     pub fn new(ip:String,port:u32) -> Self {
-        let mut s = Self::default();
-        s.ip = Arc::new(ip);
-        s.port = port;
-        s
+        Self {
+            ip : Arc::new(ip),
+            port : port,
+            ..Default::default()
+        }
     }
 
     pub fn generate_key(&mut self) {
@@ -48,7 +49,7 @@ impl Instance{
     }
 
     pub fn check_vaild(&self) -> bool {
-        if self.id.len()==0 || self.port<=0 || self.service_name.len()==0 || self.cluster_name.len()==0 
+        if self.id.is_empty() || self.port==0 || self.service_name.is_empty() || self.cluster_name.is_empty() 
         {
             return false;
         }
@@ -56,37 +57,11 @@ impl Instance{
     }
 
     pub fn update_info(&self,o:&Self,_tag:Option<InstanceUpdateTag>) -> bool {
-        let is_update=self.enabled != o.enabled 
+        self.enabled != o.enabled 
         || self.healthy != o.healthy
         || self.weight != o.weight
         || self.ephemeral != o.ephemeral
         || self.metadata != o.metadata
-        ;
-        //self.last_modified_millis.swap(o.last_modified_millis.load(Ordering::Relaxed),Ordering::Relaxed);
-        /*
-        //self.healthy = o.healthy;
-        if let Some(tag) = tag {
-            if tag.weight {
-                self.weight = o.weight;
-            }
-            if tag.metadata {
-                self.metadata = o.metadata;
-            }
-            if tag.enabled {
-                self.enabled = o.enabled;
-            }
-            if tag.ephemeral {
-                self.ephemeral = o.ephemeral;
-            }
-        }
-        else{
-            self.weight = o.weight;
-            self.metadata = o.metadata;
-            self.enabled = o.enabled;
-            self.ephemeral = o.ephemeral;
-        }
-        */
-        is_update
     }
 
     pub fn get_service_key(&self) -> ServiceKey {
@@ -197,21 +172,12 @@ impl Default for InstanceUpdateTag {
 }
 
 
-#[derive(Debug,Clone,Default,Hash,Eq)]
+#[derive(Debug,Clone,Default,Hash,PartialEq,Eq)]
 pub struct ServiceKey {
     pub namespace_id:Arc<String>,
     pub group_name:Arc<String>,
     pub service_name:Arc<String>,
 }
-
-impl PartialEq for ServiceKey {
-    fn eq(&self, o:&Self) -> bool {
-        self.namespace_id == o.namespace_id
-        && self.group_name == o.group_name
-        && self.service_name == o.service_name
-    }
-}
-
 
 impl ServiceKey {
     pub fn new(namespace_id:&str,group_name:&str,serivce_name:&str) -> Self {
@@ -231,7 +197,7 @@ impl ServiceKey {
     }
 }
 
-#[derive(Debug,Clone,Default,Hash,Eq)]
+#[derive(Debug,Clone,Default,Hash,PartialEq,Eq)]
 pub struct InstanceKey {
     pub namespace_id:Arc<String>,
     pub group_name:Arc<String>,
@@ -260,17 +226,7 @@ impl InstanceKey{
     }
 }
 
-impl PartialEq for InstanceKey {
-    fn eq(&self, o:&Self) -> bool {
-        self.namespace_id == o.namespace_id
-        && self.group_name == o.group_name
-        && self.service_name == o.service_name
-        && self.ip == o.ip
-        && self.port == o.port
-    }
-}
-
-#[derive(Debug,Clone,Default,Hash,Eq)]
+#[derive(Debug,Clone,Default,Hash,PartialEq,Eq)]
 pub struct InstanceShortKey {
     pub ip:Arc<String>,
     pub port:u32
@@ -297,15 +253,7 @@ impl InstanceShortKey {
     }
 }
 
-impl PartialEq for InstanceShortKey {
-    fn eq(&self, o:&Self) -> bool {
-        self.ip == o.ip
-        && self.port == o.port
-    }
-}
-
-
-#[derive(Debug,Clone,Default,Hash,Eq)]
+#[derive(Debug,Clone,Default,Hash,PartialEq,Eq)]
 pub(crate) struct InstanceTimeInfo {
     pub(crate) time:i64,
     pub(crate) instance_id:InstanceShortKey,
@@ -319,12 +267,6 @@ impl InstanceTimeInfo {
             instance_id,
             enable:true,
         }
-    }
-}
-
-impl PartialEq for InstanceTimeInfo {
-    fn eq(&self, o:&Self) -> bool {
-        self.time == o.time
     }
 }
 

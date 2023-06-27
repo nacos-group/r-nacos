@@ -67,7 +67,7 @@ impl BatchInstanceRequestHandler {
                     healthy: input.healthy,
                     ephemeral: input.ephemeral,
                     cluster_name: NamingUtils::default_cluster(input.cluster_name.unwrap_or_default()),
-                    service_name: service_name,
+                    service_name ,
                     group_name: group_name.to_owned(),
                     group_service: Default::default(),
                     metadata: input.metadata,

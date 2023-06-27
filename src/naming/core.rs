@@ -68,9 +68,9 @@ impl NamingActor {
         Self {
             service_map: Default::default(),
             last_id:0u64,
-            listener_addr:listener_addr,
-            subscriber: subscriber,
-            delay_notify_addr: delay_notify_addr,
+            listener_addr,
+            subscriber ,
+            delay_notify_addr ,
             sys_config: NamingSysConfig::new(),
             empty_service_set: Default::default(),
             namespace_index: NamespaceIndex::new(),

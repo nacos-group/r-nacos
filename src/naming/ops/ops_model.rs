@@ -22,8 +22,8 @@ impl OpsServiceQueryListRequest {
         let limit = self.page_size.unwrap_or(0xffff_ffff);
         let offset = (self.page_no.unwrap_or(1)-1)*limit;
         let mut param=ServiceQueryParam {
-            limit:limit,
-            offset:offset,
+            limit,
+            offset,
             ..Default::default()
         };
         if let Some(namespace_id) = self.namespace_id {
@@ -64,14 +64,15 @@ impl From<ServiceInfoDto> for OpsServiceDto {
         else{
             None
         };
-        Self { name: Some(value.service_name)
-            , group_name: Some(value.group_name)
-            , cluster_count: Some(value.cluster_count as u64)
-            , ip_count: Some(value.instance_size as u64)
-            , healthy_instance_count: Some(value.healthy_instance_size as u64)
-            , trigger_flag: Some(value.trigger_flag) 
-            , metadata : metadata
-            , protect_threshold : value.protect_threshold
+        Self { 
+            name: Some(value.service_name) , 
+            group_name: Some(value.group_name) , 
+            cluster_count: Some(value.cluster_count as u64) , 
+            ip_count: Some(value.instance_size as u64) , 
+            healthy_instance_count: Some(value.healthy_instance_size as u64) , 
+            trigger_flag: Some(value.trigger_flag) ,
+            metadata , 
+            protect_threshold : value.protect_threshold
         }
     }
 }

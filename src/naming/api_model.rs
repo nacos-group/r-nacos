@@ -174,7 +174,7 @@ impl ServiceInfoParam {
                 namespace_id: Arc::new(NamingUtils::default_namespace(self.namespace_id.unwrap_or_default())),
                 service_name: Arc::new(service_name),
                 group_name: Arc::new(NamingUtils::default_group(self.group_name.unwrap_or_default())),
-                metadata: metadata,
+                metadata ,
                 protect_threshold: self.protect_threshold,
             })
         }

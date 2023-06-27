@@ -14,7 +14,10 @@ struct ConnCacheItem {
 
 impl ConnCacheItem {
     fn new(last_active_time:u64,conn:Addr<BiStreamConn>) -> Self {
-        Self { last_active_time, conn: conn }
+        Self { 
+            last_active_time, 
+            conn 
+        }
     }
 }
 

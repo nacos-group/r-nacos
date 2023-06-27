@@ -49,15 +49,15 @@ impl InstanceRequestHandler {
                 healthy: input.healthy,
                 ephemeral: input.ephemeral,
                 cluster_name: NamingUtils::default_cluster(input.cluster_name.unwrap_or_default()),
-                service_name: service_name,
-                group_name: group_name,
+                service_name ,
+                group_name ,
                 group_service: Default::default(),
                 metadata: input.metadata,
                 last_modified_millis: now_millis_i64(),
                 namespace_id: Arc::new(NamingUtils::default_namespace(request.namespace.unwrap_or_default())),
                 app_name: "".to_owned(),
                 from_grpc:true,
-                client_id:client_id
+                client_id
             };
             instance.generate_key();
             Ok(instance)

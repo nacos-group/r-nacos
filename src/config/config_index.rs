@@ -19,20 +19,10 @@ pub struct ConfigQueryParam {
 impl ConfigQueryParam {
     pub fn match_group(&self,g:&Arc<String>) -> bool {
         if let Some(group) = &self.group {
-            if StringUtils::is_empty(group) || StringUtils::eq(g, group) {
-                true
-            }
-            else{
-                false
-            }
+            group.is_empty() || StringUtils::eq(g, group)
         }
         else if let Some(like_group) = &self.like_group {
-            if StringUtils::is_empty(like_group) || StringUtils::like(g, &like_group).is_some() {
-                true
-            }
-            else{
-                false
-            }
+            like_group.is_empty() || StringUtils::like(g, like_group).is_some()
         }
         else{
             true
@@ -40,20 +30,10 @@ impl ConfigQueryParam {
     }
     pub fn match_data_id(&self,s:&Arc<String>) -> bool {
         if let Some(data_id) = &self.data_id{
-            if StringUtils::is_empty(data_id) || StringUtils::eq(s, data_id) {
-                true
-            }
-            else{
-                false
-            }
+            data_id.is_empty() || StringUtils::eq(s, data_id)
         }
         else if let Some(like_data_id) = &self.like_data_id{
-            if StringUtils::is_empty(like_data_id) || StringUtils::like(s, &like_data_id).is_some() {
-                true
-            }
-            else{
-                false
-            }
+            like_data_id.is_empty() || StringUtils::like(s, like_data_id).is_some()
         }
         else{
             true
@@ -94,7 +74,7 @@ impl ConfigIndex {
             let b=set.remove(config);
             if b {
                 self.data_size -=1;
-                if set.len()==0 {
+                if set.is_empty() {
                     self.group_data.remove(group);
                 }
             }
@@ -189,12 +169,12 @@ impl TenantIndex {
         let mut limit = param.limit;
         if let Some(tenant) = &param.tenant{
             if let Some(index) = self.tenant_group.get(tenant) {
-                return index.query_config_page(tenant, limit, &param);
+                return index.query_config_page(tenant, limit, param);
             }
         }
         else{
             for (tenant,service_index) in &self.tenant_group {
-                let (sub_size,mut sub_list) = service_index.query_config_page(&tenant, limit, &param);
+                let (sub_size,mut sub_list) = service_index.query_config_page(tenant, limit, param);
                 size +=sub_size;
                 limit -= sub_list.len();
                 rlist.append(&mut sub_list);

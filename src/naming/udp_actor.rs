@@ -40,7 +40,7 @@ impl UdpWorker {
         Self {
             local_addr_str: None,
             socket: Some(Arc::new(socket)),
-            addr:addr,
+            addr,
             udp_port,
             buf: Some(vec![]),
         }

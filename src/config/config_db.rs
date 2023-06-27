@@ -10,18 +10,24 @@ pub struct ConfigDB {
     config_history_dao:ConfigHistoryDao,
 }
 
+impl Default for ConfigDB {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ConfigDB {
     pub fn new() -> Self {
         let sys_config = AppSysConfig::init_from_env();
         let config_db = sys_config.config_db_file;
-        let conn = Connection::open(&config_db).unwrap();
+        let conn = Connection::open(config_db).unwrap();
         Self::init(&conn);
         let conn = Rc::new(conn);
         let config_dao = ConfigDao::new(conn.clone());
-        let config_history_dao = ConfigHistoryDao::new(conn.clone());
+        let config_history_dao = ConfigHistoryDao::new(conn);
         Self{
-            config_dao:config_dao,
-            config_history_dao:config_history_dao,
+            config_dao,
+            config_history_dao,
         }
     }
 
@@ -52,42 +58,46 @@ create index if not exists tb_config_history_key_idx on tb_config_history(data_i
     }
 
     fn convert_to_config_do(key:&ConfigKey,val:&ConfigValue) -> ConfigDO {
-        let mut config = ConfigDO::default();
-        config.tenant = Some(key.tenant.as_ref().to_owned());
-        config.group = Some(key.group.as_ref().to_owned());
-        config.data_id= Some(key.data_id.as_ref().to_owned());
-        config.content= Some(val.content.as_ref().to_owned());
-        config.content_md5= Some(val.md5.as_ref().to_owned());
         let current_time = Local::now().timestamp_millis();
-        config.last_time = Some(current_time);
-        config
+        ConfigDO {
+            tenant : Some(key.tenant.as_ref().to_owned()),
+            group : Some(key.group.as_ref().to_owned()),
+            data_id: Some(key.data_id.as_ref().to_owned()),
+            content: Some(val.content.as_ref().to_owned()),
+            content_md5: Some(val.md5.as_ref().to_owned()),
+            last_time : Some(current_time),
+            ..Default::default()
+        }
     }
 
     fn convert_to_config_history_do(key:&ConfigKey,val:&ConfigValue) -> ConfigHistoryDO {
-        let mut config = ConfigHistoryDO::default();
-        config.tenant = Some(key.tenant.as_ref().to_owned());
-        config.group = Some(key.group.as_ref().to_owned());
-        config.data_id= Some(key.data_id.as_ref().to_owned());
-        config.content= Some(val.content.as_ref().to_owned());
         let current_time = Local::now().timestamp_millis();
-        config.last_time = Some(current_time);
-        config
+        ConfigHistoryDO {
+            tenant : Some(key.tenant.as_ref().to_owned()),
+            group : Some(key.group.as_ref().to_owned()),
+            data_id: Some(key.data_id.as_ref().to_owned()),
+            content: Some(val.content.as_ref().to_owned()),
+            last_time : Some(current_time),
+            ..Default::default()
+        }
     }
 
     fn convert_to_config_param(key:&ConfigKey) -> ConfigParam {
-        let mut record = ConfigParam::default();
-        record.tenant = Some(key.tenant.as_ref().to_owned());
-        record.group = Some(key.group.as_ref().to_owned());
-        record.data_id = Some(key.data_id.as_ref().to_owned());
-        record
+        ConfigParam {
+            tenant : Some(key.tenant.as_ref().to_owned()),
+            group : Some(key.group.as_ref().to_owned()),
+            data_id: Some(key.data_id.as_ref().to_owned()),
+            ..Default::default()
+        }
     }
 
     fn convert_to_config_history_param(key:&ConfigKey) -> ConfigHistoryParam {
-        let mut record = ConfigHistoryParam::default();
-        record.tenant = Some(key.tenant.as_ref().to_owned());
-        record.group = Some(key.group.as_ref().to_owned());
-        record.data_id = Some(key.data_id.as_ref().to_owned());
-        record
+        ConfigHistoryParam {
+            tenant : Some(key.tenant.as_ref().to_owned()),
+            group : Some(key.group.as_ref().to_owned()),
+            data_id: Some(key.data_id.as_ref().to_owned()),
+            ..Default::default()
+        }
     }
 
     pub fn update_config(&self,key:&ConfigKey,val:&ConfigValue) {
