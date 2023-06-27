@@ -4,7 +4,7 @@ pub struct StringUtils;
 
 impl StringUtils {
     pub fn is_empty(s:&str) -> bool {
-        s.len()==0
+        s.is_empty()
     }
 
     pub fn eq(a:&str,b:&str) -> bool {

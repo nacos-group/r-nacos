@@ -71,12 +71,7 @@ impl InstanceFilterUtils {
             }
         }
         if filter_headlthy  {
-            service_info.hosts = if let Some(instances) = service_info.hosts {
-                Some(Self::filter_healthy_instances(instances))
-            }
-            else{
-                None
-            };
+            service_info.hosts = service_info.hosts.map(Self::filter_healthy_instances);
         }
         service_info
     }

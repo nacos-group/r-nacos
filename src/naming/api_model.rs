@@ -1,3 +1,5 @@
+use crate::now_millis_i64;
+
 use super::NamingUtils;
 use super::model::{Instance,ServiceKey, ServiceDetailDto};
 use chrono::Local;
@@ -29,20 +31,19 @@ impl QueryListResult {
         key: &ServiceKey,
         v: Vec<Arc<Instance>>,
     ) -> String {
-        let mut result = QueryListResult::default();
-        result.name = key.get_join_service_name();
-        result.cache_millis = 10000u64;
-        let now = Local::now().timestamp_millis();
-        result.last_ref_time = Some(now);
-        result.checksum = Some(now.to_string());
-        result.use_specified_url = Some(false);
-        result.clusters = clusters;
-        result.env = Some("".to_owned());
-        result.hosts = v
-            .into_iter()
-            .map(|e| InstanceVO::from_instance(&e))
-            .collect::<Vec<_>>();
-        result.dom = Some(key.service_name.to_owned());
+        let now = now_millis_i64();
+        let result = Self {
+            name : key.get_join_service_name(),
+            cache_millis: 10000u64,
+            last_ref_time: Some(now),
+            checksum : Some(now.to_string()),
+            use_specified_url : Some(false),
+            clusters,
+            env: Some("".to_owned()),
+            hosts: v.into_iter().map(|e| InstanceVO::from_instance(&e)).collect::<Vec<_>>(),
+            dom: Some(key.service_name.to_owned()),
+            ..Default::default()
+        };
         serde_json::to_string(&result).unwrap()
     }
 
@@ -141,17 +142,18 @@ pub fn select_option<T>(a:Option<T>,b:Option<T>) -> Option<T>
 
 impl ServiceInfoParam {
     pub(crate) fn merge_value(a:Self,b:Self) -> Self {
-        let mut s = Self::default();
-        s.namespace_id = select_option(a.namespace_id, b.namespace_id);
-        s.group_name = select_option(a.group_name, b.group_name);
-        s.service_name = select_option(a.service_name, b.service_name);
-        s.protect_threshold = select_option(a.protect_threshold, b.protect_threshold);
-        s.metadata = select_option(a.metadata, b.metadata);
-        s.selector = select_option(a.selector, b.selector);
-        s
+        Self {
+            namespace_id : select_option(a.namespace_id, b.namespace_id),
+            group_name : select_option(a.group_name, b.group_name),
+            service_name : select_option(a.service_name, b.service_name),
+            protect_threshold : select_option(a.protect_threshold, b.protect_threshold),
+            metadata : select_option(a.metadata, b.metadata),
+            selector : select_option(a.selector, b.selector),
+            ..Default::default()
+        }
     }
 
-    pub(crate) fn to_service_info(self) -> anyhow::Result<ServiceDetailDto>{
+    pub(crate) fn build_service_info(self) -> anyhow::Result<ServiceDetailDto>{
         if let Some(service_name) = self.service_name {
             if service_name.is_empty() {
                 return Err(anyhow::anyhow!("service_name is vaild"));

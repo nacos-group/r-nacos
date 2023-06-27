@@ -80,20 +80,15 @@ impl UdpWorker {
             if buf.len()< MAX_DATAGRAM_SIZE {
                 buf =  vec![0u8; MAX_DATAGRAM_SIZE];
             }
-            loop {
-                match socket.recv_from(&mut buf).await {
-                    Ok((_len, addr)) => {
-                        //let mut data:Vec<u8> = Vec::with_capacity(len);
-                        //let mut data: Vec<u8> = vec![0u8; len];
-                        //data.clone_from_slice(&buf[..len]);
-                        let msg = NamingListenerCmd::Response(addr.clone());
-                        //let s=String::from_utf8_lossy(&buf[..len]);
-                        //println!("rece from:{} | len:{} | str:{}",&addr,len,s);
-                        if let Some(_notify_addr)=&notify_addr {
-                            _notify_addr.do_send(msg);
-                        }
-                    }
-                    _ => {break;}
+            while let Ok((_len, addr)) = socket.recv_from(&mut buf).await {
+                //let mut data:Vec<u8> = Vec::with_capacity(len);
+                //let mut data: Vec<u8> = vec![0u8; len];
+                //data.clone_from_slice(&buf[..len]);
+                let msg = NamingListenerCmd::Response(addr.to_owned());
+                //let s=String::from_utf8_lossy(&buf[..len]);
+                //println!("rece from:{} | len:{} | str:{}",&addr,len,s);
+                if let Some(_notify_addr)=&notify_addr {
+                    _notify_addr.do_send(msg);
                 }
             }
             buf

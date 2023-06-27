@@ -297,7 +297,7 @@ pub async fn get_instance_list(param:web::Query<InstanceWebQueryListParams>,nami
             }
         },
         Err(err) => {
-            HttpResponse::InternalServerError().body(err.to_string())
+            HttpResponse::InternalServerError().body(err)
         }
     }
 }
@@ -429,7 +429,7 @@ pub async fn query_service(param:web::Query<ServiceQueryListRequest>,naming_addr
 
 pub async fn update_service(param0:web::Form<ServiceInfoParam>,param1:web::Query<ServiceInfoParam>,naming_addr:web::Data<Addr<NamingActor>>) -> impl Responder {
     let param = ServiceInfoParam::merge_value(param0.0, param1.0);
-    match param.to_service_info() {
+    match param.build_service_info() {
         Ok(service_info) => {
             let _= naming_addr.send(NamingCmd::UpdateService(service_info)).await ;
             HttpResponse::Ok().body("ok")
@@ -442,7 +442,7 @@ pub async fn update_service(param0:web::Form<ServiceInfoParam>,param1:web::Query
 
 pub async fn remove_service(param0:web::Form<ServiceInfoParam>,param1:web::Query<ServiceInfoParam>,naming_addr:web::Data<Addr<NamingActor>>) -> impl Responder {
     let param = ServiceInfoParam::merge_value(param0.0, param1.0);
-    match param.to_service_info() {
+    match param.build_service_info() {
         Ok(service_info) => { 
             let key =service_info.to_service_key(); 
             match naming_addr.send(NamingCmd::RemoveService(key)).await {

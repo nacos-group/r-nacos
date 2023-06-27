@@ -65,7 +65,7 @@ impl ListenerValue {
 
     fn add(&mut self,mut item:ListenerItem) {
         item.last_response_time=now_millis();
-        let addr = item.listener_addr.clone();
+        let addr = item.listener_addr.to_owned();
         self.items.insert(addr, item);
     }
 
@@ -80,7 +80,7 @@ impl ListenerValue {
         }
     }
 
-    fn get_instance_list<'a>(cluster_names:Vec<String>,only_healthy:bool,instances:&'a HashMap<String,Vec<Arc<Instance>>>) -> Vec<&'a Arc<Instance>> {
+    fn get_instance_list(cluster_names:Vec<String>,only_healthy:bool,instances:&HashMap<String,Vec<Arc<Instance>>>) -> Vec<&Arc<Instance>> {
         let mut list = vec![];
         for cluster_name in cluster_names {
             if let Some(l) = instances.get(&cluster_name) {
@@ -96,7 +96,7 @@ impl ListenerValue {
     }
 
     fn get_instance_list_string(key:&ServiceKey,cluster_names:Vec<String>,only_healthy:bool,instances:&HashMap<String,Vec<Arc<Instance>>>) -> String {
-        let clusters = (&cluster_names).join(",");
+        let clusters = cluster_names.join(",");
         let list = Self::get_instance_list(cluster_names, only_healthy,instances);
         QueryListResult::get_ref_instance_list_string(clusters, key, list)
     }
@@ -138,17 +138,17 @@ impl ListenerValue {
         let mut removes=vec![]; 
         for item in self.items.values_mut() {
             if item.last_response_time < remove_time {
-                removes.push(item.listener_addr.clone());
+                removes.push(item.listener_addr.to_owned());
                 continue;
             }
         }
         for key in &removes {
-            self.items.remove(&key);
+            self.items.remove(key);
         }
         let cache = self.build_cache(&service_key, sign, instances, period);
         for item in self.items.values_mut() {
             if let Some(data) = cache.get(&item.clusters_key){
-                let msg = UdpSenderCmd::new(data.clone(),item.listener_addr.clone());
+                let msg = UdpSenderCmd::new(data.clone(),item.listener_addr.to_owned());
                 sender.do_send(msg);
                 item.last_modified=now;
             }
@@ -208,7 +208,7 @@ impl InnerNamingListener {
 
     // 监听
     pub fn add(&mut self,key:ServiceKey,item:ListenerItem){
-        let addr = item.listener_addr.clone();
+        let addr = item.listener_addr.to_owned();
         let listener_key = Self::get_listener_key(&key);
         if let Some(value) = self.listeners.get_mut(&listener_key) {
             value.add(item);

@@ -6,7 +6,7 @@ use actix::prelude::*;
 
 use super::{model::{ServiceKey, Instance, ServiceInfo}, naming_delay_nofity::{DelayNotifyActor, DelayNotifyCmd}};
 
-#[derive(Debug, Clone, Hash, Eq)]
+#[derive(Debug, Clone, Hash, PartialEq , Eq)]
 pub enum ListenerClusterType {
     All,
     One(Arc<String>)
@@ -18,48 +18,12 @@ impl Default for ListenerClusterType {
     }
 }
 
-impl PartialEq for ListenerClusterType {
-    fn eq(&self, o:&Self) -> bool {
-        match &self {
-            ListenerClusterType::All => {
-                match &o{
-                    ListenerClusterType::All => {
-                        true
-                    },
-                    ListenerClusterType::One(_) => {
-                        false
-                    },
-                }
-            },
-            ListenerClusterType::One(a) => {
-                match &o{
-                    ListenerClusterType::All => {
-                        false
-                    },
-                    ListenerClusterType::One(b) => {
-                        a==b
-                    },
-                }
-            },
-        }
-    }
-}
-
-#[derive(Debug,Clone,Default,Hash,Eq)]
+#[derive(Debug,Clone,Default,Hash,PartialEq,Eq)]
 pub struct ListenerKey{
     pub namespace_id:String,
     pub group_name:String,
     pub service_name:String,
     pub cluster:ListenerClusterType,
-}
-
-impl PartialEq for ListenerKey {
-    fn eq(&self, o:&Self) -> bool {
-        self.namespace_id == o.namespace_id
-        && self.group_name == o.group_name
-        && self.service_name == o.service_name
-        && self.cluster == o.cluster
-    }
 }
 
 #[derive(Debug,Clone)]
@@ -157,15 +121,12 @@ impl Subscriber {
         if let Some(set)=self.client_keys.remove(&client_id) {
             let mut remove_keys = vec![];
             for key in set{
-                match self.listener.get_mut(&key) {
-                    Some(set) => {
-                        set.remove(&client_id);
-                        if set.len() == 0 {
-                            remove_keys.push(key);
-                        }
-                    },
-                    None => {}
-                };
+                if let Some(set) = self.listener.get_mut(&key) {
+                    set.remove(&client_id);
+                    if set.is_empty() {
+                        remove_keys.push(key);
+                    }
+                }
             }
             for key in &remove_keys {
                 self.listener.remove(key);
@@ -177,14 +138,11 @@ impl Subscriber {
         if let Some(set) = self.listener.remove(&key) {
             let mut remove_keys = vec![];
             for (client_id,_) in set {
-                match self.client_keys.get_mut(&client_id) {
-                    Some(set) => {
-                        set.remove(&key);
-                        if set.len() == 0 {
-                            remove_keys.push(client_id);
-                        }
-                    },
-                    None => {}
+                if let Some(set) = self.client_keys.get_mut(&client_id) {
+                    set.remove(&key);
+                    if set.is_empty() {
+                        remove_keys.push(client_id);
+                    }
                 }
             }
             for key in &remove_keys {

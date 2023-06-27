@@ -39,9 +39,15 @@ pub struct DelayNotifyActor {
     delay:u64,
 }
 
+impl Default for DelayNotifyActor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DelayNotifyActor {
     pub fn new() -> Self{
-        DelayNotifyActor {
+        Self {
             inner_delay_notify: Default::default(),
             conn_manage: None,
             naming_addr:None,

@@ -18,20 +18,10 @@ pub struct ServiceQueryParam {
 impl ServiceQueryParam {
     pub fn match_group(&self,g:&Arc<String>) -> bool {
         if let Some(group) = &self.group {
-            if StringUtils::is_empty(group) || StringUtils::eq(g, group) {
-                true
-            }
-            else{
-                false
-            }
+            group.is_empty() || StringUtils::eq(g, group) 
         }
         else if let Some(like_group) = &self.like_group {
-            if StringUtils::is_empty(like_group) || StringUtils::like(g, &like_group).is_some() {
-                true
-            }
-            else{
-                false
-            }
+            like_group.is_empty() || StringUtils::like(g, like_group).is_some() 
         }
         else{
             true
@@ -39,20 +29,10 @@ impl ServiceQueryParam {
     }
     pub fn match_service(&self,s:&Arc<String>) -> bool {
         if let Some(service) = &self.service{
-            if StringUtils::is_empty(service) || StringUtils::eq(s, service) {
-                true
-            }
-            else{
-                false
-            }
+            service.is_empty() || StringUtils::eq(s, service)
         }
         else if let Some(like_service) = &self.like_service{
-            if StringUtils::is_empty(like_service) || StringUtils::like(s, &like_service).is_some() {
-                true
-            }
-            else{
-                false
-            }
+            like_service.is_empty() || StringUtils::like(s, like_service).is_some()
         }
         else{
             true
@@ -94,7 +74,7 @@ impl ServiceIndex {
             let b=set.remove(service);
             if b {
                 self.service_size-=1;
-                if set.len()==0 {
+                if set.is_empty() {
                     self.group_service.remove(group);
                 }
             }
@@ -206,12 +186,12 @@ impl NamespaceIndex {
         let mut limit = param.limit;
         if let Some(namespace_id) = &param.namespace_id {
             if let Some(index) = self.namespace_group.get(namespace_id) {
-                return index.query_service_page(namespace_id,limit, &param);
+                return index.query_service_page(namespace_id,limit, param);
             }
         }
         else{
             for (namespace_id,service_index) in &self.namespace_group {
-                let (sub_size,mut sub_list) = service_index.query_service_page(&namespace_id,limit, &param);
+                let (sub_size,mut sub_list) = service_index.query_service_page(namespace_id,limit, param);
                 size +=sub_size;
                 limit -= sub_list.len();
                 rlist.append(&mut sub_list);
