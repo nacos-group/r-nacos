@@ -1,47 +1,70 @@
+use lazy_static::lazy_static;
+use std::sync::{Arc, Mutex};
+use uuid::Uuid;
 
 pub mod delay_notify;
 pub mod rusqlite_utils;
 pub mod string_utils;
 
-#[derive(Default,Clone,Debug)]
+lazy_static! {
+    // Global app sys config
+    pub static ref APP_SYS_CONFIG: AppSysConfig = AppSysConfig::init_from_env();
+    // Global sled db
+    pub static ref DB: Arc<Mutex<sled::Db>> = Arc::new(Mutex::new(
+        sled::Config::new()
+            .path(&APP_SYS_CONFIG.config_db_dir)
+            .mode(sled::Mode::HighThroughput)
+            .open()
+            .unwrap()
+    ));
+}
+
+#[derive(Default, Clone, Debug)]
 pub struct NamingSysConfig {
-    pub once_time_check_size:usize,
-    pub service_time_out_millis:u64,
-    pub instance_metadata_time_out_millis:u64,
+    pub once_time_check_size: usize,
+    pub service_time_out_millis: u64,
+    pub instance_metadata_time_out_millis: u64,
 }
 
 impl NamingSysConfig {
     pub fn new() -> Self {
-        Self { 
-            once_time_check_size: 10000, 
-            service_time_out_millis: 30000 ,
+        Self {
+            once_time_check_size: 10000,
+            service_time_out_millis: 30000,
             instance_metadata_time_out_millis: 60000,
         }
     }
 }
 
-#[derive(Default,Clone,Debug)]
-pub struct AppSysConfig{
-    pub config_db_file:String,
-    pub http_port:u16,
-    pub http_workers:Option<usize>,
-    pub grpc_port:u16,
+#[derive(Default, Clone, Debug)]
+pub struct AppSysConfig {
+    pub config_db_file: String,
+    pub config_db_dir: String,
+    pub http_port: u16,
+    pub http_workers: Option<usize>,
+    pub grpc_port: u16,
 }
 
 impl AppSysConfig {
     pub fn init_from_env() -> Self {
-        let config_db_file=std::env::var("RNACOS_CONFIG_DB_FILE").unwrap_or("config.db".to_owned());
-        let http_port=std::env::var("RNACOS_HTTP_PORT")
+        let config_db_file =
+            std::env::var("RNACOS_CONFIG_DB_FILE").unwrap_or("config.db".to_owned());
+        let http_port = std::env::var("RNACOS_HTTP_PORT")
             .unwrap_or("8848".to_owned())
-            .parse().unwrap_or(8848);
+            .parse()
+            .unwrap_or(8848);
         let http_workers = std::env::var("RNACOS_HTTP_WORKERS")
             .unwrap_or("".to_owned())
-            .parse().ok();
+            .parse()
+            .ok();
         let grpc_port = std::env::var("RNACOS_GRPC_PORT")
             .unwrap_or("".to_owned())
-            .parse().unwrap_or(http_port+1000);
-        Self { 
-            config_db_file, 
+            .parse()
+            .unwrap_or(http_port + 1000);
+        let config_db_dir = std::env::var("RNACOS_CONFIG_DB_DIR").unwrap_or("nacos_db".to_owned());
+        Self {
+            config_db_dir,
+            config_db_file,
             http_port,
             grpc_port,
             http_workers,
@@ -49,10 +72,26 @@ impl AppSysConfig {
     }
 
     pub fn get_grpc_addr(&self) -> String {
-        format!("0.0.0.0:{}",&self.grpc_port)
+        format!("0.0.0.0:{}", &self.grpc_port)
     }
 
     pub fn get_http_addr(&self) -> String {
-        format!("0.0.0.0:{}",&self.http_port)
+        format!("0.0.0.0:{}", &self.http_port)
     }
+}
+
+/**
+ * generate uuid in i64
+ */
+pub fn gen_uuid() -> i64 {
+    let uuid = Uuid::new_v4();
+    let bytes = uuid.as_bytes();
+    let msb = u64::from_be_bytes([
+        bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7],
+    ]);
+    let lsb = u64::from_be_bytes([
+        bytes[8], bytes[9], bytes[10], bytes[11], bytes[12], bytes[13], bytes[14], bytes[15],
+    ]);
+
+    ((msb << 32) | lsb) as i64
 }
