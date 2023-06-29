@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::common;
 
 use super::{
-    config::{ConfigKey, ConfigValue},
+    core::{ConfigKey, ConfigValue},
     dal::ConfigHistoryParam,
 };
 
@@ -12,7 +12,7 @@ use chrono::Local;
 use prost::Message;
 use serde::{Deserialize, Serialize};
 
-const CONFIG_HISTORY_TREE_NAME_PREFIX: &str = "config_history_"; 
+const CONFIG_HISTORY_TREE_NAME_PREFIX: &str = "config_history_";
 
 #[derive(Clone, PartialEq, Message, Deserialize, Serialize)]
 pub struct Config {
@@ -59,7 +59,7 @@ impl Config {
         Ok(v)
     }
 
-    fn build_config_history_tree_name(config_key:&mut Vec<u8>) -> Vec<u8> {
+    fn build_config_history_tree_name(config_key: &mut Vec<u8>) -> Vec<u8> {
         let mut tree_name = CONFIG_HISTORY_TREE_NAME_PREFIX.as_bytes().to_vec();
         tree_name.append(config_key);
         tree_name
@@ -119,7 +119,10 @@ impl ConfigDB {
             // try to get latest config history id
             if let Some(Ok((_, v))) = cht.iter().last() {
                 let latest_cfg = Config::decode(v.as_ref()).unwrap();
-                config_history_ids.insert(config_history_tree_name.to_owned(), latest_cfg.id.unwrap_or(0));
+                config_history_ids.insert(
+                    config_history_tree_name.to_owned(),
+                    latest_cfg.id.unwrap_or(0),
+                );
             } else {
                 config_history_ids.insert(config_history_tree_name.to_owned(), 0);
             }

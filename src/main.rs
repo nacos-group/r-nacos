@@ -1,34 +1,32 @@
 #![allow(unused_imports)]
 
-use actix_web::{App, web::Data};
-use actix::{Actor};
+use actix::Actor;
+use actix_web::{web::Data, App};
 use rnacos::common::AppSysConfig;
+use rnacos::config::core::{ConfigActor, ConfigCmd};
 use rnacos::grpc::bistream_manage::BiStreamManage;
 use rnacos::grpc::handler::InvokerHandler;
 use rnacos::grpc::nacos_proto::bi_request_stream_server::BiRequestStreamServer;
 use rnacos::grpc::nacos_proto::request_server::RequestServer;
 use rnacos::grpc::server::BiRequestStreamServerImpl;
 use rnacos::naming::core::{NamingCmd, NamingResult};
-use rnacos::{naming::core::NamingActor, grpc::server::RequestServerImpl};
-use rnacos::config::config::{ConfigActor, ConfigCmd};
-use tonic::transport::Server;
+use rnacos::{grpc::server::RequestServerImpl, naming::core::NamingActor};
 use std::error::Error;
+use tonic::transport::Server;
 
+use actix_web::{middleware, HttpServer};
 use rnacos::web_config::app_config;
-use actix_web::{
-    middleware,HttpServer,
-};
 
 #[actix_web::main]
-async fn main() -> Result<(), Box<dyn Error>>  {
-    std::env::set_var("RUST_LOG","actix_web=debug,actix_server=info,info");
+async fn main() -> Result<(), Box<dyn Error>> {
+    std::env::set_var("RUST_LOG", "actix_web=debug,actix_server=info,info");
     dotenv::dotenv().ok();
     env_logger::init();
     let sys_config = AppSysConfig::init_from_env();
     let http_addr = sys_config.get_http_addr();
     let grpc_addr = sys_config.get_grpc_addr();
-    log::info!("http server addr:{}",&http_addr);
-    log::info!("grpc server addr:{}",&grpc_addr);
+    log::info!("http server addr:{}", &http_addr);
+    log::info!("grpc server addr:{}", &grpc_addr);
 
     let config_addr = ConfigActor::new().start();
     //let naming_addr = NamingActor::new_and_create();
@@ -46,16 +44,16 @@ async fn main() -> Result<(), Box<dyn Error>>  {
     invoker.add_config_handler(&config_addr);
     invoker.add_naming_handler(&naming_addr);
 
-
     tokio::spawn(async move {
         let addr = grpc_addr.parse().unwrap();
-        let request_server = RequestServerImpl::new(bistream_manage_addr.clone(),invoker);
+        let request_server = RequestServerImpl::new(bistream_manage_addr.clone(), invoker);
         let bi_request_stream_server = BiRequestStreamServerImpl::new(bistream_manage_addr);
         Server::builder()
-        .add_service(RequestServer::new(request_server))
-        .add_service(BiRequestStreamServer::new(bi_request_stream_server))
-        .serve(addr)
-        .await.unwrap();
+            .add_service(RequestServer::new(request_server))
+            .add_service(BiRequestStreamServer::new(bi_request_stream_server))
+            .serve(addr)
+            .await
+            .unwrap();
     });
 
     let mut server = HttpServer::new(move || {
@@ -72,10 +70,8 @@ async fn main() -> Result<(), Box<dyn Error>>  {
             .configure(app_config)
     });
     if let Some(num) = sys_config.http_workers {
-        server=server.workers(num);
+        server = server.workers(num);
     }
-    server.bind(http_addr)?
-    .run()
-    .await?;
+    server.bind(http_addr)?.run().await?;
     Ok(())
 }

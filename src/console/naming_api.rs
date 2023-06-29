@@ -4,7 +4,10 @@ use actix_web::{http::header, web, HttpRequest, HttpResponse, Responder};
 
 use actix::prelude::Addr;
 
-use super::model::{naming_model::{OpsNamingQueryListResponse, QueryAllInstanceListParam}, PageResult};
+use super::model::{
+    naming_model::{OpsNamingQueryListResponse, QueryAllInstanceListParam},
+    PageResult,
+};
 use crate::naming::core::{NamingActor, NamingCmd, NamingResult};
 
 pub async fn query_ops_instances_list(
@@ -58,4 +61,3 @@ pub async fn query_grpc_client_instance_count(
         Err(err) => HttpResponse::InternalServerError().body(err.to_string()),
     }
 }
-
