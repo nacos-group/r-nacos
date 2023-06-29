@@ -13,7 +13,7 @@ pub async fn query_opt_service_list(param:web::Query<OpsServiceQueryListRequest>
         Ok(res) => {
             let result: NamingResult= res.unwrap();
             if let NamingResult::ServiceInfoPage((size,list)) = result {
-                let service_list:Vec<OpsServiceDto> = list.into_iter().map(|e|OpsServiceDto::from(e)).collect::<_>();
+                let service_list:Vec<OpsServiceDto> = list.into_iter().map(OpsServiceDto::from).collect::<_>();
                 let response = OpsServiceOptQueryListResponse::new(size as u64,service_list);
                 let v=serde_json::to_string(&response).unwrap();
                 HttpResponse::Ok()

@@ -101,12 +101,11 @@ impl NamingActor {
             tx.send(addrs).unwrap();
             rt.run().unwrap();
         });
-        let addrs = rx.recv().unwrap();
-        addrs
+        rx.recv().unwrap()
     }
 
     pub(crate) fn get_service(&mut self,key:&ServiceKey) -> Option<&mut Service> {
-        match self.service_map.get_mut(&key){
+        match self.service_map.get_mut(key){
             Some(v) => {
                 Some(v)
             },
@@ -124,7 +123,7 @@ impl NamingActor {
                 service.service_name = key.service_name.clone();
                 service.namespace_id = key.namespace_id.clone();
                 service.group_name = key.group_name.clone();
-                service.group_service = Arc::new(NamingUtils::get_group_and_service_name(&key.service_name.as_ref(), &key.group_name.as_ref()));
+                service.group_service = Arc::new(NamingUtils::get_group_and_service_name(key.service_name.as_ref(), key.group_name.as_ref()));
                 service.last_modified_millis = current_time;
                 service.recalculate_checksum();
                 self.namespace_index.insert_service(key.clone());
@@ -152,7 +151,7 @@ impl NamingActor {
                 service.service_name = key.service_name.clone();
                 service.namespace_id = key.namespace_id.clone();
                 service.group_name = key.group_name.clone();
-                service.group_service = Arc::new(NamingUtils::get_group_and_service_name(&key.service_name.as_ref(), &key.group_name.as_ref()));
+                service.group_service = Arc::new(NamingUtils::get_group_and_service_name(key.service_name.as_ref(), key.group_name.as_ref()));
                 service.last_modified_millis = current_time;
                 if let Some(protect_threshold) = service_info.protect_threshold {
                     service.protect_threshold = protect_threshold;
@@ -210,7 +209,7 @@ impl NamingActor {
      */
 
     pub fn remove_instance(&mut self,key:&ServiceKey ,cluster_name:&str,instance_id:&InstanceShortKey,client_id:Option<&Arc<String>>) -> UpdateInstanceType {
-        let service =if let Some(service)= self.service_map.get_mut(&key) {
+        let service =if let Some(service)= self.service_map.get_mut(key) {
             service
         }else{
             return UpdateInstanceType::None;
@@ -240,16 +239,16 @@ impl NamingActor {
         assert!(instance.check_vaild());
         self.create_empty_service(key);
         //let cluster_name = instance.cluster_name.clone();
-        let service = self.service_map.get_mut(&key).unwrap();
+        let service = self.service_map.get_mut(key).unwrap();
         if instance.from_grpc && !instance.client_id.is_empty() {
             let client_id = instance.client_id.clone();
             let key = InstanceKey::new_by_service_key(key, instance.ip.clone(), instance.port.to_owned());
             if let Some(set)=self.client_instance_set.get_mut(&client_id) {
-                set.insert(key.clone());
+                set.insert(key);
             }
             else{
                 let mut set = HashSet::new();
-                set.insert(key.clone());
+                set.insert(key);
                 self.client_instance_set.insert(client_id, set);
             }
         }
@@ -270,15 +269,15 @@ impl NamingActor {
     }
 
     pub fn get_instance(&self,key:&ServiceKey,cluster_name:&str,instance_id:&InstanceShortKey) -> Option<Arc<Instance>> {
-        if let Some(service) = self.service_map.get(&key) {
+        if let Some(service) = self.service_map.get(key) {
             return service.get_instance(instance_id);
         }
         None
     }
 
     pub fn get_instance_list(&self,key:&ServiceKey,cluster_str:&str,only_healthy:bool) -> Vec<Arc<Instance>> {
-        let cluster_names = NamingUtils::split_filters(&cluster_str);
-        if let Some(service) = self.service_map.get(&key) {
+        let cluster_names = NamingUtils::split_filters(cluster_str);
+        if let Some(service) = self.service_map.get(key) {
             return InstanceFilterUtils::default_instance_filter(service.get_instance_list(cluster_names, false,true)
                 ,Some(service.get_metadata()),only_healthy);
         }
@@ -286,25 +285,20 @@ impl NamingActor {
     }
 
     pub fn get_instances_and_metadata(&self,key:&ServiceKey,cluster_str:&str,only_healthy:bool) -> (Vec<Arc<Instance>>,Option<ServiceMetadata>) {
-        let cluster_names = NamingUtils::split_filters(&cluster_str);
-        if let Some(service) = self.service_map.get(&key) {
+        let cluster_names = NamingUtils::split_filters(cluster_str);
+        if let Some(service) = self.service_map.get(key) {
             return (service.get_instance_list(cluster_names,only_healthy,true),Some(service.get_metadata()));
         }
         (vec![],None)
     }
 
     pub fn get_metadata(&self,key:&ServiceKey) -> Option<ServiceMetadata> {
-        if let Some(service) = self.service_map.get(&key) {
-            Some(service.get_metadata())
-        }
-        else{
-            None
-        }
+        self.service_map.get(key).map(|e|e.get_metadata())
     }
 
     pub fn get_instance_map(&self,key:&ServiceKey,cluster_names:Vec<String>,only_healthy:bool) -> HashMap<String,Vec<Arc<Instance>>> {
         let mut map: HashMap<String, Vec<Arc<Instance>>>=HashMap::new();
-        if let Some(service) = self.service_map.get(&key) {
+        if let Some(service) = self.service_map.get(key) {
             for item in service.get_instance_list(cluster_names, only_healthy,true) {
                 if let Some(list) = map.get_mut(&item.cluster_name) {
                     list.push(item)
@@ -318,16 +312,17 @@ impl NamingActor {
     }
 
     pub(crate) fn get_service_info(&self,key:&ServiceKey,cluster_str:String,only_healthy:bool) -> ServiceInfo {
-        let mut service_info = ServiceInfo::default();
-        //service_info.name = Some(key.get_join_service_name());
-        service_info.name = Some(key.service_name.clone());
-        service_info.group_name= Some(key.group_name.clone());
-        service_info.cache_millis = 10000i64;
-        service_info.last_ref_time = now_millis_i64();
-        service_info.reach_protection_threshold = false;
         let (hosts,metadata) = self.get_instances_and_metadata(key,&cluster_str,false);
-        service_info.hosts = Some(hosts);
-        service_info.clusters = Some(cluster_str);
+        let service_info = ServiceInfo{
+            name : Some(key.service_name.clone()),
+            group_name: Some(key.group_name.clone()),
+            cache_millis : 10000i64,
+            last_ref_time : now_millis_i64(),
+            reach_protection_threshold : false,
+            hosts : Some(hosts),
+            clusters : Some(cluster_str),
+            ..Default::default()
+        };
         InstanceFilterUtils::default_service_filter(service_info, metadata,only_healthy)
     }
 
@@ -349,10 +344,10 @@ impl NamingActor {
             size+=rlist.len() + ulist.len();
             remove_list.append(&mut rlist);
             update_list.append(&mut ulist);
-            if remove_list.len() > 0 {
+            if !remove_list.is_empty() {
                 let service_key = item.get_service_key();
                 for short_key in &remove_list {
-                    if item.exist_priority_metadata(&short_key) {
+                    if item.exist_priority_metadata(short_key) {
                         let instance_key = InstanceKey::new_by_service_key(&service_key, short_key.ip.clone(), short_key.port);
                         self.instance_metadate_set.add(now+self.sys_config.instance_metadata_time_out_millis,instance_key);
                     }
@@ -386,16 +381,16 @@ impl NamingActor {
         let (size,list)=self.namespace_index.query_service_page(&param);
         let mut info_list = Vec::with_capacity(list.len());
         for item in &list {
-            if let Some(service) = self.service_map.get(&item) {
+            if let Some(service) = self.service_map.get(item) {
                 info_list.push(service.get_service_info());
             }
         }
         (size,info_list)
     }
 
-    fn update_listener(&mut self,key:&ServiceKey,cluster_names:&Vec<String>,addr:SocketAddr,only_healthy:bool){
+    fn update_listener(&mut self,key:&ServiceKey,cluster_names:&[String],addr:SocketAddr,only_healthy:bool){
         if let Some(listener_addr) = self.listener_addr.as_ref() {
-            let item = ListenerItem::new(cluster_names.clone(),only_healthy,addr);
+            let item = ListenerItem::new(cluster_names.to_owned(),only_healthy,addr);
             let msg = NamingListenerCmd::Add(key.clone(),item);
             listener_addr.do_send(msg);
         }

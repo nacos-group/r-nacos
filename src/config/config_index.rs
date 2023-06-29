@@ -1,7 +1,7 @@
 use std::{sync::Arc, collections::{BTreeMap, BTreeSet}};
 
 use crate::common::string_utils::StringUtils;
-use crate::config::config::ConfigKey;
+use crate::config::core::ConfigKey;
 
 
 #[derive(Debug,Clone,Default)]

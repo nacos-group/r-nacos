@@ -160,11 +160,11 @@ impl ConfigDao {
         }
     }
 
-    pub fn execute(&self,sql:&str,args:&Vec<serde_json::Value>) -> anyhow::Result<usize>{
+    pub fn execute(&self,sql:&str,args:&[serde_json::Value]) -> anyhow::Result<usize>{
         sqlite_execute(&self.conn,sql,args) 
     }
 
-    pub fn fetch(&self,sql:&str,args:&Vec<serde_json::Value>) -> anyhow::Result<Vec<ConfigDO>> {
+    pub fn fetch(&self,sql:&str,args:&[serde_json::Value]) -> anyhow::Result<Vec<ConfigDO>> {
         sqlite_fetch(&self.conn,sql,args,ConfigDO::from_row)
     }
 
@@ -359,20 +359,20 @@ pub struct ConfigHistoryDao{
 impl ConfigHistoryDao {
     pub fn new(conn: Rc<Connection>) -> Self{
         Self{ 
-            conn:conn,
+            conn,
             inner:ConfigHistorySql{},
         }
     }
 
-    pub fn execute(&self,sql:&str,args:&Vec<serde_json::Value>) -> anyhow::Result<usize>{
+    pub fn execute(&self,sql:&str,args:&[serde_json::Value]) -> anyhow::Result<usize>{
         sqlite_execute(&self.conn,sql,args) 
     }
 
-    pub fn fetch(&self,sql:&str,args:&Vec<serde_json::Value>) -> anyhow::Result<Vec<ConfigHistoryDO>> {
+    pub fn fetch(&self,sql:&str,args:&[serde_json::Value]) -> anyhow::Result<Vec<ConfigHistoryDO>> {
         sqlite_fetch(&self.conn,sql,args,ConfigHistoryDO::from_row)
     }
 
-    pub fn fetch_count(&self,sql:&str,args:&Vec<serde_json::Value>) -> anyhow::Result<u64> {
+    pub fn fetch_count(&self,sql:&str,args:&[serde_json::Value]) -> anyhow::Result<u64> {
         sqlite_fetch_count(&self.conn,sql,args)
     }
 

@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use crate::{grpc::{PayloadHandler, api_model::{ConfigPublishRequest, BaseResponse, ConfigQueryRequest, ConfigQueryResponse, ConfigBatchListenRequest, ConfigChangeBatchListenResponse, SUCCESS_CODE, ERROR_CODE, ConfigContext}, nacos_proto::Payload, PayloadUtils}, config::config::{ConfigActor, ConfigCmd, ConfigKey, ConfigResult, ListenerItem}};
+use crate::{grpc::{PayloadHandler, api_model::{ConfigPublishRequest, BaseResponse, ConfigQueryRequest, ConfigQueryResponse, ConfigBatchListenRequest, ConfigChangeBatchListenResponse, SUCCESS_CODE, ERROR_CODE, ConfigContext}, nacos_proto::Payload, PayloadUtils}, config::core::{ConfigActor, ConfigCmd, ConfigKey, ConfigResult, ListenerItem}};
 use actix::prelude::Addr;
 use async_trait::async_trait;
 
@@ -31,8 +31,10 @@ impl PayloadHandler for ConfigChangeBatchListenRequestHandler {
         } else {
             ConfigCmd::RemoveSubscribe(listener_items,request_meta.connection_id)
         };
-        let mut response = ConfigChangeBatchListenResponse::default();
-        response.request_id=request.request_id;
+        let mut response = ConfigChangeBatchListenResponse{
+            request_id:request.request_id,
+            ..Default::default()
+        };
         match self.config_addr.send(cmd).await{
             Ok(res) => {
                 let r:ConfigResult = res.unwrap();
@@ -40,10 +42,11 @@ impl PayloadHandler for ConfigChangeBatchListenRequestHandler {
                     ConfigResult::ChangeKey(keys) => {
                         response.result_code = SUCCESS_CODE;
                         for key in keys {
-                            let mut obj = ConfigContext::default();
-                            obj.data_id = key.data_id;
-                            obj.group = key.group;
-                            obj.tenant = key.tenant;
+                            let obj = ConfigContext{
+                                data_id : key.data_id,
+                                group : key.group,
+                                tenant : key.tenant,
+                            };
                             response.changed_configs.push(obj);
                         }
                     },

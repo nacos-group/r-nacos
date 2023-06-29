@@ -1,6 +1,6 @@
 use std::{collections::{HashMap, HashSet}, sync::Arc, time::Duration};
 
-use crate::{now_millis, config::config::{ConfigKey, ConfigActor, ConfigCmd}, naming::{model::{ServiceInfo, ServiceKey}, core::{NamingActor, NamingCmd}}};
+use crate::{now_millis, config::core::{ConfigKey, ConfigActor, ConfigCmd}, naming::{model::{ServiceInfo, ServiceKey}, core::{NamingActor, NamingCmd}}};
 
 use super::{bistream_conn::{BiStreamConn, BiStreamSenderCmd}, PayloadUtils, nacos_proto::Payload, api_model::{ConfigChangeNotifyRequest, NotifySubscriberRequest, CONFIG_MODEL, NAMING_MODEL}, handler::converter::ModelConverter};
 use actix::prelude::*;
@@ -36,10 +36,11 @@ pub struct BiStreamManage{
 impl BiStreamManage {
 
     pub fn new() -> Self {
-        let mut this= BiStreamManage::default();
-        this.detection_time_out = 15000;
-        this.response_time_out = 3000;
-        this
+        Self {
+            detection_time_out : 15000,
+            response_time_out : 3000,
+            ..Default::default()
+        }
     }
 
     pub fn set_config_addr(&mut self,addr:Addr<ConfigActor>) {
@@ -98,7 +99,7 @@ impl BiStreamManage {
                 }
             }
         }
-        if check_keys.len()>0 {
+        if !check_keys.is_empty() {
             log::info!("check timeout detection client, size:{}",check_keys.len());
         }
         for (key,request_id) in check_keys {
@@ -122,7 +123,7 @@ impl BiStreamManage {
                 }
             }
         }
-        if del_keys.len()>0 {
+        if !del_keys.is_empty() {
             log::info!("check timeout close client, size:{}",del_keys.len());
         }
         for key in &del_keys {
@@ -217,12 +218,14 @@ impl Handler<BiStreamManageCmd> for BiStreamManage {
                 self.active_client(client_id)?;
             },
             BiStreamManageCmd::NotifyConfig(config_key, client_id_set) => {
-                let mut request = ConfigChangeNotifyRequest::default();
-                request.group = config_key.group;
-                request.data_id= config_key.data_id;
-                request.tenant= config_key.tenant;
-                request.request_id=Some(self.next_request_id());
-                request.module = Some(CONFIG_MODEL.to_string());
+                let request = ConfigChangeNotifyRequest{
+                    group : config_key.group,
+                    data_id: config_key.data_id,
+                    tenant: config_key.tenant,
+                    request_id:Some(self.next_request_id()),
+                    module : Some(CONFIG_MODEL.to_string()),
+                    ..Default::default()
+                };
                 let payload = Arc::new(PayloadUtils::build_payload(
                     "ConfigChangeNotifyRequest",
                     serde_json::to_string(&request).unwrap(),
@@ -235,13 +238,15 @@ impl Handler<BiStreamManageCmd> for BiStreamManage {
             },
             BiStreamManageCmd::NotifyNaming(service_key,client_id_set,service_info) => {
                 let service_info = ModelConverter::to_api_service_info(service_info);
-                let mut request = NotifySubscriberRequest::default();
-                request.namespace = Some(service_key.namespace_id);
-                request.group_name = Some(service_key.group_name);
-                request.service_name = Some(service_key.service_name);
-                request.service_info = Some(service_info);
-                request.request_id=Some(self.next_request_id());
-                request.module = Some(NAMING_MODEL.to_string());
+                let request = NotifySubscriberRequest{
+                    namespace : Some(service_key.namespace_id),
+                    group_name : Some(service_key.group_name),
+                    service_name : Some(service_key.service_name),
+                    service_info : Some(service_info),
+                    request_id:Some(self.next_request_id()),
+                    module : Some(NAMING_MODEL.to_string()),
+                    ..Default::default()
+                };
                 let payload = Arc::new(PayloadUtils::build_payload(
                     "NotifySubscriberRequest",
                     serde_json::to_string(&request).unwrap(),

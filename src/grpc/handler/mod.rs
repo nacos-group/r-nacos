@@ -1,4 +1,4 @@
-use crate::{config::config::ConfigActor, naming::core::NamingActor};
+use crate::{config::core::ConfigActor, naming::core::NamingActor};
 
 use self::{config_publish::ConfigPublishRequestHandler, config_query::ConfigQueryRequestHandler, config_remove::ConfigRemoveRequestHandler, config_change_batch_listen::ConfigChangeBatchListenRequestHandler, naming_instance::InstanceRequestHandler, naming_subscribe_service::SubscribeServiceRequestHandler, naming_service_query::ServiceQueryRequestHandler, naming_batch_instance::BatchInstanceRequestHandler};
 
@@ -37,10 +37,10 @@ impl InvokerHandler {
         self.handlers.push((url.to_owned(),handler));
     }
 
-    pub fn match_handler<'a>(&'a self,url:&str) -> Option<&'a Box<dyn PayloadHandler+ Send + Sync +'static>> {
+    pub fn match_handler<'a>(&'a self,url:&str) -> Option<&'a (dyn PayloadHandler+ Send + Sync +'static)> {
         for (t,h) in &self.handlers {
             if t==url {
-                return Some(h)
+                return Some(h.as_ref())
             }
         }
         None
@@ -68,9 +68,11 @@ impl PayloadHandler for InvokerHandler {
     async fn handle(&self,request_payload:super::nacos_proto::Payload,request_meta:RequestMeta) -> anyhow::Result<Payload> {
         if let Some(url) = PayloadUtils::get_payload_type(&request_payload) {
             if "ServerCheckRequest"==url {
-                let mut response = ServerCheckResponse::default();
-                response.result_code = SUCCESS_CODE;
-                response.connection_id = Some(request_meta.connection_id.as_ref().to_owned());
+                let response = ServerCheckResponse{
+                    result_code : SUCCESS_CODE,
+                    connection_id : Some(request_meta.connection_id.as_ref().to_owned()),
+                    ..Default::default()
+                };
                 return Ok(PayloadUtils::build_payload("ServerCheckResponse", serde_json::to_string(&response)?))
             }
             //println!("InvokerHandler type:{}",url);

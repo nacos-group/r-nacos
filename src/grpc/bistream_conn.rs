@@ -34,19 +34,12 @@ impl BiStreamConn {
             let manage = self.manage.clone();
             let client_id = self.client_id.clone();
             async move { 
-                if let Some(item) = receiver_stream.next().await {
-                    if let Ok(payload) = item {
-                        println!("BiStreamConn receive frist msg:{}",PayloadUtils::get_payload_string(&payload));
-                    }
+                if let Some(Ok(_payload)) = receiver_stream.next().await {
+                    //println!("BiStreamConn receive frist msg:{}",PayloadUtils::get_payload_string(&payload));
                 }
-                while let Some(item) = receiver_stream.next().await {
-                    if let Ok(payload) = item {
-                        println!("BiStreamConn receive msg:{}",PayloadUtils::get_payload_string(&payload));
-                        manage.do_send(BiStreamManageCmd::Response(client_id.clone(), payload));
-                    }
-                    else{
-                        break;
-                    }
+                while let Some(Ok(payload)) = receiver_stream.next().await {
+                    //println!("BiStreamConn receive msg:{}",PayloadUtils::get_payload_string(&payload));
+                    manage.do_send(BiStreamManageCmd::Response(client_id.clone(), payload));
                 } 
                 manage.do_send(BiStreamManageCmd::ConnClose(client_id));
             }
@@ -106,9 +99,11 @@ impl Handler<BiStreamSenderCmd> for BiStreamConn {
     fn handle(&mut self, msg: BiStreamSenderCmd, ctx: &mut Context<Self>) -> Self::Result {
         match msg {
             BiStreamSenderCmd::Detection(request_id) => {
-                let mut request = ClientDetectionRequest::default();
-                request.module = Some("internal".to_owned());
-                request.request_id = Some(request_id);
+                let request = ClientDetectionRequest{
+                    module : Some("internal".to_owned()),
+                    request_id : Some(request_id),
+                    ..Default::default()
+                };
                 let payload = PayloadUtils::build_payload(
                     "ClientDetectionRequest",
                     serde_json::to_string(&request).unwrap(),
@@ -116,15 +111,17 @@ impl Handler<BiStreamSenderCmd> for BiStreamConn {
                 self.send_payload(ctx,payload);
             },
             BiStreamSenderCmd::Reset(request_id, ip, port) => {
-                let mut request = ConnectResetRequest::default();
-                request.module = Some("internal".to_owned());
-                request.request_id = Some(request_id);
+                let request = ConnectResetRequest{
+                    module : Some("internal".to_owned()),
+                    request_id : Some(request_id),
+                    server_ip  :ip,
+                    server_port:port,
+                    ..Default::default()
+                };
                 let payload = PayloadUtils::build_payload(
                     "ConnectResetRequest",
                     serde_json::to_string(&request).unwrap(),
                 );
-                request.server_ip  =ip;
-                request.server_port=port;
                 self.send_payload(ctx,payload);
             },
             BiStreamSenderCmd::Send(payload) => {

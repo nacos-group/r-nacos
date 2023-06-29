@@ -94,8 +94,10 @@ impl PayloadHandler for InstanceRequestHandler {
             };
             NamingCmd::Update(instance, Some(update_tag))
         } ;
-        let mut response = InstanceResponse::default();
-        response.request_id=request_id;
+        let mut response = InstanceResponse{
+            request_id,
+            ..Default::default()
+        };
         match self.naming_addr.send(cmd).await{
             Ok(_res) => {
                 //let res:ConfigResult = res.unwrap();

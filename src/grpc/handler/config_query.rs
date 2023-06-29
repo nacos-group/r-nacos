@@ -1,6 +1,6 @@
 #![allow(unused_imports)]
 
-use crate::{grpc::{PayloadHandler, api_model::{ConfigPublishRequest, BaseResponse, ConfigQueryRequest, ConfigQueryResponse, SUCCESS_CODE, ERROR_CODE}, nacos_proto::Payload, PayloadUtils}, config::config::{ConfigActor, ConfigCmd, ConfigKey, ConfigResult}};
+use crate::{grpc::{PayloadHandler, api_model::{ConfigPublishRequest, BaseResponse, ConfigQueryRequest, ConfigQueryResponse, SUCCESS_CODE, ERROR_CODE}, nacos_proto::Payload, PayloadUtils}, config::core::{ConfigActor, ConfigCmd, ConfigKey, ConfigResult}};
 use actix::prelude::Addr;
 use async_trait::async_trait;
 
@@ -20,8 +20,10 @@ impl PayloadHandler for ConfigQueryRequestHandler {
         let body_vec = request_payload.body.unwrap_or_default().value;
         let request:ConfigQueryRequest = serde_json::from_slice(&body_vec)?;
         let cmd = ConfigCmd::GET(ConfigKey::new(&request.data_id,&request.group,&request.tenant));
-        let mut response = ConfigQueryResponse::default();
-        response.request_id=request.request_id;
+        let mut response = ConfigQueryResponse{
+            request_id: request.request_id,
+            ..Default::default()
+        };
         match self.config_addr.send(cmd).await{
             Ok(res) => {
                 //let res:ConfigResult = res.unwrap();

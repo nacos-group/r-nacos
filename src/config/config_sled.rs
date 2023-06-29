@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::common;
 
 use super::{
-    config::{ConfigKey, ConfigValue},
+    core::{ConfigKey, ConfigValue},
     dal::ConfigHistoryParam,
 };
 

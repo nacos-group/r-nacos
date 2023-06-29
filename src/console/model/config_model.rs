@@ -3,7 +3,7 @@ use crate::config::config_index::ConfigQueryParam;
 use crate::config::ConfigUtils;
 use crate::config::dal::ConfigHistoryParam;
 use std::sync::Arc;
-use crate::config::config::ConfigInfoDto;
+use crate::config::core::ConfigInfoDto;
 
 #[derive(Debug,Serialize,Deserialize,Default)]
 #[serde(rename_all = "camelCase")]

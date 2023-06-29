@@ -86,14 +86,11 @@ impl Subscriber {
     pub fn remove_subscribe(&mut self,client_id:Arc<String>,items:Vec<NamingListenerItem>) {
         let mut remove_keys = vec![];
         for item in &items {
-            match self.listener.get_mut(&item.service_key) {
-                Some(set) => {
-                    set.remove(&client_id);
-                    if set.len() == 0 {
-                        remove_keys.push(item.service_key.clone());
-                    }
-                },
-                None => {}
+            if let Some(set) = self.listener.get_mut(&item.service_key) {
+                set.remove(&client_id);
+                if set.is_empty() {
+                    remove_keys.push(item.service_key.clone());
+                }
             };
         }
         for key in &remove_keys {
@@ -101,16 +98,13 @@ impl Subscriber {
         }
 
         let mut remove_empty_client = false;
-        match self.client_keys.get_mut(&client_id) {
-            Some(set) => {
-                for item in items {
-                    set.remove(&item.service_key);
-                }
-                if set.len() == 0 {
-                    remove_empty_client=true;
-                }
+        if let Some(set) = self.client_keys.get_mut(&client_id) {
+            for item in items {
+                set.remove(&item.service_key);
             }
-            None => {}
+            if set.is_empty() {
+                remove_empty_client=true;
+            }
         };
         if remove_empty_client {
             self.client_keys.remove(&client_id);

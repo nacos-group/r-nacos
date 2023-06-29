@@ -30,12 +30,7 @@ pub fn select_option_by_clone<T>(a:&Option<T>,b:&Option<T>) -> Option<T>
 pub fn option_owned_by_clone<T>(a:Option<&T>) -> Option<T> 
     where T:Clone
 {
-    match a{
-        Some(_a) => {
-            Some(_a.clone())
-        },
-        None => None
-    }
+    a.map(|v|v.to_owned())
 }
 
 pub fn get_bool_from_string(s:&Option<String>,default:bool) -> bool {
@@ -43,13 +38,13 @@ pub fn get_bool_from_string(s:&Option<String>,default:bool) -> bool {
         if s.eq_ignore_ascii_case("true") {
             return true;
         }
-        if s.len()==0 {
+        if s.is_empty() {
             return default;
         }
-        return false;
+        false
     }
     else{
-        return default;
+        default
     }
 }
 

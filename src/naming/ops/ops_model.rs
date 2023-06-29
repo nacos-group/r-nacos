@@ -58,12 +58,7 @@ pub struct OpsServiceDto {
 
 impl From<ServiceInfoDto> for OpsServiceDto {
     fn from(value: ServiceInfoDto) -> Self {
-        let metadata = if let Some(metadata) = &value.metadata {
-            Some(serde_json::to_string(metadata).unwrap())
-        }
-        else{
-            None
-        };
+        let metadata = value.metadata.as_ref().map(|e|serde_json::to_string(e).unwrap_or_default());
         Self { 
             name: Some(value.service_name) , 
             group_name: Some(value.group_name) , 

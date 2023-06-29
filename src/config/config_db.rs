@@ -3,7 +3,7 @@ use chrono::Local;
 use rusqlite::Connection;
 use crate::common::AppSysConfig;
 
-use super::{config::{ConfigKey, ConfigValue}, dal::{ConfigDO, ConfigDao, ConfigHistoryDO, ConfigHistoryDao, ConfigParam,ConfigHistoryParam}};
+use super::{core::{ConfigKey, ConfigValue}, dal::{ConfigDO, ConfigDao, ConfigHistoryDO, ConfigHistoryDao, ConfigParam,ConfigHistoryParam}};
 
 pub struct ConfigDB {
     config_dao:ConfigDao,

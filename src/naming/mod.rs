@@ -24,17 +24,17 @@ impl NamingUtils {
         format!("{}@@{}",group_name,service_name)
     }
 
-    pub fn split_group_and_serivce_name(grouped_name:&String) -> Option<(String,String)> {
+    pub fn split_group_and_serivce_name(grouped_name:&str) -> Option<(String,String)> {
         let split = grouped_name.split("@@").collect::<Vec<_>>();
-        if split.len() ==0 {
+        if split.is_empty() {
             return None
         }
-        let a = split.get(0);
+        let a = split.first();
         let b = split.get(1);
         match b {
             Some(b) => {
                 let a = a.unwrap();
-                if a.len()==0 {
+                if a.is_empty() {
                     return None;
                 }
                 Some(((*a).to_owned(),(*b).to_owned()))
@@ -42,7 +42,7 @@ impl NamingUtils {
             None=>{
                 match a{
                     Some(a) => {
-                        if a.len()==0{
+                        if a.is_empty() {
                             return None;
                         }
                         Some(("DEFAULT_GROUP".to_owned(),(*a).to_owned()))
@@ -56,8 +56,7 @@ impl NamingUtils {
     }
 
     pub fn split_filters(cluster_str:&str) -> Vec<String> {
-        cluster_str.split(",").into_iter()
-                .filter(|e|{e.len()>0}).map(|e|{e.to_owned()}).collect::<Vec<_>>()
+        cluster_str.split(',').filter(|e|{!e.is_empty()}).map(|e|{e.to_owned()}).collect::<Vec<_>>()
     }
 
     pub fn default_namespace(val:String) -> String {

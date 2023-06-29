@@ -31,7 +31,7 @@ impl Instance{
     pub fn new(ip:String,port:u32) -> Self {
         Self {
             ip : Arc::new(ip),
-            port : port,
+            port ,
             ..Default::default()
         }
     }

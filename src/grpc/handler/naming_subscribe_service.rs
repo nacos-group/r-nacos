@@ -48,8 +48,10 @@ impl PayloadHandler for SubscribeServiceRequestHandler {
     async fn handle(&self, request_payload: crate::grpc::nacos_proto::Payload,request_meta:crate::grpc::RequestMeta) -> anyhow::Result<Payload> {
         let body_vec = request_payload.body.unwrap_or_default().value;
         let request:SubscribeServiceRequest = serde_json::from_slice(&body_vec)?;
-        let mut response = SubscribeServiceResponse::default();
-        response.request_id=request.request_id;
+        let mut response = SubscribeServiceResponse{
+            request_id: request.request_id,
+            ..Default::default()
+        };
         let cluster =if let Some(v) =request.clusters.as_ref() {v.clone()} else {"".to_owned()};
         let namespace = NamingUtils::default_namespace(request.namespace.as_ref().unwrap_or(&"".to_owned()).to_owned());
         let key = ServiceKey::new(&namespace

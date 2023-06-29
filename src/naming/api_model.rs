@@ -52,20 +52,22 @@ impl QueryListResult {
         key: &ServiceKey,
         v: Vec<&Arc<Instance>>,
     ) -> String {
-        let mut result = QueryListResult::default();
-        result.name = key.get_join_service_name();
-        result.cache_millis = 10000u64;
         let now = Local::now().timestamp_millis();
-        result.last_ref_time = Some(now - 1000);
-        result.checksum = Some(now.to_string());
-        result.use_specified_url = Some(false);
-        result.clusters = clusters;
-        result.env = Some("".to_owned());
-        result.hosts = v
-            .into_iter()
-            .map(|e| InstanceVO::from_instance(&e))
-            .collect::<Vec<_>>();
-        result.dom = Some(key.service_name.to_owned());
+        let result = QueryListResult{
+            name : key.get_join_service_name(),
+            cache_millis : 10000u64,
+            last_ref_time : Some(now - 1000),
+            checksum : Some(now.to_string()),
+            use_specified_url : Some(false),
+            clusters ,
+            env : Some("".to_owned()),
+            hosts : v
+                .into_iter()
+                .map(|e| InstanceVO::from_instance(e))
+                .collect::<Vec<_>>(),
+            dom : Some(key.service_name.to_owned()),
+            ..Default::default()
+        };
         serde_json::to_string(&result).unwrap()
     }
 }
@@ -149,7 +151,6 @@ impl ServiceInfoParam {
             protect_threshold : select_option(a.protect_threshold, b.protect_threshold),
             metadata : select_option(a.metadata, b.metadata),
             selector : select_option(a.selector, b.selector),
-            ..Default::default()
         }
     }
 

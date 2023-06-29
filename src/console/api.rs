@@ -1,7 +1,7 @@
 use actix_web::{web, Responder, HttpResponse,http::header};
 use actix::prelude::*;
 
-use crate::config::config::ConfigActor;
+use crate::config::core::ConfigActor;
 
 use super::{NamespaceUtils, model::{ConsoleResult, NamespaceInfo}, naming_api::{query_ops_instances_list, query_grpc_client_instance_count}, config_api::{import_config, download_config, query_history_config_page}, connection_api::query_grpc_connection};
 use super::config_api::query_config_list;

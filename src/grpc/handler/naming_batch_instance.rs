@@ -104,8 +104,10 @@ impl PayloadHandler for BatchInstanceRequestHandler {
             }
         }
         let instances = Self::convert_to_instances(request,request_meta.connection_id)?;
-        let mut response = InstanceResponse::default();
-        response.request_id=request_id;
+        let mut response = InstanceResponse{
+            request_id,
+            ..Default::default()
+        };
         for instance in instances {
             let cmd = if is_de_register {
                 NamingCmd::Delete(instance)

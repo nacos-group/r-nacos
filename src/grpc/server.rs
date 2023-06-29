@@ -33,9 +33,11 @@ impl request_server::Request for RequestServerImpl {
     ) -> Result<tonic::Response<Payload>,tonic::Status> {
         let start=SystemTime::now();
         let remote_addr = request.remote_addr().unwrap();
-        let mut request_meta = RequestMeta::default();
-        request_meta.client_ip = remote_addr.ip().to_string();
-        request_meta.connection_id = Arc::new(remote_addr.to_string());
+        let request_meta = RequestMeta{
+            client_ip : remote_addr.ip().to_string(),
+            connection_id : Arc::new(remote_addr.to_string()),
+            ..Default::default()
+        };
         let payload = request.into_inner();
         //debug
         //log::info!("client request: {}",PayloadUtils::get_payload_string(&payload));

@@ -10,7 +10,7 @@ use rnacos::grpc::nacos_proto::request_server::RequestServer;
 use rnacos::grpc::server::BiRequestStreamServerImpl;
 use rnacos::naming::core::{NamingCmd, NamingResult};
 use rnacos::{naming::core::NamingActor, grpc::server::RequestServerImpl};
-use rnacos::config::config::{ConfigActor, ConfigCmd};
+use rnacos::config::core::{ConfigActor, ConfigCmd};
 use tonic::transport::Server;
 use std::error::Error;
 

@@ -8,7 +8,7 @@ pub mod connection_api;
 use std::sync::Arc;
 
 use actix::prelude::*;
-use crate::config::config::{ConfigActor, ConfigCmd, ConfigKey, ConfigResult};
+use crate::config::core::{ConfigActor, ConfigCmd, ConfigKey, ConfigResult};
 
 use self::model::NamespaceInfo;
 

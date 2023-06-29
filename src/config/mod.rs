@@ -1,5 +1,5 @@
 pub mod api;
-pub mod config;
+pub mod core;
 pub mod config_db;
 pub mod config_index;
 pub mod config_sled;

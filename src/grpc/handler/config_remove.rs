@@ -1,6 +1,6 @@
 #![allow(unused_imports)]
 
-use crate::{grpc::{PayloadHandler, api_model::{ConfigPublishRequest, BaseResponse, ConfigRemoveRequest}, nacos_proto::Payload, PayloadUtils}, config::config::{ConfigActor, ConfigCmd, ConfigKey, ConfigResult}};
+use crate::{grpc::{PayloadHandler, api_model::{ConfigPublishRequest, BaseResponse, ConfigRemoveRequest}, nacos_proto::Payload, PayloadUtils}, config::core::{ConfigActor, ConfigCmd, ConfigKey, ConfigResult}};
 use actix::prelude::Addr;
 use async_trait::async_trait;
 
