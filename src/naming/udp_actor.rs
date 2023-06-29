@@ -1,42 +1,41 @@
-#![allow(unused_imports,unused_must_use)]
-use std::io::stdin;
-use std::error::Error;
-use std::env;
-use std::net::SocketAddr;
-use std::sync::{Arc};
-use std::borrow::Cow;
-use std::time::Duration;
+#![allow(unused_imports, unused_must_use)]
 use actix::prelude::*;
-use tokio::net::{UdpSocket};
+use std::borrow::Cow;
+use std::env;
+use std::error::Error;
+use std::io::stdin;
+use std::net::SocketAddr;
+use std::sync::Arc;
+use std::time::Duration;
+use tokio::net::UdpSocket;
 use tokio::signal;
 use tokio::sync::Mutex;
 
-use super::listener::{InnerNamingListener,NamingListenerCmd};
-
+use super::listener::{InnerNamingListener, NamingListenerCmd};
 
 const MAX_DATAGRAM_SIZE: usize = 65_507;
-pub struct UdpWorker{
+pub struct UdpWorker {
     local_addr_str: Option<String>,
     socket: Option<Arc<UdpSocket>>,
     addr: Option<Addr<InnerNamingListener>>,
-    udp_port:u16,
+    udp_port: u16,
     buf: Option<Vec<u8>>,
 }
 
 impl UdpWorker {
-    pub fn new(addr: Option<Addr<InnerNamingListener>>) -> Self{
-        Self{
+    pub fn new(addr: Option<Addr<InnerNamingListener>>) -> Self {
+        Self {
             local_addr_str: None,
             socket: None,
             addr,
-            udp_port:0,
+            udp_port: 0,
             buf: Some(vec![]),
         }
     }
 
     pub fn new_with_socket(socket: UdpSocket, addr: Option<Addr<InnerNamingListener>>) -> Self {
         let local_addr = socket.local_addr().unwrap();
-        let udp_port=local_addr.port();
+        let udp_port = local_addr.port();
         Self {
             local_addr_str: None,
             socket: Some(Arc::new(socket)),
@@ -77,8 +76,8 @@ impl UdpWorker {
         let buf = self.buf.replace(Vec::new());
         async move {
             let mut buf = buf.unwrap_or_default();
-            if buf.len()< MAX_DATAGRAM_SIZE {
-                buf =  vec![0u8; MAX_DATAGRAM_SIZE];
+            if buf.len() < MAX_DATAGRAM_SIZE {
+                buf = vec![0u8; MAX_DATAGRAM_SIZE];
             }
             while let Ok((_len, addr)) = socket.recv_from(&mut buf).await {
                 //let mut data:Vec<u8> = Vec::with_capacity(len);
@@ -87,7 +86,7 @@ impl UdpWorker {
                 let msg = NamingListenerCmd::Response(addr.to_owned());
                 //let s=String::from_utf8_lossy(&buf[..len]);
                 //println!("rece from:{} | len:{} | str:{}",&addr,len,s);
-                if let Some(_notify_addr)=&notify_addr {
+                if let Some(_notify_addr) = &notify_addr {
                     _notify_addr.do_send(msg);
                 }
             }
@@ -96,46 +95,43 @@ impl UdpWorker {
         .into_actor(self)
         .map(|buf, act, ctx| {
             act.buf.replace(buf);
-            ctx.run_later(Duration::from_secs(1), |act,ctx|{
+            ctx.run_later(Duration::from_secs(1), |act, ctx| {
                 act.init_loop_recv(ctx);
             });
         })
         .spawn(ctx);
     }
-
 }
 
 impl Actor for UdpWorker {
     type Context = Context<Self>;
 
-    fn started(&mut self,ctx: &mut Self::Context) {
+    fn started(&mut self, ctx: &mut Self::Context) {
         log::info!(" UdpWorker started");
         self.init(ctx);
     }
-
-    
 }
 
-#[derive(Debug,Message)]
+#[derive(Debug, Message)]
 #[rtype(result = "Result<(),std::io::Error>")]
-pub struct UdpSenderCmd{
-    pub data:Arc<Vec<u8>>,
-    pub target_addr:SocketAddr,
+pub struct UdpSenderCmd {
+    pub data: Arc<Vec<u8>>,
+    pub target_addr: SocketAddr,
 }
 
-impl UdpSenderCmd{
-    pub fn new(data:Arc<Vec<u8>>,addr:SocketAddr) -> Self {
-        Self{
+impl UdpSenderCmd {
+    pub fn new(data: Arc<Vec<u8>>, addr: SocketAddr) -> Self {
+        Self {
             data,
-            target_addr:addr,
+            target_addr: addr,
         }
     }
 }
 
 impl Handler<UdpSenderCmd> for UdpWorker {
-    type Result = Result<(),std::io::Error>;
-    fn handle(&mut self,msg:UdpSenderCmd,ctx: &mut Context<Self>) -> Self::Result {
-        log::info!("send instance info by udp,to addr:{}",&msg.target_addr);
+    type Result = Result<(), std::io::Error>;
+    fn handle(&mut self, msg: UdpSenderCmd, ctx: &mut Context<Self>) -> Self::Result {
+        log::info!("send instance info by udp,to addr:{}", &msg.target_addr);
         let socket = self.socket.as_ref().unwrap().clone();
         async move {
             socket.send_to(&msg.data, msg.target_addr).await;
@@ -159,19 +155,19 @@ pub enum UdpWorkerResult {
 }
 
 impl Handler<UdpWorkerCmd> for UdpWorker {
-    type Result=Result<UdpWorkerResult,std::io::Error>;
+    type Result = Result<UdpWorkerResult, std::io::Error>;
 
     fn handle(&mut self, msg: UdpWorkerCmd, ctx: &mut Self::Context) -> Self::Result {
         match msg {
             UdpWorkerCmd::Close => {
                 log::info!("UdpWorker close");
-                self.addr=None;
-                self.socket=None;
+                self.addr = None;
+                self.socket = None;
                 ctx.stop();
-            },
+            }
             UdpWorkerCmd::SetListenerAddr(addr) => {
                 self.addr = Some(addr);
-            },
+            }
         };
         Ok(UdpWorkerResult::None)
     }

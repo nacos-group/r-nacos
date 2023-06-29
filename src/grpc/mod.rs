@@ -3,55 +3,65 @@ use std::{collections::HashMap, sync::Arc};
 use self::api_model::BaseResponse;
 use async_trait::async_trait;
 
-
+pub mod api_model;
+pub mod bistream_conn;
+pub mod bistream_manage;
 pub mod handler;
 pub mod nacos_proto;
 pub mod server;
-pub mod api_model;
-pub mod bistream_manage;
-pub mod bistream_conn;
-
 
 #[derive(Default)]
-pub struct RequestMeta{
-    pub connection_id:Arc<String>,
-    pub client_ip:String,
-    pub client_version:String,
-    pub labels:HashMap<String,String>,
+pub struct RequestMeta {
+    pub connection_id: Arc<String>,
+    pub client_ip: String,
+    pub client_version: String,
+    pub labels: HashMap<String, String>,
 }
-
 
 #[async_trait]
 pub trait PayloadHandler {
-    async fn handle(&self, request_payload: nacos_proto::Payload,request_meta:RequestMeta) -> anyhow::Result<nacos_proto::Payload>;
+    async fn handle(
+        &self,
+        request_payload: nacos_proto::Payload,
+        request_meta: RequestMeta,
+    ) -> anyhow::Result<nacos_proto::Payload>;
 }
 
 pub struct PayloadUtils;
 
 impl PayloadUtils {
-    pub fn new_metadata(r#type:&str,client_ip:&str,headers:HashMap<String,String>) -> nacos_proto::Metadata {
+    pub fn new_metadata(
+        r#type: &str,
+        client_ip: &str,
+        headers: HashMap<String, String>,
+    ) -> nacos_proto::Metadata {
         nacos_proto::Metadata {
-            r#type:r#type.to_owned(),
-            client_ip:client_ip.to_owned(),
-            headers
+            r#type: r#type.to_owned(),
+            client_ip: client_ip.to_owned(),
+            headers,
         }
     }
 
-    pub fn build_error_payload(error_code:u16,error_msg:String) -> nacos_proto::Payload {
-        let error_val = BaseResponse::build_error_response(error_code,error_msg).to_json_string();
-        Self::build_payload("ErrorResponse",error_val)
+    pub fn build_error_payload(error_code: u16, error_msg: String) -> nacos_proto::Payload {
+        let error_val = BaseResponse::build_error_response(error_code, error_msg).to_json_string();
+        Self::build_payload("ErrorResponse", error_val)
     }
 
-    pub fn build_payload(url:&str,val: String) -> nacos_proto::Payload {
-        Self::build_full_payload(url,val,"",Default::default())
+    pub fn build_payload(url: &str, val: String) -> nacos_proto::Payload {
+        Self::build_full_payload(url, val, "", Default::default())
     }
 
-    pub fn build_full_payload(url:&str,val: String,client_ip:&str,headers:HashMap<String,String>) -> nacos_proto::Payload {
+    pub fn build_full_payload(
+        url: &str,
+        val: String,
+        client_ip: &str,
+        headers: HashMap<String, String>,
+    ) -> nacos_proto::Payload {
         let body = nacos_proto::Any {
             type_url: "".into(),
             value: val.into_bytes(),
         };
-        let meta = Self::new_metadata(url,client_ip,headers);
+        let meta = Self::new_metadata(url, client_ip, headers);
         nacos_proto::Payload {
             body: Some(body),
             metadata: Some(meta),

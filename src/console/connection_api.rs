@@ -1,4 +1,3 @@
-
 use actix_web::{http::header, web, HttpResponse, Responder};
 
 use actix::prelude::Addr;
@@ -10,8 +9,10 @@ use super::model::PageResult;
 pub async fn query_grpc_connection(
     conn_manager_addr: web::Data<Addr<BiStreamManage>>,
 ) -> impl Responder {
-
-    match conn_manager_addr.send(BiStreamManageCmd::QueryConnList).await {
+    match conn_manager_addr
+        .send(BiStreamManageCmd::QueryConnList)
+        .await
+    {
         Ok(res) => match res as anyhow::Result<BiStreamManageResult> {
             Ok(result) => match result {
                 BiStreamManageResult::ConnList(list) => {

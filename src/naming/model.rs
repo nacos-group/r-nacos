@@ -1,112 +1,121 @@
-
 use std::{collections::HashMap, sync::Arc};
 
-use serde::{Serialize,Deserialize};
+use serde::{Deserialize, Serialize};
 
 use crate::now_millis_i64;
 
-#[derive(Debug,Clone,Serialize,Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Instance {
-    pub id:Arc<String>,
-    pub ip:Arc<String>,
-    pub port:u32,
-    pub weight:f32,
-    pub enabled:bool,
-    pub healthy:bool,
+    pub id: Arc<String>,
+    pub ip: Arc<String>,
+    pub port: u32,
+    pub weight: f32,
+    pub enabled: bool,
+    pub healthy: bool,
     pub ephemeral: bool,
-    pub cluster_name:String,
-    pub service_name:Arc<String>,
-    pub group_name:Arc<String>,
-    pub group_service:Arc<String>,
-    pub metadata:Arc<HashMap<String,String>>,
-    pub last_modified_millis:i64,
-    pub namespace_id:Arc<String>,
-    pub app_name:String,
-    pub from_grpc:bool,
-    pub client_id:Arc<String>,
+    pub cluster_name: String,
+    pub service_name: Arc<String>,
+    pub group_name: Arc<String>,
+    pub group_service: Arc<String>,
+    pub metadata: Arc<HashMap<String, String>>,
+    pub last_modified_millis: i64,
+    pub namespace_id: Arc<String>,
+    pub app_name: String,
+    pub from_grpc: bool,
+    pub client_id: Arc<String>,
 }
 
-impl Instance{
-    pub fn new(ip:String,port:u32) -> Self {
+impl Instance {
+    pub fn new(ip: String, port: u32) -> Self {
         Self {
-            ip : Arc::new(ip),
-            port ,
+            ip: Arc::new(ip),
+            port,
             ..Default::default()
         }
     }
 
     pub fn generate_key(&mut self) {
         //self.id = format!("{}#{}#{}#{}#{}",&self.ip,&self.port,&self.cluster_name,&self.service_name,&self.group_name)
-        self.id = Arc::new(format!("{}#{}",&self.ip,&self.port))
+        self.id = Arc::new(format!("{}#{}", &self.ip, &self.port))
     }
 
     pub fn init(&mut self) {
         self.last_modified_millis = now_millis_i64();
-        if self.id.len()==0 {
+        if self.id.len() == 0 {
             self.generate_key();
         }
     }
 
     pub fn check_vaild(&self) -> bool {
-        if self.id.is_empty() || self.port==0 || self.service_name.is_empty() || self.cluster_name.is_empty() 
+        if self.id.is_empty()
+            || self.port == 0
+            || self.service_name.is_empty()
+            || self.cluster_name.is_empty()
         {
             return false;
         }
         true
     }
 
-    pub fn update_info(&self,o:&Self,_tag:Option<InstanceUpdateTag>) -> bool {
-        self.enabled != o.enabled 
-        || self.healthy != o.healthy
-        || self.weight != o.weight
-        || self.ephemeral != o.ephemeral
-        || self.metadata != o.metadata
+    pub fn update_info(&self, o: &Self, _tag: Option<InstanceUpdateTag>) -> bool {
+        self.enabled != o.enabled
+            || self.healthy != o.healthy
+            || self.weight != o.weight
+            || self.ephemeral != o.ephemeral
+            || self.metadata != o.metadata
     }
 
     pub fn get_service_key(&self) -> ServiceKey {
         //ServiceKey::new(&self.namespace_id,&self.group_name,&self.service_name)
-        ServiceKey::new_by_arc(self.namespace_id.clone(),self.group_name.clone(),self.service_name.clone())
+        ServiceKey::new_by_arc(
+            self.namespace_id.clone(),
+            self.group_name.clone(),
+            self.service_name.clone(),
+        )
     }
 
     pub fn get_short_key(&self) -> InstanceShortKey {
-        InstanceShortKey { ip:self.ip.clone(), port:self.port.to_owned() }
+        InstanceShortKey {
+            ip: self.ip.clone(),
+            port: self.port.to_owned(),
+        }
     }
 
     pub fn get_id_string(&self) -> String {
-        format!("{}#{}",&self.ip,&self.port)
+        format!("{}#{}", &self.ip, &self.port)
     }
 
     pub(crate) fn get_time_info(&self) -> InstanceTimeInfo {
-        InstanceTimeInfo::new(self.get_short_key(),self.last_modified_millis)
+        InstanceTimeInfo::new(self.get_short_key(), self.last_modified_millis)
     }
 }
 
 impl Default for Instance {
     fn default() -> Self {
         Self {
-            id:Default::default(),
-            ip:Default::default(),
-            port:Default::default(),
-            weight:1f32,
-            enabled:true,
-            healthy:true,
-            ephemeral:true,
-            cluster_name:"DEFAULT".to_owned(),
-            service_name:Default::default(),
-            group_name:Default::default(),
-            group_service:Default::default(),
-            metadata:Default::default(),
-            last_modified_millis:Default::default(),
-            namespace_id:Default::default(),
-            app_name:Default::default(),
-            from_grpc:false,
-            client_id:Default::default(),
+            id: Default::default(),
+            ip: Default::default(),
+            port: Default::default(),
+            weight: 1f32,
+            enabled: true,
+            healthy: true,
+            ephemeral: true,
+            cluster_name: "DEFAULT".to_owned(),
+            service_name: Default::default(),
+            group_name: Default::default(),
+            group_service: Default::default(),
+            metadata: Default::default(),
+            last_modified_millis: Default::default(),
+            namespace_id: Default::default(),
+            app_name: Default::default(),
+            from_grpc: false,
+            client_id: Default::default(),
         }
     }
 }
 
-#[derive(Debug,Serialize, Deserialize , Default, Clone)]
+#[derive(Debug, Serialize, Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ServiceInfo {
     pub name: Option<Arc<String>>,
@@ -117,37 +126,38 @@ pub struct ServiceInfo {
     pub last_ref_time: i64,
     pub checksum: i64,
     #[serde(rename = "allIPs")]
-    pub all_ips:bool,
+    pub all_ips: bool,
     pub reach_protection_threshold: bool,
     //pub metadata:Option<HashMap<String,String>>,
 }
 
-#[derive(Debug,Serialize, Deserialize , Default, Clone)]
+#[derive(Debug, Serialize, Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct ServiceDetailDto{
-    pub namespace_id:Arc<String>,
-    pub service_name:Arc<String>,
-    pub group_name:Arc<String>,
-    pub metadata:Option<HashMap<String,String>>,
-    pub protect_threshold:Option<f32>,
+pub struct ServiceDetailDto {
+    pub namespace_id: Arc<String>,
+    pub service_name: Arc<String>,
+    pub group_name: Arc<String>,
+    pub metadata: Option<HashMap<String, String>>,
+    pub protect_threshold: Option<f32>,
 }
 
 impl ServiceDetailDto {
     pub(crate) fn to_service_key(&self) -> ServiceKey {
         ServiceKey::new_by_arc(
-            self.namespace_id.clone(), 
-            self.group_name.clone(), 
-            self.service_name.clone())
+            self.namespace_id.clone(),
+            self.group_name.clone(),
+            self.service_name.clone(),
+        )
     }
 }
 
-#[derive(Debug,Clone)]
-pub struct InstanceUpdateTag{
+#[derive(Debug, Clone)]
+pub struct InstanceUpdateTag {
     pub weight: bool,
     pub metadata: bool,
     pub enabled: bool,
     pub ephemeral: bool,
-    pub from_update:bool,
+    pub from_update: bool,
 }
 
 impl InstanceUpdateTag {
@@ -171,81 +181,92 @@ impl Default for InstanceUpdateTag {
     }
 }
 
-
-#[derive(Debug,Clone,Default,Hash,PartialEq,Eq)]
+#[derive(Debug, Clone, Default, Hash, PartialEq, Eq)]
 pub struct ServiceKey {
-    pub namespace_id:Arc<String>,
-    pub group_name:Arc<String>,
-    pub service_name:Arc<String>,
+    pub namespace_id: Arc<String>,
+    pub group_name: Arc<String>,
+    pub service_name: Arc<String>,
 }
 
 impl ServiceKey {
-    pub fn new(namespace_id:&str,group_name:&str,serivce_name:&str) -> Self {
+    pub fn new(namespace_id: &str, group_name: &str, serivce_name: &str) -> Self {
         Self {
-            namespace_id:Arc::new(namespace_id.to_owned()),
-            group_name:Arc::new(group_name.to_owned()),
-            service_name:Arc::new(serivce_name.to_owned()),
+            namespace_id: Arc::new(namespace_id.to_owned()),
+            group_name: Arc::new(group_name.to_owned()),
+            service_name: Arc::new(serivce_name.to_owned()),
         }
     }
 
-    pub fn new_by_arc(namespace_id:Arc<String>,group_name:Arc<String>,service_name:Arc<String>) -> Self {
-        Self { namespace_id, group_name, service_name }
+    pub fn new_by_arc(
+        namespace_id: Arc<String>,
+        group_name: Arc<String>,
+        service_name: Arc<String>,
+    ) -> Self {
+        Self {
+            namespace_id,
+            group_name,
+            service_name,
+        }
     }
 
     pub fn get_join_service_name(&self) -> String {
-        format!("{}@@{}",self.group_name,self.service_name)
+        format!("{}@@{}", self.group_name, self.service_name)
     }
 }
 
-#[derive(Debug,Clone,Default,Hash,PartialEq,Eq)]
+#[derive(Debug, Clone, Default, Hash, PartialEq, Eq)]
 pub struct InstanceKey {
-    pub namespace_id:Arc<String>,
-    pub group_name:Arc<String>,
-    pub service_name:Arc<String>,
-    pub ip:Arc<String>,
-    pub port:u32
+    pub namespace_id: Arc<String>,
+    pub group_name: Arc<String>,
+    pub service_name: Arc<String>,
+    pub ip: Arc<String>,
+    pub port: u32,
 }
 
-impl InstanceKey{
-    pub fn new_by_service_key(key:&ServiceKey,ip:Arc<String>,port:u32) -> Self {
-        Self { 
-            namespace_id: key.namespace_id.clone(), 
-            group_name: key.group_name.clone(), 
-            service_name: key.service_name.clone(), 
+impl InstanceKey {
+    pub fn new_by_service_key(key: &ServiceKey, ip: Arc<String>, port: u32) -> Self {
+        Self {
+            namespace_id: key.namespace_id.clone(),
+            group_name: key.group_name.clone(),
+            service_name: key.service_name.clone(),
             ip,
             port,
         }
     }
 
     pub fn get_service_key(&self) -> ServiceKey {
-        ServiceKey::new_by_arc(self.namespace_id.clone(),self.group_name.clone(),self.service_name.clone())
+        ServiceKey::new_by_arc(
+            self.namespace_id.clone(),
+            self.group_name.clone(),
+            self.service_name.clone(),
+        )
     }
 
     pub fn get_short_key(&self) -> InstanceShortKey {
-        InstanceShortKey { ip:self.ip.clone(), port: self.port.to_owned() }
+        InstanceShortKey {
+            ip: self.ip.clone(),
+            port: self.port.to_owned(),
+        }
     }
 }
 
-#[derive(Debug,Clone,Default,Hash,PartialEq,Eq)]
+#[derive(Debug, Clone, Default, Hash, PartialEq, Eq)]
 pub struct InstanceShortKey {
-    pub ip:Arc<String>,
-    pub port:u32
+    pub ip: Arc<String>,
+    pub port: u32,
 }
 
 impl InstanceShortKey {
-    pub fn new(ip:Arc<String>,port:u32) -> Self {
-        Self{
-            ip,
-            port
-        }
+    pub fn new(ip: Arc<String>, port: u32) -> Self {
+        Self { ip, port }
     }
 
-    pub fn new_from_instance_id(id:&str) -> Self {
-        let items:Vec<&str>=id.split('#').collect();
-        assert!(items.len()>1);
+    pub fn new_from_instance_id(id: &str) -> Self {
+        let items: Vec<&str> = id.split('#').collect();
+        assert!(items.len() > 1);
         let ip_str = items[0];
         let port_str = items[1];
-        let port:u32 = port_str.parse().unwrap_or_default();
+        let port: u32 = port_str.parse().unwrap_or_default();
         Self {
             ip: Arc::new(ip_str.to_owned()),
             port,
@@ -253,24 +274,24 @@ impl InstanceShortKey {
     }
 }
 
-#[derive(Debug,Clone,Default,Hash,PartialEq,Eq)]
+#[derive(Debug, Clone, Default, Hash, PartialEq, Eq)]
 pub(crate) struct InstanceTimeInfo {
-    pub(crate) time:i64,
-    pub(crate) instance_id:InstanceShortKey,
-    pub(crate) enable:bool,
+    pub(crate) time: i64,
+    pub(crate) instance_id: InstanceShortKey,
+    pub(crate) enable: bool,
 }
 
 impl InstanceTimeInfo {
-    pub(crate) fn new(instance_id:InstanceShortKey,time:i64) -> Self {
+    pub(crate) fn new(instance_id: InstanceShortKey, time: i64) -> Self {
         Self {
             time,
             instance_id,
-            enable:true,
+            enable: true,
         }
     }
 }
 
-pub enum UpdateInstanceType{
+pub enum UpdateInstanceType {
     None,
     New,
     Remove,

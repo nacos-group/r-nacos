@@ -4,9 +4,9 @@ use std::sync::Arc;
 use actix::prelude::*;
 use tokio_stream::StreamExt;
 
-use super::PayloadUtils;
 use super::api_model::ConnectResetRequest;
 use super::bistream_manage::{BiStreamManage, BiStreamManageCmd};
+use super::PayloadUtils;
 use super::{api_model::ClientDetectionRequest, nacos_proto::Payload};
 
 type SenderType = tokio::sync::mpsc::Sender<Result<Payload, tonic::Status>>;
@@ -14,13 +14,18 @@ type ReceiverStreamType = tonic::Streaming<Payload>;
 
 pub struct BiStreamConn {
     sender: SenderType,
-    client_id:Arc<String>,
+    client_id: Arc<String>,
     receiver_stream: Cell<Option<ReceiverStreamType>>,
-    manage : Addr<BiStreamManage>,
+    manage: Addr<BiStreamManage>,
 }
 
 impl BiStreamConn {
-    pub fn new(sender: SenderType,client_id:Arc<String> , receiver_stream: ReceiverStreamType,manage : Addr<BiStreamManage>) -> Self {
+    pub fn new(
+        sender: SenderType,
+        client_id: Arc<String>,
+        receiver_stream: ReceiverStreamType,
+        manage: Addr<BiStreamManage>,
+    ) -> Self {
         Self {
             sender,
             client_id,
@@ -33,14 +38,14 @@ impl BiStreamConn {
         if let Some(mut receiver_stream) = self.receiver_stream.replace(None) {
             let manage = self.manage.clone();
             let client_id = self.client_id.clone();
-            async move { 
+            async move {
                 if let Some(Ok(_payload)) = receiver_stream.next().await {
                     //println!("BiStreamConn receive frist msg:{}",PayloadUtils::get_payload_string(&payload));
                 }
                 while let Some(Ok(payload)) = receiver_stream.next().await {
                     //println!("BiStreamConn receive msg:{}",PayloadUtils::get_payload_string(&payload));
                     manage.do_send(BiStreamManageCmd::Response(client_id.clone(), payload));
-                } 
+                }
                 manage.do_send(BiStreamManageCmd::ConnClose(client_id));
             }
             .into_actor(self)
@@ -51,18 +56,15 @@ impl BiStreamConn {
         }
     }
 
-    fn send_payload(&mut self, ctx: &mut Context<Self>,payload:Payload){
+    fn send_payload(&mut self, ctx: &mut Context<Self>, payload: Payload) {
         let sender = self.sender.clone();
         //debug
         //log::info!("send_payload {}",PayloadUtils::get_payload_string(&payload));
-        async move {
-            sender.send(Ok(payload)).await
-        }
-        .into_actor(self)
-        .map(|_, _, _| {})
-        .spawn(ctx);
+        async move { sender.send(Ok(payload)).await }
+            .into_actor(self)
+            .map(|_, _, _| {})
+            .spawn(ctx);
     }
-
 }
 
 impl Actor for BiStreamConn {
@@ -72,7 +74,6 @@ impl Actor for BiStreamConn {
         //log::info!("BiStreamConn started");
     }
 }
-
 
 impl Supervised for BiStreamConn {
     fn restarting(&mut self, _ctx: &mut <Self as Actor>::Context) {
@@ -84,7 +85,7 @@ impl Supervised for BiStreamConn {
 #[rtype(result = "Result<BiStreamSenderResult,std::io::Error>")]
 pub enum BiStreamSenderCmd {
     Detection(String),
-    Reset(String,Option<String>,Option<String>),
+    Reset(String, Option<String>, Option<String>),
     Send(Arc<Payload>),
     Close,
 }
@@ -99,37 +100,37 @@ impl Handler<BiStreamSenderCmd> for BiStreamConn {
     fn handle(&mut self, msg: BiStreamSenderCmd, ctx: &mut Context<Self>) -> Self::Result {
         match msg {
             BiStreamSenderCmd::Detection(request_id) => {
-                let request = ClientDetectionRequest{
-                    module : Some("internal".to_owned()),
-                    request_id : Some(request_id),
+                let request = ClientDetectionRequest {
+                    module: Some("internal".to_owned()),
+                    request_id: Some(request_id),
                     ..Default::default()
                 };
                 let payload = PayloadUtils::build_payload(
                     "ClientDetectionRequest",
                     serde_json::to_string(&request).unwrap(),
                 );
-                self.send_payload(ctx,payload);
-            },
+                self.send_payload(ctx, payload);
+            }
             BiStreamSenderCmd::Reset(request_id, ip, port) => {
-                let request = ConnectResetRequest{
-                    module : Some("internal".to_owned()),
-                    request_id : Some(request_id),
-                    server_ip  :ip,
-                    server_port:port,
+                let request = ConnectResetRequest {
+                    module: Some("internal".to_owned()),
+                    request_id: Some(request_id),
+                    server_ip: ip,
+                    server_port: port,
                     ..Default::default()
                 };
                 let payload = PayloadUtils::build_payload(
                     "ConnectResetRequest",
                     serde_json::to_string(&request).unwrap(),
                 );
-                self.send_payload(ctx,payload);
-            },
+                self.send_payload(ctx, payload);
+            }
             BiStreamSenderCmd::Send(payload) => {
-                self.send_payload(ctx,payload.as_ref().to_owned());
-            },
-            BiStreamSenderCmd::Close=> {
+                self.send_payload(ctx, payload.as_ref().to_owned());
+            }
+            BiStreamSenderCmd::Close => {
                 ctx.stop();
-            },
+            }
         }
         Ok(BiStreamSenderResult::None)
     }

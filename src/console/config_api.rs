@@ -1,7 +1,7 @@
 #![allow(unused_imports)]
 
 use std::fs::File;
-use std::io::{self, Write,Read, Seek, SeekFrom};
+use std::io::{self, Read, Seek, SeekFrom, Write};
 use std::sync::Arc;
 
 use actix_multipart::form::tempfile::TempFile;
@@ -11,7 +11,7 @@ use actix_multipart::Multipart;
 use actix_web::{http::header, web, Error, HttpRequest, HttpResponse, Responder};
 use zip::write::FileOptions;
 
-use crate::config::core::{ConfigActor, ConfigCmd, ConfigKey, ConfigResult, ConfigInfoDto};
+use crate::config::core::{ConfigActor, ConfigCmd, ConfigInfoDto, ConfigKey, ConfigResult};
 use crate::config::ConfigUtils;
 use crate::console::model::config_model::{
     OpsConfigOptQueryListResponse, OpsConfigQueryListRequest,
@@ -22,8 +22,8 @@ use tokio_stream::StreamExt;
 use uuid::Uuid;
 use zip::{ZipArchive, ZipWriter};
 
-use super::model::PageResult;
 use super::model::config_model::OpsConfigImportInfo;
+use super::model::PageResult;
 
 pub async fn query_config_list(
     request: web::Query<OpsConfigQueryListRequest>,
@@ -56,10 +56,10 @@ pub async fn query_history_config_page(
     config_addr: web::Data<Addr<ConfigActor>>,
 ) -> impl Responder {
     let param = match request.0.to_history_param() {
-        Ok(param) => {param},
+        Ok(param) => param,
         Err(err) => {
             return HttpResponse::InternalServerError().body(err.to_string());
-        },
+        }
     };
     let cmd = ConfigCmd::QueryHistoryPageInfo(Box::new(param));
     match config_addr.send(cmd).await {
@@ -141,7 +141,7 @@ pub async fn import_config(
     Ok(HttpResponse::Ok())
 }
 
-fn zip_file(mut zip:ZipWriter<&mut File>,list:Vec<ConfigInfoDto>) -> anyhow::Result<()> {
+fn zip_file(mut zip: ZipWriter<&mut File>, list: Vec<ConfigInfoDto>) -> anyhow::Result<()> {
     if list.is_empty() {
         let options = FileOptions::default()
             .compression_method(zip::CompressionMethod::Stored)
@@ -150,11 +150,15 @@ fn zip_file(mut zip:ZipWriter<&mut File>,list:Vec<ConfigInfoDto>) -> anyhow::Res
         zip.write_all("empty config".as_bytes())?;
     }
     for item in &list {
-        zip.add_directory(item.group.as_str(), Default::default()).ok();
+        zip.add_directory(item.group.as_str(), Default::default())
+            .ok();
         let options = FileOptions::default()
             .compression_method(zip::CompressionMethod::Stored)
             .unix_permissions(0o755);
-        zip.start_file(&format!("{}/{}",&item.group.as_str(),&item.data_id.as_str()), options)?;
+        zip.start_file(
+            &format!("{}/{}", &item.group.as_str(), &item.data_id.as_str()),
+            options,
+        )?;
         zip.write_all(item.content.as_ref().unwrap().as_bytes())?;
     }
     zip.finish()?;
@@ -169,7 +173,7 @@ pub async fn download_config(
 ) -> impl Responder {
     let mut param = request.0.to_param().unwrap();
     param.limit = 0xffff_ffff;
-    param.query_context=true;
+    param.query_context = true;
     let cmd = ConfigCmd::QueryPageInfo(Box::new(param));
     match config_addr.send(cmd).await {
         Ok(res) => {
@@ -178,7 +182,7 @@ pub async fn download_config(
                 ConfigResult::ConfigInfoPage(_, list) => {
                     let mut tmpfile: File = tempfile::tempfile().unwrap();
                     {
-                        let write= std::io::Write::by_ref(&mut tmpfile);
+                        let write = std::io::Write::by_ref(&mut tmpfile);
                         let zip = ZipWriter::new(write);
                         zip_file(zip, list).ok();
                     }
@@ -187,7 +191,7 @@ pub async fn download_config(
                     let mut buf = vec![];
                     tmpfile.read_to_end(&mut buf).unwrap();
 
-                    let filename = format!("rnacos_config_export_{}.zip",now_millis());
+                    let filename = format!("rnacos_config_export_{}.zip", now_millis());
                     HttpResponse::Ok()
                         .insert_header(header::ContentType::octet_stream())
                         .insert_header(header::ContentDisposition::attachment(filename))
