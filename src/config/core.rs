@@ -269,20 +269,22 @@ pub struct ConfigActor {
     config_db: ConfigDB,
 }
 
+/*
 impl Default for ConfigActor {
     fn default() -> Self {
         Self::new()
     }
 }
+*/
 
 impl ConfigActor {
-    pub fn new() -> Self {
+    pub fn new(db: Arc<sled::Db>) -> Self {
         let mut s = Self {
             cache: HashMap::new(),
             subscriber: Subscriber::new(),
             listener: ConfigListener::new(),
             tenant_index: TenantIndex::new(),
-            config_db: ConfigDB::new(),
+            config_db: ConfigDB::new(db),
         };
         s.load_config();
         s

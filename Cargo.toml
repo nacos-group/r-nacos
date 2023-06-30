@@ -70,6 +70,8 @@ prost-types = "0.7"
 
 # bytes
 bytes = "1"
+byteorder = "1"
+zerocopy = "0.6"
 
 [dependencies.uuid]
 version = "1.2.1"

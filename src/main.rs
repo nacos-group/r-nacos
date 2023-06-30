@@ -12,6 +12,7 @@ use rnacos::grpc::server::BiRequestStreamServerImpl;
 use rnacos::naming::core::{NamingCmd, NamingResult};
 use rnacos::{grpc::server::RequestServerImpl, naming::core::NamingActor};
 use std::error::Error;
+use std::sync::Arc;
 use tonic::transport::Server;
 
 use actix_web::{middleware, HttpServer};
@@ -23,12 +24,21 @@ async fn main() -> Result<(), Box<dyn Error>> {
     dotenv::dotenv().ok();
     env_logger::init();
     let sys_config = AppSysConfig::init_from_env();
+    let db = Arc::new(
+        sled::Config::new()
+            .path(&sys_config.config_db_dir)
+            .mode(sled::Mode::LowSpace)
+            .cache_capacity(10 * 1024 * 1024)
+            //.flush_every_ms(Some(1000))
+            .open()
+            .unwrap(),
+    );
     let http_addr = sys_config.get_http_addr();
     let grpc_addr = sys_config.get_grpc_addr();
     log::info!("http server addr:{}", &http_addr);
     log::info!("grpc server addr:{}", &grpc_addr);
 
-    let config_addr = ConfigActor::new().start();
+    let config_addr = ConfigActor::new(db).start();
     //let naming_addr = NamingActor::new_and_create();
     let naming_addr = NamingActor::create_at_new_system();
 

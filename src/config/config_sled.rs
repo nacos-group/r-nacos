@@ -1,6 +1,4 @@
-use std::collections::HashMap;
-
-use crate::common;
+use std::sync::Arc;
 
 use super::{
     core::{ConfigKey, ConfigValue},
@@ -8,9 +6,11 @@ use super::{
 };
 
 use anyhow::Result;
+use byteorder::BigEndian;
 use chrono::Local;
 use prost::Message;
 use serde::{Deserialize, Serialize};
+use zerocopy::{byteorder::U64, AsBytes, FromBytes, LayoutVerified, Unaligned};
 
 const CONFIG_HISTORY_TREE_NAME_PREFIX: &str = "config_history_";
 
@@ -88,21 +88,36 @@ impl ConfigSerdeKey {
 }
 
 pub struct ConfigDB {
+    db: Arc<sled::Db>,
+    config_history_id: u64,
     // config data
-    config_db: sled::Tree,
+    //config_db: sled::Tree,
     // config history data
-    config_history: HashMap<Vec<u8>, sled::Tree>,
-    config_history_ids: HashMap<Vec<u8>, i64>,
+    //config_history: HashMap<Vec<u8>, sled::Tree>,
+    //config_history_ids: HashMap<Vec<u8>, i64>,
 }
 
+/*
 impl Default for ConfigDB {
     fn default() -> Self {
         Self::new()
     }
 }
+*/
+
+//type IdValue = U64<byteorder::BigEndian>;
+
+#[derive(FromBytes, AsBytes, Unaligned)]
+#[repr(C)]
+struct IdValue {
+    value: U64<BigEndian>,
+}
+
+const CONFIG_HISTORY_ID: &str = "config_history_id";
 
 impl ConfigDB {
-    pub fn new() -> Self {
+    pub fn new(db: Arc<sled::Db>) -> Self {
+        /*
         let db = common::DB.lock().unwrap();
         let config_db = db.open_tree("config").unwrap();
 
@@ -134,12 +149,34 @@ impl ConfigDB {
             config_history,
             config_history_ids,
         }
+         */
+        let config_history_id =
+            Self::load_table_last_id(&db, CONFIG_HISTORY_ID).unwrap_or_default();
+        Self {
+            db,
+            config_history_id,
+        }
     }
 
-    pub fn new_his_tree(&mut self, key: &Vec<u8>) -> Result<()> {
-        let db = common::DB.lock().unwrap();
-        let tree = db.open_tree(key)?;
-        self.config_history.insert(key.to_owned(), tree);
+    fn load_table_last_id(db: &sled::Db, table_key: &str) -> Result<u64> {
+        let tree = db.open_tree("table_id")?;
+        if let Some(value) = tree.get(table_key)? {
+            //let v = value.as_bytes().to_vec();
+            let layout: LayoutVerified<&[u8], IdValue> =
+                LayoutVerified::new_unaligned(value.as_bytes()).expect("bytes do not fit schema");
+            let v: &IdValue = layout.into_ref();
+            Ok(v.value.get())
+        } else {
+            Ok(0)
+        }
+    }
+
+    fn save_table_last_id(db: &sled::Db, table_key: &str, id: u64) -> Result<()> {
+        let tree = db.open_tree("table_id")?;
+        let value = IdValue {
+            value: U64::new(id),
+        };
+        tree.insert(table_key, value.value.as_bytes())?;
         Ok(())
     }
 
@@ -157,33 +194,20 @@ impl ConfigDB {
         let config_key = config.get_config_key()?;
         let config_history_tree_name = config.get_config_history_tree_name();
 
+        let config_db = self.db.open_tree("config").unwrap();
         // using protobuf as value serialization
-        self.config_db.insert(&config_key, config.to_bytes()?)?;
+        config_db.insert(config_key, config.to_bytes()?)?;
 
         // update config history id
-        match self.config_history_ids.get(&config_key) {
-            Some(id) => {
-                config.id = Some(id + 1);
-                self.config_history_ids
-                    .insert(config_key.to_owned(), id + 1);
-            }
-            None => {
-                config.id = Some(1);
-                self.config_history_ids.insert(config_key.to_owned(), 1);
-            }
-        }
+        self.config_history_id += 1;
+        let history_id = self.config_history_id;
+        config.id = Some(self.config_history_id as i64);
+        Self::save_table_last_id(&self.db, CONFIG_HISTORY_ID, history_id)?;
 
-        let his_tree = match self.config_history.get(&config_history_tree_name) {
-            Some(tree) => tree,
-            None => {
-                self.new_his_tree(&config_history_tree_name)?;
-                self.config_history.get(&config_history_tree_name).unwrap()
-            }
-        };
-
+        //insert history
+        let history_db = self.db.open_tree(config_history_tree_name)?;
         let his_key = config.get_config_history_key()?;
-        his_tree.insert(his_key, config.to_bytes()?)?;
-
+        history_db.insert(his_key, config.to_bytes()?)?;
         Ok(())
     }
 
@@ -197,22 +221,17 @@ impl ConfigDB {
 
         let config_key = cfg.get_config_key()?;
         let config_history_tree_name = cfg.get_config_history_tree_name();
-        if let Ok(Some(_)) = self.config_db.remove(&config_key) {
-            self.config_history_ids.remove(&config_key);
-
-            if self.config_history.get(&config_history_tree_name).is_some() {
-                let db = common::DB.lock().unwrap();
-                db.drop_tree(&config_history_tree_name)?;
-                self.config_history.remove(&config_history_tree_name);
-            }
+        let config_db = self.db.open_tree("config").unwrap();
+        if let Ok(Some(_)) = config_db.remove(config_key) {
+            self.db.drop_tree(config_history_tree_name)?;
         }
-
         Ok(())
     }
 
     pub fn query_config_list(&self) -> Result<Vec<Config>> {
         let mut ret = vec![];
-        let mut iter = self.config_db.iter();
+        let config_db = self.db.open_tree("config").unwrap();
+        let mut iter = config_db.iter();
         while let Some(Ok((_, v))) = iter.next() {
             let cfg = Config::decode(v.as_ref())?;
             ret.push(cfg);
@@ -234,7 +253,7 @@ impl ConfigDB {
             let mut config_key = config.to_key();
             let history_name = Config::build_config_history_tree_name(&mut config_key);
 
-            if let Some(his_tree) = self.config_history.get(&history_name) {
+            if let Ok(his_tree) = self.db.open_tree(&history_name) {
                 let total: usize = his_tree.len();
                 let mut ret = vec![];
                 let iter = his_tree.iter().rev();
@@ -267,7 +286,8 @@ mod tests {
 
     #[test]
     fn test() {
-        let mut config_db = ConfigDB::new();
+        let db = sled::Config::new().temporary(true).open().unwrap();
+        let mut config_db = ConfigDB::new(Arc::new(db));
         let key = ConfigKey {
             tenant: Arc::new("dev".to_owned()),
             group: Arc::new("dev".to_owned()),
@@ -287,7 +307,8 @@ mod tests {
 
     #[test]
     fn multi_insert() {
-        let mut config_db = ConfigDB::new();
+        let db = sled::Config::new().temporary(true).open().unwrap();
+        let mut config_db = ConfigDB::new(Arc::new(db));
         for i in 1..1000 {
             let key = ConfigKey {
                 tenant: Arc::new("dev".to_owned()),
@@ -305,7 +326,20 @@ mod tests {
 
     #[test]
     fn page_test() {
-        let config_db = ConfigDB::new();
+        let db = sled::Config::new().temporary(true).open().unwrap();
+        let mut config_db = ConfigDB::new(Arc::new(db));
+        let key = ConfigKey {
+            tenant: Arc::new("dev".to_owned()),
+            group: Arc::new("dev".to_owned()),
+            data_id: Arc::new("iris-app-dev.properties".to_owned()),
+        };
+        let val = ConfigValue {
+            content: Arc::new(
+                "appid=iris-app\r\nusername=iris\r\npass=1***5\r\nabc=123".to_owned(),
+            ),
+            md5: Arc::new("".to_owned()),
+        };
+        config_db.update_config(&key, &val).unwrap();
         let param = ConfigHistoryParam {
             id: None,
             tenant: Some("dev".to_owned()),
@@ -327,18 +361,39 @@ mod tests {
 
     #[test]
     fn test_del() {
-        let mut config_db = ConfigDB::new();
+        let db = sled::Config::new().temporary(true).open().unwrap();
+        let mut config_db = ConfigDB::new(Arc::new(db));
         let key = ConfigKey {
             tenant: Arc::new("dev".to_owned()),
             group: Arc::new("dev".to_owned()),
             data_id: Arc::new("iris-app-dev.properties".to_owned()),
         };
+        let val = ConfigValue {
+            content: Arc::new(
+                "appid=iris-app\r\nusername=iris\r\npass=1***5\r\nabc=123".to_owned(),
+            ),
+            md5: Arc::new("".to_owned()),
+        };
+        config_db.update_config(&key, &val).unwrap();
         config_db.del_config(&key).unwrap();
     }
 
     #[test]
     fn list() {
-        let config_db = ConfigDB::new();
+        let db = sled::Config::new().temporary(true).open().unwrap();
+        let mut config_db = ConfigDB::new(Arc::new(db));
+        let key = ConfigKey {
+            tenant: Arc::new("dev".to_owned()),
+            group: Arc::new("dev".to_owned()),
+            data_id: Arc::new("iris-app-dev.properties".to_owned()),
+        };
+        let val = ConfigValue {
+            content: Arc::new(
+                "appid=iris-app\r\nusername=iris\r\npass=1***5\r\nabc=123".to_owned(),
+            ),
+            md5: Arc::new("".to_owned()),
+        };
+        config_db.update_config(&key, &val).unwrap();
         let v = config_db.query_config_list().unwrap();
         println!("{:?}", v)
     }
