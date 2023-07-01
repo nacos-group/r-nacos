@@ -167,7 +167,7 @@ impl ConfigDB {
     fn load_table_last_id(db: &sled::Db, table_key: &str) -> Result<u64> {
         let tree = db.open_tree("table_id")?;
         if let Some(value) = tree.get(table_key)? {
-            let v:IdValue= IdValue::decode(value.as_ref())?;
+            let v: IdValue = IdValue::decode(value.as_ref())?;
             Ok(v.value as u64)
         } else {
             Ok(0)
@@ -176,9 +176,7 @@ impl ConfigDB {
 
     fn save_table_last_id(db: &sled::Db, table_key: &str, id: u64) -> Result<()> {
         let tree = db.open_tree("table_id")?;
-        let value = IdValue {
-            value: id as i64,
-        };
+        let value = IdValue { value: id as i64 };
         tree.insert(table_key, value.to_bytes()?)?;
         Ok(())
     }
