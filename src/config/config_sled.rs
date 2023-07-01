@@ -6,11 +6,9 @@ use super::{
 };
 
 use anyhow::Result;
-use byteorder::BigEndian;
 use chrono::Local;
 use prost::Message;
 use serde::{Deserialize, Serialize};
-use zerocopy::{byteorder::U64, AsBytes, FromBytes, LayoutVerified, Unaligned};
 
 const CONFIG_HISTORY_TREE_NAME_PREFIX: &str = "config_history_";
 
@@ -107,10 +105,18 @@ impl Default for ConfigDB {
 
 //type IdValue = U64<byteorder::BigEndian>;
 
-#[derive(FromBytes, AsBytes, Unaligned)]
-#[repr(C)]
-struct IdValue {
-    value: U64<BigEndian>,
+#[derive(Clone, PartialEq, Message, Deserialize, Serialize)]
+pub struct IdValue {
+    #[prost(int64, tag = "1")]
+    pub value: i64,
+}
+
+impl IdValue {
+    fn to_bytes(&self) -> Result<Vec<u8>> {
+        let mut v = Vec::new();
+        self.encode(&mut v)?;
+        Ok(v)
+    }
 }
 
 const CONFIG_HISTORY_ID: &str = "config_history_id";
@@ -161,11 +167,8 @@ impl ConfigDB {
     fn load_table_last_id(db: &sled::Db, table_key: &str) -> Result<u64> {
         let tree = db.open_tree("table_id")?;
         if let Some(value) = tree.get(table_key)? {
-            //let v = value.as_bytes().to_vec();
-            let layout: LayoutVerified<&[u8], IdValue> =
-                LayoutVerified::new_unaligned(value.as_bytes()).expect("bytes do not fit schema");
-            let v: &IdValue = layout.into_ref();
-            Ok(v.value.get())
+            let v:IdValue= IdValue::decode(value.as_ref())?;
+            Ok(v.value as u64)
         } else {
             Ok(0)
         }
@@ -174,9 +177,9 @@ impl ConfigDB {
     fn save_table_last_id(db: &sled::Db, table_key: &str, id: u64) -> Result<()> {
         let tree = db.open_tree("table_id")?;
         let value = IdValue {
-            value: U64::new(id),
+            value: id as i64,
         };
-        tree.insert(table_key, value.value.as_bytes())?;
+        tree.insert(table_key, value.to_bytes()?)?;
         Ok(())
     }
 
