@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use crate::common::sled_utils::TableSequence;
+
 use super::{
     core::{ConfigKey, ConfigValue},
     dal::ConfigHistoryParam,
@@ -87,98 +89,18 @@ impl ConfigSerdeKey {
 
 pub struct ConfigDB {
     db: Arc<sled::Db>,
-    config_history_id: u64,
-    // config data
-    //config_db: sled::Tree,
-    // config history data
-    //config_history: HashMap<Vec<u8>, sled::Tree>,
-    //config_history_ids: HashMap<Vec<u8>, i64>,
-}
-
-/*
-impl Default for ConfigDB {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-*/
-
-//type IdValue = U64<byteorder::BigEndian>;
-
-#[derive(Clone, PartialEq, Message, Deserialize, Serialize)]
-pub struct IdValue {
-    #[prost(int64, tag = "1")]
-    pub value: i64,
-}
-
-impl IdValue {
-    fn to_bytes(&self) -> Result<Vec<u8>> {
-        let mut v = Vec::new();
-        self.encode(&mut v)?;
-        Ok(v)
-    }
+    config_history_seq: TableSequence,
 }
 
 const CONFIG_HISTORY_ID: &str = "config_history_id";
 
 impl ConfigDB {
     pub fn new(db: Arc<sled::Db>) -> Self {
-        /*
-        let db = common::DB.lock().unwrap();
-        let config_db = db.open_tree("config").unwrap();
-
-        // init all config_histories & config_history_ids
-        let mut config_history = HashMap::new();
-        let mut config_history_ids = HashMap::new();
-        let mut iter = config_db.iter();
-
-        while let Some(Ok((k, _))) = iter.next() {
-            let mut k_bytes = k.to_vec();
-            let config_history_tree_name = Config::build_config_history_tree_name(&mut k_bytes);
-            let cht = db.open_tree(&config_history_tree_name).unwrap();
-
-            // try to get latest config history id
-            if let Some(Ok((_, v))) = cht.iter().last() {
-                let latest_cfg = Config::decode(v.as_ref()).unwrap();
-                config_history_ids.insert(
-                    config_history_tree_name.to_owned(),
-                    latest_cfg.id.unwrap_or(0),
-                );
-            } else {
-                config_history_ids.insert(config_history_tree_name.to_owned(), 0);
-            }
-            config_history.insert(config_history_tree_name, cht);
-        }
-
-        Self {
-            config_db,
-            config_history,
-            config_history_ids,
-        }
-         */
-        let config_history_id =
-            Self::load_table_last_id(&db, CONFIG_HISTORY_ID).unwrap_or_default();
+        let config_history_seq = TableSequence::new(db.clone(), CONFIG_HISTORY_ID.to_owned(), 100);
         Self {
             db,
-            config_history_id,
+            config_history_seq,
         }
-    }
-
-    fn load_table_last_id(db: &sled::Db, table_key: &str) -> Result<u64> {
-        let tree = db.open_tree("table_id")?;
-        if let Some(value) = tree.get(table_key)? {
-            let v: IdValue = IdValue::decode(value.as_ref())?;
-            Ok(v.value as u64)
-        } else {
-            Ok(0)
-        }
-    }
-
-    fn save_table_last_id(db: &sled::Db, table_key: &str, id: u64) -> Result<()> {
-        let tree = db.open_tree("table_id")?;
-        let value = IdValue { value: id as i64 };
-        tree.insert(table_key, value.to_bytes()?)?;
-        Ok(())
     }
 
     pub fn update_config(&mut self, key: &ConfigKey, val: &ConfigValue) -> Result<()> {
@@ -200,10 +122,8 @@ impl ConfigDB {
         config_db.insert(config_key, config.to_bytes()?)?;
 
         // update config history id
-        self.config_history_id += 1;
-        let history_id = self.config_history_id;
-        config.id = Some(self.config_history_id as i64);
-        Self::save_table_last_id(&self.db, CONFIG_HISTORY_ID, history_id)?;
+        let history_id = self.config_history_seq.next_id()?;
+        config.id = Some(history_id as i64);
 
         //insert history
         let history_db = self.db.open_tree(config_history_tree_name)?;

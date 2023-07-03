@@ -4,6 +4,7 @@ use uuid::Uuid;
 
 pub mod delay_notify;
 pub mod rusqlite_utils;
+pub mod sled_utils;
 pub mod string_utils;
 
 lazy_static! {
