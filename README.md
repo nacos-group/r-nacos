@@ -82,7 +82,8 @@ cargo run
 rnacos 运行时支持的环境变量，如果不设置则按默认配置运行。
 
 ```
-RNACOS_CONFIG_DB_FILE: 配置中心的本地数据库文件地址，默认为运行目录下的 config.db
+RNACOS_CONFIG_DB_FILE: 配置中心的本地数据库文件地址，默认为运行目录下的 config.db 【标记废弃，0.1.x老版本数据文件配置】
+RNACOS_CONFIG_DB_DIR: 配置中心的本地数据库sled文件夹，默认为运行目录下的nacos_db ,会在系统运行时自动创建
 RNACOS_HTTP_PORT: rnacos监听http端口，默认是8848
 RNACOS_GRPC_PORT: rnacos监听的grpc端口，默认是 HTTP端口+1000
 RNACOS_HTTP_WORKERS: http工作线程数，默认是cpu核数
