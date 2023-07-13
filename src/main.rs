@@ -22,7 +22,7 @@ use rnacos::web_config::app_config;
 async fn main() -> Result<(), Box<dyn Error>> {
     std::env::set_var("RUST_LOG", "actix_web=debug,actix_server=info,info");
     dotenv::dotenv().ok();
-    env_logger::init();
+    env_logger::builder().format_timestamp_micros().init();
     let sys_config = AppSysConfig::init_from_env();
     let db = Arc::new(
         sled::Config::new()

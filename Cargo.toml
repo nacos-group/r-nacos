@@ -70,6 +70,9 @@ prost-types = "0.7"
 
 # bytes
 bytes = "1"
+openraft = { version="0.8.3", features = ["serde"] }
+tracing = "0.1.29"
+tracing-subscriber = { version = "0.3.0", features = ["env-filter"] }
 
 [dependencies.uuid]
 version = "1.2.1"
