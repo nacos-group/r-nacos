@@ -44,6 +44,9 @@ pub struct AppSysConfig {
     pub http_port: u16,
     pub http_workers: Option<usize>,
     pub grpc_port: u16,
+    pub raft_node_id: u64,
+    pub raft_node_addr: String,
+    pub raft_auto_init: bool,
 }
 
 impl AppSysConfig {
@@ -63,12 +66,24 @@ impl AppSysConfig {
             .parse()
             .unwrap_or(http_port + 1000);
         let config_db_dir = std::env::var("RNACOS_CONFIG_DB_DIR").unwrap_or("nacos_db".to_owned());
+        let raft_node_id = std::env::var("RNACOS_RAFT_NODE_ID")
+            .unwrap_or("1".to_owned())
+            .parse()
+            .unwrap_or(1);
+        let raft_node_addr = std::env::var("RNACOS_RAFT_NODE_ADDR").unwrap_or(format!("127.0.0.1:{}", &grpc_port));
+        let raft_auto_init = std::env::var("RNACOS_RAFT_AUTO_INIT")
+            .unwrap_or("false".to_owned())
+            .parse()
+            .unwrap_or(raft_node_id==1);
         Self {
             config_db_dir,
             config_db_file,
             http_port,
             grpc_port,
             http_workers,
+            raft_node_id,
+            raft_node_addr,
+            raft_auto_init,
         }
     }
 
