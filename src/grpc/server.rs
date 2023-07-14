@@ -48,7 +48,7 @@ impl request_server::Request for RequestServerImpl {
             "|grpc|client_request|{}|{}",
             &request_meta.connection_id, &request_type
         );
-        let ignore_active_err = "ServerCheckRequest".eq(request_type);
+        let ignore_active_err = self.invoker.ignore_active_err(request_type);
         //self.bistream_manage_addr.do_send(BiStreamManageCmd::ActiveClinet(request_meta.connection_id.clone()));
         let active_result = self
             .bistream_manage_addr
