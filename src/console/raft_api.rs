@@ -1,13 +1,13 @@
 use std::collections::BTreeMap;
 use actix_web::{HttpResponse, Responder, web};
 use actix_web::http::header;
-use actix_web::web::Data;
+use actix_web::web::{Data, Json};
 use openraft::BasicNode;
-use openraft::error::RaftError;
+use openraft::error::{Infallible, RaftError};
 use openraft::raft::ClientWriteResponse;
 use crate::common::appdata::AppData;
 use crate::console::model::raft_model::{NodeInfo, NodeMember};
-use crate::raft::store::{NodeId, TypeConfig};
+use crate::raft::store::{NodeId, Request, TypeConfig};
 
 pub async fn raft_add_learner(
     app: Data<AppData>,
@@ -71,4 +71,18 @@ pub async fn raft_metrics(app: Data<AppData>) -> impl Responder {
     HttpResponse::Ok()
         .insert_header(header::ContentType(mime::APPLICATION_JSON))
         .body(v)
+}
+
+//#[post("/write")]
+pub async fn raft_write(app: Data<AppData>, req: Json<Request>) -> actix_web::Result<impl Responder> {
+    let response = app.raft.client_write(req.0).await;
+    Ok(Json(response))
+}
+
+//#[post("/read")]
+pub async fn raft_read(app: Data<AppData>, req: Json<String>) -> actix_web::Result<impl Responder> {
+    let key = req.0;
+    let value = app.raft_store.get_state_value(key).await.unwrap_or_default();
+    let res: Result<String, Infallible> = Ok(value.unwrap_or_default());
+    Ok(Json(res))
 }

@@ -39,7 +39,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             .open()
             .unwrap(),
     );
-    let raft = build_raft(&sys_config).await?;
+    let (raft,store) = build_raft(&sys_config).await?;
     let http_addr = sys_config.get_http_addr();
     let grpc_addr = sys_config.get_grpc_addr();
     log::info!("http server addr:{}", &http_addr);
@@ -79,6 +79,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         naming_addr:naming_addr.clone(),
         bi_stream_manage: bistream_manage_http_addr.clone(),
         raft,
+        raft_store:store,
         sys_config: Arc::new(sys_config.clone()),
     });
 
@@ -113,7 +114,7 @@ fn init_env() {
     }
 }
 
-async fn build_raft(sys_config: &AppSysConfig) -> anyhow::Result<NacosRaft> {
+async fn build_raft(sys_config: &AppSysConfig) -> anyhow::Result<(NacosRaft,Arc<Store>)> {
     let config = Config {
         heartbeat_interval: 500,
         election_timeout_min: 1500,
@@ -129,5 +130,5 @@ async fn build_raft(sys_config: &AppSysConfig) -> anyhow::Result<NacosRaft> {
         nodes.insert(sys_config.raft_node_id.to_owned(), openraft::BasicNode { addr: sys_config.raft_node_addr.clone() });
         raft.initialize(nodes).await.ok();
     }
-    Ok(raft)
+    Ok((raft,store))
 }
