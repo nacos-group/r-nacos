@@ -31,7 +31,7 @@ pub async fn raft_add_learner(
 
 pub async fn raft_init(app: Data<AppData>) -> impl Responder {
     let mut nodes = BTreeMap::new();
-    nodes.insert(app.id, BasicNode { addr: app.sys_config.raft_node_addr.clone() });
+    nodes.insert(app.sys_config.raft_node_id.to_owned(), BasicNode { addr: app.sys_config.raft_node_addr.clone() });
     let res = app.raft.initialize(nodes).await;
     match res {
         Ok(res) => {

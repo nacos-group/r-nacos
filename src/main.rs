@@ -86,6 +86,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         let config_addr = config_addr.clone();
         let naming_addr = naming_addr.clone();
         let bistream_manage_http_addr = bistream_manage_http_addr.clone();
+        let app_data = app_data.clone();
         //let naming_dal_addr = naming_dal_addr.clone();
         App::new()
             .app_data(app_data)
