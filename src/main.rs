@@ -1,5 +1,6 @@
 #![allow(unused_imports)]
 
+use std::collections::BTreeMap;
 use actix::Actor;
 use actix_web::{web::Data, App};
 use rnacos::common::AppSysConfig;
@@ -16,18 +17,17 @@ use std::sync::Arc;
 use tonic::transport::Server;
 
 use actix_web::{middleware, HttpServer};
+use openraft::{Config, Raft};
+use rnacos::common::appdata::AppData;
+use rnacos::raft::store::store::Store;
+use rnacos::raft::NacosRaft;
+use rnacos::raft::network::NetworkFactory;
 use rnacos::web_config::app_config;
 
 #[actix_web::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     std::env::set_var("RUST_LOG", "actix_web=debug,actix_server=info,info");
-    let env_path= std::env::var("NACOS_ENV_FILE").unwrap_or_default();
-    if env_path.is_empty() {
-        dotenv::dotenv().ok();
-    }
-    else {
-        dotenv::from_path(env_path).ok();
-    }
+    init_env();
     env_logger::builder().format_timestamp_micros().init();
     let sys_config = AppSysConfig::init_from_env();
     let db = Arc::new(
@@ -39,6 +39,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             .open()
             .unwrap(),
     );
+    let raft = build_raft(&sys_config).await?;
     let http_addr = sys_config.get_http_addr();
     let grpc_addr = sys_config.get_grpc_addr();
     log::info!("http server addr:{}", &http_addr);
@@ -59,6 +60,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let mut invoker = InvokerHandler::new();
     invoker.add_config_handler(&config_addr);
     invoker.add_naming_handler(&naming_addr);
+    invoker.add_raft_handler(&raft);
 
     tokio::spawn(async move {
         let addr = grpc_addr.parse().unwrap();
@@ -72,12 +74,21 @@ async fn main() -> Result<(), Box<dyn Error>> {
             .unwrap();
     });
 
+    let app_data = Data::new(AppData{
+        config_addr:config_addr.clone(),
+        naming_addr:naming_addr.clone(),
+        bi_stream_manage: bistream_manage_http_addr.clone(),
+        raft,
+        sys_config: Arc::new(sys_config.clone()),
+    });
+
     let mut server = HttpServer::new(move || {
         let config_addr = config_addr.clone();
         let naming_addr = naming_addr.clone();
         let bistream_manage_http_addr = bistream_manage_http_addr.clone();
         //let naming_dal_addr = naming_dal_addr.clone();
         App::new()
+            .app_data(app_data)
             .app_data(Data::new(config_addr))
             .app_data(Data::new(naming_addr))
             .app_data(Data::new(bistream_manage_http_addr))
@@ -90,4 +101,32 @@ async fn main() -> Result<(), Box<dyn Error>> {
     }
     server.bind(http_addr)?.run().await?;
     Ok(())
+}
+
+fn init_env() {
+    let env_path = std::env::var("RNACOS_ENV_FILE").unwrap_or_default();
+    if env_path.is_empty() {
+        dotenv::dotenv().ok();
+    } else {
+        dotenv::from_path(env_path).ok();
+    }
+}
+
+async fn build_raft(sys_config: &AppSysConfig) -> anyhow::Result<NacosRaft> {
+    let config = Config {
+        heartbeat_interval: 500,
+        election_timeout_min: 1500,
+        election_timeout_max: 3000,
+        ..Default::default()
+    };
+    let config = Arc::new(config.validate()?);
+    let store = Arc::new(Store::new());
+    let network = NetworkFactory {};
+    let raft = Raft::new(sys_config.raft_node_id.to_owned(), config.clone(), network, store.clone()).await.unwrap();
+    if sys_config.raft_auto_init {
+        let mut nodes = BTreeMap::new();
+        nodes.insert(sys_config.raft_node_id.to_owned(), openraft::BasicNode { addr: sys_config.raft_node_addr.clone() });
+        raft.initialize(nodes).await.ok();
+    }
+    Ok(raft)
 }

@@ -1,5 +1,5 @@
 pub(crate) mod innerstore;
-pub(crate) mod store;
+pub mod store;
 
 use std::collections::BTreeMap;
 use openraft::BasicNode;

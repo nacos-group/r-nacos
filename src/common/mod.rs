@@ -6,6 +6,7 @@ pub mod delay_notify;
 pub mod rusqlite_utils;
 pub mod sled_utils;
 pub mod string_utils;
+pub mod appdata;
 
 lazy_static! {
     // Global app sys config
