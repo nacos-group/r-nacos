@@ -25,17 +25,9 @@ impl PayloadHandler for RaftAppendRequestHandler {
         let body_vec = request_payload.body.unwrap_or_default().value;
         let request: openraft::raft::AppendEntriesRequest<TypeConfig> = serde_json::from_slice(&body_vec)?;
         let res = self.raft.append_entries(request).await;
-        match res {
-            Ok(res) => {
-                let value = serde_json::to_string(&res)?;
-                let payload = PayloadUtils::build_payload("RaftAppendResponse",value );
-                Ok(payload)
-            }
-            Err(e) => {
-                let value = serde_json::to_string(&e)?;
-                let payload = PayloadUtils::build_error_payload( 500u16,value);
-                Ok(payload)
-            }
-        }
+        let value = serde_json::to_string(&res)?;
+        //log::info!("RaftAppendRequestHandler result:{}",&value);
+        let payload = PayloadUtils::build_payload("RaftAppendResponse",value );
+        Ok(payload)
     }
 }
