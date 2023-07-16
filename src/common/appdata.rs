@@ -11,7 +11,7 @@ pub struct AppData {
     pub config_addr : Addr<ConfigActor>,
     pub naming_addr : Addr<NamingActor>,
     pub bi_stream_manage: Addr<BiStreamManage>,
-    pub raft : NacosRaft,
+    pub raft : Arc<NacosRaft>,
     pub raft_store: Arc<Store>,
     pub sys_config: Arc<AppSysConfig>,
 }

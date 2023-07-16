@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::{config::core::ConfigActor, naming::core::NamingActor};
 
 use self::{
@@ -82,7 +84,7 @@ impl InvokerHandler {
 
     }
 
-    pub fn add_raft_handler(&mut self,raft: &NacosRaft) {
+    pub fn add_raft_handler(&mut self,raft: &Arc<NacosRaft>) {
         self.add_handler(
             RAFT_APPEND_REQUEST,
             Box::new(RaftAppendRequestHandler::new(raft.clone())),

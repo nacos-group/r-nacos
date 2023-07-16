@@ -349,7 +349,11 @@ impl InnerStore {
                 EntryPayload::Blank => res.push(Response { value: None }),
                 EntryPayload::Normal(req) => match req {
                     Request::ConfigSet { key, value, history_id, history_table_id } => {
-                        let cmd = ConfigRaftCmd::ApplyLog { key, value, history_id, history_table_id};
+                        let cmd = ConfigRaftCmd::ConfigAdd { key, value, history_id, history_table_id};
+                        self.wait_send_config_raft_cmd(cmd,ctx).ok();
+                    },
+                    Request::ConfigRemove { key } => {
+                        let cmd = ConfigRaftCmd::ConfigRemove { key };
                         self.wait_send_config_raft_cmd(cmd,ctx).ok();
                     },
                 },

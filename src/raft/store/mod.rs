@@ -3,6 +3,7 @@ pub mod store;
 pub mod model;
 
 use std::error::Error;
+use std::sync::Arc;
 
 use openraft::AnyError;
 use openraft::BasicNode;
@@ -16,7 +17,8 @@ use serde::Serialize;
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum Request {
     //Set { key: String, value: String },
-    ConfigSet { key: String, value: String ,history_id: u64,history_table_id:Option<u64>},
+    ConfigSet { key: String, value: Arc<String> ,history_id: u64,history_table_id:Option<u64>},
+    ConfigRemove {key: String},
     //DbSet { table: String, key: Vec<u8>, value: Vec<u8> }
 }
 

@@ -6,8 +6,11 @@ use crate::config::core::ConfigKey;
 #[rtype(result = "anyhow::Result<ConfigRaftResult>")]
 pub enum ConfigRaftCmd {
     LoadSnapshot,
-    ApplyLog{
-        key: String, value: String ,history_id: u64,history_table_id:Option<u64>
+    ConfigAdd {
+        key: String, value: Arc<String> ,history_id: u64,history_table_id:Option<u64>
+    },
+    ConfigRemove {
+        key: String,
     },
     ApplySnaphot{
         data: Vec<(String,Arc<String>)>,

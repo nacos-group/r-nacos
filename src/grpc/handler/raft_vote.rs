@@ -1,17 +1,18 @@
 
+use std::sync::Arc;
+
 use async_trait::async_trait;
 use crate::grpc::nacos_proto::Payload;
 use crate::grpc::{PayloadHandler, PayloadUtils, RequestMeta};
 use crate::raft::NacosRaft;
-use crate::raft::store::innerstore::InnerStore;
-use crate::raft::store::{NodeId, TypeConfig};
+use crate::raft::store::{NodeId};
 
 pub struct RaftVoteRequestHandler {
-    raft : NacosRaft,
+    raft : Arc<NacosRaft>,
 }
 
 impl RaftVoteRequestHandler{
-    pub fn new(raft : NacosRaft) -> Self {
+    pub fn new(raft : Arc<NacosRaft>) -> Self {
         Self{
             raft
         }

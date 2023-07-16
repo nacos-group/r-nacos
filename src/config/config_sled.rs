@@ -104,6 +104,10 @@ impl ConfigDB {
     }
 
     pub fn update_config(&mut self, key: &ConfigKey, val: &ConfigValue) -> Result<()> {
+        self.do_update_config(key, val, None,None)
+    }
+
+    fn do_update_config(&mut self, key: &ConfigKey, val: &ConfigValue,history_id:Option<u64>,history_table_id:Option<u64>) -> Result<()> {
         let mut config = Config {
             tenant: key.tenant.as_ref().to_owned(),
             group: key.group.as_ref().to_owned(),
@@ -122,7 +126,16 @@ impl ConfigDB {
         config_db.insert(config_key, config.to_bytes()?)?;
 
         // update config history id
-        let history_id = self.config_history_seq.next_id()?;
+        let history_id = if let Some(v) = history_id {
+            v
+        }
+        else {
+            self.config_history_seq.next_id().unwrap()
+        };
+        if let Some(history_table_id) = history_table_id {
+            //self.config_history_seq
+            self.config_history_seq.set_table_last_id(history_table_id);
+        }
         config.id = Some(history_id as i64);
 
         //insert history
@@ -130,6 +143,14 @@ impl ConfigDB {
         let his_key = config.get_config_history_key()?;
         history_db.insert(his_key, config.to_bytes()?)?;
         Ok(())
+    }
+
+    pub fn next_history_id_state(&mut self) -> Result<(u64,Option<u64>)> {
+        self.config_history_seq.next_state()
+    }
+
+    pub fn update_config_with_history_id(&mut self, key: &ConfigKey, val: &ConfigValue,history_id:u64,history_table_id:Option<u64>) -> anyhow::Result<()> {
+        self.do_update_config(key, val, Some(history_id),history_table_id)
     }
 
     pub fn del_config(&mut self, key: &ConfigKey) -> Result<()> {

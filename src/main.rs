@@ -51,6 +51,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let store = Arc::new(Store::new(db,config_addr.clone()));
     let raft= build_raft(&sys_config,store.clone()).await?;
+    let raft = Arc::new(raft);
+    config_addr.do_send(ConfigCmd::SetRaft(raft.clone()));
 
     let mut bistream_manage = BiStreamManage::new();
     bistream_manage.set_config_addr(config_addr.clone());
