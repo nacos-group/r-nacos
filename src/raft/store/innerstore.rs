@@ -347,15 +347,18 @@ impl InnerStore {
         for entry in entries {
             match entry.payload {
                 EntryPayload::Blank => res.push(Response { value: None }),
-                EntryPayload::Normal(req) => match req {
-                    Request::ConfigSet { key, value, history_id, history_table_id } => {
-                        let cmd = ConfigRaftCmd::ConfigAdd { key, value, history_id, history_table_id};
-                        self.wait_send_config_raft_cmd(cmd,ctx).ok();
-                    },
-                    Request::ConfigRemove { key } => {
-                        let cmd = ConfigRaftCmd::ConfigRemove { key };
-                        self.wait_send_config_raft_cmd(cmd,ctx).ok();
-                    },
+                EntryPayload::Normal(req) => {
+                    match req {
+                        Request::ConfigSet { key, value, history_id, history_table_id } => {
+                            let cmd = ConfigRaftCmd::ConfigAdd { key, value, history_id, history_table_id};
+                            self.wait_send_config_raft_cmd(cmd,ctx).ok();
+                        },
+                        Request::ConfigRemove { key } => {
+                            let cmd = ConfigRaftCmd::ConfigRemove { key };
+                            self.wait_send_config_raft_cmd(cmd,ctx).ok();
+                        },
+                    };
+                    res.push(Response { value: Some(true) })
                 },
                 EntryPayload::Membership(mem) => {
                     let membership = StoredMembership::new(Some(entry.log_id.to_owned()), mem);

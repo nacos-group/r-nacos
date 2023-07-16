@@ -24,7 +24,7 @@ pub enum Request {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Response {
-    pub value: Option<Vec<u8>>,
+    pub value: Option<bool>,
 }
 
 pub type NodeId = u64;

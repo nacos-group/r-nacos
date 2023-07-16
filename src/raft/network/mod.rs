@@ -21,18 +21,81 @@ pub struct NetworkFactory {
 pub struct RaftNetworkConnect {
     pub(crate) channel: Channel,
     pub(crate) target: NodeId,
+    pub(crate) addr: String,
     //pub(crate) target_node: BasicNode,
 }
 
 impl RaftNetworkConnect {
     pub(crate) fn new(target: NodeId, target_node: BasicNode) -> Self {
         let addr = format!("http://{}", &target_node.addr);
-        let channel = Channel::from_shared(addr).unwrap().connect_lazy().unwrap();
+        let channel = Channel::from_shared(addr.to_owned()).unwrap().connect_lazy().unwrap();
         Self {
             channel,
             target,
+            addr,
             //target_node
         }
+    }
+
+    fn renew_conn(&mut self) {
+        self.channel = Channel::from_shared(self.addr.to_owned()).unwrap().connect_lazy().unwrap();
+    }
+
+    async fn send_rpc<Resp, Err>(
+        &mut self,
+        payload: Payload,
+    ) -> Result<Resp, RPCError<NodeId, BasicNode, Err>>
+        where
+            Err: std::error::Error + DeserializeOwned,
+            Resp: DeserializeOwned,
+    {
+        let mut try_times=2;
+        loop {
+            match self.do_send_rpc(payload.clone()).await {
+                Ok(v) => {
+                    return Ok(v)
+                },
+                Err(err) => {
+                    try_times -=1 ;
+                    log::warn!("RaftNetworkConnect do_send_rpc err {}",&err.to_string());
+                    if try_times==0 {
+                        return Err(err)
+                    }
+                    self.renew_conn();
+                },
+            }
+        }
+    }
+
+    async fn do_send_rpc<Resp, Err>(
+        &mut self,
+        payload: Payload,
+    ) -> Result<Resp, RPCError<NodeId, BasicNode, Err>>
+        where
+            Err: std::error::Error + DeserializeOwned,
+            Resp: DeserializeOwned,
+    {
+        let mut request_client = RequestClient::new(self.channel.clone());
+        let target = self.target;
+        let resp = request_client.request(payload).await.map_err(|e| RPCError::Network(NetworkError::new(&e)))?;
+        let payload = resp.into_inner();
+        //log::info!("rpc response:{}",PayloadUtils::get_payload_string(&payload));
+        let body_vec = payload.body.unwrap_or_default().value;
+        match serde_json::from_slice::<Result<Resp, Err>>(&body_vec) {
+            Ok(v) => {
+                return match v {
+                    Ok(v) => {
+                        Ok(v)
+                    }
+                    Err(err) => {
+                        Err(RPCError::RemoteError(RemoteError::new(target, err)))
+                    }
+                };
+            }
+            Err(_e) => {
+            }
+        }
+        Err(RPCError::Network(NetworkError::new(&AnyError::error("rpc err"))))
     }
 }
 
@@ -102,20 +165,23 @@ impl RaftNetwork<TypeConfig> for RaftNetworkConnect {
                                  -> Result<AppendEntriesResponse<NodeId>, RPCError<NodeId, BasicNode, RaftError<NodeId>>> {
         let request = serde_json::to_string(&rpc).unwrap_or_default();
         let payload = PayloadUtils::build_payload("RaftAppendRequest", request);
-        send_rpc(self.channel.clone(), payload, self.target.to_owned()).await
+        //send_rpc(self.channel.clone(), payload, self.target.to_owned()).await
+        self.send_rpc(payload).await
     }
 
     async fn send_install_snapshot(&mut self, rpc: InstallSnapshotRequest<TypeConfig>)
                                    -> Result<InstallSnapshotResponse<NodeId>, RPCError<NodeId, BasicNode, RaftError<NodeId, InstallSnapshotError>>> {
         let request = serde_json::to_string(&rpc).unwrap_or_default();
         let payload = PayloadUtils::build_payload("RaftSnapshotRequest", request);
-        send_rpc(self.channel.clone(), payload, self.target.to_owned()).await
+        //send_rpc(self.channel.clone(), payload, self.target.to_owned()).await
+        self.send_rpc(payload).await
     }
 
     async fn send_vote(&mut self, rpc: VoteRequest<NodeId>)
                        -> Result<VoteResponse<NodeId>, RPCError<NodeId, BasicNode, RaftError<NodeId>>> {
         let request = serde_json::to_string(&rpc).unwrap_or_default();
         let payload = PayloadUtils::build_payload("RaftVoteRequest", request);
-        send_rpc(self.channel.clone(), payload, self.target.to_owned()).await
+        //send_rpc(self.channel.clone(), payload, self.target.to_owned()).await
+        self.send_rpc(payload).await
     }
 }
