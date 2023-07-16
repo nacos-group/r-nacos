@@ -6,6 +6,8 @@ use std::io::Cursor;
 use actix::prelude::*;
 
 
+use crate::config::core::ConfigActor;
+
 use super::NodeId;
 use super::TypeConfig;
 use super::{Response};
@@ -19,12 +21,12 @@ use openraft::async_trait::async_trait;
 type SnapshotData = Cursor<Vec<u8>>;
 type Snapshot = RSnapshot<NodeId,BasicNode,SnapshotData>;
 
-fn init_inner_store() -> Addr<InnerStore> {
+fn init_inner_store(inner_store:InnerStore) -> Addr<InnerStore> {
     let (tx,rx) = std::sync::mpsc::sync_channel(1);
     std::thread::spawn(move || {
         let rt = System::new();
         let addrs = rt.block_on(async {
-            InnerStore::new().start()
+            inner_store.start()
         });
         tx.send(addrs).unwrap();
         rt.run().unwrap();
@@ -38,15 +40,10 @@ pub struct Store{
     inner_addr:Addr<InnerStore>,
 }
 
-impl Default for Store {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl Store {
-    pub fn new() -> Self {
-        let inner_addr = init_inner_store();
+    pub fn new(db:Arc<sled::Db>,config_addr: Addr<ConfigActor>) -> Self {
+        let inner_store = InnerStore::new(db,config_addr);
+        let inner_addr = init_inner_store(inner_store);
         Self {
             inner_addr
         }

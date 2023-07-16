@@ -12,6 +12,7 @@ use rnacos::grpc::nacos_proto::request_server::RequestServer;
 use rnacos::grpc::server::BiRequestStreamServerImpl;
 use rnacos::naming::core::{NamingCmd, NamingResult};
 use rnacos::{grpc::server::RequestServerImpl, naming::core::NamingActor};
+use sled::Db;
 use std::error::Error;
 use std::sync::Arc;
 use tonic::transport::Server;
@@ -29,7 +30,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     std::env::set_var("RUST_LOG", "actix_web=debug,actix_server=info,info");
     init_env();
     env_logger::builder().format_timestamp_micros().init();
-    let sys_config = AppSysConfig::init_from_env();
+    let sys_config = Arc::new(AppSysConfig::init_from_env());
     let db = Arc::new(
         sled::Config::new()
             .path(&sys_config.config_db_dir)
@@ -39,15 +40,17 @@ async fn main() -> Result<(), Box<dyn Error>> {
             .open()
             .unwrap(),
     );
-    let (raft,store) = build_raft(&sys_config).await?;
     let http_addr = sys_config.get_http_addr();
     let grpc_addr = sys_config.get_grpc_addr();
     log::info!("http server addr:{}", &http_addr);
     log::info!("grpc server addr:{}", &grpc_addr);
 
-    let config_addr = ConfigActor::new(db).start();
+    let config_addr = ConfigActor::new(db.clone()).start();
     //let naming_addr = NamingActor::new_and_create();
     let naming_addr = NamingActor::create_at_new_system();
+
+    let store = Arc::new(Store::new(db,config_addr.clone()));
+    let raft= build_raft(&sys_config,store.clone()).await?;
 
     let mut bistream_manage = BiStreamManage::new();
     bistream_manage.set_config_addr(config_addr.clone());
@@ -80,7 +83,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         bi_stream_manage: bistream_manage_http_addr.clone(),
         raft,
         raft_store:store,
-        sys_config: Arc::new(sys_config.clone()),
+        sys_config: sys_config.clone(),
     });
 
     let mut server = HttpServer::new(move || {
@@ -114,7 +117,7 @@ fn init_env() {
     }
 }
 
-async fn build_raft(sys_config: &AppSysConfig) -> anyhow::Result<(NacosRaft,Arc<Store>)> {
+async fn build_raft(sys_config: &Arc<AppSysConfig>,store:Arc<Store>) -> anyhow::Result<NacosRaft> {
     let config = Config {
         heartbeat_interval: 500,
         election_timeout_min: 1500,
@@ -122,7 +125,6 @@ async fn build_raft(sys_config: &AppSysConfig) -> anyhow::Result<(NacosRaft,Arc<
         ..Default::default()
     };
     let config = Arc::new(config.validate()?);
-    let store = Arc::new(Store::new());
     let network = NetworkFactory {};
     let raft = Raft::new(sys_config.raft_node_id.to_owned(), config.clone(), network, store.clone()).await.unwrap();
     if sys_config.raft_auto_init {
@@ -130,5 +132,5 @@ async fn build_raft(sys_config: &AppSysConfig) -> anyhow::Result<(NacosRaft,Arc<
         nodes.insert(sys_config.raft_node_id.to_owned(), openraft::BasicNode { addr: sys_config.raft_node_addr.clone() });
         raft.initialize(nodes).await.ok();
     }
-    Ok((raft,store))
+    Ok(raft)
 }

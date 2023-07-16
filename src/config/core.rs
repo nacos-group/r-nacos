@@ -15,6 +15,7 @@ use super::config_sled::ConfigDB;
 use super::config_subscribe::Subscriber;
 use super::dal::ConfigHistoryParam;
 use crate::config::config_index::{ConfigQueryParam, TenantIndex};
+use crate::config::model::{ConfigRaftCmd, ConfigRaftResult};
 
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]
 pub struct ConfigKey {
@@ -45,6 +46,16 @@ impl ConfigKey {
             return format!("{}\x02{}", self.data_id, self.group);
         }
         format!("{}\x02{}\x02{}", self.data_id, self.group, self.tenant)
+    }
+}
+
+impl From<&str> for ConfigKey {
+    fn from(value: &str) -> Self {
+        let mut list=value.split("\x02");
+        let data_id =list.next();
+        let group =list.next();
+        let tenant = list.next();
+        ConfigKey::new(data_id.unwrap_or(""),group.unwrap_or(""),tenant.unwrap_or(""))
     }
 }
 
@@ -479,5 +490,13 @@ impl Handler<ConfigCmd> for ConfigActor {
             }
         }
         Ok(ConfigResult::NULL)
+    }
+}
+
+impl Handler<ConfigRaftCmd> for ConfigActor {
+    type Result = anyhow::Result<ConfigRaftResult>;
+
+    fn handle(&mut self, msg: ConfigRaftCmd, ctx: &mut Self::Context) -> Self::Result {
+        todo!()
     }
 }

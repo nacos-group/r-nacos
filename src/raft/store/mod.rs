@@ -1,18 +1,22 @@
 pub(crate) mod innerstore;
 pub mod store;
+pub mod model;
 
-use std::collections::BTreeMap;
+use std::error::Error;
+
+use openraft::AnyError;
 use openraft::BasicNode;
-use openraft::LogId;
-use openraft::SnapshotMeta;
-use openraft::StoredMembership;
+use openraft::ErrorSubject;
+use openraft::ErrorVerb;
+use openraft::StorageError;
+use openraft::StorageIOError;
 use serde::Deserialize;
 use serde::Serialize;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum Request {
-    Set { key: String, value: String },
-    //ConfigSet { key: String, value: String },
+    //Set { key: String, value: String },
+    ConfigSet { key: String, value: String ,history_id: u64,history_table_id:Option<u64>},
     //DbSet { table: String, key: Vec<u8>, value: Vec<u8> }
 }
 
@@ -28,20 +32,40 @@ openraft::declare_raft_types!(
     pub TypeConfig: D = Request, R = Response, NodeId = NodeId, Node = BasicNode
 );
 
-#[derive(Serialize, Deserialize, Debug, Default, Clone)]
-pub struct StateMachine {
-    pub last_applied_log: Option<LogId<NodeId>>,
-
-    pub last_membership: StoredMembership<NodeId, BasicNode>,
-
-    /// Application data.
-    pub data: BTreeMap<String, String>,
+pub(crate) fn sm_r_err<E: Error + 'static>(e: E) -> StorageError<NodeId> {
+    StorageIOError::new(ErrorSubject::StateMachine, ErrorVerb::Read, AnyError::new(&e)).into()
+}
+pub(crate) fn sm_w_err<E: Error + 'static>(e: E) -> StorageError<NodeId> {
+    StorageIOError::new(ErrorSubject::StateMachine, ErrorVerb::Write, AnyError::new(&e)).into()
+}
+pub(crate) fn s_r_err<E: Error + 'static>(e: E) -> StorageError<NodeId> {
+    StorageIOError::new(ErrorSubject::Store, ErrorVerb::Read, AnyError::new(&e)).into()
+}
+pub(crate) fn s_w_err<E: Error + 'static>(e: E) -> StorageError<NodeId> {
+    StorageIOError::new(ErrorSubject::Store, ErrorVerb::Write, AnyError::new(&e)).into()
+}
+pub(crate) fn v_r_err<E: Error + 'static>(e: E) -> StorageError<NodeId> {
+    StorageIOError::new(ErrorSubject::Vote, ErrorVerb::Read, AnyError::new(&e)).into()
+}
+pub(crate) fn v_w_err<E: Error + 'static>(e: E) -> StorageError<NodeId> {
+    StorageIOError::new(ErrorSubject::Vote, ErrorVerb::Write, AnyError::new(&e)).into()
+}
+pub(crate) fn l_r_err<E: Error + 'static>(e: E) -> StorageError<NodeId> {
+    StorageIOError::new(ErrorSubject::Logs, ErrorVerb::Read, AnyError::new(&e)).into()
+}
+pub(crate) fn l_w_err<E: Error + 'static>(e: E) -> StorageError<NodeId> {
+    StorageIOError::new(ErrorSubject::Logs, ErrorVerb::Write, AnyError::new(&e)).into()
+}
+pub(crate) fn m_r_err<E: Error + 'static>(e: E) -> StorageError<NodeId> {
+    StorageIOError::new(ErrorSubject::Store, ErrorVerb::Read, AnyError::new(&e)).into()
+}
+pub(crate) fn m_w_err<E: Error + 'static>(e: E) -> StorageError<NodeId> {
+    StorageIOError::new(ErrorSubject::Store, ErrorVerb::Write, AnyError::new(&e)).into()
+}
+pub(crate) fn t_err<E: Error + 'static>(e: E) -> StorageError<NodeId> {
+    StorageIOError::new(ErrorSubject::Store, ErrorVerb::Write, AnyError::new(&e)).into()
 }
 
-#[derive(Debug, Default, Clone)]
-pub struct StoredSnapshot {
-    pub meta: SnapshotMeta<NodeId, BasicNode>,
-
-    /// The data of the state machine at the time of this snapshot.
-    pub data: Vec<u8>,
+pub(crate) fn ct_err<E: Error + 'static>(e: E) -> sled::transaction::ConflictableTransactionError<AnyError> {
+    sled::transaction::ConflictableTransactionError::Abort(AnyError::new(&e))
 }

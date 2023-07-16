@@ -5,6 +5,7 @@ pub mod config_sled;
 pub mod config_subscribe;
 pub mod core;
 pub mod dal;
+pub mod model;
 
 pub struct ConfigUtils;
 
