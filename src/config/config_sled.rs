@@ -59,7 +59,7 @@ impl Config {
         Ok(v)
     }
 
-    fn build_config_history_tree_name(config_key: &mut Vec<u8>) -> Vec<u8> {
+    pub fn build_config_history_tree_name(config_key: &mut Vec<u8>) -> Vec<u8> {
         let mut tree_name = CONFIG_HISTORY_TREE_NAME_PREFIX.as_bytes().to_vec();
         tree_name.append(config_key);
         tree_name
@@ -101,6 +101,10 @@ impl ConfigDB {
             db,
             config_history_seq,
         }
+    }
+
+    pub fn init_seq(&mut self) {
+        self.config_history_seq = TableSequence::new(self.db.clone(), CONFIG_HISTORY_ID.to_owned(), 100);
     }
 
     pub fn update_config(&mut self, key: &ConfigKey, val: &ConfigValue) -> Result<()> {

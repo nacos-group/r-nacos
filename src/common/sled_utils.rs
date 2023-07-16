@@ -63,7 +63,7 @@ fn compare_generate_batch_id(
     Ok(last_id)
 }
 
-const TABLE_SEQUENCE_TREE_NAME: &str = "table_sequence";
+pub(crate) const TABLE_SEQUENCE_TREE_NAME: &str = "table_sequence";
 
 ///
 /// 通用的sled表id sequence

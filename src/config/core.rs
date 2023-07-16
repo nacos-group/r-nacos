@@ -350,6 +350,7 @@ impl ConfigActor {
             self.tenant_index.insert_config(key.clone());
             self.cache.insert(key, val);
         }
+        self.config_db.init_seq();
     }
 
     fn send_raft_request(&mut self,req:Request,ctx:&mut Context<Self>) {
@@ -361,7 +362,7 @@ impl ConfigActor {
                 }
                 .into_actor(self)
                 .map(|_,_,_|{})
-                .wait(ctx);
+                .spawn(ctx);
             }
         }
     }
@@ -540,7 +541,6 @@ impl Handler<ConfigRaftCmd> for ConfigActor {
 
     fn handle(&mut self, msg: ConfigRaftCmd, ctx: &mut Self::Context) -> Self::Result {
         match msg {
-            ConfigRaftCmd::LoadSnapshot => todo!(),
             ConfigRaftCmd::ConfigAdd {
                 key,
                 value,
@@ -548,16 +548,15 @@ impl Handler<ConfigRaftCmd> for ConfigActor {
                 history_table_id,
             } => {
                 let config_key:ConfigKey = (&key as &str).into();
-                self.set_config(config_key, value,history_id,history_table_id);
+                self.set_config(config_key, value,history_id,history_table_id).ok();
             },
             ConfigRaftCmd::ConfigRemove { key } => {
                 let config_key:ConfigKey = (&key as &str).into();
-                self.del_config(config_key);
+                self.del_config(config_key).ok();
             }
-            ConfigRaftCmd::ApplySnaphot {
-                data,
-                history_table_id,
-            } => todo!(),
+            ConfigRaftCmd::ApplySnaphot => {
+                self.load_config();
+            },
         }
         Ok(ConfigRaftResult::None)
     }

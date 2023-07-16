@@ -6,15 +6,17 @@ use serde::Serialize;
 
 use actix::prelude::*;
 use crate::common::byte_utils::{id_to_bin,bin_to_id};
+use crate::common::sled_utils::TABLE_SEQUENCE_TREE_NAME;
 use crate::config::core::ConfigActor;
 
 use super::NodeId;
 use super::TypeConfig;
 use super::*;
+use super::model::{SnapshotDataInfo, SnapshotItem};
 use super::{Request,Response};
 use std::ops::RangeBounds;
 use std::io::Cursor;
-use crate::config::model::{ConfigRaftCmd, ConfigRaftResult};
+use crate::config::model::{ConfigRaftCmd};
 
 type SnapshotData = Cursor<Vec<u8>>;
 
@@ -29,10 +31,6 @@ pub struct StateMachine {
     pub last_membership: StoredMembership<NodeId, BasicNode>,
     pub config_data: Vec<(String,Arc<String>)>,
     pub config_history_table_id: u64,
-}
-
-impl StateMachine {
-
 }
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
@@ -77,17 +75,43 @@ impl InnerStore {
     }
 
     fn save_last_applied_log(&self,log_id: &LogId<NodeId>) -> StorageResult<()> {
-        let state_machine = state_machine(&self.db);
+        let state_machine = store(&self.db);
         let value = serde_json::to_vec(log_id).map_err(sm_w_err)?;
         state_machine.insert(b"last_applied_log", value).map_err(l_r_err)?;
         state_machine.flush().map_err(sm_w_err).map(|_| ())
     }
 
     fn save_last_membership(&self,membership: &StoredMembership<NodeId, BasicNode>) -> StorageResult<()> {
-        let state_machine = state_machine(&self.db);
+        let state_machine = store(&self.db);
         let value = serde_json::to_vec(membership).map_err(sm_w_err)?;
         state_machine.insert(b"last_membership", value).map_err(l_r_err)?;
         state_machine.flush().map_err(sm_w_err).map(|_| ())
+    }
+
+    fn save_snapshot_data(&self,items:Vec<SnapshotItem>) -> anyhow::Result<()> {
+        let config_tree = self.db.open_tree("config")?;
+        let table_seq_tree = self.db.open_tree(TABLE_SEQUENCE_TREE_NAME)?;
+        let mut last_history_tree = None;
+        for item in items {
+            match item.r#type {
+                1 => { //config
+                    let mut key = item.key.clone();
+                    config_tree.insert(item.key, item.value)?;
+                    let history_name = crate::config::config_sled::Config::build_config_history_tree_name(&mut key);
+                    last_history_tree = Some(self.db.open_tree(history_name)?);
+                },
+                2 => { //config history
+                    if let Some(last_history_tree) = &last_history_tree {
+                        last_history_tree.insert(item.key, item.value)?;
+                    }
+                },
+                3 => { //table seq
+                    table_seq_tree.insert(item.key, item.value)?;
+                },
+                _ => {} //ignore
+            }
+        }
+        Ok(())
     }
 
     fn init(&mut self) -> anyhow::Result<()> {
@@ -95,7 +119,7 @@ impl InnerStore {
         self.snapshot_idx = self.get_snapshot_index_()?;
         self.vote = self.get_vote_()?;
 
-        let state_machine = state_machine(&self.db);
+        let state_machine = store(&self.db);
         self.last_membership= state_machine.get(b"last_membership").map_err(m_r_err).and_then(|value| {
             value
                 .map(|v| serde_json::from_slice::<StoredMembership<NodeId, BasicNode>>(&v).map_err(sm_r_err))
@@ -224,8 +248,6 @@ impl InnerStore {
 
     fn build_snapshot(&mut self,ctx: &mut Context<Self>) -> Result<Snapshot, StorageError<NodeId>> {
         // Serialize the data of the state machine.
-        let data = self.load_snapshot_data(ctx).unwrap_or_default();
-
         self.snapshot_idx +=1;
         self.set_snapshot_index_(self.snapshot_idx)?;
 
@@ -240,6 +262,8 @@ impl InnerStore {
             last_membership: self.last_membership.to_owned(),
             snapshot_id,
         };
+
+        let data = self.load_snapshot_data(&meta,ctx).unwrap_or_default();
 
         let snapshot = StoredSnapshot {
             meta: meta.clone(),
@@ -388,20 +412,12 @@ impl InnerStore {
             meta ,
             data: snapshot.into_inner(),
         };
-        let state_machine: StateMachine = serde_json::from_slice(&new_snapshot.data)
-            .map_err(|e| 
-                StorageIOError::new(
-                    ErrorSubject::Snapshot(new_snapshot.meta.signature()),
-                    ErrorVerb::Read,
-                    AnyError::new(&e),
-                )
-            )?;
-        self.last_applied_log = state_machine.last_applied_log;
-        self.last_membership = state_machine.last_membership;
-        let cmd = ConfigRaftCmd::ApplySnaphot { 
-            data:state_machine.config_data, 
-            history_table_id: state_machine.config_history_table_id 
-        };
+        let snapshot_data =SnapshotDataInfo::from_bytes(&new_snapshot.data).unwrap_or_default();
+        let meta = snapshot_data.build_snapshot().unwrap();
+        self.last_applied_log = meta.last_log_id;
+        self.last_membership = meta.last_membership;
+        self.save_snapshot_data(snapshot_data.items).ok();
+        let cmd = ConfigRaftCmd::ApplySnaphot;
         self.wait_send_config_raft_cmd(cmd,ctx).ok();
         Ok(())
     }
@@ -419,38 +435,63 @@ impl InnerStore {
         }
     }
 
-    fn load_snapshot_data(&mut self, ctx: &mut Context<Self>) -> anyhow::Result<Vec<u8>> {
-        let config_addr = self.config_addr.clone();
-        let (tx,rx) = std::sync::mpsc::sync_channel(1);
-        async move{
-            if let Ok(res) = config_addr.send(ConfigRaftCmd::LoadSnapshot).await {
-                (res as anyhow::Result<ConfigRaftResult>,tx)
-            }
-            else{
-                (Err(anyhow::anyhow!("load snapshot data err")),tx)
-            }
+    /// load config history data
+    fn load_config_history(&self,history_name:Vec<u8>,items:&mut Vec<SnapshotItem>) -> anyhow::Result<()> {
+        let config_history_tree = self.db.open_tree(history_name)?;
+        let mut iter = config_history_tree.iter();
+        while let Some(Ok((k, v))) = iter.next() {
+            let item = SnapshotItem {
+                r#type:2,
+                key:k.to_vec(),
+                value:v.to_vec(),
+            };
+            items.push(item);
         }
-        .into_actor(self)
-        .map(|(r,tx),_act,_ctx|{
-            tx.send(r).ok();
-        })
-        .wait(ctx);
-        let result = rx.recv()??;
-        match result {
-            ConfigRaftResult::Snapshot { data, history_table_id } => {
-                let config_data:Vec<(String,Arc<String>)> = data.into_iter().map(|(k,v)|(k.build_key(),v)).collect();
-                let state_machine = StateMachine {
-                    last_applied_log: self.last_applied_log.to_owned(),
-                    last_membership: self.last_membership.to_owned(),
-                    config_data,
-                    config_history_table_id: history_table_id,
-                };
-                let data_bytes = serde_json::to_vec(&state_machine)?;
-                return Ok(data_bytes);
-            },
-            ConfigRaftResult::None => {},
+        Ok(())
+    }
+
+    /// load table data
+    fn load_table_seq(&self,items:&mut Vec<SnapshotItem>) -> anyhow::Result<()>  {
+        let tree = self.db.open_tree(TABLE_SEQUENCE_TREE_NAME)?;
+        let mut iter = tree.iter();
+        while let Some(Ok((k, v))) = iter.next() {
+            let item = SnapshotItem {
+                r#type:3,
+                key:k.to_vec(),
+                value:v.to_vec(),
+            };
+            items.push(item);
+        }
+        Ok(())
+    }
+
+    fn load_snapshot_data(&mut self,meta:&SnapshotMeta<NodeId,BasicNode>, ctx: &mut Context<Self>) -> anyhow::Result<Vec<u8>> {
+        let snapshot_meta_json = serde_json::to_string(meta)?;
+        
+        // load config
+        let mut items = vec![];
+        let config_tree = self.db.open_tree("config").unwrap();
+        let mut iter = config_tree.iter();
+        while let Some(Ok((k, v))) = iter.next() {
+            let mut key = k.to_vec();
+            let item = SnapshotItem {
+                r#type:1,
+                key:key.clone(),
+                value:v.to_vec(),
+            };
+            items.push(item);
+            let history_name = crate::config::config_sled::Config::build_config_history_tree_name(&mut key);
+            self.load_config_history(history_name, &mut items)?;
+        }
+        self.load_table_seq(&mut items)?;
+
+        let snapshot_data = SnapshotDataInfo{
+            snapshot_meta_json,
+            items,
         };
-        Err(anyhow::anyhow!("load_snapshot_bytes error"))
+
+        snapshot_data.to_bytes()
+
     }
 
 }
@@ -562,14 +603,8 @@ impl Handler<StoreRequest> for InnerStore {
 
 
 fn store(db: &sled::Db) -> sled::Tree {
-    db.open_tree("store").expect("store open failed")
+    db.open_tree("raft_store").expect("store open failed")
 }
 fn logs(db: &sled::Db) -> sled::Tree {
-    db.open_tree("logs").expect("logs open failed")
-}
-fn data(db: &sled::Db) -> sled::Tree {
-    db.open_tree("data").expect("data open failed")
-}
-fn state_machine(db: &sled::Db) -> sled::Tree {
-    db.open_tree("state_machine").expect("state_machine open failed")
+    db.open_tree("raft_logs").expect("logs open failed")
 }
