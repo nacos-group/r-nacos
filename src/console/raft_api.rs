@@ -51,7 +51,8 @@ pub async fn raft_change_membership(
     req: web::Form<NodeMember>
 ) -> impl Responder {
     let node_member = req.0;
-    let res = app.raft.change_membership(node_member.node_ids, false).await;
+    let node_id_set = node_member.get_member();
+    let res = app.raft.change_membership(node_id_set, false).await;
     match res {
         Ok(res) => {
             let v = serde_json::to_string(&res).unwrap();
