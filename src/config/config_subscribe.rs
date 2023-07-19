@@ -125,4 +125,8 @@ impl Subscriber {
             }
         }
     }
+
+    pub fn query_subscriber(&self, key: &ConfigKey) -> Option<HashSet<Arc<String>>> {
+        self.listener.get(key).cloned()
+    }
 }

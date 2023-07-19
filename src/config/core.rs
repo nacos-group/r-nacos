@@ -1,6 +1,7 @@
 use chrono::Local;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::hash::Hash;
 use std::sync::Arc;
 use std::time::Duration;
@@ -20,6 +21,7 @@ use crate::config::config_index::{ConfigQueryParam, TenantIndex};
 pub struct ConfigKey {
     pub(crate) data_id: Arc<String>,
     pub(crate) group: Arc<String>,
+    // aka namespaceId
     pub(crate) tenant: Arc<String>,
 }
 
@@ -369,6 +371,8 @@ pub enum ConfigCmd {
     Subscribe(Vec<ListenerItem>, Arc<String>),
     RemoveSubscribe(Vec<ListenerItem>, Arc<String>),
     RemoveSubscribeClient(Arc<String>),
+    // 配置监听信息查询
+    QuerySubscriber(ConfigKey),
 }
 
 pub enum ConfigResult {
@@ -377,6 +381,7 @@ pub enum ConfigResult {
     ChangeKey(Vec<ConfigKey>),
     ConfigInfoPage(usize, Vec<ConfigInfoDto>),
     ConfigHistoryInfoPage(usize, Vec<ConfigHistoryInfoDto>),
+    ConfigSubscribers(HashSet<Arc<String>>),
 }
 
 impl Actor for ConfigActor {
@@ -468,6 +473,13 @@ impl Handler<ConfigCmd> for ConfigActor {
             }
             ConfigCmd::RemoveSubscribeClient(client_id) => {
                 self.subscriber.remove_client_subscribe(client_id);
+            }
+            ConfigCmd::QuerySubscriber(ck) => {
+                let v = self.subscriber.query_subscriber(&ck);
+                if let Some(v) = v {
+                    return Ok(ConfigResult::ConfigSubscribers(v));
+                }
+                return Ok(ConfigResult::NULL);
             }
             ConfigCmd::QueryPageInfo(config_query_param) => {
                 let (size, list) = self.get_config_info_page(config_query_param.as_ref());

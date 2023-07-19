@@ -208,6 +208,30 @@ async fn listener_config(
         .body(v)
 }
 
+async fn query_config_subscribers(
+    _req: HttpRequest,
+    a: web::Query<ConfigWebParams>,
+    b: web::Form<ConfigWebParams>,
+    config_addr: web::Data<Addr<ConfigActor>>,
+) -> impl Responder {
+    let param = a.select_option(&b).to_confirmed_param();
+    if let Ok(p) = param {
+        let ck = ConfigKey::new(&p.data_id, &p.group, &p.tenant);
+
+        let cmd = ConfigCmd::QuerySubscriber(ck);
+        let res = config_addr.send(cmd).await;
+
+        if let Ok(Ok(ret)) = res {
+            if let ConfigResult::ConfigSubscribers(v) = ret {
+                return HttpResponse::Ok().json(serde_json::to_string(&v).unwrap());
+            }
+        }
+    }
+    return HttpResponse::NoContent()
+        .content_type("text/html; charset=utf-8")
+        .body("subscriber is empty");
+}
+
 pub fn app_config(config: &mut web::ServiceConfig) {
     config.service(
         web::scope("/nacos/v1/cs")
@@ -218,6 +242,10 @@ pub fn app_config(config: &mut web::ServiceConfig) {
                     .route(web::put().to(add_config))
                     .route(web::delete().to(del_config)),
             )
-            .service(web::resource("/configs/listener").route(web::post().to(listener_config))),
+            .service(
+                web::resource("/configs/listener")
+                    .route(web::post().to(listener_config))
+                    .route(web::get().to(query_config_subscribers)),
+            ),
     );
 }
