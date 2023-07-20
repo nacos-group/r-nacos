@@ -237,7 +237,7 @@ impl InnerStore {
             let response = self.log.range(range).map(|(_, val)| val.clone()).collect::<Vec<_>>();
             return Ok(response);
         }
-        log::error!("try_get_log_entries from db");
+        log::warn!("try_get_log_entries from db");
         let logs_tree = logs(&self.db);
         let logs = logs_tree
             .range::<&[u8], _>(start.as_slice()..end.as_slice())
