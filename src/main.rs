@@ -11,6 +11,7 @@ use rnacos::grpc::nacos_proto::bi_request_stream_server::BiRequestStreamServer;
 use rnacos::grpc::nacos_proto::request_server::RequestServer;
 use rnacos::grpc::server::BiRequestStreamServerImpl;
 use rnacos::naming::core::{NamingCmd, NamingResult};
+use rnacos::raft::network::httpnetwork::HttpNetworkFactory;
 use rnacos::{grpc::server::RequestServerImpl, naming::core::NamingActor};
 use sled::Db;
 use std::error::Error;
@@ -22,7 +23,7 @@ use openraft::{Config, Raft};
 use rnacos::common::appdata::AppData;
 use rnacos::raft::store::store::Store;
 use rnacos::raft::NacosRaft;
-use rnacos::raft::network::NetworkFactory;
+use rnacos::raft::network::GrpcNetworkFactory;
 use rnacos::web_config::app_config;
 
 #[actix_web::main]
@@ -121,13 +122,13 @@ fn init_env() {
 
 async fn build_raft(sys_config: &Arc<AppSysConfig>,store:Arc<Store>) -> anyhow::Result<NacosRaft> {
     let config = Config {
-        heartbeat_interval: 500,
-        election_timeout_min: 1500,
-        election_timeout_max: 3000,
+        heartbeat_interval: 1000,
+        election_timeout_min: 3000,
+        election_timeout_max: 6000,
         ..Default::default()
     };
     let config = Arc::new(config.validate()?);
-    let network = NetworkFactory {};
+    let network = HttpNetworkFactory::new();
     let raft = Raft::new(sys_config.raft_node_id.to_owned(), config.clone(), network, store.clone()).await.unwrap();
     if sys_config.raft_auto_init {
         let mut nodes = BTreeMap::new();

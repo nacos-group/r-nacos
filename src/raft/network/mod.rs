@@ -1,3 +1,8 @@
+
+pub mod serviceapi;
+
+pub mod httpnetwork;
+
 //use std::collections::HashMap;
 use async_trait::async_trait;
 use openraft::{AnyError, BasicNode, RaftNetwork, RaftNetworkFactory};
@@ -13,19 +18,19 @@ use crate::grpc::PayloadUtils;
 use crate::raft::store::{NodeId, TypeConfig};
 
 #[derive(Default, Debug, Clone)]
-pub struct NetworkFactory {
+pub struct GrpcNetworkFactory {
     //connect_map: HashMap<NodeId,RaftNetworkConnect>
 }
 
 #[derive(Debug, Clone)]
-pub struct RaftNetworkConnect {
+pub struct GrpcRaftNetworkConnect {
     pub(crate) channel: Channel,
     pub(crate) target: NodeId,
     pub(crate) addr: String,
     //pub(crate) target_node: BasicNode,
 }
 
-impl RaftNetworkConnect {
+impl GrpcRaftNetworkConnect {
     pub(crate) fn new(target: NodeId, target_node: BasicNode) -> Self {
         let addr = format!("http://{}", &target_node.addr);
         let channel = Channel::from_shared(addr.to_owned()).unwrap().connect_lazy().unwrap();
@@ -141,11 +146,11 @@ async fn send_rpc<Resp, Err>(
 }
 
 #[async_trait]
-impl RaftNetworkFactory<TypeConfig> for NetworkFactory {
-    type Network = RaftNetworkConnect;
+impl RaftNetworkFactory<TypeConfig> for GrpcNetworkFactory {
+    type Network = GrpcRaftNetworkConnect;
 
     async fn new_client(&mut self, target: NodeId, node: &BasicNode) -> Self::Network {
-        RaftNetworkConnect::new(target, node.to_owned())
+        GrpcRaftNetworkConnect::new(target, node.to_owned())
         /* 
         if let Some(conn) = self.connect_map.get_mut(&target) {
             if conn.target_node.addr == node.addr {
@@ -160,7 +165,7 @@ impl RaftNetworkFactory<TypeConfig> for NetworkFactory {
 }
 
 #[async_trait]
-impl RaftNetwork<TypeConfig> for RaftNetworkConnect {
+impl RaftNetwork<TypeConfig> for GrpcRaftNetworkConnect {
     async fn send_append_entries(&mut self, rpc: AppendEntriesRequest<TypeConfig>)
                                  -> Result<AppendEntriesResponse<NodeId>, RPCError<NodeId, BasicNode, RaftError<NodeId>>> {
         let request = serde_json::to_string(&rpc).unwrap_or_default();
