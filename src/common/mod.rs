@@ -8,6 +8,7 @@ pub mod sled_utils;
 pub mod string_utils;
 pub mod appdata;
 pub mod byte_utils;
+pub mod cycle_queue;
 
 lazy_static! {
     // Global app sys config
