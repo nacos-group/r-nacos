@@ -1,5 +1,5 @@
 use openraft::{LogId, Entry, Vote, StorageError, Snapshot as RSnapshot, LogState,  StoredMembership, SnapshotMeta, EntryPayload, BasicNode, StorageIOError, ErrorSubject, ErrorVerb, AnyError};
-use std::collections::{Bound};
+use std::collections::{Bound, BTreeMap};
 use std::sync::Arc;
 use serde::Deserialize;
 use serde::Serialize;
@@ -54,6 +54,8 @@ pub struct InnerStore {
 
     last_membership: StoredMembership<NodeId, BasicNode>,
 
+    log: BTreeMap<u64, Entry<TypeConfig>>,
+
     /// The current granted vote.
     vote: Option<Vote<NodeId>>,
 
@@ -71,6 +73,7 @@ impl InnerStore {
             last_membership: Default::default(),
             vote:Default::default(),
             snapshot_idx:Default::default(),
+            log: Default::default(),
         }
     }
 
@@ -218,14 +221,26 @@ impl InnerStore {
 
     fn try_get_log_entries<RB: RangeBounds<u64>>(&mut self, range: RB) -> Result<Vec<Entry<TypeConfig>>, StorageError<NodeId>> {
         let start_bound = range.start_bound();
-        let start = match start_bound {
-            std::ops::Bound::Included(x) => id_to_bin(*x),
-            std::ops::Bound::Excluded(x) => id_to_bin(*x + 1),
-            std::ops::Bound::Unbounded => id_to_bin(0),
+        let start_index = match start_bound {
+            std::ops::Bound::Included(x) =>  *x,
+            std::ops::Bound::Excluded(x) => *x + 1,
+            std::ops::Bound::Unbounded => 0,
         };
+        let end_index = match range.end_bound() {
+            std::ops::Bound::Included(x) =>  *x+1,
+            std::ops::Bound::Excluded(x) => *x,
+            std::ops::Bound::Unbounded => 0xff_ff_ff_ff_ff_ff_ff_ff,
+        };
+        let start = id_to_bin(start_index);
+        let end = id_to_bin(end_index);
+        if self.log.contains_key(&start_index) {
+            let response = self.log.range(range).map(|(_, val)| val.clone()).collect::<Vec<_>>();
+            return Ok(response);
+        }
+        log::error!("try_get_log_entries from db");
         let logs_tree = logs(&self.db);
         let logs = logs_tree
-            .range::<&[u8], _>(start.as_slice()..)
+            .range::<&[u8], _>(start.as_slice()..end.as_slice())
             .map(|el_res| {
                 let el = el_res.expect("Failed read log entry");
                 let id = el.0;
@@ -317,16 +332,26 @@ impl InnerStore {
     fn append_to_log(&mut self, entries: Vec<Entry<TypeConfig>>) -> Result<(), StorageError<NodeId>> {
         let logs_tree = logs(&self.db);
         let mut batch = sled::Batch::default();
-        for entry in entries {
+        for entry in &entries {
             let id = id_to_bin(entry.log_id.index);
             let value = serde_json::to_vec(&entry).map_err(l_w_err)?;
             batch.insert(id.as_slice(), value);
+        }
+        //cache log
+        for entry in entries {
+            self.log.insert(entry.log_id.index.to_owned(), entry);
         }
         logs_tree.apply_batch(batch).map_err(l_w_err)?;
         logs_tree.flush().map_err(l_w_err).map(|_| ())
     }
 
     fn delete_conflict_logs_since(&mut self, log_id: LogId<NodeId>) -> Result<(), StorageError<NodeId>> {
+        //remove cahce log
+        let keys = self.log.range(log_id.index..).map(|(k, _v)| *k).collect::<Vec<_>>();
+        for key in keys {
+            self.log.remove(&key);
+        }
+        //remove db log
         let from = id_to_bin(log_id.index);
         let to = id_to_bin(0xff_ff_ff_ff_ff_ff_ff_ff);
         let logs_tree = logs(&self.db);
@@ -347,6 +372,13 @@ impl InnerStore {
                 return Ok(())
             }
         }
+        //remove cahce log
+        self.last_purged_log_id = Some(log_id);
+        let keys = self.log.range(..=log_id.index).map(|(k, _v)| *k).collect::<Vec<_>>();
+        for key in keys {
+            self.log.remove(&key);
+        }
+        //remove db log
         self.set_last_purged_(log_id)?;
         let from = id_to_bin(0);
         let to = id_to_bin(log_id.index);
