@@ -355,18 +355,15 @@ impl ConfigActor {
         self.config_db.init_seq();
     }
 
-    fn send_raft_request(&mut self,req:ClientRequest,ctx:&mut Context<Self>) {
-        if let Some(weak_raft) = &self.raft {
+
+    async fn send_raft_request(raft:&Option<Weak<NacosRaft>>,req:Request) -> anyhow::Result<()>{
+        if let Some(weak_raft) = raft {
             if let Some(raft) = weak_raft.upgrade() {
                 //TODO换成feature,非wait的方式
-                async move {
-                    raft.client_write(ClientWriteRequest::new(req)).await.ok();
-                }
-                .into_actor(self)
-                .map(|_,_,_|{})
-                .spawn(ctx);
+                raft.client_write(req).await?;
             }
         }
+        Ok(())
     }
 
     pub fn get_config_info_page(&self, param: &ConfigQueryParam) -> (usize, Vec<ConfigInfoDto>) {
@@ -422,9 +419,9 @@ impl ConfigActor {
 #[derive(Message)]
 #[rtype(result = "anyhow::Result<ConfigResult>")]
 pub enum ConfigCmd {
-    ADD(ConfigKey, Arc<String>),
+    //ADD(ConfigKey, Arc<String>),
+    //DELETE(ConfigKey),
     GET(ConfigKey),
-    DELETE(ConfigKey),
     QueryPageInfo(Box<ConfigQueryParam>),
     QueryHistoryPageInfo(Box<ConfigHistoryParam>),
     LISTENER(Vec<ListenerItem>, ListenerSenderType, i64),
@@ -433,6 +430,13 @@ pub enum ConfigCmd {
     RemoveSubscribe(Vec<ListenerItem>, Arc<String>),
     RemoveSubscribeClient(Arc<String>),
     SetRaft(Arc<NacosRaft>),
+}
+
+#[derive(Message)]
+#[rtype(result = "anyhow::Result<ConfigResult>")]
+pub enum ConfigAsyncCmd {
+    Add(ConfigKey, Arc<String>),
+    Delete(ConfigKey),
 }
 
 pub enum ConfigResult {
@@ -463,6 +467,7 @@ impl Handler<ConfigCmd> for ConfigActor {
 
     fn handle(&mut self, msg: ConfigCmd, ctx: &mut Context<Self>) -> Self::Result {
         match msg {
+<<<<<<< HEAD
             ConfigCmd::ADD(key, value) => {
                 //return self.set_config(key,value);
                 let (history_id,history_table_id) = self.config_db.next_history_id_state()?;
@@ -473,6 +478,8 @@ impl Handler<ConfigCmd> for ConfigActor {
                 let req = ClientRequest::ConfigRemove { key: key.build_key() };
                 self.send_raft_request(req,ctx);
             }
+=======
+>>>>>>> 调整注册中心调用参数
             ConfigCmd::GET(key) => {
                 if let Some(v) = self.cache.get(&key) {
                     return Ok(ConfigResult::DATA(v.content.clone(), v.md5.clone()));
@@ -535,6 +542,40 @@ impl Handler<ConfigCmd> for ConfigActor {
             }
         }
         Ok(ConfigResult::NULL)
+    }
+}
+
+impl Handler<ConfigAsyncCmd> for ConfigActor {
+    type Result = ResponseActFuture<Self,anyhow::Result<ConfigResult>>;
+
+    fn handle(&mut self, msg: ConfigAsyncCmd, ctx: &mut Context<Self>) -> Self::Result {
+        let raft =self.raft.clone();
+        let history_info= if let ConfigAsyncCmd::Add(_,_) = &msg {
+            match  self.config_db.next_history_id_state() {
+                Ok(v) => Some(v),
+                Err(_) => None,
+            }
+        }
+        else {
+            None
+        };
+        let fut=async move {
+            match msg {
+                ConfigAsyncCmd::Add(key, value) => {
+                    if let Some((history_id,history_table_id)) = history_info  {
+                        let req = Request::ConfigSet { key: key.build_key(), value, history_id, history_table_id, };
+                        Self::send_raft_request(&raft,req).await.ok();
+                    }
+                },
+                ConfigAsyncCmd::Delete(key) => {
+                    let req = Request::ConfigRemove { key: key.build_key() };
+                    Self::send_raft_request(&raft,req).await.ok();
+                },
+            }
+            Ok(ConfigResult::NULL)
+        }.into_actor(self)
+        .map(|r,act,ctx|{r});
+        Box::pin(fut)
     }
 }
 

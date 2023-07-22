@@ -1,7 +1,7 @@
 #![allow(unused_imports)]
 
 use crate::{
-    config::core::{ConfigActor, ConfigCmd, ConfigKey, ConfigResult},
+    config::core::{ConfigActor, ConfigCmd, ConfigKey, ConfigResult, ConfigAsyncCmd},
     grpc::{
         api_model::{BaseResponse, ConfigPublishRequest},
         nacos_proto::Payload,
@@ -30,7 +30,7 @@ impl PayloadHandler for ConfigPublishRequestHandler {
     ) -> anyhow::Result<Payload> {
         let body_vec = request_payload.body.unwrap_or_default().value;
         let request: ConfigPublishRequest = serde_json::from_slice(&body_vec)?;
-        let cmd = ConfigCmd::ADD(
+        let cmd = ConfigAsyncCmd::Add(
             ConfigKey::new(&request.data_id, &request.group, &request.tenant),
             request.content,
         );

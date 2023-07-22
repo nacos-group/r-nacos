@@ -1,3 +1,4 @@
+use super::core::ConfigAsyncCmd;
 use super::core::{ConfigActor, ConfigCmd, ConfigKey, ConfigResult, ListenerItem, ListenerResult};
 use crate::utils::select_option_by_clone;
 use chrono::Local;
@@ -73,7 +74,7 @@ async fn add_config(
     let param = a.select_option(&b).to_confirmed_param();
     match param {
         Ok(p) => {
-            let cmd = ConfigCmd::ADD(
+            let cmd = ConfigAsyncCmd::Add(
                 ConfigKey::new(&p.data_id, &p.group, &p.tenant),
                 Arc::new(p.content.to_owned()),
             );
@@ -99,7 +100,7 @@ async fn del_config(
     let param = a.select_option(&b).to_confirmed_param();
     match param {
         Ok(p) => {
-            let cmd = ConfigCmd::DELETE(ConfigKey::new(&p.data_id, &p.group, &p.tenant));
+            let cmd = ConfigAsyncCmd::Delete(ConfigKey::new(&p.data_id, &p.group, &p.tenant));
             match config_addr.send(cmd).await {
                 Ok(res) => {
                     let _: ConfigResult = res.unwrap();

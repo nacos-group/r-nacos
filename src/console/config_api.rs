@@ -11,7 +11,7 @@ use actix_multipart::Multipart;
 use actix_web::{http::header, web, Error, HttpRequest, HttpResponse, Responder};
 use zip::write::FileOptions;
 
-use crate::config::core::{ConfigActor, ConfigCmd, ConfigInfoDto, ConfigKey, ConfigResult};
+use crate::config::core::{ConfigActor, ConfigCmd, ConfigInfoDto, ConfigKey, ConfigResult, ConfigAsyncCmd};
 use crate::config::ConfigUtils;
 use crate::console::model::config_model::{
     OpsConfigOptQueryListResponse, OpsConfigQueryListRequest,
@@ -131,7 +131,7 @@ pub async fn import_config(
                             Err(_) => continue,
                         };
                         //println!("update load, {:?}:{}",&config_key,&value);
-                        config_addr.do_send(ConfigCmd::ADD(config_key, Arc::new(value)));
+                        config_addr.do_send(ConfigAsyncCmd::Add(config_key, Arc::new(value)));
                     }
                 }
             }

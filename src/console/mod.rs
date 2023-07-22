@@ -7,7 +7,7 @@ mod raft_api;
 
 use std::sync::Arc;
 
-use crate::config::core::{ConfigActor, ConfigCmd, ConfigKey, ConfigResult};
+use crate::config::core::{ConfigActor, ConfigCmd, ConfigKey, ConfigResult, ConfigAsyncCmd};
 use actix::prelude::*;
 
 use self::model::NamespaceInfo;
@@ -89,7 +89,7 @@ impl NamespaceUtils {
         value: &Vec<NamespaceInfo>,
     ) -> anyhow::Result<()> {
         let value_str = serde_json::to_string(value)?;
-        let cmd = ConfigCmd::ADD(
+        let cmd = ConfigAsyncCmd::Add(
             ConfigKey::new(
                 SYSCONFIG_NAMESPACE_KEY,
                 SYSCONFIG_GROUP,
