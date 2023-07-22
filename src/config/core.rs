@@ -356,11 +356,11 @@ impl ConfigActor {
     }
 
 
-    async fn send_raft_request(raft:&Option<Weak<NacosRaft>>,req:Request) -> anyhow::Result<()>{
+    async fn send_raft_request(raft:&Option<Weak<NacosRaft>>,req : ClientRequest) -> anyhow::Result<()>{
         if let Some(weak_raft) = raft {
             if let Some(raft) = weak_raft.upgrade() {
                 //TODO换成feature,非wait的方式
-                raft.client_write(req).await?;
+                raft.client_write(ClientWriteRequest::new(req)).await?;
             }
         }
         Ok(())
@@ -467,19 +467,6 @@ impl Handler<ConfigCmd> for ConfigActor {
 
     fn handle(&mut self, msg: ConfigCmd, ctx: &mut Context<Self>) -> Self::Result {
         match msg {
-<<<<<<< HEAD
-            ConfigCmd::ADD(key, value) => {
-                //return self.set_config(key,value);
-                let (history_id,history_table_id) = self.config_db.next_history_id_state()?;
-                let req = ClientRequest::ConfigSet { key: key.build_key(), value, history_id, history_table_id, };
-                self.send_raft_request(req,ctx);
-            }
-            ConfigCmd::DELETE(key) => {
-                let req = ClientRequest::ConfigRemove { key: key.build_key() };
-                self.send_raft_request(req,ctx);
-            }
-=======
->>>>>>> 调整注册中心调用参数
             ConfigCmd::GET(key) => {
                 if let Some(v) = self.cache.get(&key) {
                     return Ok(ConfigResult::DATA(v.content.clone(), v.md5.clone()));
@@ -563,12 +550,12 @@ impl Handler<ConfigAsyncCmd> for ConfigActor {
             match msg {
                 ConfigAsyncCmd::Add(key, value) => {
                     if let Some((history_id,history_table_id)) = history_info  {
-                        let req = Request::ConfigSet { key: key.build_key(), value, history_id, history_table_id, };
+                        let req = ClientRequest::ConfigSet { key: key.build_key(), value, history_id, history_table_id, };
                         Self::send_raft_request(&raft,req).await.ok();
                     }
                 },
                 ConfigAsyncCmd::Delete(key) => {
-                    let req = Request::ConfigRemove { key: key.build_key() };
+                    let req = ClientRequest::ConfigRemove { key: key.build_key() };
                     Self::send_raft_request(&raft,req).await.ok();
                 },
             }

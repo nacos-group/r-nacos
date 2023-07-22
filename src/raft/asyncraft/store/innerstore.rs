@@ -75,7 +75,7 @@ impl InnerStore {
         let store_tree = store(&self.db);
         let val = serde_json::to_vec(hs)?;
         store_tree.insert(b"hs", val)?;
-        store_tree.flush()?;
+        //store_tree.flush()?;
         Ok(())
     }
 
@@ -92,7 +92,7 @@ impl InnerStore {
         let store_tree = store(&self.db);
         let val = serde_json::to_vec(info)?;
         store_tree.insert(b"membership", val)?;
-        store_tree.flush()?;
+        //store_tree.flush()?;
         Ok(())
     }
 
@@ -108,7 +108,7 @@ impl InnerStore {
     fn set_snapshot_(&self, data:&[u8] ) -> anyhow::Result<()> {
         let store_tree = store(&self.db);
         store_tree.insert(b"snapshot", data)?;
-        store_tree.flush()?;
+        //store_tree.flush()?;
         Ok(())
     }
 
@@ -125,7 +125,7 @@ impl InnerStore {
         let state_machine = store(&self.db);
         let value = id_to_bin(log_id);
         state_machine.insert(b"last_applied_log", value)?;
-        state_machine.flush()?;
+        //state_machine.flush()?;
         Ok(())
     }
 
@@ -247,7 +247,7 @@ impl InnerStore {
             batch_del.remove(key);
         }
         logs_tree.apply_batch(batch_del)?;
-        logs_tree.flush()?;
+        //logs_tree.flush()?;
 
         // If a stop point was specified, delete from start until the given stop point.
 
@@ -262,7 +262,7 @@ impl InnerStore {
         let id = id_to_bin(entry.index);
         let value = serde_json::to_vec(&entry)?;
         logs_tree.insert(id, value)?;
-        logs_tree.flush()?;
+        //logs_tree.flush()?;
 
         self.log.insert(entry.index, entry);
         Ok(())
@@ -284,7 +284,7 @@ impl InnerStore {
             self.log.insert(entry.index, entry);
         }
         logs_tree.apply_batch(batch)?;
-        logs_tree.flush()?;
+        //logs_tree.flush()?;
         Ok(())
     }
 
