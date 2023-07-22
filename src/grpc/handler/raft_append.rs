@@ -22,6 +22,8 @@ impl RaftAppendRequestHandler{
 #[async_trait]
 impl PayloadHandler for RaftAppendRequestHandler {
     async fn handle(&self, request_payload: Payload, _request_meta: RequestMeta) -> anyhow::Result<Payload> {
+        todo!()
+        /* 
         let body_vec = request_payload.body.unwrap_or_default().value;
         let request: openraft::raft::AppendEntriesRequest<TypeConfig> = serde_json::from_slice(&body_vec)?;
         let res = self.raft.append_entries(request).await;
@@ -29,5 +31,6 @@ impl PayloadHandler for RaftAppendRequestHandler {
         //log::info!("RaftAppendRequestHandler result:{}",&value);
         let payload = PayloadUtils::build_payload("RaftAppendResponse",value );
         Ok(payload)
+        */
     }
 }

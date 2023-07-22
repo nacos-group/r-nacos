@@ -7,7 +7,7 @@ use crate::naming::api::app_config as ns_config;
 use crate::console::api::app_config as console_config;
 
 use crate::auth::mock_token;
-use crate::raft::network::serviceapi::raft_config;
+use crate::raft::asyncraft::network::raft_config;
 
 use mime_guess::from_path;
 use rnacos_web_dist_wrap::get_embedded_file;

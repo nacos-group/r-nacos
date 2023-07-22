@@ -49,15 +49,8 @@ impl AStore {
         self.inner_addr.send(msg).await? 
     }
 
-    pub async fn get_state_value(&self,key:String) -> anyhow::Result<Option<Arc<String>>> {
-        match self.send_store_msg(StoreRequest::GetValue(key)).await? {
-            StoreResponse::Value(v) => {
-                Ok(v)
-            },
-            _ => {
-                Err(anyhow::anyhow!("get_state_value error"))
-            },
-        }
+    pub async fn get_state_value(&self,_key:String) -> anyhow::Result<Option<Arc<String>>> {
+        Ok(None)
     }
 
     pub async fn get_target_addr(&self,id:u64) -> anyhow::Result<Arc<String>> {
@@ -186,7 +179,8 @@ impl RaftStorage<ClientRequest, ClientResponse> for AStore{
     }
 
     async fn create_snapshot(&self) -> anyhow::Result<(String, Box<Self::Snapshot>)> {
-        Ok((String::from(""), Box::new(Cursor::new(Vec::new())))) // Snapshot IDs are insignificant to this storage engine.
+        //Ok((uuid::Uuid::new_v4().to_string().replace("-",""), Box::new(Cursor::new(Vec::new())))) // Snapshot IDs are insignificant to this storage engine.
+        Ok(("".to_owned(), Box::new(Cursor::new(Vec::new())))) // Snapshot IDs are insignificant to this storage engine.
     }
 
     async fn finalize_snapshot_installation(&self, index: u64, term: u64, delete_through: Option<u64>, id: String, snapshot: Box<Self::Snapshot>) -> anyhow::Result<()> {

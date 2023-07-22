@@ -3,6 +3,7 @@
 use std::collections::BTreeMap;
 use actix::Actor;
 use actix_web::{web::Data, App};
+use async_raft::{Config, Raft};
 use rnacos::common::AppSysConfig;
 use rnacos::config::core::{ConfigActor, ConfigCmd};
 use rnacos::grpc::bistream_manage::BiStreamManage;
@@ -11,6 +12,8 @@ use rnacos::grpc::nacos_proto::bi_request_stream_server::BiRequestStreamServer;
 use rnacos::grpc::nacos_proto::request_server::RequestServer;
 use rnacos::grpc::server::BiRequestStreamServerImpl;
 use rnacos::naming::core::{NamingCmd, NamingResult};
+use rnacos::raft::asyncraft::network::network::RaftRouter;
+use rnacos::raft::asyncraft::store::store::AStore;
 use rnacos::raft::network::httpnetwork::HttpNetworkFactory;
 use rnacos::{grpc::server::RequestServerImpl, naming::core::NamingActor};
 use sled::Db;
@@ -19,9 +22,7 @@ use std::sync::Arc;
 use tonic::transport::Server;
 
 use actix_web::{middleware, HttpServer};
-use openraft::{Config, Raft};
 use rnacos::common::appdata::AppData;
-use rnacos::raft::store::store::Store;
 use rnacos::raft::NacosRaft;
 use rnacos::raft::network::GrpcNetworkFactory;
 use rnacos::web_config::app_config;
@@ -50,7 +51,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     //let naming_addr = NamingActor::new_and_create();
     let naming_addr = NamingActor::create_at_new_system();
 
-    let store = Arc::new(Store::new(db,config_addr.clone()));
+    let store = Arc::new(AStore::new(sys_config.raft_node_id.to_owned(),db,config_addr.clone()));
     let raft= build_raft(&sys_config,store.clone()).await?;
     let raft = Arc::new(raft);
     config_addr.do_send(ConfigCmd::SetRaft(raft.clone()));
@@ -120,20 +121,17 @@ fn init_env() {
     }
 }
 
-async fn build_raft(sys_config: &Arc<AppSysConfig>,store:Arc<Store>) -> anyhow::Result<NacosRaft> {
-    let config = Config {
-        heartbeat_interval: 1000,
-        election_timeout_min: 3000,
-        election_timeout_max: 6000,
-        ..Default::default()
-    };
-    let config = Arc::new(config.validate()?);
-    let network = HttpNetworkFactory::new();
-    let raft = Raft::new(sys_config.raft_node_id.to_owned(), config.clone(), network, store.clone()).await.unwrap();
-    if sys_config.raft_auto_init {
-        let mut nodes = BTreeMap::new();
-        nodes.insert(sys_config.raft_node_id.to_owned(), openraft::BasicNode { addr: sys_config.raft_node_addr.clone() });
-        raft.initialize(nodes).await.ok();
-    }
+async fn build_raft(sys_config: &Arc<AppSysConfig>,store:Arc<AStore>) -> anyhow::Result<NacosRaft> {
+    let config = Config::build("raft server".to_owned())
+        .heartbeat_interval(1000) 
+        .election_timeout_min(2500) 
+        .election_timeout_max(5000) 
+        .validate().unwrap();
+    let config = Arc::new(config);
+    let network = Arc::new(RaftRouter::new(store.clone()));
+    let raft = Raft::new(sys_config.raft_node_id.to_owned(),config.clone(),network,store.clone());
+    //TODO
+    //if sys_config.raft_auto_init {
+    //}
     Ok(raft)
 }

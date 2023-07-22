@@ -2,7 +2,7 @@ use actix::prelude::*;
 use actix_web::{http::header, web, HttpResponse, Responder};
 
 use crate::config::core::ConfigActor;
-use crate::console::raft_api::{raft_add_learner, raft_change_membership, raft_init, raft_metrics, raft_read, raft_write};
+//use crate::console::raft_api::{raft_add_learner, raft_change_membership, raft_init, raft_metrics, raft_read, raft_write};
 
 use super::config_api::query_config_list;
 use super::{
@@ -110,12 +110,14 @@ pub fn app_config(config: &mut web::ServiceConfig) {
                 web::resource("/naming/client_instance_count")
                     .route(web::get().to(query_grpc_client_instance_count)),
             )
+            /* 
             .service( web::resource("/raft/init") .route(web::post().to(raft_init)))
             .service( web::resource("/raft/add_learner") .route(web::post().to(raft_add_learner)))
             .service( web::resource("/raft/change_membership") .route(web::post().to(raft_change_membership)))
             .service( web::resource("/raft/metrics") .route(web::get().to(raft_metrics)))
             .service( web::resource("/raft/write") .route(web::post().to(raft_write)))
             .service( web::resource("/raft/read") .route(web::post().to(raft_read)))
+            */
             .service(web::resource("/connections").route(web::get().to(query_grpc_connection))),
     );
 }

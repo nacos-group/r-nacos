@@ -1,3 +1,4 @@
+use async_raft::raft::ClientWriteRequest;
 use chrono::Local;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
@@ -8,7 +9,8 @@ use std::time::Duration;
 
 use crate::grpc::bistream_manage::BiStreamManage;
 use crate::raft::NacosRaft;
-use crate::raft::store::Request;
+use crate::raft::asyncraft::store::ClientRequest;
+//use crate::raft::store::Request;
 use crate::utils::get_md5;
 use serde::{Deserialize, Serialize};
 
@@ -353,12 +355,12 @@ impl ConfigActor {
         self.config_db.init_seq();
     }
 
-    fn send_raft_request(&mut self,req:Request,ctx:&mut Context<Self>) {
+    fn send_raft_request(&mut self,req:ClientRequest,ctx:&mut Context<Self>) {
         if let Some(weak_raft) = &self.raft {
             if let Some(raft) = weak_raft.upgrade() {
                 //TODO换成feature,非wait的方式
                 async move {
-                    raft.client_write(req).await.ok();
+                    raft.client_write(ClientWriteRequest::new(req)).await.ok();
                 }
                 .into_actor(self)
                 .map(|_,_,_|{})
@@ -464,11 +466,11 @@ impl Handler<ConfigCmd> for ConfigActor {
             ConfigCmd::ADD(key, value) => {
                 //return self.set_config(key,value);
                 let (history_id,history_table_id) = self.config_db.next_history_id_state()?;
-                let req = Request::ConfigSet { key: key.build_key(), value, history_id, history_table_id, };
+                let req = ClientRequest::ConfigSet { key: key.build_key(), value, history_id, history_table_id, };
                 self.send_raft_request(req,ctx);
             }
             ConfigCmd::DELETE(key) => {
-                let req = Request::ConfigRemove { key: key.build_key() };
+                let req = ClientRequest::ConfigRemove { key: key.build_key() };
                 self.send_raft_request(req,ctx);
             }
             ConfigCmd::GET(key) => {

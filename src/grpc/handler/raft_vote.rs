@@ -22,6 +22,8 @@ impl RaftVoteRequestHandler{
 #[async_trait]
 impl PayloadHandler for RaftVoteRequestHandler {
     async fn handle(&self, request_payload: Payload, _request_meta: RequestMeta) -> anyhow::Result<Payload> {
+        todo!()
+        /* 
         let body_vec = request_payload.body.unwrap_or_default().value;
         let request: openraft::raft::VoteRequest<NodeId> = serde_json::from_slice(&body_vec)?;
         let res = self.raft.vote(request).await;
@@ -29,5 +31,6 @@ impl PayloadHandler for RaftVoteRequestHandler {
         //log::info!("RaftVoteRequestHandler result:{}",&value);
         let payload = PayloadUtils::build_payload("RaftVoteResponse",value );
         Ok(payload)
+        */
     }
 }

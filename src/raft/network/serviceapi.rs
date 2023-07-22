@@ -1,4 +1,5 @@
 
+/* 
 use actix_web::post;
 use actix_web::web;
 use actix_web::web::Data;
@@ -44,3 +45,4 @@ pub fn raft_config(config: &mut web::ServiceConfig) {
         .service(web::resource("/raft-snapshot").route(web::post().to(snapshot)))
     );
 }
+*/

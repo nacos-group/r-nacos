@@ -22,11 +22,14 @@ impl RaftSnapshotRequestHandler{
 #[async_trait]
 impl PayloadHandler for RaftSnapshotRequestHandler {
     async fn handle(&self, request_payload: Payload, _request_meta: RequestMeta) -> anyhow::Result<Payload> {
+        todo!()
+        /*
         let body_vec = request_payload.body.unwrap_or_default().value;
         let request: openraft::raft::InstallSnapshotRequest<TypeConfig> = serde_json::from_slice(&body_vec)?;
         let res = self.raft.install_snapshot(request).await;
         let value = serde_json::to_string(&res)?;
         let payload = PayloadUtils::build_payload("RaftSnapshotResponse",value );
         Ok(payload)
+         */
     }
 }
