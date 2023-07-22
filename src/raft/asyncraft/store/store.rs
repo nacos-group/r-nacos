@@ -161,7 +161,7 @@ impl RaftStorage<ClientRequest, ClientResponse> for AStore{
         if len== 0 {
             return Ok(())
         }
-        match self.send_store_msg(StoreRequest::ApplyEntryToStateMachineRange { start: *entries[0].0, end: *entries[len-1].0 }).await? {
+        match self.send_store_msg(StoreRequest::ApplyEntryToStateMachineRange { start: *entries[0].0, end: *entries[len-1].0 + 1 }).await? {
             StoreResponse::None => {
                 Ok(())
             }

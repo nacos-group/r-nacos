@@ -640,7 +640,7 @@ impl Handler<StoreRequest> for InnerStore {
             StoreRequest::ApplyEntryToStateMachineRange{start:source_start,end} => {
                 let start = max(source_start,self.state_machine.last_applied_log+1);
                 if start >= end {
-                    //log::warn!("ignore apply entry,source_start:{},start:{},end:{}",&source_start,&start,&end);
+                    log::warn!("ignore apply entry,source_start:{},start:{},end:{}",&source_start,&start,&end);
                     return Ok(StoreResponse::None)
                 }
                 self.replicate_to_state_machine_range(start, end)?;
