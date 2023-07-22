@@ -261,7 +261,7 @@ impl InnerStore {
         //Ok(response)
     }
 
-    fn build_snapshot(&mut self,ctx: &mut Context<Self>) -> Result<Snapshot, StorageError<NodeId>> {
+    fn build_snapshot(&mut self) -> Result<Snapshot, StorageError<NodeId>> {
         // Serialize the data of the state machine.
         self.snapshot_idx +=1;
         self.set_snapshot_index_(self.snapshot_idx)?;
@@ -278,7 +278,7 @@ impl InnerStore {
             snapshot_id,
         };
 
-        let data = self.load_snapshot_data(&meta,ctx).unwrap_or_default();
+        let data = self.load_snapshot_data(&meta).unwrap_or_default();
 
         let snapshot = StoredSnapshot {
             meta: meta.clone(),
@@ -397,7 +397,7 @@ impl InnerStore {
         Ok((self.last_applied_log.clone(), self.last_membership.clone()))
     }
 
-    fn apply_to_state_machine(&mut self, entries: Vec<Entry<TypeConfig>>,ctx: &mut Context<Self>) -> Result<Vec<Response>, StorageError<NodeId>>
+    fn apply_to_state_machine(&mut self, entries: Vec<Entry<TypeConfig>>) -> Result<Vec<Response>, StorageError<NodeId>>
     {
         let mut res = Vec::with_capacity(entries.len());
         for entry in entries {
@@ -407,11 +407,11 @@ impl InnerStore {
                     match req {
                         Request::ConfigSet { key, value, history_id, history_table_id } => {
                             let cmd = ConfigRaftCmd::ConfigAdd { key, value, history_id, history_table_id};
-                            self.wait_send_config_raft_cmd(cmd,ctx).ok();
+                            self.config_addr.do_send(cmd);
                         },
                         Request::ConfigRemove { key } => {
                             let cmd = ConfigRaftCmd::ConfigRemove { key };
-                            self.wait_send_config_raft_cmd(cmd,ctx).ok();
+                            self.config_addr.do_send(cmd);
                         },
                     };
                     res.push(Response { value: Some(true) })
@@ -429,17 +429,7 @@ impl InnerStore {
         Ok(res)
     }
 
-    fn wait_send_config_raft_cmd(&mut self,cmd:ConfigRaftCmd,ctx: &mut Context<Self>) -> anyhow::Result<()> {
-        let config_addr = self.config_addr.clone();
-        async move {
-            config_addr.send(cmd).await.ok();
-        }
-        .into_actor(self).map(|_,_,_|{})
-        .wait(ctx);
-        Ok(())
-    }
-
-    fn install_snapshot(&mut self, meta: SnapshotMeta<NodeId, BasicNode>, snapshot: Box<SnapshotData>,ctx: &mut Context<Self>) -> Result<(), StorageError<NodeId>> {
+    fn install_snapshot(&mut self, meta: SnapshotMeta<NodeId, BasicNode>, snapshot: Box<SnapshotData>) -> Result<(), StorageError<NodeId>> {
         let new_snapshot = StoredSnapshot {
             meta ,
             data: snapshot.into_inner(),
@@ -450,7 +440,7 @@ impl InnerStore {
         self.last_membership = meta.last_membership;
         self.save_snapshot_data(snapshot_data.items).ok();
         let cmd = ConfigRaftCmd::ApplySnaphot;
-        self.wait_send_config_raft_cmd(cmd,ctx).ok();
+        self.config_addr.do_send(cmd);
         Ok(())
     }
 
@@ -497,7 +487,7 @@ impl InnerStore {
         Ok(())
     }
 
-    fn load_snapshot_data(&mut self,meta:&SnapshotMeta<NodeId,BasicNode>, ctx: &mut Context<Self>) -> anyhow::Result<Vec<u8>> {
+    fn load_snapshot_data(&mut self,meta:&SnapshotMeta<NodeId,BasicNode>) -> anyhow::Result<Vec<u8>> {
         let snapshot_meta_json = serde_json::to_string(meta)?;
         
         // load config
@@ -569,14 +559,14 @@ pub enum StoreResponse {
 
 impl Handler<StoreRequest> for InnerStore {
     type Result = Result<StoreResponse,StorageError<NodeId>>;
-    fn handle(&mut self, msg: StoreRequest, ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, msg: StoreRequest, _ctx: &mut Self::Context) -> Self::Result {
         match msg {
             StoreRequest::GetLogEntities(start,end) => {
                 let v = self.try_get_log_entries((start,end))?;
                 Ok(StoreResponse::Entities(v))
             }
             StoreRequest::BuildSnapshot => {
-                let v = self.build_snapshot(ctx)?;
+                let v = self.build_snapshot()?;
                 Ok(StoreResponse::Snapshot(v))
             }
             StoreRequest::SaveVote(v) => {
@@ -604,11 +594,11 @@ impl Handler<StoreRequest> for InnerStore {
                 Ok(StoreResponse::LastAppliedState(idx,mem))
             }
             StoreRequest::ApplyToStateMachine(items) => {
-                let v = self.apply_to_state_machine(items,ctx)?;
+                let v = self.apply_to_state_machine(items)?;
                 Ok(StoreResponse::ApplyResult(v))
             }
             StoreRequest::InstallSnapshot(node, snapshot) => {
-                self.install_snapshot(node,snapshot,ctx)?;
+                self.install_snapshot(node,snapshot)?;
                 Ok(StoreResponse::None)
             }
             StoreRequest::GetCurrentSnapshot => {
