@@ -7,5 +7,6 @@ use crate::raft::store::TypeConfig;
 
 pub mod network;
 pub mod store;
+pub mod asyncraft;
 //pub type NacosRaft = Raft<TypeConfig, GrpcNetworkFactory, Arc<Store>>;
 pub type NacosRaft = Raft<TypeConfig, HttpNetworkFactory, Arc<Store>>;
