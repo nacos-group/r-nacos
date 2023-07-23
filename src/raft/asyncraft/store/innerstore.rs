@@ -1,4 +1,3 @@
-use std::cmp::max;
 use std::collections::{BTreeMap, HashMap};
 
 use crate::common::byte_utils::{id_to_bin, bin_to_id};
@@ -335,6 +334,10 @@ impl InnerStore {
     ) -> anyhow::Result<()> {
         let entries:Vec<(u64,&Entry<ClientRequest>)> = self.log.range(start..end).map(|(idx,entry)|(*idx,entry)).collect();
         //let mut cmds = vec![];
+        if entries.is_empty() {
+            return Ok(());
+        }
+        let last_index = entries[entries.len()-1].0;
         for (index, entry) in entries {
             match &entry.payload {
                 EntryPayload::Normal(normal) => {
@@ -362,9 +365,9 @@ impl InnerStore {
                 },
                 _ => {},
             }
-            self.state_machine.last_applied_log = index;
-            self.set_last_applied_log_(index)?;
         }
+        self.state_machine.last_applied_log = last_index;
+        self.set_last_applied_log_(last_index)?;
         Ok(())
     }
 
@@ -638,7 +641,8 @@ impl Handler<StoreRequest> for InnerStore {
             },
             */
             StoreRequest::ApplyEntryToStateMachineRange{start:source_start,end} => {
-                let start = max(source_start,self.state_machine.last_applied_log+1);
+                //let start = max(source_start,self.state_machine.last_applied_log+1);
+                let start = self.state_machine.last_applied_log+1;
                 if start >= end {
                     log::warn!("ignore apply entry,source_start:{},start:{},end:{}",&source_start,&start,&end);
                     return Ok(StoreResponse::None)
