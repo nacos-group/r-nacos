@@ -26,6 +26,15 @@ use rnacos::common::appdata::AppData;
 use rnacos::raft::NacosRaft;
 use rnacos::raft::network::GrpcNetworkFactory;
 use rnacos::web_config::app_config;
+use clap::Parser;
+
+#[derive(Parser, Clone, Debug)]
+#[clap(author, version, about, long_about = None)]
+pub struct AppOpt {
+    /// env file path
+    #[arg(short,long,default_value="")]
+    pub env_file: String,
+}
 
 #[actix_web::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -113,7 +122,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
 }
 
 fn init_env() {
-    let env_path = std::env::var("RNACOS_ENV_FILE").unwrap_or_default();
+    let app_opt = AppOpt::parse();
+    let env_path = app_opt.env_file.to_owned();
+    //let env_path = std::env::var("RNACOS_ENV_FILE").unwrap_or_default();
     if env_path.is_empty() {
         dotenv::dotenv().ok();
     } else {
