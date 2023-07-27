@@ -130,3 +130,29 @@ impl Subscriber {
         self.listener.get(key).cloned()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_query() {
+        let mut subscriber = Subscriber::new();
+        let client_id = Arc::new("sdjhf2fsd943hfsduhf".to_string());
+        let items = vec![
+            ListenerItem {
+                key: ConfigKey::new("test", "test", "test"),
+                md5: Arc::new("test".to_string()),
+            },
+            ListenerItem {
+                key: ConfigKey::new("abc", "abc", "abc"),
+                md5: Arc::new("abc".to_string()),
+            },
+        ];
+        subscriber.add_subscribe(client_id, items);
+
+        let ck = ConfigKey::new("test", "test", "test");
+        let set = subscriber.query_subscriber(&ck).unwrap();
+        println!("{:?}", set);
+    }
+}
