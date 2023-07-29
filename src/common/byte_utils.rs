@@ -1,8 +1,6 @@
-
 use byteorder::BigEndian;
 use byteorder::ReadBytesExt;
 use byteorder::WriteBytesExt;
-
 
 pub fn id_to_bin(id: u64) -> Vec<u8> {
     let mut buf = Vec::with_capacity(8);

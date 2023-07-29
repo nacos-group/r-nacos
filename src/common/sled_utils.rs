@@ -103,14 +103,14 @@ impl TableSequence {
         Ok(self.last_id)
     }
 
-    pub(crate) fn set_table_last_id(&mut self,id:u64) -> anyhow::Result<()> {
-        if (self.last_id+self.batch_size)<id {
+    pub(crate) fn set_table_last_id(&mut self, id: u64) -> anyhow::Result<()> {
+        if (self.last_id + self.batch_size) < id {
             save_table_last_id(&self.db, &self.table_seq_key, id)?;
         }
         Ok(())
     }
 
-    pub fn next_state(&mut self) -> anyhow::Result<(u64,Option<u64>)> {
+    pub fn next_state(&mut self) -> anyhow::Result<(u64, Option<u64>)> {
         let mut update_table_id = None;
         if self.cache_size == 0 {
             let cache_last_id = self.last_id + self.batch_size;
@@ -120,7 +120,7 @@ impl TableSequence {
         }
         self.cache_size -= 1;
         self.last_id += 1;
-        Ok((self.last_id,update_table_id))
+        Ok((self.last_id, update_table_id))
     }
 
     /// 一个表id支持用于多个对象,支持多线程；

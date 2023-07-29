@@ -1,8 +1,9 @@
 #![allow(unused_imports)]
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use actix::Actor;
 use actix_web::{web::Data, App};
+use async_raft::raft::ClientWriteRequest;
 use async_raft::{Config, Raft};
 use rnacos::common::AppSysConfig;
 use rnacos::config::core::{ConfigActor, ConfigCmd};
@@ -13,6 +14,7 @@ use rnacos::grpc::nacos_proto::request_server::RequestServer;
 use rnacos::grpc::server::BiRequestStreamServerImpl;
 use rnacos::naming::core::{NamingCmd, NamingResult};
 use rnacos::raft::asyncraft::network::network::RaftRouter;
+use rnacos::raft::asyncraft::store::ClientRequest;
 use rnacos::raft::asyncraft::store::store::AStore;
 use rnacos::raft::network::httpnetwork::HttpNetworkFactory;
 use rnacos::{grpc::server::RequestServerImpl, naming::core::NamingActor};
@@ -62,7 +64,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let store = Arc::new(AStore::new(sys_config.raft_node_id.to_owned(),db,config_addr.clone()));
     let raft= build_raft(&sys_config,store.clone()).await?;
-    let raft = Arc::new(raft);
     config_addr.do_send(ConfigCmd::SetRaft(raft.clone()));
 
     let mut bistream_manage = BiStreamManage::new();
@@ -132,7 +133,7 @@ fn init_env() {
     }
 }
 
-async fn build_raft(sys_config: &Arc<AppSysConfig>,store:Arc<AStore>) -> anyhow::Result<NacosRaft> {
+async fn build_raft(sys_config: &Arc<AppSysConfig>,store:Arc<AStore>) -> anyhow::Result<Arc<NacosRaft>> {
     let config = Config::build("raft server".to_owned())
         .heartbeat_interval(1000) 
         .election_timeout_min(2500) 
@@ -140,9 +141,14 @@ async fn build_raft(sys_config: &Arc<AppSysConfig>,store:Arc<AStore>) -> anyhow:
         .validate().unwrap();
     let config = Arc::new(config);
     let network = Arc::new(RaftRouter::new(store.clone()));
-    let raft = Raft::new(sys_config.raft_node_id.to_owned(),config.clone(),network,store.clone());
-    //TODO
-    //if sys_config.raft_auto_init {
-    //}
+    let raft = Arc::new(Raft::new(sys_config.raft_node_id.to_owned(),config.clone(),network,store.clone()));
+    if sys_config.raft_auto_init {
+        log::info!("auto init raft . node_id:{},addr:{}",&sys_config.raft_node_id,&sys_config.raft_node_addr);
+        let mut members = HashSet::new();
+        members.insert(sys_config.raft_node_id.to_owned());
+        raft.initialize(members).await.ok();
+        raft.client_write(ClientWriteRequest::new(ClientRequest::NodeAddr { id:sys_config.raft_node_id, addr: Arc::new(sys_config.raft_node_addr.to_owned())})).await.ok();
+
+    }
     Ok(raft)
 }

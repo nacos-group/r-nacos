@@ -2,13 +2,13 @@ use lazy_static::lazy_static;
 use std::sync::{Arc, Mutex};
 use uuid::Uuid;
 
+pub mod appdata;
+pub mod byte_utils;
+pub mod cycle_queue;
 pub mod delay_notify;
 pub mod rusqlite_utils;
 pub mod sled_utils;
 pub mod string_utils;
-pub mod appdata;
-pub mod byte_utils;
-pub mod cycle_queue;
 
 lazy_static! {
     // Global app sys config
@@ -73,11 +73,12 @@ impl AppSysConfig {
             .unwrap_or("1".to_owned())
             .parse()
             .unwrap_or(1);
-        let raft_node_addr = std::env::var("RNACOS_RAFT_NODE_ADDR").unwrap_or(format!("127.0.0.1:{}", &http_port));
+        let raft_node_addr =
+            std::env::var("RNACOS_RAFT_NODE_ADDR").unwrap_or(format!("127.0.0.1:{}", &http_port));
         let raft_auto_init = std::env::var("RNACOS_RAFT_AUTO_INIT")
-            .unwrap_or("false".to_owned())
+            .unwrap_or("".to_owned())
             .parse()
-            .unwrap_or(raft_node_id==1);
+            .unwrap_or(raft_node_id == 1);
         Self {
             config_db_dir,
             config_db_file,
