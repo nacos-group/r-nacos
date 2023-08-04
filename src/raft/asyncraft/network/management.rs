@@ -9,9 +9,19 @@ use async_raft::raft::ClientWriteRequest;
 use crate::common::appdata::AppData;
 use crate::raft::asyncraft::store::ClientRequest;
 use crate::raft::asyncraft::store::NodeId;
+use crate::raft::join_node;
 
 
 // --- Cluster management
+
+pub async fn join_learner(app: Data<AppData>, req: Json<(NodeId, String)>) -> actix_web::Result<impl Responder> {
+    let node_id = req.0 .0;
+    let addr = Arc::new(req.0 .1);
+    app.raft.client_write(ClientWriteRequest::new(ClientRequest::NodeAddr { id: node_id, addr})).await.unwrap();
+    app.raft.add_non_voter(node_id).await.unwrap();
+    join_node(app.raft.as_ref(),app.raft_store.as_ref(),node_id).await.ok();
+    Ok("{\"ok\":1}")
+}
 
 /// Add a node as **Learner**.
 ///

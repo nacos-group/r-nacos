@@ -1,11 +1,14 @@
 use std::collections::{BTreeMap, HashMap};
 
-use crate::common::byte_utils::{id_to_bin, bin_to_id};
+use crate::common::byte_utils::{bin_to_id, id_to_bin};
 use crate::common::sled_utils::TABLE_SEQUENCE_TREE_NAME;
 use crate::config::core::ConfigActor;
 use crate::config::model::ConfigRaftCmd;
 
-use super::{ClientRequest, ClientResponse, StateMachine, Membership, SnapshotItem, SnapshotDataInfo, SnapshotMeta};
+use super::{
+    ClientRequest, ClientResponse, Membership, SnapshotDataInfo, SnapshotItem, SnapshotMeta,
+    StateMachine,
+};
 use actix::prelude::*;
 use async_raft::raft::{Entry, EntryPayload, MembershipConfig};
 use async_raft::storage::{CurrentSnapshotData, HardState, InitialState};
@@ -23,8 +26,7 @@ fn logs(db: &sled::Db) -> sled::Tree {
 
 #[derive(Debug)]
 pub struct InnerStore {
-
-    db : Arc<sled::Db>,
+    db: Arc<sled::Db>,
     config_addr: Addr<ConfigActor>,
     id: NodeId,
     /// The Raft log.
@@ -40,7 +42,7 @@ pub struct InnerStore {
 }
 
 impl InnerStore {
-    pub fn new(id: u64,db:Arc<sled::Db>,config_addr: Addr<ConfigActor>) -> Self {
+    pub fn new(id: u64, db: Arc<sled::Db>, config_addr: Addr<ConfigActor>) -> Self {
         Self {
             id,
             config_addr,
@@ -55,8 +57,8 @@ impl InnerStore {
     fn init(&mut self) -> anyhow::Result<()> {
         //load last log
         let logs_tree = logs(&self.db);
-        if let Ok(Some((key,val))) = logs_tree.last() {
-            let entry:async_raft::raft::Entry<ClientRequest> = serde_json::from_slice(&val)?;
+        if let Ok(Some((key, val))) = logs_tree.last() {
+            let entry: async_raft::raft::Entry<ClientRequest> = serde_json::from_slice(&val)?;
             let id = bin_to_id(&key);
             self.log.insert(id, entry);
         }
@@ -70,7 +72,7 @@ impl InnerStore {
         Ok(())
     }
 
-    fn set_hard_state_(&self, hs: &HardState ) -> anyhow::Result<()> {
+    fn set_hard_state_(&self, hs: &HardState) -> anyhow::Result<()> {
         let store_tree = store(&self.db);
         let val = serde_json::to_vec(hs)?;
         store_tree.insert(b"hs", val)?;
@@ -87,7 +89,7 @@ impl InnerStore {
         Ok(val)
     }
 
-    fn set_membership_(&self, info: &Membership ) -> anyhow::Result<()> {
+    fn set_membership_(&self, info: &Membership) -> anyhow::Result<()> {
         let store_tree = store(&self.db);
         let val = serde_json::to_vec(info)?;
         store_tree.insert(b"membership", val)?;
@@ -104,23 +106,23 @@ impl InnerStore {
         Ok(val)
     }
 
-    fn set_snapshot_(&self, data:&[u8] ) -> anyhow::Result<()> {
+    fn set_snapshot_(&self, data: &[u8]) -> anyhow::Result<()> {
         let store_tree = store(&self.db);
         store_tree.insert(b"snapshot", data)?;
         //store_tree.flush()?;
         Ok(())
     }
 
-    fn get_snapshot_(&self) -> anyhow::Result<Option<(SnapshotDataInfo,Vec<u8>)>> {
+    fn get_snapshot_(&self) -> anyhow::Result<Option<(SnapshotDataInfo, Vec<u8>)>> {
         let store_tree = store(&self.db);
         let val = match store_tree.get(b"snapshot")? {
-            Some(v) => Some((SnapshotDataInfo::from_bytes(&v)?,v.to_vec())),
+            Some(v) => Some((SnapshotDataInfo::from_bytes(&v)?, v.to_vec())),
             None => None,
         };
         Ok(val)
     }
 
-    fn set_last_applied_log_(&self,log_id: u64) -> anyhow::Result<()> {
+    fn set_last_applied_log_(&self, log_id: u64) -> anyhow::Result<()> {
         let state_machine = store(&self.db);
         let value = id_to_bin(log_id);
         state_machine.insert(b"last_applied_log", value)?;
@@ -196,7 +198,11 @@ impl InnerStore {
         let end = id_to_bin(end_index);
         let range = start_index..end_index;
         if self.log.contains_key(&start_index) {
-            let response = self.log.range(range).map(|(_, val)| val.clone()).collect::<Vec<_>>();
+            let response = self
+                .log
+                .range(range)
+                .map(|(_, val)| val.clone())
+                .collect::<Vec<_>>();
             return Ok(response);
         }
         log::warn!("get_log_entries from db");
@@ -207,7 +213,8 @@ impl InnerStore {
                 let el = el_res.expect("Failed read log entry");
                 let id = el.0;
                 let val = el.1;
-                let entry:async_raft::raft::Entry<ClientRequest> = serde_json::from_slice(&val).unwrap();
+                let entry: async_raft::raft::Entry<ClientRequest> =
+                    serde_json::from_slice(&val).unwrap();
                 let id = bin_to_id(&id);
                 assert_eq!(id, entry.index);
                 (id, entry)
@@ -229,8 +236,7 @@ impl InnerStore {
                 self.log.remove(&key);
             }
             *stop
-        }
-        else{
+        } else {
             self.log.split_off(&start);
             0xff_ff_ff_ff_ff_ff_ff_ff
         };
@@ -242,7 +248,7 @@ impl InnerStore {
         let entries = logs_tree.range::<&[u8], _>(from.as_slice()..to.as_slice());
         let mut batch_del = sled::Batch::default();
         for entry_res in entries {
-            let (key,_) = entry_res.expect("Read db entry failed");
+            let (key, _) = entry_res.expect("Read db entry failed");
             batch_del.remove(key);
         }
         logs_tree.apply_batch(batch_del)?;
@@ -287,83 +293,93 @@ impl InnerStore {
         Ok(())
     }
 
-/* 
-    fn apply_entry_to_state_machine(
-        &mut self,
-        index: u64,
-        req: ClientRequest,
-    ) -> anyhow::Result<ClientResponse> {
-        self.state_machine.last_applied_log = index;
-        let res = match req {
-            ClientRequest::Set { key, value } => {
-                self.state_machine.data.insert(key, value.clone());
-                //ClientResponse { value: Some(value) }
-                ClientResponse { value: None }
-            }
-            ClientRequest::NodeAddr {id,addr} => {
-                self.addr_map.insert(id,addr);
-                ClientResponse { value: None }
-            }
-        };
-        Ok(res)
-    }
-
-    fn replicate_to_state_machine(
-        &mut self,
-        entries: Vec<(u64, ClientRequest)>,
-    ) -> anyhow::Result<()> {
-        for (index, req) in entries {
+    /*
+        fn apply_entry_to_state_machine(
+            &mut self,
+            index: u64,
+            req: ClientRequest,
+        ) -> anyhow::Result<ClientResponse> {
             self.state_machine.last_applied_log = index;
-            match req {
+            let res = match req {
                 ClientRequest::Set { key, value } => {
                     self.state_machine.data.insert(key, value.clone());
+                    //ClientResponse { value: Some(value) }
+                    ClientResponse { value: None }
                 }
                 ClientRequest::NodeAddr {id,addr} => {
                     self.addr_map.insert(id,addr);
+                    ClientResponse { value: None }
                 }
             };
+            Ok(res)
         }
-        Ok(())
-    }
-*/
 
-    fn replicate_to_state_machine_range(
-        &mut self,
-        start:u64,
-        end:u64,
-    ) -> anyhow::Result<()> {
-        let entries:Vec<(u64,&Entry<ClientRequest>)> = self.log.range(start..end).map(|(idx,entry)|(*idx,entry)).collect();
+        fn replicate_to_state_machine(
+            &mut self,
+            entries: Vec<(u64, ClientRequest)>,
+        ) -> anyhow::Result<()> {
+            for (index, req) in entries {
+                self.state_machine.last_applied_log = index;
+                match req {
+                    ClientRequest::Set { key, value } => {
+                        self.state_machine.data.insert(key, value.clone());
+                    }
+                    ClientRequest::NodeAddr {id,addr} => {
+                        self.addr_map.insert(id,addr);
+                    }
+                };
+            }
+            Ok(())
+        }
+    */
+
+    fn replicate_to_state_machine_range(&mut self, start: u64, end: u64) -> anyhow::Result<()> {
+        let entries: Vec<(u64, &Entry<ClientRequest>)> = self
+            .log
+            .range(start..end)
+            .map(|(idx, entry)| (*idx, entry))
+            .collect();
         //let mut cmds = vec![];
         if entries.is_empty() {
             return Ok(());
         }
-        let last_index = entries[entries.len()-1].0;
+        let last_index = entries[entries.len() - 1].0;
         for (index, entry) in entries {
             match &entry.payload {
                 EntryPayload::Normal(normal) => {
                     let req = normal.data.to_owned();
                     match req {
-                        ClientRequest::ConfigSet { key, value, history_id, history_table_id } => {
-                            let cmd = ConfigRaftCmd::ConfigAdd { key, value, history_id, history_table_id};
+                        ClientRequest::ConfigSet {
+                            key,
+                            value,
+                            history_id,
+                            history_table_id,
+                        } => {
+                            let cmd = ConfigRaftCmd::ConfigAdd {
+                                key,
+                                value,
+                                history_id,
+                                history_table_id,
+                            };
                             self.config_addr.do_send(cmd);
                             //self.wait_send_config_raft_cmd(cmd,ctx).ok();
-                        },
+                        }
                         ClientRequest::ConfigRemove { key } => {
                             let cmd = ConfigRaftCmd::ConfigRemove { key };
                             self.config_addr.do_send(cmd);
                             //self.wait_send_config_raft_cmd(cmd,ctx).ok();
-                        },
-                        ClientRequest::NodeAddr {id,addr} => {
-                            self.membership.node_addr.insert(id,addr);
+                        }
+                        ClientRequest::NodeAddr { id, addr } => {
+                            self.membership.node_addr.insert(id, addr);
                             self.set_membership_(&self.membership)?;
                         }
                     }
-                },
+                }
                 EntryPayload::ConfigChange(config_change) => {
                     self.membership.membership_config = Some(config_change.membership.to_owned());
                     self.set_membership_(&self.membership)?;
-                },
-                _ => {},
+                }
+                _ => {}
             }
         }
         self.state_machine.last_applied_log = last_index;
@@ -375,7 +391,11 @@ impl InnerStore {
         &mut self,
     ) -> anyhow::Result<async_raft::storage::CurrentSnapshotData<Cursor<Vec<u8>>>> {
         let index = self.state_machine.last_applied_log;
-        let term = self.get_log_entries(index, index+1)?.first().map(|e|e.term).unwrap_or_default();
+        let term = self
+            .get_log_entries(index, index + 1)?
+            .first()
+            .map(|e| e.term)
+            .unwrap_or_default();
         let meta = SnapshotMeta {
             term,
             index,
@@ -394,14 +414,18 @@ impl InnerStore {
     }
 
     /// load config history data
-    fn load_config_history(&self,history_name:Vec<u8>,items:&mut Vec<SnapshotItem>) -> anyhow::Result<()> {
+    fn load_config_history(
+        &self,
+        history_name: Vec<u8>,
+        items: &mut Vec<SnapshotItem>,
+    ) -> anyhow::Result<()> {
         let config_history_tree = self.db.open_tree(history_name)?;
         let mut iter = config_history_tree.iter();
         while let Some(Ok((k, v))) = iter.next() {
             let item = SnapshotItem {
-                r#type:2,
-                key:k.to_vec(),
-                value:v.to_vec(),
+                r#type: 2,
+                key: k.to_vec(),
+                value: v.to_vec(),
             };
             items.push(item);
         }
@@ -409,21 +433,21 @@ impl InnerStore {
     }
 
     /// load table data
-    fn load_table_seq(&self,items:&mut Vec<SnapshotItem>) -> anyhow::Result<()>  {
+    fn load_table_seq(&self, items: &mut Vec<SnapshotItem>) -> anyhow::Result<()> {
         let tree = self.db.open_tree(TABLE_SEQUENCE_TREE_NAME)?;
         let mut iter = tree.iter();
         while let Some(Ok((k, v))) = iter.next() {
             let item = SnapshotItem {
-                r#type:3,
-                key:k.to_vec(),
-                value:v.to_vec(),
+                r#type: 3,
+                key: k.to_vec(),
+                value: v.to_vec(),
             };
             items.push(item);
         }
         Ok(())
     }
 
-    fn build_snapshot_data(&mut self,meta:&SnapshotMeta) -> anyhow::Result<Vec<u8>> {
+    fn build_snapshot_data(&mut self, meta: &SnapshotMeta) -> anyhow::Result<Vec<u8>> {
         // load config
         let mut items = vec![];
         let config_tree = self.db.open_tree("config").unwrap();
@@ -431,24 +455,24 @@ impl InnerStore {
         while let Some(Ok((k, v))) = iter.next() {
             let mut key = k.to_vec();
             let item = SnapshotItem {
-                r#type:1,
-                key:key.clone(),
-                value:v.to_vec(),
+                r#type: 1,
+                key: key.clone(),
+                value: v.to_vec(),
             };
             items.push(item);
-            let history_name = crate::config::config_sled::Config::build_config_history_tree_name(&mut key);
+            let history_name =
+                crate::config::config_sled::Config::build_config_history_tree_name(&mut key);
             self.load_config_history(history_name, &mut items)?;
         }
         self.load_table_seq(&mut items)?;
         let snapshot_meta_json = serde_json::to_string(meta)?;
 
-        let snapshot_data = SnapshotDataInfo{
+        let snapshot_data = SnapshotDataInfo {
             items,
             snapshot_meta_json,
         };
 
         snapshot_data.to_bytes()
-
     }
 
     fn finalize_snapshot_installation(
@@ -461,18 +485,23 @@ impl InnerStore {
     ) -> anyhow::Result<()> {
         // Update log.
         // Go backwards through the log to find the most recent membership config <= the `through` index.
-        let snapshot_data =SnapshotDataInfo::from_bytes(snapshot.get_ref().as_slice()).unwrap_or_default();
+        let snapshot_data =
+            SnapshotDataInfo::from_bytes(snapshot.get_ref().as_slice()).unwrap_or_default();
         let meta = snapshot_data.build_snapshot_meta()?;
-        let membership_config = meta.membership.membership_config.to_owned().unwrap_or(MembershipConfig::new_initial(self.id));
+        let membership_config = meta
+            .membership
+            .membership_config
+            .to_owned()
+            .unwrap_or(MembershipConfig::new_initial(self.id));
 
         match &delete_through {
             Some(through) => {
-                self.delete_logs_from(0, Some(*through+1))?;
+                self.delete_logs_from(0, Some(*through + 1))?;
             }
             None => {
                 self.log.clear();
                 self.db.drop_tree("raft_logs")?;
-            },
+            }
         }
         let entry = Entry::new_snapshot_pointer(index, term, id, membership_config);
         self.append_entry_to_log(entry)?;
@@ -489,26 +518,32 @@ impl InnerStore {
         Ok(())
     }
 
-    fn install_snapshot_data(&self,items:Vec<SnapshotItem>) -> anyhow::Result<()> {
+    fn install_snapshot_data(&self, items: Vec<SnapshotItem>) -> anyhow::Result<()> {
         let config_tree = self.db.open_tree("config")?;
         let table_seq_tree = self.db.open_tree(TABLE_SEQUENCE_TREE_NAME)?;
         let mut last_history_tree = None;
         for item in items {
             match item.r#type {
-                1 => { //config
+                1 => {
+                    //config
                     let mut key = item.key.clone();
                     config_tree.insert(item.key, item.value)?;
-                    let history_name = crate::config::config_sled::Config::build_config_history_tree_name(&mut key);
+                    let history_name =
+                        crate::config::config_sled::Config::build_config_history_tree_name(
+                            &mut key,
+                        );
                     last_history_tree = Some(self.db.open_tree(history_name)?);
-                },
-                2 => { //config history
+                }
+                2 => {
+                    //config history
                     if let Some(last_history_tree) = &last_history_tree {
                         last_history_tree.insert(item.key, item.value)?;
                     }
-                },
-                3 => { //table seq
+                }
+                3 => {
+                    //table seq
                     table_seq_tree.insert(item.key, item.value)?;
-                },
+                }
                 _ => {} //ignore
             }
         }
@@ -530,17 +565,20 @@ impl InnerStore {
     fn get_current_snapshot(
         &mut self,
     ) -> anyhow::Result<Option<async_raft::storage::CurrentSnapshotData<Cursor<Vec<u8>>>>> {
-        let snapshot  = self.get_snapshot_()?;
+        let snapshot = self.get_snapshot_()?;
         match snapshot {
-            Some((snapshot,data)) => {
+            Some((snapshot, data)) => {
                 let meta = snapshot.build_snapshot_meta()?;
                 Ok(Some(CurrentSnapshotData {
                     index: meta.index,
                     term: meta.term,
-                    membership: meta.membership.membership_config.unwrap_or(MembershipConfig::new_initial(self.id)),
+                    membership: meta
+                        .membership
+                        .membership_config
+                        .unwrap_or(MembershipConfig::new_initial(self.id)),
                     snapshot: Box::new(Cursor::new(data)),
                 }))
-            },
+            }
             None => Ok(None),
         }
     }
@@ -573,7 +611,10 @@ pub enum StoreRequest {
     ReplicateToLog(Vec<Entry<ClientRequest>>),
     //ApplyEntryToStateMachine { index: u64, request: ClientRequest, },
     //ReplicateToStateMachine(Vec<(u64, ClientRequest)>),
-    ApplyEntryToStateMachineRange{start:u64,end:u64},
+    ApplyEntryToStateMachineRange {
+        start: u64,
+        end: u64,
+    },
     DoLogCompaction,
     FinalizeSnapshotInstallation {
         index: u64,
@@ -605,32 +646,32 @@ impl Handler<StoreRequest> for InnerStore {
             StoreRequest::GetMembershipConfig => {
                 let v = self.get_membership_config()?;
                 Ok(StoreResponse::MembershipConfig(v))
-            },
+            }
             StoreRequest::GetInitialState => {
                 let v = self.get_initial_state()?;
                 Ok(StoreResponse::InitialState(v))
-            },
+            }
             StoreRequest::SaveHardState(v) => {
                 self.save_hard_state(v)?;
                 Ok(StoreResponse::None)
-            },
+            }
             StoreRequest::GetLogEntries { start, stop } => {
                 let v = self.get_log_entries(start, stop)?;
                 Ok(StoreResponse::LogEntries(v))
-            },
+            }
             StoreRequest::DeleteLogsFrom { start, stop } => {
                 self.delete_logs_from(start, stop)?;
                 Ok(StoreResponse::None)
-            },
+            }
             StoreRequest::AppendEntryToLog(v) => {
                 self.append_entry_to_log(v)?;
                 Ok(StoreResponse::None)
-            },
+            }
             StoreRequest::ReplicateToLog(v) => {
                 self.replicate_to_log(v)?;
                 Ok(StoreResponse::None)
-            },
-            /* 
+            }
+            /*
             StoreRequest::ApplyEntryToStateMachine { index, request } => {
                 let v=self.apply_entry_to_state_machine(index, request)?;
                 Ok(StoreResponse::Response(v))
@@ -640,12 +681,20 @@ impl Handler<StoreRequest> for InnerStore {
                 Ok(StoreResponse::None)
             },
             */
-            StoreRequest::ApplyEntryToStateMachineRange{start:source_start,end} => {
+            StoreRequest::ApplyEntryToStateMachineRange {
+                start: source_start,
+                end,
+            } => {
                 //let start = max(source_start,self.state_machine.last_applied_log+1);
-                let start = self.state_machine.last_applied_log+1;
+                let start = self.state_machine.last_applied_log + 1;
                 if start >= end {
-                    log::warn!("ignore apply entry,source_start:{},start:{},end:{}",&source_start,&start,&end);
-                    return Ok(StoreResponse::None)
+                    log::warn!(
+                        "ignore apply entry,source_start:{},start:{},end:{}",
+                        &source_start,
+                        &start,
+                        &end
+                    );
+                    return Ok(StoreResponse::None);
                 }
                 self.replicate_to_state_machine_range(start, end)?;
                 Ok(StoreResponse::None)
@@ -653,17 +702,23 @@ impl Handler<StoreRequest> for InnerStore {
             StoreRequest::DoLogCompaction => {
                 let v = self.do_log_compaction()?;
                 Ok(StoreResponse::Snapshot(v))
-            },
-            StoreRequest::FinalizeSnapshotInstallation { index, term, delete_through, id, snapshot } => {
+            }
+            StoreRequest::FinalizeSnapshotInstallation {
+                index,
+                term,
+                delete_through,
+                id,
+                snapshot,
+            } => {
                 self.finalize_snapshot_installation(index, term, delete_through, id, snapshot)?;
                 Ok(StoreResponse::None)
-            },
+            }
             StoreRequest::GetCurrentSnapshot => {
                 let v = self.get_current_snapshot()?;
                 Ok(StoreResponse::OptionSnapshot(v))
-            },
-            StoreRequest::GetTargetAddr(id)=> {
-                let v = self.membership.node_addr.get(&id).map(|v|v.clone());
+            }
+            StoreRequest::GetTargetAddr(id) => {
+                let v = self.membership.node_addr.get(&id).map(|v| v.clone());
                 Ok(StoreResponse::TargetAddr(v))
             }
         }

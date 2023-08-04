@@ -50,6 +50,7 @@ pub struct AppSysConfig {
     pub raft_node_id: u64,
     pub raft_node_addr: String,
     pub raft_auto_init: bool,
+    pub raft_join_addr: String,
 }
 
 impl AppSysConfig {
@@ -79,6 +80,8 @@ impl AppSysConfig {
             .unwrap_or("".to_owned())
             .parse()
             .unwrap_or(raft_node_id == 1);
+        let raft_join_addr =
+            std::env::var("RNACOS_RAFT_JOIN_ADDR").unwrap_or_default();
         Self {
             config_db_dir,
             config_db_file,
@@ -88,6 +91,7 @@ impl AppSysConfig {
             raft_node_id,
             raft_node_addr,
             raft_auto_init,
+            raft_join_addr,
         }
     }
 

@@ -4,7 +4,7 @@ use std::collections::{BTreeMap, HashSet};
 use actix::Actor;
 use actix_web::{web::Data, App};
 use async_raft::raft::ClientWriteRequest;
-use async_raft::{Config, Raft};
+use async_raft::{Config, Raft, RaftStorage};
 use rnacos::common::AppSysConfig;
 use rnacos::config::core::{ConfigActor, ConfigCmd};
 use rnacos::grpc::bistream_manage::BiStreamManage;
@@ -143,12 +143,40 @@ async fn build_raft(sys_config: &Arc<AppSysConfig>,store:Arc<AStore>) -> anyhow:
     let network = Arc::new(RaftRouter::new(store.clone()));
     let raft = Arc::new(Raft::new(sys_config.raft_node_id.to_owned(),config.clone(),network,store.clone()));
     if sys_config.raft_auto_init {
+        let raft_p=raft.clone();
+        let sys_config = sys_config.clone();
+        tokio::spawn(auto_init_raft(store, raft_p,sys_config));
+    }
+    else if !sys_config.raft_join_addr.is_empty() {
+        let sys_config = sys_config.clone();
+        tokio::spawn(auto_join_raft(store,sys_config));
+    }
+    Ok(raft)
+}
+
+async fn auto_init_raft(store:Arc<AStore>,raft:Arc<NacosRaft>,sys_config: Arc<AppSysConfig>) -> anyhow::Result<()> {
+    let state = store.get_initial_state().await?;
+    if state.last_log_term==0 && state.last_log_index==0 {
         log::info!("auto init raft . node_id:{},addr:{}",&sys_config.raft_node_id,&sys_config.raft_node_addr);
         let mut members = HashSet::new();
         members.insert(sys_config.raft_node_id.to_owned());
         raft.initialize(members).await.ok();
         raft.client_write(ClientWriteRequest::new(ClientRequest::NodeAddr { id:sys_config.raft_node_id, addr: Arc::new(sys_config.raft_node_addr.to_owned())})).await.ok();
-
     }
-    Ok(raft)
+    Ok(())
+}
+
+async fn auto_join_raft(store:Arc<AStore>,sys_config: Arc<AppSysConfig>) -> anyhow::Result<()> {
+    let state = store.get_initial_state().await?;
+    if state.last_log_term==0 && state.last_log_index==0 {
+        let url = format!("http://{}/nacos/v1/raft/joinnode", &sys_config.raft_join_addr);
+        let req = (&sys_config.raft_node_id,&sys_config.raft_node_addr);
+        let resp = reqwest::Client::new().post(url)
+            .json(&req)
+            .send()
+            .await?;
+        resp.json().await?;
+        log::info!("auto join raft . node_id:{},addr:{},join_addr:{}",&sys_config.raft_node_id,&sys_config.raft_node_addr,&sys_config.raft_join_addr);
+    }
+    Ok(())
 }
