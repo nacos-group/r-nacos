@@ -26,7 +26,7 @@ use std::sync::Arc;
 use tonic::transport::Server;
 
 use actix_web::{middleware, HttpServer};
-use rnacos::common::appdata::AppData;
+use rnacos::common::appdata::AppShareData;
 use rnacos::raft::NacosRaft;
 use rnacos::raft::network::GrpcNetworkFactory;
 use rnacos::web_config::app_config;
@@ -79,7 +79,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     naming_addr.do_send(NamingCmd::SetConnManage(bistream_manage_addr.clone()));
     let bistream_manage_http_addr = bistream_manage_addr.clone();
 
-    let app_data = Arc::new(AppData{
+    let app_data = Arc::new(AppShareData{
         config_addr:config_addr.clone(),
         naming_addr:naming_addr.clone(),
         bi_stream_manage: bistream_manage_http_addr.clone(),

@@ -7,7 +7,7 @@ mod raft_api;
 
 use std::sync::Arc;
 
-use crate::{config::core::{ConfigActor, ConfigCmd, ConfigKey, ConfigResult}, cluster::route::{SetConfigReq}, common::appdata::AppData};
+use crate::{config::core::{ConfigActor, ConfigCmd, ConfigKey, ConfigResult}, cluster::route::{SetConfigReq}, common::appdata::AppShareData};
 use actix::prelude::*;
 
 use self::model::NamespaceInfo;
@@ -85,7 +85,7 @@ impl NamespaceUtils {
     }
 
     pub async fn save_namespace(
-        app_data: &Arc<AppData>,
+        app_data: &Arc<AppShareData>,
         value: &Vec<NamespaceInfo>,
     ) -> anyhow::Result<()> {
         let value_str = serde_json::to_string(value)?;
@@ -106,7 +106,7 @@ impl NamespaceUtils {
     }
 
     pub async fn add_namespace(
-        app_data: &Arc<AppData>,
+        app_data: &Arc<AppShareData>,
         info: NamespaceInfo,
     ) -> anyhow::Result<()> {
         if let (Some(namespace_id), Some(namespace_name)) = (info.namespace_id, info.namespace_name)
@@ -133,7 +133,7 @@ impl NamespaceUtils {
     }
 
     pub async fn update_namespace(
-        app_data: &Arc<AppData>,
+        app_data: &Arc<AppShareData>,
         info: NamespaceInfo,
     ) -> anyhow::Result<()> {
         if let (Some(namespace_id), Some(namespace_name)) = (info.namespace_id, info.namespace_name)
@@ -161,7 +161,7 @@ impl NamespaceUtils {
     }
 
     pub async fn remove_namespace(
-        app_data: &Arc<AppData>,
+        app_data: &Arc<AppShareData>,
         namespace_id: Option<String>,
     ) -> anyhow::Result<()> {
         if let Some(namespace_id) = namespace_id {

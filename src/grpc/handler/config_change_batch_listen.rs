@@ -12,17 +12,17 @@ use crate::{
         },
         nacos_proto::Payload,
         PayloadHandler, PayloadUtils,
-    }, common::appdata::AppData,
+    }, common::appdata::AppShareData,
 };
 use actix::prelude::Addr;
 use async_trait::async_trait;
 
 pub struct ConfigChangeBatchListenRequestHandler {
-    app_data: Arc<AppData>, 
+    app_data: Arc<AppShareData>, 
 }
 
 impl ConfigChangeBatchListenRequestHandler {
-    pub fn new(app_data: Arc<AppData>) -> Self {
+    pub fn new(app_data: Arc<AppShareData>) -> Self {
         Self { app_data }
     }
 }

@@ -9,7 +9,7 @@ use actix::Addr;
 use std::sync::Arc;
 //use crate::raft::store::store::Store;
 
-pub struct AppData {
+pub struct AppShareData {
     pub config_addr: Addr<ConfigActor>,
     pub naming_addr: Addr<NamingActor>,
     pub bi_stream_manage: Addr<BiStreamManage>,

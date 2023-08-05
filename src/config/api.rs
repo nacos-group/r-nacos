@@ -1,7 +1,7 @@
 use super::core::ConfigAsyncCmd;
 use super::core::{ConfigActor, ConfigCmd, ConfigKey, ConfigResult, ListenerItem, ListenerResult};
 use crate::cluster::route::{SetConfigReq, DelConfigReq};
-use crate::common::appdata::AppData;
+use crate::common::appdata::AppShareData;
 use crate::utils::select_option_by_clone;
 use chrono::Local;
 use std::cmp::max;
@@ -71,7 +71,7 @@ pub struct ConfigWebConfirmedParam {
 async fn add_config(
     a: web::Query<ConfigWebParams>,
     b: web::Form<ConfigWebParams>,
-    appdata: web::Data<Arc<AppData>>,
+    appdata: web::Data<Arc<AppShareData>>,
 ) -> impl Responder {
     let param = a.select_option(&b).to_confirmed_param();
     match param {
@@ -96,7 +96,7 @@ async fn add_config(
 async fn del_config(
     a: web::Query<ConfigWebParams>,
     b: web::Form<ConfigWebParams>,
-    appdata: web::Data<Arc<AppData>>,
+    appdata: web::Data<Arc<AppShareData>>,
 ) -> impl Responder {
     let param = a.select_option(&b).to_confirmed_param();
     match param {

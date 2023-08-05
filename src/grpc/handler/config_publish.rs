@@ -8,17 +8,17 @@ use crate::{
         api_model::{BaseResponse, ConfigPublishRequest},
         nacos_proto::Payload,
         PayloadHandler, PayloadUtils,
-    }, common::appdata::AppData, cluster::route::SetConfigReq,
+    }, common::appdata::AppShareData, cluster::route::SetConfigReq,
 };
 use actix::prelude::Addr;
 use async_trait::async_trait;
 
 pub struct ConfigPublishRequestHandler {
-    app_data: Arc<AppData>, 
+    app_data: Arc<AppShareData>, 
 }
 
 impl ConfigPublishRequestHandler {
-    pub fn new(app_data: Arc<AppData>) -> Self {
+    pub fn new(app_data: Arc<AppShareData>) -> Self {
         Self { app_data }
     }
 }
