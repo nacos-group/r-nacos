@@ -1,3 +1,4 @@
+use crate::cluster::route::ConfigRoute;
 use crate::common::AppSysConfig;
 use crate::config::core::ConfigActor;
 use crate::grpc::bistream_manage::BiStreamManage;
@@ -15,4 +16,5 @@ pub struct AppData {
     pub raft: Arc<NacosRaft>,
     pub raft_store: Arc<AStore>,
     pub sys_config: Arc<AppSysConfig>,
+    pub config_route: Arc<ConfigRoute>,
 }

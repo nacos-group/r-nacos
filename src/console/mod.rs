@@ -7,7 +7,7 @@ mod raft_api;
 
 use std::sync::Arc;
 
-use crate::config::core::{ConfigActor, ConfigCmd, ConfigKey, ConfigResult, ConfigAsyncCmd};
+use crate::{config::core::{ConfigActor, ConfigCmd, ConfigKey, ConfigResult}, cluster::route::{SetConfigReq}, common::appdata::AppData};
 use actix::prelude::*;
 
 use self::model::NamespaceInfo;
@@ -85,11 +85,11 @@ impl NamespaceUtils {
     }
 
     pub async fn save_namespace(
-        config_addr: &Addr<ConfigActor>,
+        app_data: &Arc<AppData>,
         value: &Vec<NamespaceInfo>,
     ) -> anyhow::Result<()> {
         let value_str = serde_json::to_string(value)?;
-        let cmd = ConfigAsyncCmd::Add(
+        let req = SetConfigReq::new(
             ConfigKey::new(
                 SYSCONFIG_NAMESPACE_KEY,
                 SYSCONFIG_GROUP,
@@ -97,9 +97,8 @@ impl NamespaceUtils {
             ),
             Arc::new(value_str),
         );
-        match config_addr.send(cmd).await {
-            Ok(res) => {
-                let _: ConfigResult = res.unwrap();
+        match app_data.config_route.set_config(req).await {
+            Ok(_) => {
                 Ok(())
             }
             Err(err) => Err(anyhow::anyhow!(err)),
@@ -107,7 +106,7 @@ impl NamespaceUtils {
     }
 
     pub async fn add_namespace(
-        config_addr: &Addr<ConfigActor>,
+        app_data: &Arc<AppData>,
         info: NamespaceInfo,
     ) -> anyhow::Result<()> {
         if let (Some(namespace_id), Some(namespace_name)) = (info.namespace_id, info.namespace_name)
@@ -115,7 +114,7 @@ impl NamespaceUtils {
             if namespace_id.is_empty() || namespace_id.eq(DEFAULT_NAMESPACE) {
                 return Err(anyhow::anyhow!("namespace is exist"));
             }
-            let mut infos = Self::load_namespace_from_config(config_addr).await;
+            let mut infos = Self::load_namespace_from_config(&app_data.config_addr).await;
             for item in &infos {
                 if namespace_id.eq(item.namespace_id.as_ref().unwrap() as &str) {
                     return Err(anyhow::anyhow!("namespace is exist"));
@@ -127,14 +126,14 @@ impl NamespaceUtils {
                 r#type: Some("2".to_owned()),
             };
             infos.push(new_info);
-            Self::save_namespace(config_addr, &infos).await
+            Self::save_namespace(app_data, &infos).await
         } else {
             Err(anyhow::anyhow!("params is empty"))
         }
     }
 
     pub async fn update_namespace(
-        config_addr: &Addr<ConfigActor>,
+        app_data: &Arc<AppData>,
         info: NamespaceInfo,
     ) -> anyhow::Result<()> {
         if let (Some(namespace_id), Some(namespace_name)) = (info.namespace_id, info.namespace_name)
@@ -142,7 +141,7 @@ impl NamespaceUtils {
             if namespace_id.is_empty() || namespace_id.eq(DEFAULT_NAMESPACE) {
                 return Err(anyhow::anyhow!("namespace can't update"));
             }
-            let infos = Self::load_namespace_from_config(config_addr).await;
+            let infos = Self::load_namespace_from_config(&app_data.config_addr).await;
             let mut new_infos = Vec::with_capacity(infos.len());
             let mut update_mark = false;
             for mut item in infos {
@@ -155,21 +154,21 @@ impl NamespaceUtils {
             if !update_mark {
                 return Err(anyhow::anyhow!("namespace is not exist"));
             }
-            Self::save_namespace(config_addr, &new_infos).await
+            Self::save_namespace(app_data, &new_infos).await
         } else {
             Err(anyhow::anyhow!("params is empty"))
         }
     }
 
     pub async fn remove_namespace(
-        config_addr: &Addr<ConfigActor>,
+        app_data: &Arc<AppData>,
         namespace_id: Option<String>,
     ) -> anyhow::Result<()> {
         if let Some(namespace_id) = namespace_id {
             if namespace_id.is_empty() || namespace_id.eq(DEFAULT_NAMESPACE) {
                 return Err(anyhow::anyhow!("namespace can't delete"));
             }
-            let infos = Self::load_namespace_from_config(config_addr).await;
+            let infos = Self::load_namespace_from_config(&app_data.config_addr).await;
             let infos_len = infos.len();
             let mut new_infos = Vec::with_capacity(infos.len());
             for item in infos {
@@ -181,7 +180,7 @@ impl NamespaceUtils {
             if new_infos.len() == infos_len {
                 return Err(anyhow::anyhow!("namespace is not exist"));
             }
-            Self::save_namespace(config_addr, &new_infos).await
+            Self::save_namespace(app_data, &new_infos).await
         } else {
             Err(anyhow::anyhow!("params is empty"))
         }

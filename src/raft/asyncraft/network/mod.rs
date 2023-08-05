@@ -1,5 +1,7 @@
 use actix_web::web;
 
+use crate::cluster::routeapi;
+
 
 pub mod network;
 pub mod management;
@@ -17,5 +19,6 @@ pub fn raft_config(config: &mut web::ServiceConfig) {
         .service(web::resource("/joinnode").route(web::post().to(management::join_learner)))
         .service(web::resource("/change-membership").route(web::post().to(management::change_membership)))
         .service(web::resource("/metrics").route(web::get().to(management::metrics)))
+        .service(web::resource("/route").route(web::post().to(routeapi::route_request)))
     );
 }

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{config::core::ConfigActor, naming::core::NamingActor};
+use crate::{config::core::ConfigActor, naming::core::NamingActor, common::appdata::AppData};
 
 use self::{
     config_change_batch_listen::ConfigChangeBatchListenRequestHandler,
@@ -99,23 +99,23 @@ impl InvokerHandler {
         );
     }
 
-    pub fn add_config_handler(&mut self, config_addr: &Addr<ConfigActor>) {
+    pub fn add_config_handler(&mut self, app_data: &Arc<AppData>) {
         self.add_handler(
             "ConfigQueryRequest",
-            Box::new(ConfigQueryRequestHandler::new(config_addr.clone())),
+            Box::new(ConfigQueryRequestHandler::new(app_data.clone())),
         );
         self.add_handler(
             "ConfigPublishRequest",
-            Box::new(ConfigPublishRequestHandler::new(config_addr.clone())),
+            Box::new(ConfigPublishRequestHandler::new(app_data.clone())),
         );
         self.add_handler(
             "ConfigRemoveRequest",
-            Box::new(ConfigRemoveRequestHandler::new(config_addr.clone())),
+            Box::new(ConfigRemoveRequestHandler::new(app_data.clone())),
         );
         self.add_handler(
             "ConfigBatchListenRequest",
             Box::new(ConfigChangeBatchListenRequestHandler::new(
-                config_addr.clone(),
+                app_data.clone(),
             )),
         );
     }

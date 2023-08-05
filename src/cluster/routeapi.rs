@@ -1,9 +1,21 @@
-use actix_web::web::{Data, Json};
+use std::sync::Arc;
 
-use crate::common::appdata::AppData;
+use actix_web::{web::{Data, Json}, Responder};
 
-use super::route::RouterRequest;
+use crate::{common::appdata::AppData, config::core::{ConfigAsyncCmd, ConfigKey}};
 
-pub async fn route_request(app: Data<AppData>,req: Json<RouterRequest>) {
+use super::route::{RouterRequest, RouterResponse};
 
+pub async fn route_request(app: Data<Arc<AppData>>,req: Json<RouterRequest>) -> impl Responder {
+    match req.0 {
+        RouterRequest::ConfigSet { key, value, extend_info:_} => {
+            let config_key:ConfigKey = (&key as &str).into();
+            app.config_addr.send(ConfigAsyncCmd::Add(config_key, value)).await.ok();
+        },
+        RouterRequest::ConfigDel { key, extend_info:_} => {
+            let config_key:ConfigKey = (&key as &str).into();
+            app.config_addr.send(ConfigAsyncCmd::Delete(config_key,)).await.ok();
+        },
+    }
+    Json(RouterResponse::None)
 }

@@ -1,23 +1,25 @@
 #![allow(unused_imports)]
 
+use std::sync::Arc;
+
 use crate::{
     config::core::{ConfigActor, ConfigCmd, ConfigKey, ConfigResult, ConfigAsyncCmd},
     grpc::{
         api_model::{BaseResponse, ConfigPublishRequest},
         nacos_proto::Payload,
         PayloadHandler, PayloadUtils,
-    },
+    }, common::appdata::AppData, cluster::route::SetConfigReq,
 };
 use actix::prelude::Addr;
 use async_trait::async_trait;
 
 pub struct ConfigPublishRequestHandler {
-    config_addr: Addr<ConfigActor>,
+    app_data: Arc<AppData>, 
 }
 
 impl ConfigPublishRequestHandler {
-    pub fn new(config_addr: Addr<ConfigActor>) -> Self {
-        Self { config_addr }
+    pub fn new(app_data: Arc<AppData>) -> Self {
+        Self { app_data }
     }
 }
 
@@ -30,11 +32,11 @@ impl PayloadHandler for ConfigPublishRequestHandler {
     ) -> anyhow::Result<Payload> {
         let body_vec = request_payload.body.unwrap_or_default().value;
         let request: ConfigPublishRequest = serde_json::from_slice(&body_vec)?;
-        let cmd = ConfigAsyncCmd::Add(
+        let req = SetConfigReq::new(
             ConfigKey::new(&request.data_id, &request.group, &request.tenant),
             request.content,
         );
-        match self.config_addr.send(cmd).await {
+        match self.app_data.config_route.set_config(req).await {
             Ok(_res) => {
                 //let res:ConfigResult = res.unwrap();
                 let mut response = BaseResponse::build_success_response();

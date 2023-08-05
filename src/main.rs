@@ -1,10 +1,12 @@
 #![allow(unused_imports)]
 
 use std::collections::{BTreeMap, HashSet};
+use std::time::Duration;
 use actix::Actor;
 use actix_web::{web::Data, App};
 use async_raft::raft::ClientWriteRequest;
 use async_raft::{Config, Raft, RaftStorage};
+use rnacos::cluster::route::{RaftAddrRouter, ConfigRoute};
 use rnacos::common::AppSysConfig;
 use rnacos::config::core::{ConfigActor, ConfigCmd};
 use rnacos::grpc::bistream_manage::BiStreamManage;
@@ -66,6 +68,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let raft= build_raft(&sys_config,store.clone()).await?;
     config_addr.do_send(ConfigCmd::SetRaft(raft.clone()));
 
+    let raft_addr_router = Arc::new(RaftAddrRouter::new(raft.clone(),store.clone(),sys_config.raft_node_id.to_owned()));
+    let config_route = Arc::new(ConfigRoute::new(config_addr.clone(),raft_addr_router));
+
     let mut bistream_manage = BiStreamManage::new();
     bistream_manage.set_config_addr(config_addr.clone());
     bistream_manage.set_naming_addr(naming_addr.clone());
@@ -74,8 +79,18 @@ async fn main() -> Result<(), Box<dyn Error>> {
     naming_addr.do_send(NamingCmd::SetConnManage(bistream_manage_addr.clone()));
     let bistream_manage_http_addr = bistream_manage_addr.clone();
 
+    let app_data = Arc::new(AppData{
+        config_addr:config_addr.clone(),
+        naming_addr:naming_addr.clone(),
+        bi_stream_manage: bistream_manage_http_addr.clone(),
+        raft:raft.clone(),
+        raft_store:store,
+        sys_config: sys_config.clone(),
+        config_route,
+    });
+
     let mut invoker = InvokerHandler::new();
-    invoker.add_config_handler(&config_addr);
+    invoker.add_config_handler(&app_data);
     invoker.add_naming_handler(&naming_addr);
     invoker.add_raft_handler(&raft);
 
@@ -91,14 +106,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             .unwrap();
     });
 
-    let app_data = Data::new(AppData{
-        config_addr:config_addr.clone(),
-        naming_addr:naming_addr.clone(),
-        bi_stream_manage: bistream_manage_http_addr.clone(),
-        raft,
-        raft_store:store,
-        sys_config: sys_config.clone(),
-    });
+    let app_data = Data::new(app_data);
 
     let mut server = HttpServer::new(move || {
         let config_addr = config_addr.clone();
@@ -169,14 +177,15 @@ async fn auto_init_raft(store:Arc<AStore>,raft:Arc<NacosRaft>,sys_config: Arc<Ap
 async fn auto_join_raft(store:Arc<AStore>,sys_config: Arc<AppSysConfig>) -> anyhow::Result<()> {
     let state = store.get_initial_state().await?;
     if state.last_log_term==0 && state.last_log_index==0 {
+        //wait for self raft network started
+        tokio::time::sleep(Duration::from_millis(500)).await;
         let url = format!("http://{}/nacos/v1/raft/joinnode", &sys_config.raft_join_addr);
         let req = (&sys_config.raft_node_id,&sys_config.raft_node_addr);
-        let resp = reqwest::Client::new().post(url)
+        reqwest::Client::new().post(url)
             .json(&req)
             .send()
             .await?;
-        resp.json().await?;
-        log::info!("auto join raft . node_id:{},addr:{},join_addr:{}",&sys_config.raft_node_id,&sys_config.raft_node_addr,&sys_config.raft_join_addr);
+        log::info!("auto join raft,join_addr:{}.node_id:{},addr:{}",&sys_config.raft_join_addr,&sys_config.raft_node_id,&sys_config.raft_node_addr);
     }
     Ok(())
 }

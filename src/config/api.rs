@@ -1,5 +1,7 @@
 use super::core::ConfigAsyncCmd;
 use super::core::{ConfigActor, ConfigCmd, ConfigKey, ConfigResult, ListenerItem, ListenerResult};
+use crate::cluster::route::{SetConfigReq, DelConfigReq};
+use crate::common::appdata::AppData;
 use crate::utils::select_option_by_clone;
 use chrono::Local;
 use std::cmp::max;
@@ -69,22 +71,21 @@ pub struct ConfigWebConfirmedParam {
 async fn add_config(
     a: web::Query<ConfigWebParams>,
     b: web::Form<ConfigWebParams>,
-    config_addr: web::Data<Addr<ConfigActor>>,
+    appdata: web::Data<Arc<AppData>>,
 ) -> impl Responder {
     let param = a.select_option(&b).to_confirmed_param();
     match param {
         Ok(p) => {
-            let cmd = ConfigAsyncCmd::Add(
+            let req = SetConfigReq::new(
                 ConfigKey::new(&p.data_id, &p.group, &p.tenant),
-                Arc::new(p.content.to_owned()),
+                Arc::new(p.content.to_owned())
             );
-            match config_addr.send(cmd).await {
-                Ok(res) => {
-                    let _: ConfigResult = res.unwrap();
+            match appdata.config_route.set_config(req).await {
+                Ok(_) => {
                     HttpResponse::Ok()
                         .content_type("text/html; charset=utf-8")
                         .body("true")
-                }
+                },
                 Err(err) => HttpResponse::InternalServerError().body(err.to_string()),
             }
         }
@@ -95,19 +96,20 @@ async fn add_config(
 async fn del_config(
     a: web::Query<ConfigWebParams>,
     b: web::Form<ConfigWebParams>,
-    config_addr: web::Data<Addr<ConfigActor>>,
+    appdata: web::Data<Arc<AppData>>,
 ) -> impl Responder {
     let param = a.select_option(&b).to_confirmed_param();
     match param {
         Ok(p) => {
-            let cmd = ConfigAsyncCmd::Delete(ConfigKey::new(&p.data_id, &p.group, &p.tenant));
-            match config_addr.send(cmd).await {
-                Ok(res) => {
-                    let _: ConfigResult = res.unwrap();
+            let req = DelConfigReq::new(
+                ConfigKey::new(&p.data_id, &p.group, &p.tenant)
+            );
+            match appdata.config_route.del_config(req).await {
+                Ok(_) => {
                     HttpResponse::Ok()
                         .content_type("text/html; charset=utf-8")
                         .body("true")
-                }
+                },
                 Err(err) => HttpResponse::InternalServerError().body(err.to_string()),
             }
         }

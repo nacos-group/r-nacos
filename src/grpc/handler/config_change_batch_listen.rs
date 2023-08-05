@@ -12,18 +12,18 @@ use crate::{
         },
         nacos_proto::Payload,
         PayloadHandler, PayloadUtils,
-    },
+    }, common::appdata::AppData,
 };
 use actix::prelude::Addr;
 use async_trait::async_trait;
 
 pub struct ConfigChangeBatchListenRequestHandler {
-    config_addr: Addr<ConfigActor>,
+    app_data: Arc<AppData>, 
 }
 
 impl ConfigChangeBatchListenRequestHandler {
-    pub fn new(config_addr: Addr<ConfigActor>) -> Self {
-        Self { config_addr }
+    pub fn new(app_data: Arc<AppData>) -> Self {
+        Self { app_data }
     }
 }
 
@@ -50,7 +50,7 @@ impl PayloadHandler for ConfigChangeBatchListenRequestHandler {
             request_id: request.request_id,
             ..Default::default()
         };
-        match self.config_addr.send(cmd).await {
+        match self.app_data.config_addr.send(cmd).await {
             Ok(res) => {
                 let r: ConfigResult = res.unwrap();
                 match r {
