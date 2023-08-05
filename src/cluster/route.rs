@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc, fmt::Debug};
+use std::{collections::HashMap, sync::Arc, fmt::Debug, time::Duration};
 
 use actix::prelude::*;
 use serde::{Serialize, Deserialize};
@@ -79,6 +79,7 @@ impl ConfigRoute {
                 let url = format!("http://{}/nacos/v1/raft/route", &addr);
                 let req:RouterRequest  = req.into();
                 let resp = self.client.post(url)
+                .timeout(Duration::from_millis(3000))
                 .json(&req)
                 .send()
                 .await?;

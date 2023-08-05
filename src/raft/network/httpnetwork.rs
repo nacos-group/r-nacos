@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::time::Duration;
 
 use async_trait::async_trait;
 use openraft::error::InstallSnapshotError;
@@ -52,6 +53,7 @@ impl HttpNetworkFactory {
         let url = format!("http://{}/nacos/v1/raft/{}", addr, uri);
         let resp = self.client
             .post(url)
+            .timeout(Duration::from_millis(3000))
             .json(&req)
             .send()
             .await
