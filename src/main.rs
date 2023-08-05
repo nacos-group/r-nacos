@@ -142,10 +142,10 @@ fn init_env() {
 }
 
 async fn build_raft(sys_config: &Arc<AppSysConfig>,store:Arc<AStore>) -> anyhow::Result<Arc<NacosRaft>> {
-    let config = Config::build("raft server".to_owned())
-        .heartbeat_interval(1000) 
-        .election_timeout_min(2500) 
-        .election_timeout_max(5000) 
+    let config = Config::build("rnacos raft".to_owned())
+        .heartbeat_interval(500) 
+        .election_timeout_min(1500) 
+        .election_timeout_max(3000) 
         .validate().unwrap();
     let config = Arc::new(config);
     let network = Arc::new(RaftRouter::new(store.clone()));
