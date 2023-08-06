@@ -1,4 +1,5 @@
-use std::collections::{BTreeMap, HashMap};
+#![allow(clippy::boxed_local)]
+use std::collections::{BTreeMap};
 
 use crate::common::byte_utils::{bin_to_id, id_to_bin};
 use crate::common::sled_utils::TABLE_SEQUENCE_TREE_NAME;
@@ -160,8 +161,8 @@ impl InnerStore {
                 };
                 let last_applied_log = self.state_machine.last_applied_log;
                 Ok(InitialState {
-                    last_log_index: last_log_index,
-                    last_log_term: last_log_term,
+                    last_log_index,
+                    last_log_term,
                     last_applied_log,
                     hard_state: hs.clone(),
                     membership,
@@ -344,7 +345,7 @@ impl InnerStore {
             return Ok(());
         }
         let last_index = entries[entries.len() - 1].0;
-        for (index, entry) in entries {
+        for (_index, entry) in entries {
             match &entry.payload {
                 EntryPayload::Normal(normal) => {
                     let req = normal.data.to_owned();
@@ -718,7 +719,7 @@ impl Handler<StoreRequest> for InnerStore {
                 Ok(StoreResponse::OptionSnapshot(v))
             }
             StoreRequest::GetTargetAddr(id) => {
-                let v = self.membership.node_addr.get(&id).map(|v| v.clone());
+                let v = self.membership.node_addr.get(&id).cloned();
                 Ok(StoreResponse::TargetAddr(v))
             }
         }

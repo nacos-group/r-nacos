@@ -1,7 +1,7 @@
 use async_raft::{Raft, RaftStorage};
 
-use self::{store::{ClientRequest, ClientResponse, store::RaftStore}};
-use self::network::network::RaftRouter;
+use self::{store::{ClientRequest, ClientResponse, core::RaftStore}};
+use self::network::core::RaftRouter;
 
 pub mod cluster;
 pub mod store;

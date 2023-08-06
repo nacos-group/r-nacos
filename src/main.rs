@@ -18,9 +18,9 @@ use rnacos::grpc::nacos_proto::bi_request_stream_server::BiRequestStreamServer;
 use rnacos::grpc::nacos_proto::request_server::RequestServer;
 use rnacos::grpc::server::BiRequestStreamServerImpl;
 use rnacos::naming::core::{NamingCmd, NamingResult};
-use rnacos::raft::network::network::RaftRouter;
+use rnacos::raft::network::core::RaftRouter;
 use rnacos::raft::store::ClientRequest;
-use rnacos::raft::store::store::RaftStore;
+use rnacos::raft::store::core::RaftStore;
 use rnacos::starter::build_share_data;
 use rnacos::{grpc::server::RequestServerImpl, naming::core::NamingActor};
 use sled::Db;
@@ -99,7 +99,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
 fn init_env() {
     let app_opt = AppOpt::parse();
-    let env_path = app_opt.env_file.to_owned();
+    let env_path = app_opt.env_file;
     //let env_path = std::env::var("RNACOS_ENV_FILE").unwrap_or_default();
     if env_path.is_empty() {
         dotenv::dotenv().ok();

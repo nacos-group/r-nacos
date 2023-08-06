@@ -7,7 +7,7 @@ use async_trait::async_trait;
 use crate::grpc::PayloadUtils;
 use crate::grpc::nacos_proto::Payload;
 use crate::raft::store::ClientRequest;
-use crate::raft::store::store::RaftStore;
+use crate::raft::store::core::RaftStore;
 
 use super::factory::{RaftClusterRequestSender};
 

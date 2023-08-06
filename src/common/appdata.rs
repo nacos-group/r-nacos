@@ -4,7 +4,7 @@ use crate::common::AppSysConfig;
 use crate::config::core::ConfigActor;
 use crate::grpc::bistream_manage::BiStreamManage;
 use crate::naming::core::NamingActor;
-use crate::raft::store::store::RaftStore;
+use crate::raft::store::core::RaftStore;
 use crate::raft::NacosRaft;
 use actix::Addr;
 use std::sync::Arc;

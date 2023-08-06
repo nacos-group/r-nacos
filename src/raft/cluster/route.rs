@@ -2,7 +2,7 @@ use std::{sync::Arc, fmt::Debug};
 
 use actix::prelude::*;
 
-use crate::{config::core::{ConfigActor, ConfigAsyncCmd}, raft::{{store::store::RaftStore, network::factory::{RaftClusterRequestSender}}, NacosRaft}, grpc::{PayloadUtils}};
+use crate::{config::core::{ConfigActor, ConfigAsyncCmd}, raft::{{store::core::RaftStore, network::factory::{RaftClusterRequestSender}}, NacosRaft}, grpc::{PayloadUtils}};
 
 use super::model::{SetConfigReq, RouteAddr, RouterRequest, RouterResponse, DelConfigReq};
 

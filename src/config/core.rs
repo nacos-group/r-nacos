@@ -56,7 +56,7 @@ impl ConfigKey {
 
 impl From<&str> for ConfigKey {
     fn from(value: &str) -> Self {
-        let mut list = value.split("\x02");
+        let mut list = value.split('\x02');
         let data_id = list.next();
         let group = list.next();
         let tenant = list.next();
@@ -465,7 +465,7 @@ impl Supervised for ConfigActor {
 impl Handler<ConfigCmd> for ConfigActor {
     type Result = anyhow::Result<ConfigResult>;
 
-    fn handle(&mut self, msg: ConfigCmd, ctx: &mut Context<Self>) -> Self::Result {
+    fn handle(&mut self, msg: ConfigCmd, _ctx: &mut Context<Self>) -> Self::Result {
         match msg {
             ConfigCmd::GET(key) => {
                 if let Some(v) = self.cache.get(&key) {
@@ -535,7 +535,7 @@ impl Handler<ConfigCmd> for ConfigActor {
 impl Handler<ConfigAsyncCmd> for ConfigActor {
     type Result = ResponseActFuture<Self,anyhow::Result<ConfigResult>>;
 
-    fn handle(&mut self, msg: ConfigAsyncCmd, ctx: &mut Context<Self>) -> Self::Result {
+    fn handle(&mut self, msg: ConfigAsyncCmd, _ctx: &mut Context<Self>) -> Self::Result {
         let raft =self.raft.clone();
         let history_info= if let ConfigAsyncCmd::Add(_,_) = &msg {
             match  self.config_db.next_history_id_state() {
@@ -561,7 +561,7 @@ impl Handler<ConfigAsyncCmd> for ConfigActor {
             }
             Ok(ConfigResult::NULL)
         }.into_actor(self)
-        .map(|r,act,ctx|{r});
+        .map(|r,_act,_ctx|{r});
         Box::pin(fut)
     }
 }
@@ -569,7 +569,7 @@ impl Handler<ConfigAsyncCmd> for ConfigActor {
 impl Handler<ConfigRaftCmd> for ConfigActor {
     type Result = anyhow::Result<ConfigRaftResult>;
 
-    fn handle(&mut self, msg: ConfigRaftCmd, ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, msg: ConfigRaftCmd, _ctx: &mut Self::Context) -> Self::Result {
         match msg {
             ConfigRaftCmd::ConfigAdd {
                 key,

@@ -130,7 +130,7 @@ impl ConfigDB {
     }
 
     fn init_config_history_info(&mut self,key:&ConfigKey) {
-        if let None = self.config_history_id_map.get(key) {
+        if self.config_history_id_map.get(key).is_none() {
             self.config_history_id_map.insert(key.clone(), ConfigHistoryIdInfo::new(5));
         }
     }
@@ -162,7 +162,7 @@ impl ConfigDB {
         };
         if let Some(history_table_id) = history_table_id {
             //self.config_history_seq
-            self.config_history_seq.set_table_last_id(history_table_id);
+            self.config_history_seq.set_table_last_id(history_table_id).ok();
         }
         config.id = Some(history_id as i64);
         //insert history
@@ -172,7 +172,7 @@ impl ConfigDB {
 
         //remove limit history
         self.init_config_history_info(key);
-        let history_id_info = self.config_history_id_map.get_mut(&key).unwrap();
+        let history_id_info = self.config_history_id_map.get_mut(key).unwrap();
         history_id_info.count+=1;
         //20个计数一次,超过5次(100个)后，删除最早的数据
         if history_id_info.count % 20 == 0 {
@@ -205,7 +205,7 @@ impl ConfigDB {
         let config_db = self.db.open_tree("config").unwrap();
         if let Ok(Some(_)) = config_db.remove(config_key) {
             self.db.drop_tree(config_history_tree_name)?;
-            self.config_history_id_map.remove(&key);
+            self.config_history_id_map.remove(key);
         }
         Ok(())
     }

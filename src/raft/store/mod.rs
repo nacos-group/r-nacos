@@ -1,10 +1,8 @@
 
 
 pub mod innerstore;
+pub mod core;
 
-pub mod store;
-
-use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -18,15 +16,8 @@ use thiserror::Error;
 
 pub type NodeId = u64;
 
-/**
- * Here you will set the types of request that will interact with the raft nodes.
- * For example the `Set` will be used to write data (key and value) to the raft database.
- * The `AddNode` will append a new node to the current existing shared list of nodes.
- * You will want to add any request that can write data in all nodes here.
- */
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum ClientRequest {
-    //Set { key: Arc<String>, value: Arc<String> },
     NodeAddr{id:u64,addr:Arc<String>},
     ConfigSet { key: String, value: Arc<String> ,history_id: u64,history_table_id:Option<u64>},
     ConfigRemove {key: String},
@@ -36,14 +27,6 @@ impl AppData for ClientRequest {
 
 }
 
-/**
- * Here you will defined what type of answer you expect from reading the data of a node.
- * In this example it will return a optional value from a given key in
- * the `Request.Set`.
- *
- * TODO: Should we explain how to create multiple `AppDataResponse`?
- *
- */
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ClientResponse {
     pub value: Option<Arc<String>>,
@@ -60,31 +43,9 @@ pub enum ShutdownError {
 }
 
 
-/*
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct StoredSnapshot {
-    pub index: u64,
-    /// The term of the last index covered by this snapshot.
-    pub term: u64,
-    /// The last memberhsip config included in this snapshot.
-    pub membership: MembershipConfig,
-    /// The data of the state machine at the time of this snapshot.
-    pub data: Vec<u8>,
-}
- */
-
-/**
- * Here defines a state machine of the raft, this state represents a copy of the data
- * between each node. Note that we are using `serde` to serialize the `data`, which has
- * a implementation to be serialized. Note that for this test we set both the key and
- * value as String, but you could set any type of value that has the serialization impl.
- */
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
 pub struct StateMachine {
     pub last_applied_log: u64,
-
-    // Application data.
-    //pub data: BTreeMap<Arc<String>, Arc<String>>,
 }
 
 
@@ -94,25 +55,10 @@ pub struct RaftLog {
     pub term: u64,
 }
 
-#[derive(Serialize, Deserialize, Debug,Clone,PartialEq)]
+#[derive(Serialize, Deserialize, Debug,Clone,PartialEq,Default)]
 pub struct Membership {
     pub membership_config: Option<MembershipConfig>,
     pub node_addr: HashMap<u64,Arc<String>>,
-}
-
-impl Default for Membership {
-    fn default() -> Self {
-        /*
-        let membership_config = MembershipConfig{
-            members: Default::default(),
-            members_after_consensus: Default::default(),
-        };
-         */
-        Self { 
-            membership_config: None, 
-            node_addr: Default::default() 
-        }
-    }
 }
 
 #[derive(Clone, PartialEq,Deserialize, Serialize)]

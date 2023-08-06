@@ -1,6 +1,6 @@
 use std::{sync::Arc, collections::HashSet, time::Duration};
 
-use crate::{common::{appdata::AppShareData, AppSysConfig}, config::core::{ConfigActor, ConfigCmd}, naming::core::{NamingActor, NamingCmd}, raft::{{store::{store::RaftStore, ClientRequest}, network::{factory::{RaftConnectionFactory, RaftClusterRequestSender}, network::RaftRouter}}, cluster::{route::{RaftAddrRouter, ConfigRoute}, model::RouterRequest}, NacosRaft}, grpc::{bistream_manage::BiStreamManage, PayloadUtils}};
+use crate::{common::{appdata::AppShareData, AppSysConfig}, config::core::{ConfigActor, ConfigCmd}, naming::core::{NamingActor, NamingCmd}, raft::{{store::{core::RaftStore, ClientRequest}, network::{factory::{RaftConnectionFactory, RaftClusterRequestSender}, core::RaftRouter}}, cluster::{route::{RaftAddrRouter, ConfigRoute}, model::RouterRequest}, NacosRaft}, grpc::{bistream_manage::BiStreamManage, PayloadUtils}};
 use actix::prelude::*;
 use async_raft::{Config, Raft, RaftStorage, raft::ClientWriteRequest};
 
@@ -34,15 +34,14 @@ pub fn build_share_data(sys_config:Arc<AppSysConfig>) -> anyhow::Result<Arc<AppS
     let bistream_manage_addr = bistream_manage.start();
     config_addr.do_send(ConfigCmd::SetConnManage(bistream_manage_addr.clone()));
     naming_addr.do_send(NamingCmd::SetConnManage(bistream_manage_addr.clone()));
-    let bistream_manage_http_addr = bistream_manage_addr.clone();
 
     let app_data = Arc::new(AppShareData{
-        config_addr:config_addr.clone(),
-        naming_addr:naming_addr.clone(),
-        bi_stream_manage: bistream_manage_http_addr.clone(),
-        raft:raft.clone(),
+        config_addr,
+        naming_addr,
+        bi_stream_manage: bistream_manage_addr,
+        raft,
         raft_store:store,
-        sys_config: sys_config.clone(),
+        sys_config,
         config_route,
         cluster_sender,
     });
@@ -57,7 +56,7 @@ fn build_raft(sys_config: &Arc<AppSysConfig>, store:Arc<RaftStore>, cluster_send
         .validate().unwrap();
     let config = Arc::new(config);
     let network = Arc::new(RaftRouter::new(store.clone(),cluster_sender.clone()));
-    let raft = Arc::new(Raft::new(sys_config.raft_node_id.to_owned(),config.clone(),network,store.clone()));
+    let raft = Arc::new(Raft::new(sys_config.raft_node_id.to_owned(),config,network,store.clone()));
     if sys_config.raft_auto_init {
         tokio::spawn(auto_init_raft(store, raft.clone(),sys_config.clone()));
     }

@@ -23,8 +23,7 @@ fn init_inner_store(inner:InnerStore) -> Addr<InnerStore> {
         tx.send(addrs).unwrap();
         rt.run().unwrap();
     });
-    let addrs = rx.recv().unwrap();
-    addrs
+    rx.recv().unwrap()
 }
 
 #[derive(Clone)]
@@ -55,15 +54,8 @@ impl RaftStore {
 
     pub async fn get_target_addr(&self,id:u64) -> anyhow::Result<Arc<String>> {
         match self.send_store_msg(StoreRequest::GetTargetAddr(id)).await? {
-            StoreResponse::TargetAddr(v) => {
-                match v {
-                    None => {
-                        Err(anyhow::anyhow!("get_state_value error"))
-                    }
-                    Some(v) => {
-                        Ok(v)
-                    }
-                }
+            StoreResponse::TargetAddr(Some(v)) => {
+                Ok(v)
             },
             _ => {
                 Err(anyhow::anyhow!("get_state_value error"))
@@ -141,7 +133,7 @@ impl RaftStorage<ClientRequest, ClientResponse> for RaftStore {
         }
     }
 
-    async fn apply_entry_to_state_machine(&self, index: &u64, data: &ClientRequest) -> anyhow::Result<ClientResponse> {
+    async fn apply_entry_to_state_machine(&self, index: &u64, _data: &ClientRequest) -> anyhow::Result<ClientResponse> {
         //match self.send_store_msg(StoreRequest::ApplyEntryToStateMachine{index:index.to_owned(),request:data.to_owned()}).await? {
         match self.send_store_msg(StoreRequest::ApplyEntryToStateMachineRange { start: *index, end: (*index)+1 }).await? {
             StoreResponse::Response(v) => {

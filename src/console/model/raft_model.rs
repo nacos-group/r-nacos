@@ -16,7 +16,7 @@ pub struct NodeMember{
 
 impl NodeMember {
     pub fn get_member(&self)  -> BTreeSet<u64> {
-        let ids :Vec<u64> =self.node_ids.split(",").map(|e|e.parse().unwrap_or_default()).collect();
+        let ids :Vec<u64> =self.node_ids.split(',').map(|e|e.parse().unwrap_or_default()).collect();
         let mut set = BTreeSet::new();
         for id in ids {
             if id > 0 {

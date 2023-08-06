@@ -2,7 +2,7 @@ use actix_web::web;
 
 use crate::raft::cluster::routeapi;
 
-pub mod network;
+pub mod core;
 pub mod management;
 pub mod raft;
 pub mod factory;
