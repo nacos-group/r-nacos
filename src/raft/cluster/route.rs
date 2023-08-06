@@ -1,8 +1,8 @@
-use std::{sync::Arc, fmt::Debug, time::Duration};
+use std::{sync::Arc, fmt::Debug};
 
 use actix::prelude::*;
 
-use crate::{config::core::{ConfigActor, ConfigAsyncCmd}, raft::{asyncraft::store::store::AStore, NacosRaft}};
+use crate::{config::core::{ConfigActor, ConfigAsyncCmd}, raft::{asyncraft::{store::store::AStore, network::factory::{RaftClusterRequestSender}}, NacosRaft}, grpc::{PayloadUtils}};
 
 use super::model::{SetConfigReq, RouteAddr, RouterRequest, RouterResponse, DelConfigReq};
 
@@ -26,7 +26,7 @@ impl RaftAddrRouter {
         Self {
             raft,
             raft_store,
-            local_node_id
+            local_node_id,
         }
     }
 
@@ -53,16 +53,15 @@ impl RaftAddrRouter {
 pub struct ConfigRoute{
     config_addr: Addr<ConfigActor>,
     raft_addr_route: Arc<RaftAddrRouter>,
-    client: reqwest::Client,
+    cluster_sender:Arc<RaftClusterRequestSender>,
 }
 
 impl ConfigRoute {
-    pub fn new(config_addr:Addr<ConfigActor>,raft_addr_route: Arc<RaftAddrRouter>) -> Self {
-        let client = reqwest::ClientBuilder::new().build().unwrap();
+    pub fn new(config_addr:Addr<ConfigActor>,raft_addr_route: Arc<RaftAddrRouter>,cluster_sender:Arc<RaftClusterRequestSender>) -> Self {
         Self {
             config_addr,
             raft_addr_route,
-            client,
+            cluster_sender,
         }
     }
 
@@ -77,14 +76,12 @@ impl ConfigRoute {
                 self.config_addr.send(cmd).await?.ok();
             },
             RouteAddr::Remote(_, addr) => {
-                let url = format!("http://{}/nacos/v1/raft/route", &addr);
                 let req:RouterRequest  = req.into();
-                let resp = self.client.post(url)
-                .timeout(Duration::from_millis(3000))
-                .json(&req)
-                .send()
-                .await?;
-                let _:RouterResponse = resp.json().await?;
+                let request = serde_json::to_string(&req).unwrap_or_default();
+                let payload = PayloadUtils::build_payload("RaftRouteRequest", request);
+                let resp_payload = self.cluster_sender.send_request(addr,payload).await?;
+                let body_vec = resp_payload.body.unwrap_or_default().value;
+                let _: RouterResponse = serde_json::from_slice(&body_vec)?;
             },
             RouteAddr::Unknown => {
                 return Err(self.unknown_err());
@@ -100,13 +97,12 @@ impl ConfigRoute {
                 self.config_addr.send(cmd).await?.ok();
             },
             RouteAddr::Remote(_, addr) => {
-                let url = format!("http://{}/nacos/v1/raft/route", &addr);
                 let req:RouterRequest  = req.into();
-                let resp = self.client.post(url)
-                .json(&req)
-                .send()
-                .await?;
-                let _:RouterResponse = resp.json().await?;
+                let request = serde_json::to_string(&req).unwrap_or_default();
+                let payload = PayloadUtils::build_payload("RaftRouteRequest", request);
+                let resp_payload = self.cluster_sender.send_request(addr,payload).await?;
+                let body_vec = resp_payload.body.unwrap_or_default().value;
+                let _: RouterResponse = serde_json::from_slice(&body_vec)?;
             },
             RouteAddr::Unknown => {
                 return Err(self.unknown_err());

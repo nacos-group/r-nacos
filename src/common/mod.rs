@@ -75,7 +75,7 @@ impl AppSysConfig {
             .parse()
             .unwrap_or(1);
         let raft_node_addr =
-            std::env::var("RNACOS_RAFT_NODE_ADDR").unwrap_or(format!("127.0.0.1:{}", &http_port));
+            std::env::var("RNACOS_RAFT_NODE_ADDR").unwrap_or(format!("127.0.0.1:{}", &grpc_port));
         let raft_auto_init = std::env::var("RNACOS_RAFT_AUTO_INIT")
             .unwrap_or("".to_owned())
             .parse()

@@ -6,6 +6,7 @@ use actix::Actor;
 use actix_web::{web::Data, App};
 use async_raft::raft::ClientWriteRequest;
 use async_raft::{Config, Raft, RaftStorage};
+use rnacos::raft::asyncraft::network::factory::{RaftConnectionFactory, RaftClusterRequestSender};
 use rnacos::raft::cluster::route::{RaftAddrRouter, ConfigRoute};
 use rnacos::common::AppSysConfig;
 use rnacos::config::core::{ConfigActor, ConfigCmd};
@@ -65,11 +66,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let naming_addr = NamingActor::create_at_new_system();
 
     let store = Arc::new(AStore::new(sys_config.raft_node_id.to_owned(),db,config_addr.clone()));
-    let raft= build_raft(&sys_config,store.clone()).await?;
+    let conn_factory = RaftConnectionFactory::new(60).start();
+    let cluster_sender = Arc::new(RaftClusterRequestSender::new(conn_factory));
+    let raft= build_raft(&sys_config,store.clone(),cluster_sender.clone()).await?;
     config_addr.do_send(ConfigCmd::SetRaft(raft.clone()));
 
     let raft_addr_router = Arc::new(RaftAddrRouter::new(raft.clone(),store.clone(),sys_config.raft_node_id.to_owned()));
-    let config_route = Arc::new(ConfigRoute::new(config_addr.clone(),raft_addr_router));
+    let config_route = Arc::new(ConfigRoute::new(config_addr.clone(),raft_addr_router,cluster_sender.clone()));
 
     let mut bistream_manage = BiStreamManage::new();
     bistream_manage.set_config_addr(config_addr.clone());
@@ -87,12 +90,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
         raft_store:store,
         sys_config: sys_config.clone(),
         config_route,
+        cluster_sender,
     });
 
     let mut invoker = InvokerHandler::new();
     invoker.add_config_handler(&app_data);
     invoker.add_naming_handler(&naming_addr);
-    invoker.add_raft_handler(&raft);
+    invoker.add_raft_handler(&app_data);
 
     tokio::spawn(async move {
         let addr = grpc_addr.parse().unwrap();
@@ -141,14 +145,14 @@ fn init_env() {
     }
 }
 
-async fn build_raft(sys_config: &Arc<AppSysConfig>,store:Arc<AStore>) -> anyhow::Result<Arc<NacosRaft>> {
+async fn build_raft(sys_config: &Arc<AppSysConfig>,store:Arc<AStore>,cluster_sender:Arc<RaftClusterRequestSender>) -> anyhow::Result<Arc<NacosRaft>> {
     let config = Config::build("rnacos raft".to_owned())
         .heartbeat_interval(500) 
         .election_timeout_min(1500) 
         .election_timeout_max(3000) 
         .validate().unwrap();
     let config = Arc::new(config);
-    let network = Arc::new(RaftRouter::new(store.clone()));
+    let network = Arc::new(RaftRouter::new(store.clone(),cluster_sender));
     let raft = Arc::new(Raft::new(sys_config.raft_node_id.to_owned(),config.clone(),network,store.clone()));
     if sys_config.raft_auto_init {
         let raft_p=raft.clone();

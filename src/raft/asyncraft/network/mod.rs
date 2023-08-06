@@ -5,7 +5,7 @@ use crate::raft::cluster::routeapi;
 pub mod network;
 pub mod management;
 pub mod raft;
-
+pub mod factory;
 
 pub fn raft_config(config: &mut web::ServiceConfig) {
     config.service(

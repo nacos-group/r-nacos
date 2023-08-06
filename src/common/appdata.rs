@@ -1,3 +1,4 @@
+use crate::raft::asyncraft::network::factory::RaftClusterRequestSender;
 use crate::raft::cluster::route::ConfigRoute;
 use crate::common::AppSysConfig;
 use crate::config::core::ConfigActor;
@@ -17,4 +18,5 @@ pub struct AppShareData {
     pub raft_store: Arc<AStore>,
     pub sys_config: Arc<AppSysConfig>,
     pub config_route: Arc<ConfigRoute>,
+    pub cluster_sender: Arc<RaftClusterRequestSender>,
 }

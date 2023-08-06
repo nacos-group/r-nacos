@@ -1,13 +1,13 @@
 use std::sync::Arc;
 
-use crate::{config::core::ConfigActor, naming::core::NamingActor, common::appdata::AppShareData};
+use crate::{naming::core::NamingActor, common::appdata::AppShareData};
 
 use self::{
     config_change_batch_listen::ConfigChangeBatchListenRequestHandler,
     config_publish::ConfigPublishRequestHandler, config_query::ConfigQueryRequestHandler,
     config_remove::ConfigRemoveRequestHandler, naming_batch_instance::BatchInstanceRequestHandler,
     naming_instance::InstanceRequestHandler, naming_service_query::ServiceQueryRequestHandler,
-    naming_subscribe_service::SubscribeServiceRequestHandler,
+    naming_subscribe_service::SubscribeServiceRequestHandler, raft_route::RaftRouteRequestHandler,
 };
 
 use super::{
@@ -20,7 +20,6 @@ use async_trait::async_trait;
 use crate::grpc::handler::raft_append::RaftAppendRequestHandler;
 use crate::grpc::handler::raft_snapshot::RaftSnapshotRequestHandler;
 use crate::grpc::handler::raft_vote::RaftVoteRequestHandler;
-use crate::raft::NacosRaft;
 
 pub mod config_change_batch_listen;
 pub mod config_publish;
@@ -35,11 +34,13 @@ pub mod naming_subscribe_service;
 pub mod raft_append;
 mod raft_vote;
 mod raft_snapshot;
+pub mod raft_route;
 
 pub(crate) const SERVER_CHECK_REQUEST: &str = "ServerCheckRequest";
 pub(crate) const RAFT_APPEND_REQUEST: &str = "RaftAppendRequest";
 pub(crate) const RAFT_SNAPSHOT_REQUEST: &str = "RaftSnapshotRequest";
 pub(crate) const RAFT_VOTE_REQUEST: &str = "RaftVoteRequest";
+pub(crate) const RAFT_ROUTE_REQUEST: &str = "RaftRouteRequest";
 
 #[derive(Default)]
 pub struct InvokerHandler {
@@ -81,21 +82,25 @@ impl InvokerHandler {
             || RAFT_APPEND_REQUEST.eq(t)
             || RAFT_SNAPSHOT_REQUEST.eq(t)
             || RAFT_VOTE_REQUEST.eq(t)
-
+            || RAFT_ROUTE_REQUEST.eq(t)
     }
 
-    pub fn add_raft_handler(&mut self,raft: &Arc<NacosRaft>) {
+    pub fn add_raft_handler(&mut self,app_data: &Arc<AppShareData>) {
         self.add_handler(
             RAFT_APPEND_REQUEST,
-            Box::new(RaftAppendRequestHandler::new(raft.clone())),
+            Box::new(RaftAppendRequestHandler::new(app_data.clone())),
         );
         self.add_handler(
             RAFT_SNAPSHOT_REQUEST,
-            Box::new(RaftSnapshotRequestHandler::new(raft.clone())),
+            Box::new(RaftSnapshotRequestHandler::new(app_data.clone())),
         );
         self.add_handler(
             RAFT_VOTE_REQUEST,
-            Box::new(RaftVoteRequestHandler::new(raft.clone())),
+            Box::new(RaftVoteRequestHandler::new(app_data.clone())),
+        );
+        self.add_handler(
+            RAFT_ROUTE_REQUEST,
+            Box::new(RaftRouteRequestHandler::new(app_data.clone())),
         );
     }
 

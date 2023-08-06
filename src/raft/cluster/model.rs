@@ -55,6 +55,10 @@ pub enum RouterRequest {
         key: String,
         extend_info: HashMap<String,String>,
     },
+    JoinNode {
+        node_id: u64,
+        node_addr: Arc<String>,
+    }
 }
 
 impl From<SetConfigReq> for RouterRequest {
