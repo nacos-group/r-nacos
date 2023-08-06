@@ -9,7 +9,7 @@ use std::time::Duration;
 
 use crate::grpc::bistream_manage::BiStreamManage;
 use crate::raft::NacosRaft;
-use crate::raft::asyncraft::store::ClientRequest;
+use crate::raft::store::ClientRequest;
 //use crate::raft::store::Request;
 use crate::utils::get_md5;
 use serde::{Deserialize, Serialize};

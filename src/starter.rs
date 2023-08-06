@@ -1,6 +1,6 @@
 use std::{sync::Arc, collections::HashSet, time::Duration};
 
-use crate::{common::{appdata::AppShareData, AppSysConfig}, config::core::{ConfigActor, ConfigCmd}, naming::core::{NamingActor, NamingCmd}, raft::{asyncraft::{store::{store::AStore, ClientRequest}, network::{factory::{RaftConnectionFactory, RaftClusterRequestSender}, network::RaftRouter}}, cluster::{route::{RaftAddrRouter, ConfigRoute}, model::RouterRequest}, NacosRaft}, grpc::{bistream_manage::BiStreamManage, PayloadUtils}};
+use crate::{common::{appdata::AppShareData, AppSysConfig}, config::core::{ConfigActor, ConfigCmd}, naming::core::{NamingActor, NamingCmd}, raft::{{store::{store::RaftStore, ClientRequest}, network::{factory::{RaftConnectionFactory, RaftClusterRequestSender}, network::RaftRouter}}, cluster::{route::{RaftAddrRouter, ConfigRoute}, model::RouterRequest}, NacosRaft}, grpc::{bistream_manage::BiStreamManage, PayloadUtils}};
 use actix::prelude::*;
 use async_raft::{Config, Raft, RaftStorage, raft::ClientWriteRequest};
 
@@ -19,7 +19,7 @@ pub fn build_share_data(sys_config:Arc<AppSysConfig>) -> anyhow::Result<Arc<AppS
     //let naming_addr = NamingActor::new_and_create();
     let naming_addr = NamingActor::create_at_new_system();
 
-    let store = Arc::new(AStore::new(sys_config.raft_node_id.to_owned(),db,config_addr.clone()));
+    let store = Arc::new(RaftStore::new(sys_config.raft_node_id.to_owned(), db, config_addr.clone()));
     let conn_factory = RaftConnectionFactory::new(60).start();
     let cluster_sender = Arc::new(RaftClusterRequestSender::new(conn_factory));
     let raft= build_raft(&sys_config,store.clone(),cluster_sender.clone())?;
@@ -49,7 +49,7 @@ pub fn build_share_data(sys_config:Arc<AppSysConfig>) -> anyhow::Result<Arc<AppS
     Ok(app_data)
 }
 
-fn build_raft(sys_config: &Arc<AppSysConfig>,store:Arc<AStore>,cluster_sender:Arc<RaftClusterRequestSender>) -> anyhow::Result<Arc<NacosRaft>> {
+fn build_raft(sys_config: &Arc<AppSysConfig>, store:Arc<RaftStore>, cluster_sender:Arc<RaftClusterRequestSender>) -> anyhow::Result<Arc<NacosRaft>> {
     let config = Config::build("rnacos raft".to_owned())
         .heartbeat_interval(500) 
         .election_timeout_min(1500) 
@@ -67,7 +67,7 @@ fn build_raft(sys_config: &Arc<AppSysConfig>,store:Arc<AStore>,cluster_sender:Ar
     Ok(raft)
 }
 
-async fn auto_init_raft(store:Arc<AStore>,raft:Arc<NacosRaft>,sys_config: Arc<AppSysConfig>) -> anyhow::Result<()> {
+async fn auto_init_raft(store:Arc<RaftStore>, raft:Arc<NacosRaft>, sys_config: Arc<AppSysConfig>) -> anyhow::Result<()> {
     let state = store.get_initial_state().await?;
     if state.last_log_term==0 && state.last_log_index==0 {
         log::info!("auto init raft. node_id:{},addr:{}",&sys_config.raft_node_id,&sys_config.raft_node_addr);
@@ -79,7 +79,7 @@ async fn auto_init_raft(store:Arc<AStore>,raft:Arc<NacosRaft>,sys_config: Arc<Ap
     Ok(())
 }
 
-async fn auto_join_raft(store:Arc<AStore>,sys_config: Arc<AppSysConfig>,cluster_sender:Arc<RaftClusterRequestSender>) -> anyhow::Result<()> {
+async fn auto_join_raft(store:Arc<RaftStore>, sys_config: Arc<AppSysConfig>, cluster_sender:Arc<RaftClusterRequestSender>) -> anyhow::Result<()> {
     let state = store.get_initial_state().await?;
     if state.last_log_term==0 && state.last_log_index==0 {
         //wait for self raft network started

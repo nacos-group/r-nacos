@@ -6,18 +6,18 @@ use async_trait::async_trait;
 
 use crate::grpc::PayloadUtils;
 use crate::grpc::nacos_proto::Payload;
-use crate::raft::asyncraft::store::ClientRequest;
-use crate::raft::asyncraft::store::store::AStore;
+use crate::raft::store::ClientRequest;
+use crate::raft::store::store::RaftStore;
 
 use super::factory::{RaftClusterRequestSender};
 
 pub struct RaftRouter {
-    store: Arc<AStore>, //get target addr
+    store: Arc<RaftStore>, //get target addr
     cluster_sender:Arc<RaftClusterRequestSender>,
 }
 
 impl RaftRouter {
-    pub fn new(store: Arc<AStore>,cluster_sender:Arc<RaftClusterRequestSender>) -> Self{
+    pub fn new(store: Arc<RaftStore>, cluster_sender:Arc<RaftClusterRequestSender>) -> Self{
         Self {
             store,
             cluster_sender,
@@ -60,6 +60,7 @@ impl RaftNetwork<ClientRequest> for RaftRouter {
     }
 }
 
+/*
 pub struct HttpRaftRouter {
     //raft: MRaft,
     store: Arc<AStore>, //get target addr
@@ -117,3 +118,4 @@ impl RaftNetwork<ClientRequest> for HttpRaftRouter {
         Ok(res)
     }
 }
+ */

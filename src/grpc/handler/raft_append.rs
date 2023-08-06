@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use crate::common::appdata::AppShareData;
 use crate::grpc::nacos_proto::Payload;
 use crate::grpc::{PayloadHandler, PayloadUtils, RequestMeta};
-use crate::raft::asyncraft::store::ClientRequest;
+use crate::raft::store::ClientRequest;
 
 pub struct RaftAppendRequestHandler {
     app_data: Arc<AppShareData>, 

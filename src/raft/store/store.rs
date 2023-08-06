@@ -28,12 +28,12 @@ fn init_inner_store(inner:InnerStore) -> Addr<InnerStore> {
 }
 
 #[derive(Clone)]
-pub struct AStore{
+pub struct RaftStore {
     inner_addr:Addr<InnerStore>,
 }
 
 
-impl AStore {
+impl RaftStore {
     pub fn new(id:u64,db:Arc<sled::Db>,config_addr: Addr<ConfigActor>) -> Self {
         let inner_addr = init_inner_store(InnerStore::new(id,db,config_addr));
         Self {
@@ -73,7 +73,7 @@ impl AStore {
 }
 
 #[async_trait]
-impl RaftStorage<ClientRequest, ClientResponse> for AStore{
+impl RaftStorage<ClientRequest, ClientResponse> for RaftStore {
     type Snapshot = Cursor<Vec<u8>>;
     type ShutdownError = ShutdownError;
 

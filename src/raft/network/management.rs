@@ -7,8 +7,8 @@ use actix_web::Responder;
 use async_raft::raft::ClientWriteRequest;
 
 use crate::common::appdata::AppShareData;
-use crate::raft::asyncraft::store::ClientRequest;
-use crate::raft::asyncraft::store::NodeId;
+use crate::raft::store::ClientRequest;
+use crate::raft::store::NodeId;
 use crate::raft::join_node;
 
 

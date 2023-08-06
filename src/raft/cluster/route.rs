@@ -2,14 +2,14 @@ use std::{sync::Arc, fmt::Debug};
 
 use actix::prelude::*;
 
-use crate::{config::core::{ConfigActor, ConfigAsyncCmd}, raft::{asyncraft::{store::store::AStore, network::factory::{RaftClusterRequestSender}}, NacosRaft}, grpc::{PayloadUtils}};
+use crate::{config::core::{ConfigActor, ConfigAsyncCmd}, raft::{{store::store::RaftStore, network::factory::{RaftClusterRequestSender}}, NacosRaft}, grpc::{PayloadUtils}};
 
 use super::model::{SetConfigReq, RouteAddr, RouterRequest, RouterResponse, DelConfigReq};
 
 
 #[derive(Clone)]
 pub struct RaftAddrRouter{
-    raft_store: Arc<AStore>,
+    raft_store: Arc<RaftStore>,
     raft: Arc<NacosRaft>,
     local_node_id: u64,
 }
@@ -22,7 +22,7 @@ impl Debug for RaftAddrRouter {
 
 impl RaftAddrRouter {
 
-    pub fn new(raft: Arc<NacosRaft>,raft_store: Arc<AStore>,local_node_id: u64) -> Self {
+    pub fn new(raft: Arc<NacosRaft>, raft_store: Arc<RaftStore>, local_node_id: u64) -> Self {
         Self {
             raft,
             raft_store,

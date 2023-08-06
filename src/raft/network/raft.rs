@@ -6,7 +6,7 @@ use actix_web::Responder;
 use async_raft::raft::{AppendEntriesRequest, InstallSnapshotRequest, VoteRequest};
 
 use crate::common::appdata::AppShareData;
-use crate::raft::asyncraft::store::ClientRequest;
+use crate::raft::store::ClientRequest;
 
 
 // --- Raft communication
