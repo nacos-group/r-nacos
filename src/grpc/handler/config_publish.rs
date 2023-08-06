@@ -3,18 +3,20 @@
 use std::sync::Arc;
 
 use crate::{
-    config::core::{ConfigActor, ConfigCmd, ConfigKey, ConfigResult, ConfigAsyncCmd},
+    common::appdata::AppShareData,
+    config::core::{ConfigActor, ConfigAsyncCmd, ConfigCmd, ConfigKey, ConfigResult},
     grpc::{
         api_model::{BaseResponse, ConfigPublishRequest},
         nacos_proto::Payload,
         PayloadHandler, PayloadUtils,
-    }, common::appdata::AppShareData, raft::cluster::model::SetConfigReq,
+    },
+    raft::cluster::model::SetConfigReq,
 };
 use actix::prelude::Addr;
 use async_trait::async_trait;
 
 pub struct ConfigPublishRequestHandler {
-    app_data: Arc<AppShareData>, 
+    app_data: Arc<AppShareData>,
 }
 
 impl ConfigPublishRequestHandler {

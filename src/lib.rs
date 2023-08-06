@@ -5,8 +5,8 @@ pub mod console;
 pub mod grpc;
 pub mod naming;
 pub mod raft;
-pub mod utils;
 pub mod starter;
+pub mod utils;
 pub mod web_config;
 
 pub use inner_mem_cache::TimeoutSet;

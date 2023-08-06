@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{naming::core::NamingActor, common::appdata::AppShareData};
+use crate::{common::appdata::AppShareData, naming::core::NamingActor};
 
 use self::{
     config_change_batch_listen::ConfigChangeBatchListenRequestHandler,
@@ -15,11 +15,11 @@ use super::{
     nacos_proto::Payload,
     PayloadHandler, PayloadUtils, RequestMeta,
 };
-use actix::Addr;
-use async_trait::async_trait;
 use crate::grpc::handler::raft_append::RaftAppendRequestHandler;
 use crate::grpc::handler::raft_snapshot::RaftSnapshotRequestHandler;
 use crate::grpc::handler::raft_vote::RaftVoteRequestHandler;
+use actix::Addr;
+use async_trait::async_trait;
 
 pub mod config_change_batch_listen;
 pub mod config_publish;
@@ -32,9 +32,9 @@ pub mod naming_instance;
 pub mod naming_service_query;
 pub mod naming_subscribe_service;
 pub mod raft_append;
-mod raft_vote;
-mod raft_snapshot;
 pub mod raft_route;
+mod raft_snapshot;
+mod raft_vote;
 
 pub(crate) const SERVER_CHECK_REQUEST: &str = "ServerCheckRequest";
 pub(crate) const RAFT_APPEND_REQUEST: &str = "RaftAppendRequest";
@@ -77,15 +77,15 @@ impl InvokerHandler {
         None
     }
 
-    pub fn ignore_active_err(&self, t:&str) -> bool {
-        SERVER_CHECK_REQUEST.eq(t) 
+    pub fn ignore_active_err(&self, t: &str) -> bool {
+        SERVER_CHECK_REQUEST.eq(t)
             || RAFT_APPEND_REQUEST.eq(t)
             || RAFT_SNAPSHOT_REQUEST.eq(t)
             || RAFT_VOTE_REQUEST.eq(t)
             || RAFT_ROUTE_REQUEST.eq(t)
     }
 
-    pub fn add_raft_handler(&mut self,app_data: &Arc<AppShareData>) {
+    pub fn add_raft_handler(&mut self, app_data: &Arc<AppShareData>) {
         self.add_handler(
             RAFT_APPEND_REQUEST,
             Box::new(RaftAppendRequestHandler::new(app_data.clone())),
@@ -119,9 +119,7 @@ impl InvokerHandler {
         );
         self.add_handler(
             "ConfigBatchListenRequest",
-            Box::new(ConfigChangeBatchListenRequestHandler::new(
-                app_data.clone(),
-            )),
+            Box::new(ConfigChangeBatchListenRequestHandler::new(app_data.clone())),
         );
     }
 

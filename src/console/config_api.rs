@@ -11,7 +11,9 @@ use actix_multipart::Multipart;
 use actix_web::{http::header, web, Error, HttpRequest, HttpResponse, Responder};
 use zip::write::FileOptions;
 
-use crate::config::core::{ConfigActor, ConfigCmd, ConfigInfoDto, ConfigKey, ConfigResult, ConfigAsyncCmd};
+use crate::config::core::{
+    ConfigActor, ConfigAsyncCmd, ConfigCmd, ConfigInfoDto, ConfigKey, ConfigResult,
+};
 use crate::config::ConfigUtils;
 use crate::console::model::config_model::{
     OpsConfigOptQueryListResponse, OpsConfigQueryListRequest,

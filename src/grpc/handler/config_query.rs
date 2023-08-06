@@ -3,6 +3,7 @@
 use std::sync::Arc;
 
 use crate::{
+    common::appdata::AppShareData,
     config::core::{ConfigActor, ConfigCmd, ConfigKey, ConfigResult},
     grpc::{
         api_model::{
@@ -11,13 +12,13 @@ use crate::{
         },
         nacos_proto::Payload,
         PayloadHandler, PayloadUtils,
-    }, common::appdata::AppShareData,
+    },
 };
 use actix::prelude::Addr;
 use async_trait::async_trait;
 
 pub struct ConfigQueryRequestHandler {
-    app_data: Arc<AppShareData>, 
+    app_data: Arc<AppShareData>,
 }
 
 impl ConfigQueryRequestHandler {

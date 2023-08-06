@@ -28,7 +28,7 @@ pub async fn query_namespace_list(config_addr: web::Data<Addr<ConfigActor>>) -> 
 
 pub async fn add_namespace(
     param: web::Form<NamespaceInfo>,
-    app_data: web::Data<Arc<AppShareData>>
+    app_data: web::Data<Arc<AppShareData>>,
 ) -> impl Responder {
     match NamespaceUtils::add_namespace(&app_data, param.0).await {
         Ok(_) => {
@@ -50,7 +50,7 @@ pub async fn add_namespace(
 
 pub async fn update_namespace(
     param: web::Form<NamespaceInfo>,
-    app_data: web::Data<Arc<AppShareData>>
+    app_data: web::Data<Arc<AppShareData>>,
 ) -> impl Responder {
     match NamespaceUtils::update_namespace(&app_data, param.0).await {
         Ok(_) => {
@@ -72,7 +72,7 @@ pub async fn update_namespace(
 
 pub async fn remove_namespace(
     param: web::Form<NamespaceInfo>,
-    app_data: web::Data<Arc<AppShareData>>
+    app_data: web::Data<Arc<AppShareData>>,
 ) -> impl Responder {
     match NamespaceUtils::remove_namespace(&app_data, param.0.namespace_id).await {
         Ok(_) => {

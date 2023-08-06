@@ -8,15 +8,20 @@ use async_raft::raft::{AppendEntriesRequest, InstallSnapshotRequest, VoteRequest
 use crate::common::appdata::AppShareData;
 use crate::raft::store::ClientRequest;
 
-
 // --- Raft communication
 
-pub async fn vote(app: Data<Arc<AppShareData>>, req: Json<VoteRequest>) -> actix_web::Result<impl Responder> {
+pub async fn vote(
+    app: Data<Arc<AppShareData>>,
+    req: Json<VoteRequest>,
+) -> actix_web::Result<impl Responder> {
     let res = app.raft.vote(req.0).await.unwrap();
     Ok(Json(res))
 }
 
-pub async fn append(app: Data<Arc<AppShareData>>, req: Json<AppendEntriesRequest<ClientRequest>>) -> actix_web::Result<impl Responder> {
+pub async fn append(
+    app: Data<Arc<AppShareData>>,
+    req: Json<AppendEntriesRequest<ClientRequest>>,
+) -> actix_web::Result<impl Responder> {
     let res = app.raft.append_entries(req.0).await.unwrap();
     Ok(Json(res))
 }

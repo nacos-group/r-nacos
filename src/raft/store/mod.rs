@@ -1,14 +1,12 @@
-
-
-pub mod innerstore;
 pub mod core;
+pub mod innerstore;
 
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use async_raft::raft::MembershipConfig;
 use async_raft::AppData;
 use async_raft::AppDataResponse;
-use async_raft::raft::MembershipConfig;
 use prost::Message;
 use serde::Deserialize;
 use serde::Serialize;
@@ -18,23 +16,29 @@ pub type NodeId = u64;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum ClientRequest {
-    NodeAddr{id:u64,addr:Arc<String>},
-    ConfigSet { key: String, value: Arc<String> ,history_id: u64,history_table_id:Option<u64>},
-    ConfigRemove {key: String},
+    NodeAddr {
+        id: u64,
+        addr: Arc<String>,
+    },
+    ConfigSet {
+        key: String,
+        value: Arc<String>,
+        history_id: u64,
+        history_table_id: Option<u64>,
+    },
+    ConfigRemove {
+        key: String,
+    },
 }
 
-impl AppData for ClientRequest {
-
-}
+impl AppData for ClientRequest {}
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ClientResponse {
     pub value: Option<Arc<String>>,
 }
 
-impl AppDataResponse for ClientResponse {
-
-}
+impl AppDataResponse for ClientResponse {}
 
 #[derive(Clone, Debug, Error)]
 pub enum ShutdownError {
@@ -42,12 +46,10 @@ pub enum ShutdownError {
     UnsafeStorageError,
 }
 
-
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
 pub struct StateMachine {
     pub last_applied_log: u64,
 }
-
 
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
 pub struct RaftLog {
@@ -55,13 +57,13 @@ pub struct RaftLog {
     pub term: u64,
 }
 
-#[derive(Serialize, Deserialize, Debug,Clone,PartialEq,Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
 pub struct Membership {
     pub membership_config: Option<MembershipConfig>,
-    pub node_addr: HashMap<u64,Arc<String>>,
+    pub node_addr: HashMap<u64, Arc<String>>,
 }
 
-#[derive(Clone, PartialEq,Deserialize, Serialize)]
+#[derive(Clone, PartialEq, Deserialize, Serialize)]
 pub struct SnapshotMeta {
     pub term: u64,
     /// The snapshot entry's index.
@@ -82,12 +84,11 @@ pub struct SnapshotItem {
 
 #[derive(Clone, PartialEq, Message, Deserialize, Serialize)]
 pub struct SnapshotDataInfo {
-    #[prost(message,repeated, tag = "1")]
+    #[prost(message, repeated, tag = "1")]
     pub items: Vec<SnapshotItem>,
     #[prost(string, tag = "2")]
     pub snapshot_meta_json: String,
 }
-
 
 impl SnapshotDataInfo {
     pub(crate) fn build_snapshot_meta(&self) -> anyhow::Result<SnapshotMeta> {
@@ -96,12 +97,12 @@ impl SnapshotDataInfo {
     }
 
     pub fn to_bytes(&self) -> anyhow::Result<Vec<u8>> {
-        let mut data_bytes :Vec<u8>= Vec::new();
+        let mut data_bytes: Vec<u8> = Vec::new();
         self.encode(&mut data_bytes)?;
         Ok(data_bytes)
     }
 
-    pub fn from_bytes(buf:&[u8]) -> anyhow::Result<Self> {
+    pub fn from_bytes(buf: &[u8]) -> anyhow::Result<Self> {
         let s = SnapshotDataInfo::decode(buf)?;
         Ok(s)
     }

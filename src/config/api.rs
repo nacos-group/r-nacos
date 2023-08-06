@@ -1,6 +1,6 @@
 use super::core::{ConfigActor, ConfigCmd, ConfigKey, ConfigResult, ListenerItem, ListenerResult};
-use crate::raft::cluster::model::{SetConfigReq, DelConfigReq};
 use crate::common::appdata::AppShareData;
+use crate::raft::cluster::model::{DelConfigReq, SetConfigReq};
 use crate::utils::select_option_by_clone;
 use chrono::Local;
 use std::cmp::max;
@@ -77,14 +77,12 @@ async fn add_config(
         Ok(p) => {
             let req = SetConfigReq::new(
                 ConfigKey::new(&p.data_id, &p.group, &p.tenant),
-                Arc::new(p.content.to_owned())
+                Arc::new(p.content.to_owned()),
             );
             match appdata.config_route.set_config(req).await {
-                Ok(_) => {
-                    HttpResponse::Ok()
-                        .content_type("text/html; charset=utf-8")
-                        .body("true")
-                },
+                Ok(_) => HttpResponse::Ok()
+                    .content_type("text/html; charset=utf-8")
+                    .body("true"),
                 Err(err) => HttpResponse::InternalServerError().body(err.to_string()),
             }
         }
@@ -100,15 +98,11 @@ async fn del_config(
     let param = a.select_option(&b).to_confirmed_param();
     match param {
         Ok(p) => {
-            let req = DelConfigReq::new(
-                ConfigKey::new(&p.data_id, &p.group, &p.tenant)
-            );
+            let req = DelConfigReq::new(ConfigKey::new(&p.data_id, &p.group, &p.tenant));
             match appdata.config_route.del_config(req).await {
-                Ok(_) => {
-                    HttpResponse::Ok()
-                        .content_type("text/html; charset=utf-8")
-                        .body("true")
-                },
+                Ok(_) => HttpResponse::Ok()
+                    .content_type("text/html; charset=utf-8")
+                    .body("true"),
                 Err(err) => HttpResponse::InternalServerError().body(err.to_string()),
             }
         }

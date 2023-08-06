@@ -1,30 +1,32 @@
-
-use std::sync::Arc;
+use async_raft::raft::{
+    AppendEntriesRequest, AppendEntriesResponse, InstallSnapshotRequest, InstallSnapshotResponse,
+    VoteRequest, VoteResponse,
+};
 use async_raft::{NodeId, RaftNetwork};
-use async_raft::raft::{AppendEntriesRequest, AppendEntriesResponse, InstallSnapshotRequest, InstallSnapshotResponse, VoteRequest, VoteResponse};
 use async_trait::async_trait;
+use std::sync::Arc;
 
-use crate::grpc::PayloadUtils;
 use crate::grpc::nacos_proto::Payload;
-use crate::raft::store::ClientRequest;
+use crate::grpc::PayloadUtils;
 use crate::raft::store::core::RaftStore;
+use crate::raft::store::ClientRequest;
 
-use super::factory::{RaftClusterRequestSender};
+use super::factory::RaftClusterRequestSender;
 
 pub struct RaftRouter {
     store: Arc<RaftStore>, //get target addr
-    cluster_sender:Arc<RaftClusterRequestSender>,
+    cluster_sender: Arc<RaftClusterRequestSender>,
 }
 
 impl RaftRouter {
-    pub fn new(store: Arc<RaftStore>, cluster_sender:Arc<RaftClusterRequestSender>) -> Self{
+    pub fn new(store: Arc<RaftStore>, cluster_sender: Arc<RaftClusterRequestSender>) -> Self {
         Self {
             store,
             cluster_sender,
         }
     }
 
-    async fn send_request(&self,target:u64,payload:Payload) -> anyhow::Result<Payload> {
+    async fn send_request(&self, target: u64, payload: Payload) -> anyhow::Result<Payload> {
         let addr = self.store.get_target_addr(target).await?;
         self.cluster_sender.send_request(addr, payload).await
     }
@@ -32,19 +34,27 @@ impl RaftRouter {
 
 #[async_trait]
 impl RaftNetwork<ClientRequest> for RaftRouter {
-    async fn append_entries(&self, target: NodeId, req: AppendEntriesRequest<ClientRequest>) -> anyhow::Result<AppendEntriesResponse> {
+    async fn append_entries(
+        &self,
+        target: NodeId,
+        req: AppendEntriesRequest<ClientRequest>,
+    ) -> anyhow::Result<AppendEntriesResponse> {
         let request = serde_json::to_string(&req).unwrap_or_default();
         let payload = PayloadUtils::build_payload("RaftAppendRequest", request);
-        let resp_payload = self.send_request(target,payload).await?;
+        let resp_payload = self.send_request(target, payload).await?;
         let body_vec = resp_payload.body.unwrap_or_default().value;
         let res: AppendEntriesResponse = serde_json::from_slice(&body_vec)?;
         Ok(res)
     }
 
-    async fn install_snapshot(&self, target: NodeId, req: InstallSnapshotRequest) -> anyhow::Result<InstallSnapshotResponse> {
+    async fn install_snapshot(
+        &self,
+        target: NodeId,
+        req: InstallSnapshotRequest,
+    ) -> anyhow::Result<InstallSnapshotResponse> {
         let request = serde_json::to_string(&req).unwrap_or_default();
         let payload = PayloadUtils::build_payload("RaftSnapshotRequest", request);
-        let resp_payload = self.send_request(target,payload).await?;
+        let resp_payload = self.send_request(target, payload).await?;
         let body_vec = resp_payload.body.unwrap_or_default().value;
         let res: InstallSnapshotResponse = serde_json::from_slice(&body_vec)?;
         Ok(res)
@@ -53,7 +63,7 @@ impl RaftNetwork<ClientRequest> for RaftRouter {
     async fn vote(&self, target: NodeId, req: VoteRequest) -> anyhow::Result<VoteResponse> {
         let request = serde_json::to_string(&req).unwrap_or_default();
         let payload = PayloadUtils::build_payload("RaftVoteRequest", request);
-        let resp_payload = self.send_request(target,payload).await?;
+        let resp_payload = self.send_request(target, payload).await?;
         let body_vec = resp_payload.body.unwrap_or_default().value;
         let res: VoteResponse = serde_json::from_slice(&body_vec)?;
         Ok(res)

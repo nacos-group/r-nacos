@@ -3,6 +3,7 @@
 use std::sync::Arc;
 
 use crate::{
+    common::appdata::AppShareData,
     config::core::{ConfigActor, ConfigCmd, ConfigKey, ConfigResult, ListenerItem},
     grpc::{
         api_model::{
@@ -12,13 +13,13 @@ use crate::{
         },
         nacos_proto::Payload,
         PayloadHandler, PayloadUtils,
-    }, common::appdata::AppShareData,
+    },
 };
 use actix::prelude::Addr;
 use async_trait::async_trait;
 
 pub struct ConfigChangeBatchListenRequestHandler {
-    app_data: Arc<AppShareData>, 
+    app_data: Arc<AppShareData>,
 }
 
 impl ConfigChangeBatchListenRequestHandler {

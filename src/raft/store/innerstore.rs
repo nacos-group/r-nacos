@@ -1,5 +1,5 @@
 #![allow(clippy::boxed_local)]
-use std::collections::{BTreeMap};
+use std::collections::BTreeMap;
 
 use crate::common::byte_utils::{bin_to_id, id_to_bin};
 use crate::common::sled_utils::TABLE_SEQUENCE_TREE_NAME;

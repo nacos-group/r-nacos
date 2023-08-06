@@ -6,7 +6,11 @@ pub mod naming_api;
 
 use std::sync::Arc;
 
-use crate::{config::core::{ConfigActor, ConfigCmd, ConfigKey, ConfigResult}, raft::cluster::model::{SetConfigReq}, common::appdata::AppShareData};
+use crate::{
+    common::appdata::AppShareData,
+    config::core::{ConfigActor, ConfigCmd, ConfigKey, ConfigResult},
+    raft::cluster::model::SetConfigReq,
+};
 use actix::prelude::*;
 
 use self::model::NamespaceInfo;
@@ -97,9 +101,7 @@ impl NamespaceUtils {
             Arc::new(value_str),
         );
         match app_data.config_route.set_config(req).await {
-            Ok(_) => {
-                Ok(())
-            }
+            Ok(_) => Ok(()),
             Err(err) => Err(anyhow::anyhow!(err)),
         }
     }

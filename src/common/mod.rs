@@ -80,8 +80,7 @@ impl AppSysConfig {
             .unwrap_or("".to_owned())
             .parse()
             .unwrap_or(raft_node_id == 1);
-        let raft_join_addr =
-            std::env::var("RNACOS_RAFT_JOIN_ADDR").unwrap_or_default();
+        let raft_join_addr = std::env::var("RNACOS_RAFT_JOIN_ADDR").unwrap_or_default();
         Self {
             config_db_dir,
             config_db_file,
