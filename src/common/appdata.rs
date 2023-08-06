@@ -1,4 +1,4 @@
-use crate::cluster::route::ConfigRoute;
+use crate::raft::cluster::route::ConfigRoute;
 use crate::common::AppSysConfig;
 use crate::config::core::ConfigActor;
 use crate::grpc::bistream_manage::BiStreamManage;

@@ -8,7 +8,7 @@ use crate::{
         api_model::{BaseResponse, ConfigPublishRequest, ConfigRemoveRequest},
         nacos_proto::Payload,
         PayloadHandler, PayloadUtils,
-    }, common::appdata::AppShareData, cluster::route::DelConfigReq,
+    }, common::appdata::AppShareData, raft::cluster::route::DelConfigReq,
 };
 use actix::prelude::Addr;
 use async_trait::async_trait;

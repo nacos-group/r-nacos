@@ -7,7 +7,6 @@ pub mod naming;
 pub mod raft;
 pub mod utils;
 pub mod web_config;
-pub mod cluster;
 
 pub use inner_mem_cache::TimeoutSet;
 

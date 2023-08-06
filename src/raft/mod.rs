@@ -12,6 +12,7 @@ use self::asyncraft::network::network::RaftRouter;
 pub mod network;
 pub mod store;
 pub mod asyncraft;
+pub mod cluster;
 //pub type NacosRaft = Raft<TypeConfig, GrpcNetworkFactory, Arc<Store>>;
 //pub type NacosRaft = Raft<TypeConfig, HttpNetworkFactory, Arc<Store>>;
 pub type NacosRaft = Raft<ClientRequest, ClientResponse, RaftRouter, AStore>;
