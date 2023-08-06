@@ -6,7 +6,9 @@ use actix::Actor;
 use actix_web::{web::Data, App};
 use async_raft::raft::ClientWriteRequest;
 use async_raft::{Config, Raft, RaftStorage};
+use rnacos::grpc::PayloadUtils;
 use rnacos::raft::asyncraft::network::factory::{RaftConnectionFactory, RaftClusterRequestSender};
+use rnacos::raft::cluster::model::RouterRequest;
 use rnacos::raft::cluster::route::{RaftAddrRouter, ConfigRoute};
 use rnacos::common::AppSysConfig;
 use rnacos::config::core::{ConfigActor, ConfigCmd};
@@ -152,16 +154,13 @@ async fn build_raft(sys_config: &Arc<AppSysConfig>,store:Arc<AStore>,cluster_sen
         .election_timeout_max(3000) 
         .validate().unwrap();
     let config = Arc::new(config);
-    let network = Arc::new(RaftRouter::new(store.clone(),cluster_sender));
+    let network = Arc::new(RaftRouter::new(store.clone(),cluster_sender.clone()));
     let raft = Arc::new(Raft::new(sys_config.raft_node_id.to_owned(),config.clone(),network,store.clone()));
     if sys_config.raft_auto_init {
-        let raft_p=raft.clone();
-        let sys_config = sys_config.clone();
-        tokio::spawn(auto_init_raft(store, raft_p,sys_config));
+        tokio::spawn(auto_init_raft(store, raft.clone(),sys_config.clone()));
     }
     else if !sys_config.raft_join_addr.is_empty() {
-        let sys_config = sys_config.clone();
-        tokio::spawn(auto_join_raft(store,sys_config));
+        tokio::spawn(auto_join_raft(store,sys_config.clone(),cluster_sender));
     }
     Ok(raft)
 }
@@ -169,7 +168,7 @@ async fn build_raft(sys_config: &Arc<AppSysConfig>,store:Arc<AStore>,cluster_sen
 async fn auto_init_raft(store:Arc<AStore>,raft:Arc<NacosRaft>,sys_config: Arc<AppSysConfig>) -> anyhow::Result<()> {
     let state = store.get_initial_state().await?;
     if state.last_log_term==0 && state.last_log_index==0 {
-        log::info!("auto init raft . node_id:{},addr:{}",&sys_config.raft_node_id,&sys_config.raft_node_addr);
+        log::info!("auto init raft. node_id:{},addr:{}",&sys_config.raft_node_id,&sys_config.raft_node_addr);
         let mut members = HashSet::new();
         members.insert(sys_config.raft_node_id.to_owned());
         raft.initialize(members).await.ok();
@@ -178,17 +177,15 @@ async fn auto_init_raft(store:Arc<AStore>,raft:Arc<NacosRaft>,sys_config: Arc<Ap
     Ok(())
 }
 
-async fn auto_join_raft(store:Arc<AStore>,sys_config: Arc<AppSysConfig>) -> anyhow::Result<()> {
+async fn auto_join_raft(store:Arc<AStore>,sys_config: Arc<AppSysConfig>,cluster_sender:Arc<RaftClusterRequestSender>) -> anyhow::Result<()> {
     let state = store.get_initial_state().await?;
     if state.last_log_term==0 && state.last_log_index==0 {
         //wait for self raft network started
         tokio::time::sleep(Duration::from_millis(500)).await;
-        let url = format!("http://{}/nacos/v1/raft/joinnode", &sys_config.raft_join_addr);
-        let req = (&sys_config.raft_node_id,&sys_config.raft_node_addr);
-        reqwest::Client::new().post(url)
-            .json(&req)
-            .send()
-            .await?;
+        let req = RouterRequest::JoinNode { node_id: sys_config.raft_node_id.to_owned(), node_addr: Arc::new(sys_config.raft_node_addr.to_owned())};
+        let request = serde_json::to_string(&req).unwrap_or_default();
+        let payload = PayloadUtils::build_payload("RaftRouteRequest", request);
+        cluster_sender.send_request(Arc::new(sys_config.raft_join_addr.to_owned()), payload).await?;
         log::info!("auto join raft,join_addr:{}.node_id:{},addr:{}",&sys_config.raft_join_addr,&sys_config.raft_node_id,&sys_config.raft_node_addr);
     }
     Ok(())
