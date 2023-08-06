@@ -4,7 +4,7 @@ use actix_web::{web::{Data, Json}, Responder};
 
 use crate::{common::appdata::AppShareData, config::core::{ConfigAsyncCmd, ConfigKey}};
 
-use super::route::{RouterRequest, RouterResponse};
+use super::model::{RouterRequest, RouterResponse};
 
 pub async fn route_request(app: Data<Arc<AppShareData>>,req: Json<RouterRequest>) -> impl Responder {
     match req.0 {

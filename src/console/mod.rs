@@ -7,7 +7,7 @@ mod raft_api;
 
 use std::sync::Arc;
 
-use crate::{config::core::{ConfigActor, ConfigCmd, ConfigKey, ConfigResult}, raft::cluster::route::{SetConfigReq}, common::appdata::AppShareData};
+use crate::{config::core::{ConfigActor, ConfigCmd, ConfigKey, ConfigResult}, raft::cluster::model::{SetConfigReq}, common::appdata::AppShareData};
 use actix::prelude::*;
 
 use self::model::NamespaceInfo;

@@ -1,6 +1,5 @@
-use super::core::ConfigAsyncCmd;
 use super::core::{ConfigActor, ConfigCmd, ConfigKey, ConfigResult, ListenerItem, ListenerResult};
-use crate::raft::cluster::route::{SetConfigReq, DelConfigReq};
+use crate::raft::cluster::model::{SetConfigReq, DelConfigReq};
 use crate::common::appdata::AppShareData;
 use crate::utils::select_option_by_clone;
 use chrono::Local;
