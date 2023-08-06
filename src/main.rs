@@ -21,7 +21,6 @@ use rnacos::naming::core::{NamingCmd, NamingResult};
 use rnacos::raft::asyncraft::network::network::RaftRouter;
 use rnacos::raft::asyncraft::store::ClientRequest;
 use rnacos::raft::asyncraft::store::store::AStore;
-use rnacos::raft::network::httpnetwork::HttpNetworkFactory;
 use rnacos::starter::build_share_data;
 use rnacos::{grpc::server::RequestServerImpl, naming::core::NamingActor};
 use sled::Db;
@@ -32,7 +31,6 @@ use tonic::transport::Server;
 use actix_web::{middleware, HttpServer};
 use rnacos::common::appdata::AppShareData;
 use rnacos::raft::NacosRaft;
-use rnacos::raft::network::GrpcNetworkFactory;
 use rnacos::web_config::app_config;
 use clap::Parser;
 
