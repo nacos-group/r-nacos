@@ -1,7 +1,11 @@
+use std::sync::Arc;
+
 use actix::prelude::*;
 use actix_web::{http::header, web, HttpResponse, Responder};
 
+use crate::common::appdata::AppShareData;
 use crate::config::core::ConfigActor;
+//use crate::console::raft_api::{raft_add_learner, raft_change_membership, raft_init, raft_metrics, raft_read, raft_write};
 
 use super::config_api::query_config_list;
 use super::{
@@ -24,9 +28,9 @@ pub async fn query_namespace_list(config_addr: web::Data<Addr<ConfigActor>>) -> 
 
 pub async fn add_namespace(
     param: web::Form<NamespaceInfo>,
-    config_addr: web::Data<Addr<ConfigActor>>,
+    app_data: web::Data<Arc<AppShareData>>,
 ) -> impl Responder {
-    match NamespaceUtils::add_namespace(&config_addr, param.0).await {
+    match NamespaceUtils::add_namespace(&app_data, param.0).await {
         Ok(_) => {
             let result = ConsoleResult::success(true);
             let v = serde_json::to_string(&result).unwrap();
@@ -46,9 +50,9 @@ pub async fn add_namespace(
 
 pub async fn update_namespace(
     param: web::Form<NamespaceInfo>,
-    config_addr: web::Data<Addr<ConfigActor>>,
+    app_data: web::Data<Arc<AppShareData>>,
 ) -> impl Responder {
-    match NamespaceUtils::update_namespace(&config_addr, param.0).await {
+    match NamespaceUtils::update_namespace(&app_data, param.0).await {
         Ok(_) => {
             let result = ConsoleResult::success(true);
             let v = serde_json::to_string(&result).unwrap();
@@ -68,9 +72,9 @@ pub async fn update_namespace(
 
 pub async fn remove_namespace(
     param: web::Form<NamespaceInfo>,
-    config_addr: web::Data<Addr<ConfigActor>>,
+    app_data: web::Data<Arc<AppShareData>>,
 ) -> impl Responder {
-    match NamespaceUtils::remove_namespace(&config_addr, param.0.namespace_id).await {
+    match NamespaceUtils::remove_namespace(&app_data, param.0.namespace_id).await {
         Ok(_) => {
             let result = ConsoleResult::success(true);
             let v = serde_json::to_string(&result).unwrap();

@@ -1,6 +1,6 @@
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
-use crate::common::sled_utils::TableSequence;
+use crate::common::{byte_utils::id_to_bin, cycle_queue::CycleQueue, sled_utils::TableSequence};
 
 use super::{
     core::{ConfigKey, ConfigValue},
@@ -59,7 +59,7 @@ impl Config {
         Ok(v)
     }
 
-    fn build_config_history_tree_name(config_key: &mut Vec<u8>) -> Vec<u8> {
+    pub fn build_config_history_tree_name(config_key: &mut Vec<u8>) -> Vec<u8> {
         let mut tree_name = CONFIG_HISTORY_TREE_NAME_PREFIX.as_bytes().to_vec();
         tree_name.append(config_key);
         tree_name
@@ -87,9 +87,23 @@ impl ConfigSerdeKey {
     }
 }
 
+#[derive(Debug)]
+pub struct ConfigHistoryIdInfo {
+    pub(crate) count: u64,
+    pub(crate) id_queue: CycleQueue<u64>,
+}
+
+impl ConfigHistoryIdInfo {
+    pub fn new(id_count: usize) -> Self {
+        let id_queue = CycleQueue::new(id_count);
+        Self { count: 0, id_queue }
+    }
+}
+
 pub struct ConfigDB {
     db: Arc<sled::Db>,
     config_history_seq: TableSequence,
+    config_history_id_map: HashMap<ConfigKey, ConfigHistoryIdInfo>,
 }
 
 const CONFIG_HISTORY_ID: &str = "config_history_id";
@@ -100,10 +114,33 @@ impl ConfigDB {
         Self {
             db,
             config_history_seq,
+            config_history_id_map: Default::default(),
         }
     }
 
+    pub fn init_seq(&mut self) {
+        self.config_history_seq =
+            TableSequence::new(self.db.clone(), CONFIG_HISTORY_ID.to_owned(), 100);
+    }
+
     pub fn update_config(&mut self, key: &ConfigKey, val: &ConfigValue) -> Result<()> {
+        self.do_update_config(key, val, None, None)
+    }
+
+    fn init_config_history_info(&mut self, key: &ConfigKey) {
+        if self.config_history_id_map.get(key).is_none() {
+            self.config_history_id_map
+                .insert(key.clone(), ConfigHistoryIdInfo::new(5));
+        }
+    }
+
+    fn do_update_config(
+        &mut self,
+        key: &ConfigKey,
+        val: &ConfigValue,
+        history_id: Option<u64>,
+        history_table_id: Option<u64>,
+    ) -> Result<()> {
         let mut config = Config {
             tenant: key.tenant.as_ref().to_owned(),
             group: key.group.as_ref().to_owned(),
@@ -122,14 +159,49 @@ impl ConfigDB {
         config_db.insert(config_key, config.to_bytes()?)?;
 
         // update config history id
-        let history_id = self.config_history_seq.next_id()?;
+        let history_id = if let Some(v) = history_id {
+            v
+        } else {
+            self.config_history_seq.next_id().unwrap()
+        };
+        if let Some(history_table_id) = history_table_id {
+            //self.config_history_seq
+            self.config_history_seq
+                .set_table_last_id(history_table_id)
+                .ok();
+        }
         config.id = Some(history_id as i64);
-
         //insert history
         let history_db = self.db.open_tree(config_history_tree_name)?;
         let his_key = config.get_config_history_key()?;
         history_db.insert(his_key, config.to_bytes()?)?;
+
+        //remove limit history
+        self.init_config_history_info(key);
+        let history_id_info = self.config_history_id_map.get_mut(key).unwrap();
+        history_id_info.count += 1;
+        //20个计数一次,超过5次(100个)后，删除最早的数据
+        if history_id_info.count % 20 == 0 {
+            if let Some(limit_id) = history_id_info.id_queue.pushback(history_id) {
+                self.delete_hisotry_since(history_db, limit_id).ok();
+            }
+        }
+
         Ok(())
+    }
+
+    pub fn next_history_id_state(&mut self) -> Result<(u64, Option<u64>)> {
+        self.config_history_seq.next_state()
+    }
+
+    pub fn update_config_with_history_id(
+        &mut self,
+        key: &ConfigKey,
+        val: &ConfigValue,
+        history_id: u64,
+        history_table_id: Option<u64>,
+    ) -> anyhow::Result<()> {
+        self.do_update_config(key, val, Some(history_id), history_table_id)
     }
 
     pub fn del_config(&mut self, key: &ConfigKey) -> Result<()> {
@@ -145,6 +217,7 @@ impl ConfigDB {
         let config_db = self.db.open_tree("config").unwrap();
         if let Ok(Some(_)) = config_db.remove(config_key) {
             self.db.drop_tree(config_history_tree_name)?;
+            self.config_history_id_map.remove(key);
         }
         Ok(())
     }
@@ -195,6 +268,20 @@ impl ConfigDB {
             }
         }
         Ok((0, vec![]))
+    }
+
+    fn delete_hisotry_since(&self, history_db: sled::Tree, last_id: u64) -> anyhow::Result<()> {
+        let from = id_to_bin(0);
+        let to = id_to_bin(last_id);
+        let entries = history_db.range::<&[u8], _>(from.as_slice()..to.as_slice());
+        let mut batch_del = sled::Batch::default();
+        for entry_res in entries {
+            let entry = entry_res.expect("Read db entry failed");
+            batch_del.remove(entry.0);
+        }
+        history_db.apply_batch(batch_del)?;
+        history_db.flush()?;
+        Ok(())
     }
 }
 

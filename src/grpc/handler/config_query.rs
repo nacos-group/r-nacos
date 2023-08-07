@@ -1,6 +1,9 @@
 #![allow(unused_imports)]
 
+use std::sync::Arc;
+
 use crate::{
+    common::appdata::AppShareData,
     config::core::{ConfigActor, ConfigCmd, ConfigKey, ConfigResult},
     grpc::{
         api_model::{
@@ -15,12 +18,12 @@ use actix::prelude::Addr;
 use async_trait::async_trait;
 
 pub struct ConfigQueryRequestHandler {
-    config_addr: Addr<ConfigActor>,
+    app_data: Arc<AppShareData>,
 }
 
 impl ConfigQueryRequestHandler {
-    pub fn new(config_addr: Addr<ConfigActor>) -> Self {
-        Self { config_addr }
+    pub fn new(app_data: Arc<AppShareData>) -> Self {
+        Self { app_data }
     }
 }
 
@@ -42,7 +45,7 @@ impl PayloadHandler for ConfigQueryRequestHandler {
             request_id: request.request_id,
             ..Default::default()
         };
-        match self.config_addr.send(cmd).await {
+        match self.app_data.config_addr.send(cmd).await {
             Ok(res) => {
                 //let res:ConfigResult = res.unwrap();
                 let r: ConfigResult = res.unwrap();

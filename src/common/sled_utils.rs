@@ -63,7 +63,7 @@ fn compare_generate_batch_id(
     Ok(last_id)
 }
 
-const TABLE_SEQUENCE_TREE_NAME: &str = "table_sequence";
+pub(crate) const TABLE_SEQUENCE_TREE_NAME: &str = "table_sequence";
 
 ///
 /// 通用的sled表id sequence
@@ -101,6 +101,26 @@ impl TableSequence {
         self.cache_size -= 1;
         self.last_id += 1;
         Ok(self.last_id)
+    }
+
+    pub(crate) fn set_table_last_id(&mut self, id: u64) -> anyhow::Result<()> {
+        if (self.last_id + self.batch_size) < id {
+            save_table_last_id(&self.db, &self.table_seq_key, id)?;
+        }
+        Ok(())
+    }
+
+    pub fn next_state(&mut self) -> anyhow::Result<(u64, Option<u64>)> {
+        let mut update_table_id = None;
+        if self.cache_size == 0 {
+            let cache_last_id = self.last_id + self.batch_size;
+            update_table_id = Some(cache_last_id.to_owned());
+            save_table_last_id(&self.db, &self.table_seq_key, cache_last_id)?;
+            self.cache_size = self.batch_size;
+        }
+        self.cache_size -= 1;
+        self.last_id += 1;
+        Ok((self.last_id, update_table_id))
     }
 
     /// 一个表id支持用于多个对象,支持多线程；

@@ -4,6 +4,8 @@ config.db
 naming.db
 .idea
 *.DS_Store
+.vscode/
 
 nacos_db/
 .env
+cluster_example/

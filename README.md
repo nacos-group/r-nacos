@@ -35,6 +35,8 @@ rnacos兼容nacos client sdk用到的协议（包含1.x的http OpenApi，和2.x�
 
 ### 一、 安装运行 rnacos
 
+#### 1) 单机部署
+
 方式1：从 [github release](https://github.com/heqingpan/rnacos/releases) 下载对应系统的应用包，解压后即可运行。
 
 linux 或 mac 
@@ -96,6 +98,83 @@ RNACOS_HTTP_WORKERS: http工作线程数，默认是cpu核数
 RNACOS_CONFIG_DB_FILE=config.db
 RNACOS_HTTP_PORT=8848
 ```
+
+#### 2) 集群部署
+
+集群部署由多个节点组成，单个节点的部署方式和单机部署基本一样，只需要额外增加集群的配置信息。
+
+| 参数|内容描述|默认值|示例|
+|--|--|--|--|
+|RNACOS_RAFT_NODE_ID|节点id|1|1|
+|RNACOS_RAFT_NODE_ADDR|节点地址,Ip:GrpcPort|127.0.0.1:GrpcPort|127.0.0.1:9848|
+|RNACOS_RAFT_AUTO_INIT|是否当做主节点初始化,(只在每一次启动时生效)|节点1时默认为true\n节点非1时为false|true|
+|RNACOS_RAFT_JOIN_ADDR|是否当做节点加入对应的主节点,LeaderIp:GrpcPort(只在每一次启动时生效)|空|127.0.0.1:9848|
+
+
+##### 一个本地集群样例
+
+1. 配置3个节点的配置信息
+
+env01
+
+```
+#file:env01 , Initialize with the leader node role
+RNACOS_HTTP_PORT=8848
+RNACOS_RAFT_NODE_ADDR=127.0.0.1:9848
+RNACOS_CONFIG_DB_DIR=db01
+RNACOS_RAFT_NODE_ID=1
+RNACOS_RAFT_AUTO_INIT=true
+```
+
+
+env02:
+
+```
+#file:env02 , Initialize with the follower node role
+RNACOS_HTTP_PORT=8849
+RNACOS_RAFT_NODE_ADDR=127.0.0.1:9849
+RNACOS_CONFIG_DB_DIR=db02
+RNACOS_RAFT_NODE_ID=2
+RNACOS_RAFT_JOIN_ADDR=127.0.0.1:9848
+```
+
+env03:
+
+```
+#file:env03 , Initialize with the follower node role
+RNACOS_HTTP_PORT=8850
+RNACOS_RAFT_NODE_ADDR=127.0.0.1:9850
+RNACOS_CONFIG_DB_DIR=db03
+RNACOS_RAFT_NODE_ID=3
+RNACOS_RAFT_JOIN_ADDR=127.0.0.1:9848
+```
+
+
+2. 分别依次运行3个节点
+
+```sh
+nohup ./rnacos -e env01 > n01.log &
+sleep 1
+nohup ./rnacos -e env02 > n02.log &
+sleep 1
+nohup ./rnacos -e env03 > n03.log &
+sleep 1
+```
+
+可以查询集群的状态
+
+
+```sh
+curl "http://127.0.0.1:8848/nacos/v1/raft/metrics"
+curl "http://127.0.0.1:8849/nacos/v1/raft/metrics"
+curl "http://127.0.0.1:8850/nacos/v1/raft/metrics"
+```
+
+集群运行成功后，就可以开始提供集群服务（目前只支持配置中心，注册中心的集群功能计划开发中）。
+
+具体的运行细节可参考 [test_cluster.sh
+](https://github.com/heqingpan/rnacos/blob/master/test_cluster.sh)
+
 
 ### 二、运行nacos 应用
 

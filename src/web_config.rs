@@ -7,6 +7,7 @@ use crate::naming::api::app_config as ns_config;
 use crate::console::api::app_config as console_config;
 
 use crate::auth::mock_token;
+use crate::raft::network::raft_config;
 
 use mime_guess::from_path;
 use rnacos_web_dist_wrap::get_embedded_file;
@@ -46,6 +47,7 @@ pub fn app_config(config: &mut web::ServiceConfig) {
     config.service(web::resource("/nacos/v1/auth/login").route(web::post().to(mock_token)));
     cs_config(config);
     ns_config(config);
+    raft_config(config);
     console_config(config);
     console_web_config(config);
 }

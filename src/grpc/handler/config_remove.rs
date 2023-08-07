@@ -1,23 +1,27 @@
 #![allow(unused_imports)]
 
+use std::sync::Arc;
+
 use crate::{
-    config::core::{ConfigActor, ConfigCmd, ConfigKey, ConfigResult},
+    common::appdata::AppShareData,
+    config::core::{ConfigActor, ConfigAsyncCmd, ConfigCmd, ConfigKey, ConfigResult},
     grpc::{
         api_model::{BaseResponse, ConfigPublishRequest, ConfigRemoveRequest},
         nacos_proto::Payload,
         PayloadHandler, PayloadUtils,
     },
+    raft::cluster::model::DelConfigReq,
 };
 use actix::prelude::Addr;
 use async_trait::async_trait;
 
 pub struct ConfigRemoveRequestHandler {
-    config_addr: Addr<ConfigActor>,
+    app_data: Arc<AppShareData>,
 }
 
 impl ConfigRemoveRequestHandler {
-    pub fn new(config_addr: Addr<ConfigActor>) -> Self {
-        Self { config_addr }
+    pub fn new(app_data: Arc<AppShareData>) -> Self {
+        Self { app_data }
     }
 }
 
@@ -30,12 +34,12 @@ impl PayloadHandler for ConfigRemoveRequestHandler {
     ) -> anyhow::Result<Payload> {
         let body_vec = request_payload.body.unwrap_or_default().value;
         let request: ConfigRemoveRequest = serde_json::from_slice(&body_vec)?;
-        let cmd = ConfigCmd::DELETE(ConfigKey::new(
+        let req = DelConfigReq::new(ConfigKey::new(
             &request.data_id,
             &request.group,
             &request.tenant,
         ));
-        match self.config_addr.send(cmd).await {
+        match self.app_data.config_route.del_config(req).await {
             Ok(_res) => {
                 let mut response = BaseResponse::build_success_response();
                 response.request_id = request.request_id;

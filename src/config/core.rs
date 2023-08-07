@@ -1,11 +1,16 @@
+use async_raft::raft::ClientWriteRequest;
 use chrono::Local;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::sync::Arc;
+use std::sync::Weak;
 use std::time::Duration;
 
 use crate::grpc::bistream_manage::BiStreamManage;
+use crate::raft::store::ClientRequest;
+use crate::raft::NacosRaft;
+//use crate::raft::store::Request;
 use crate::utils::get_md5;
 use serde::{Deserialize, Serialize};
 
@@ -15,6 +20,7 @@ use super::config_sled::ConfigDB;
 use super::config_subscribe::Subscriber;
 use super::dal::ConfigHistoryParam;
 use crate::config::config_index::{ConfigQueryParam, TenantIndex};
+use crate::config::model::{ConfigRaftCmd, ConfigRaftResult};
 
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]
 pub struct ConfigKey {
@@ -45,6 +51,20 @@ impl ConfigKey {
             return format!("{}\x02{}", self.data_id, self.group);
         }
         format!("{}\x02{}\x02{}", self.data_id, self.group, self.tenant)
+    }
+}
+
+impl From<&str> for ConfigKey {
+    fn from(value: &str) -> Self {
+        let mut list = value.split('\x02');
+        let data_id = list.next();
+        let group = list.next();
+        let tenant = list.next();
+        ConfigKey::new(
+            data_id.unwrap_or(""),
+            group.unwrap_or(""),
+            tenant.unwrap_or(""),
+        )
     }
 }
 
@@ -267,6 +287,7 @@ pub struct ConfigActor {
     subscriber: Subscriber,
     tenant_index: TenantIndex,
     config_db: ConfigDB,
+    raft: Option<Weak<NacosRaft>>,
 }
 
 /*
@@ -285,9 +306,44 @@ impl ConfigActor {
             listener: ConfigListener::new(),
             tenant_index: TenantIndex::new(),
             config_db: ConfigDB::new(db),
+            raft: None,
         };
         s.load_config();
         s
+    }
+
+    fn set_config(
+        &mut self,
+        key: ConfigKey,
+        val: Arc<String>,
+        history_id: u64,
+        history_table_id: Option<u64>,
+    ) -> anyhow::Result<ConfigResult> {
+        let config_val = ConfigValue::new(val);
+        if let Some(v) = self.cache.get(&key) {
+            if v.md5 == config_val.md5 {
+                return Ok(ConfigResult::NULL);
+            }
+        }
+        //self.config_db.update_config(&key, &config_val).ok();
+        self.config_db
+            .update_config_with_history_id(&key, &config_val, history_id, history_table_id)
+            .ok();
+        self.cache.insert(key.clone(), config_val);
+        self.tenant_index.insert_config(key.clone());
+        self.listener.notify(key.clone());
+        self.subscriber.notify(key);
+        Ok(ConfigResult::NULL)
+    }
+
+    fn del_config(&mut self, key: ConfigKey) -> anyhow::Result<()> {
+        self.cache.remove(&key);
+        self.config_db.del_config(&key).ok();
+        self.tenant_index.remove_config(&key);
+        self.listener.notify(key.clone());
+        self.subscriber.notify(key.clone());
+        self.subscriber.remove_config_key(key);
+        Ok(())
     }
 
     fn load_config(&mut self) {
@@ -304,6 +360,20 @@ impl ConfigActor {
             self.tenant_index.insert_config(key.clone());
             self.cache.insert(key, val);
         }
+        self.config_db.init_seq();
+    }
+
+    async fn send_raft_request(
+        raft: &Option<Weak<NacosRaft>>,
+        req: ClientRequest,
+    ) -> anyhow::Result<()> {
+        if let Some(weak_raft) = raft {
+            if let Some(raft) = weak_raft.upgrade() {
+                //TODO换成feature,非wait的方式
+                raft.client_write(ClientWriteRequest::new(req)).await?;
+            }
+        }
+        Ok(())
     }
 
     pub fn get_config_info_page(&self, param: &ConfigQueryParam) -> (usize, Vec<ConfigInfoDto>) {
@@ -357,11 +427,11 @@ impl ConfigActor {
 }
 
 #[derive(Message)]
-#[rtype(result = "Result<ConfigResult, std::io::Error>")]
+#[rtype(result = "anyhow::Result<ConfigResult>")]
 pub enum ConfigCmd {
-    ADD(ConfigKey, Arc<String>),
+    //ADD(ConfigKey, Arc<String>),
+    //DELETE(ConfigKey),
     GET(ConfigKey),
-    DELETE(ConfigKey),
     QueryPageInfo(Box<ConfigQueryParam>),
     QueryHistoryPageInfo(Box<ConfigHistoryParam>),
     LISTENER(Vec<ListenerItem>, ListenerSenderType, i64),
@@ -369,6 +439,14 @@ pub enum ConfigCmd {
     Subscribe(Vec<ListenerItem>, Arc<String>),
     RemoveSubscribe(Vec<ListenerItem>, Arc<String>),
     RemoveSubscribeClient(Arc<String>),
+    SetRaft(Arc<NacosRaft>),
+}
+
+#[derive(Message)]
+#[rtype(result = "anyhow::Result<ConfigResult>")]
+pub enum ConfigAsyncCmd {
+    Add(ConfigKey, Arc<String>),
+    Delete(ConfigKey),
 }
 
 pub enum ConfigResult {
@@ -395,31 +473,10 @@ impl Supervised for ConfigActor {
 }
 
 impl Handler<ConfigCmd> for ConfigActor {
-    type Result = Result<ConfigResult, std::io::Error>;
+    type Result = anyhow::Result<ConfigResult>;
 
     fn handle(&mut self, msg: ConfigCmd, _ctx: &mut Context<Self>) -> Self::Result {
         match msg {
-            ConfigCmd::ADD(key, val) => {
-                let config_val = ConfigValue::new(val);
-                if let Some(v) = self.cache.get(&key) {
-                    if v.md5 == config_val.md5 {
-                        return Ok(ConfigResult::NULL);
-                    }
-                }
-                self.config_db.update_config(&key, &config_val).ok();
-                self.cache.insert(key.clone(), config_val);
-                self.tenant_index.insert_config(key.clone());
-                self.listener.notify(key.clone());
-                self.subscriber.notify(key);
-            }
-            ConfigCmd::DELETE(key) => {
-                self.cache.remove(&key);
-                self.config_db.del_config(&key).ok();
-                self.tenant_index.remove_config(&key);
-                self.listener.notify(key.clone());
-                self.subscriber.notify(key.clone());
-                self.subscriber.remove_config_key(key);
-            }
             ConfigCmd::GET(key) => {
                 if let Some(v) = self.cache.get(&key) {
                     return Ok(ConfigResult::DATA(v.content.clone(), v.md5.clone()));
@@ -477,7 +534,78 @@ impl Handler<ConfigCmd> for ConfigActor {
                 let (size, list) = self.get_history_info_page(query_param.as_ref());
                 return Ok(ConfigResult::ConfigHistoryInfoPage(size, list));
             }
+            ConfigCmd::SetRaft(raft) => {
+                self.raft = Some(Arc::downgrade(&raft));
+            }
         }
         Ok(ConfigResult::NULL)
+    }
+}
+
+impl Handler<ConfigAsyncCmd> for ConfigActor {
+    type Result = ResponseActFuture<Self, anyhow::Result<ConfigResult>>;
+
+    fn handle(&mut self, msg: ConfigAsyncCmd, _ctx: &mut Context<Self>) -> Self::Result {
+        let raft = self.raft.clone();
+        let history_info = if let ConfigAsyncCmd::Add(_, _) = &msg {
+            match self.config_db.next_history_id_state() {
+                Ok(v) => Some(v),
+                Err(_) => None,
+            }
+        } else {
+            None
+        };
+        let fut = async move {
+            match msg {
+                ConfigAsyncCmd::Add(key, value) => {
+                    if let Some((history_id, history_table_id)) = history_info {
+                        let req = ClientRequest::ConfigSet {
+                            key: key.build_key(),
+                            value,
+                            history_id,
+                            history_table_id,
+                        };
+                        Self::send_raft_request(&raft, req).await.ok();
+                    }
+                }
+                ConfigAsyncCmd::Delete(key) => {
+                    let req = ClientRequest::ConfigRemove {
+                        key: key.build_key(),
+                    };
+                    Self::send_raft_request(&raft, req).await.ok();
+                }
+            }
+            Ok(ConfigResult::NULL)
+        }
+        .into_actor(self)
+        .map(|r, _act, _ctx| r);
+        Box::pin(fut)
+    }
+}
+
+impl Handler<ConfigRaftCmd> for ConfigActor {
+    type Result = anyhow::Result<ConfigRaftResult>;
+
+    fn handle(&mut self, msg: ConfigRaftCmd, _ctx: &mut Self::Context) -> Self::Result {
+        match msg {
+            ConfigRaftCmd::ConfigAdd {
+                key,
+                value,
+                history_id,
+                history_table_id,
+            } => {
+                let config_key: ConfigKey = (&key as &str).into();
+                self.set_config(config_key, value, history_id, history_table_id)
+                    .ok();
+            }
+            ConfigRaftCmd::ConfigRemove { key } => {
+                let config_key: ConfigKey = (&key as &str).into();
+                self.del_config(config_key).ok();
+            }
+            ConfigRaftCmd::ApplySnaphot => {
+                self.load_config();
+            }
+        }
+        Ok(ConfigRaftResult::None)
     }
 }
