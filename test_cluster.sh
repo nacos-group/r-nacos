@@ -32,7 +32,9 @@ start_cluster() {
     echo "start node:1"
     local env_file="$test_dir/env_01"
     cat > $env_file <<EOF
+#file:env01
 RNACOS_HTTP_PORT=8848
+RNACOS_RAFT_NODE_ADDR=127.0.0.1:9848
 RNACOS_CONFIG_DB_DIR=cluster_example/db_01
 RNACOS_RAFT_NODE_ID=1
 RNACOS_RAFT_AUTO_INIT=true
@@ -44,6 +46,7 @@ EOF
     local env_file="$test_dir/env_02"
     cat > $env_file <<EOF
 RNACOS_HTTP_PORT=8849
+RNACOS_RAFT_NODE_ADDR=127.0.0.1:9849
 RNACOS_CONFIG_DB_DIR=cluster_example/db_02
 RNACOS_RAFT_NODE_ID=2
 RNACOS_RAFT_JOIN_ADDR=127.0.0.1:9848
@@ -55,6 +58,7 @@ EOF
     local env_file="$test_dir/env_03"
     cat > $env_file <<EOF
 RNACOS_HTTP_PORT=8850
+RNACOS_RAFT_NODE_ADDR=127.0.0.1:9850
 RNACOS_CONFIG_DB_DIR=cluster_example/db_03
 RNACOS_RAFT_NODE_ID=3
 RNACOS_RAFT_JOIN_ADDR=127.0.0.1:9848
