@@ -31,19 +31,34 @@ mkdir -p $test_dir
 start_cluster() {
     echo "start node:1"
     local env_file="$test_dir/env_01"
-    echo "RNACOS_HTTP_PORT=8848\nRNACOS_CONFIG_DB_DIR=$test_dir/db_01\nRNACOS_RAFT_NODE_ID=1" > $env_file 
+    cat > $env_file <<EOF
+RNACOS_HTTP_PORT=8848
+RNACOS_CONFIG_DB_DIR=cluster_example/db_01
+RNACOS_RAFT_NODE_ID=1
+RNACOS_RAFT_AUTO_INIT=true
+EOF
     nohup ./target/release/${app_name}  -e $env_file  > "$test_dir/node_01.log" &
     sleep 1
 
     echo "start node:2"
     local env_file="$test_dir/env_02"
-    echo "RNACOS_HTTP_PORT=8849\nRNACOS_CONFIG_DB_DIR=$test_dir/db_02\nRNACOS_RAFT_NODE_ID=2\nRNACOS_RAFT_JOIN_ADDR=127.0.0.1:9848" > $env_file
+    cat > $env_file <<EOF
+RNACOS_HTTP_PORT=8849
+RNACOS_CONFIG_DB_DIR=cluster_example/db_02
+RNACOS_RAFT_NODE_ID=2
+RNACOS_RAFT_JOIN_ADDR=127.0.0.1:9848
+EOF
     nohup ./target/release/${app_name}  -e $env_file  > "$test_dir/node_02.log" &
     sleep 1
 
     echo "start node:3"
     local env_file="$test_dir/env_03"
-    echo "RNACOS_HTTP_PORT=8850\nRNACOS_CONFIG_DB_DIR=$test_dir/db_03\nRNACOS_RAFT_NODE_ID=3\nRNACOS_RAFT_JOIN_ADDR=127.0.0.1:9848" > $env_file
+    cat > $env_file <<EOF
+RNACOS_HTTP_PORT=8850
+RNACOS_CONFIG_DB_DIR=cluster_example/db_03
+RNACOS_RAFT_NODE_ID=3
+RNACOS_RAFT_JOIN_ADDR=127.0.0.1:9848
+EOF
     nohup ./target/release/${app_name}  -e $env_file  > "$test_dir/node_03.log" &
     sleep 1
 }
