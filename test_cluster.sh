@@ -95,6 +95,8 @@ query_node_metrics
 
 restart_cluster() {
 
+    kill 
+
     echo "\nrestart cluster"
 
     sleep 1
@@ -142,12 +144,10 @@ restart_cluster() {
 
     query_node_metrics
 
-    kill
-
 }
 
-kill 
-
 restart_cluster
+
+kill
 
 echo "\n==== end ===="
