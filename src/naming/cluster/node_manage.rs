@@ -1,4 +1,4 @@
-use std::{sync::Arc, collections::{BTreeMap, HashSet}};
+use std::{sync::Arc, collections::{BTreeMap, HashSet, hash_map::DefaultHasher}, hash::{Hash, Hasher}};
 
 use actix::prelude::*;
 
@@ -23,6 +23,7 @@ impl Default for NodeStatus {
 pub struct ClusterNode{
     pub id: u64,
     pub index: u64,
+    pub is_local: bool,
     pub addr: Arc<String>,
     pub status: NodeStatus,
 }
@@ -59,6 +60,7 @@ impl InnerNodeManage {
                 let node = ClusterNode{
                     id: key,
                     index: 0,
+                    is_local: self.this_id==key,
                     addr,
                     status: NodeStatus::Valid,
                 };
@@ -87,6 +89,7 @@ impl InnerNodeManage {
         else{
             ClusterNode {
                 id: self.this_id,
+                is_local: true,
                 ..Default::default()
             }
         }
@@ -148,35 +151,48 @@ impl Handler<NodeManageRequest> for InnerNodeManage {
 
 
 pub struct NodeManage{
-    this_id: u64,
     inner_node_manage: Addr<InnerNodeManage>,
 
 }
 
 impl NodeManage {
-    pub fn new(this_id:u64,inner_node_manage: Addr<InnerNodeManage>) -> Self {
+    pub fn new(inner_node_manage: Addr<InnerNodeManage>) -> Self {
         Self {
-            this_id,
             inner_node_manage,
         }
     }
 
-    pub fn route_addr(&self,hash_value:u64) -> NamingRouteAddr {
-        todo!()
+    pub async fn route_addr(&self,v:&str) -> NamingRouteAddr {
+        let mut hasher = DefaultHasher::new();
+        v.hash(&mut hasher);
+        let hash_value:usize = hasher.finish() as usize;
+        let nodes = self.get_all_valid_nodes().await.unwrap_or_default();
+        if nodes.is_empty() {
+            NamingRouteAddr::Local(0)
+        }
+        else{
+            let index = hash_value%nodes.len();
+            let node = nodes.get(index).unwrap();
+            if node.is_local {
+                NamingRouteAddr::Local(index as u64)
+            }
+            else{
+                NamingRouteAddr::Remote(index as u64,node.addr.clone())
+            }
+        }
     }
 
-    pub fn get_this_node(&self) -> ClusterNode {
-        todo!()
+    pub async fn get_all_valid_nodes(&self) -> anyhow::Result<Vec<ClusterNode>> {
+        let resp:NodeManageResponse = self.inner_node_manage.send(NodeManageRequest::GetAllNodes).await??;
+        match resp {
+            NodeManageResponse::AllNodes(nodes) => Ok(nodes),
+            _ => {
+                Err(anyhow::anyhow!("get_all_valid_nodes error NodeManageResponse!"))
+            }
+        }
     }
-
-    pub fn get_all_nodes(&self) -> Vec<ClusterNode> {
-        todo!()
-    }
-
-    pub fn get_valid_nodes(&self) -> Vec<ClusterNode> {
-        todo!()
-    }
-    pub fn get_other_valid_nodes(&self) -> Vec<ClusterNode> {
-        todo!()
+    pub async fn get_other_valid_nodes(&self) -> anyhow::Result<Vec<ClusterNode>> {
+        Ok(self.get_all_valid_nodes().await?
+            .into_iter().filter(|e|!e.is_local).collect())
     }
 }
