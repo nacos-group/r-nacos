@@ -2,7 +2,7 @@ use std::{sync::Arc, collections::{BTreeMap, HashSet, hash_map::DefaultHasher}, 
 
 use actix::prelude::*;
 
-use super::NamingRouteAddr;
+use super::model::NamingRouteAddr;
 
 
 
@@ -150,6 +150,7 @@ impl Handler<NodeManageRequest> for InnerNodeManage {
 }
 
 
+#[derive(Debug)]
 pub struct NodeManage{
     inner_node_manage: Addr<InnerNodeManage>,
 
@@ -162,7 +163,7 @@ impl NodeManage {
         }
     }
 
-    pub async fn route_addr(&self,v:&str) -> NamingRouteAddr {
+    pub async fn route_addr<T:Hash>(&self,v:&T) -> NamingRouteAddr {
         let mut hasher = DefaultHasher::new();
         v.hash(&mut hasher);
         let hash_value:usize = hasher.finish() as usize;

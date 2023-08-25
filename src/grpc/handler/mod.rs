@@ -7,7 +7,7 @@ use self::{
     config_publish::ConfigPublishRequestHandler, config_query::ConfigQueryRequestHandler,
     config_remove::ConfigRemoveRequestHandler, naming_batch_instance::BatchInstanceRequestHandler,
     naming_instance::InstanceRequestHandler, naming_service_list::ServiceListRequestHandler, naming_service_query::ServiceQueryRequestHandler,
-    naming_subscribe_service::SubscribeServiceRequestHandler, raft_route::RaftRouteRequestHandler,
+    naming_subscribe_service::SubscribeServiceRequestHandler, raft_route::RaftRouteRequestHandler, naming_route::NamingRouteRequestHandler,
 };
 
 use super::{
@@ -32,6 +32,7 @@ pub mod naming_instance;
 pub mod naming_service_list;
 pub mod naming_service_query;
 pub mod naming_subscribe_service;
+pub mod naming_route;
 pub mod raft_append;
 pub mod raft_route;
 mod raft_snapshot;
@@ -42,6 +43,7 @@ pub(crate) const RAFT_APPEND_REQUEST: &str = "RaftAppendRequest";
 pub(crate) const RAFT_SNAPSHOT_REQUEST: &str = "RaftSnapshotRequest";
 pub(crate) const RAFT_VOTE_REQUEST: &str = "RaftVoteRequest";
 pub(crate) const RAFT_ROUTE_REQUEST: &str = "RaftRouteRequest";
+pub(crate) const NAMING_ROUTE_REQUEST: &str = "NamingRouteRequest";
 
 #[derive(Default)]
 pub struct InvokerHandler {
@@ -84,6 +86,7 @@ impl InvokerHandler {
             || RAFT_SNAPSHOT_REQUEST.eq(t)
             || RAFT_VOTE_REQUEST.eq(t)
             || RAFT_ROUTE_REQUEST.eq(t)
+            || NAMING_ROUTE_REQUEST.eq(t)
     }
 
     pub fn add_raft_handler(&mut self, app_data: &Arc<AppShareData>) {
@@ -102,6 +105,10 @@ impl InvokerHandler {
         self.add_handler(
             RAFT_ROUTE_REQUEST,
             Box::new(RaftRouteRequestHandler::new(app_data.clone())),
+        );
+        self.add_handler(
+            NAMING_ROUTE_REQUEST,
+            Box::new(NamingRouteRequestHandler::new(app_data.clone())),
         );
     }
 

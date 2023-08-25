@@ -3,9 +3,19 @@
 
 use std::sync::Arc;
 
-pub mod node_manage;
+use crate::common::appdata::AppShareData;
 
-pub enum NamingRouteAddr {
-    Local(u64),
-    Remote(u64,Arc<String>),
+use self::model::{NamingRouterRequest, NamingRouterResponse};
+
+pub mod node_manage;
+pub mod route;
+pub mod model;
+
+
+pub async fn handle_naming_route(
+    app: &Arc<AppShareData>,
+    req: NamingRouterRequest,
+) -> anyhow::Result<NamingRouterResponse> {
+    todo!()
 }
+
