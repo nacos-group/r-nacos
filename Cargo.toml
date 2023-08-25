@@ -1,6 +1,6 @@
 [package]
 name = "rnacos"
-version = "0.2.1-beta.2"
+version = "0.2.1"
 authors = ["heqingpan <heqingpan@126.com>"]
 edition = "2018"
 license = "MIT/Apache-2.0"
