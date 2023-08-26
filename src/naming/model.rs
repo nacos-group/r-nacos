@@ -23,6 +23,7 @@ pub struct Instance {
     pub namespace_id: Arc<String>,
     pub app_name: String,
     pub from_grpc: bool,
+    pub from_cluster: bool,
     pub client_id: Arc<String>,
 }
 
@@ -110,6 +111,7 @@ impl Default for Instance {
             namespace_id: Default::default(),
             app_name: Default::default(),
             from_grpc: false,
+            from_cluster: false,
             client_id: Default::default(),
         }
     }

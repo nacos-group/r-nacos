@@ -81,6 +81,7 @@ impl BatchInstanceRequestHandler {
                     namespace_id: namesapce_id.clone(),
                     app_name: "".to_owned(),
                     from_grpc: true,
+                    from_cluster: false,
                     client_id: client_id.clone(),
                 };
                 instance.generate_key();
