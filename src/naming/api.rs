@@ -1,4 +1,6 @@
 #![allow(unused_imports, unused_assignments, unused_variables)]
+use crate::common::appdata::AppShareData;
+
 use super::super::utils::{get_bool_from_string, select_option_by_clone};
 use super::api_model::{InstanceVO, QueryListResult, ServiceInfoParam};
 use super::core::{NamingActor, NamingCmd, NamingResult};
@@ -341,7 +343,7 @@ pub async fn get_instance_list(
 pub async fn add_instance(
     a: web::Query<InstanceWebParams>,
     b: web::Form<InstanceWebParams>,
-    naming_addr: web::Data<Addr<NamingActor>>,
+    appdata: web::Data<Arc<AppShareData>>,
 ) -> impl Responder {
     let param = a.select_option(&b);
     let update_tag = InstanceUpdateTag {
@@ -363,8 +365,12 @@ pub async fn add_instance(
             if !instance.check_vaild() {
                 HttpResponse::InternalServerError().body("instance check is invalid")
             } else {
-                let _ = naming_addr.send(NamingCmd::Update(instance, None)).await;
-                HttpResponse::Ok().body("ok")
+                match appdata.naming_route.update_instance(instance, None).await{
+                    Ok(_) => {
+                        HttpResponse::Ok().body("ok")
+                    },
+                    Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
+                }
             }
         }
         Err(e) => HttpResponse::InternalServerError().body(e),
@@ -374,7 +380,7 @@ pub async fn add_instance(
 pub async fn update_instance(
     a: web::Query<InstanceWebParams>,
     b: web::Form<InstanceWebParams>,
-    naming_addr: web::Data<Addr<NamingActor>>,
+    appdata: web::Data<Arc<AppShareData>>,
 ) -> impl Responder {
     let param = a.select_option(&b);
     let update_tag = InstanceUpdateTag {
@@ -403,10 +409,10 @@ pub async fn update_instance(
             if !instance.check_vaild() {
                 HttpResponse::InternalServerError().body("instance check is invalid")
             } else {
-                let _ = naming_addr
-                    .send(NamingCmd::Update(instance, Some(update_tag)))
-                    .await;
-                HttpResponse::Ok().body("ok")
+                match appdata.naming_route.update_instance(instance, Some(update_tag)).await {
+                    Ok(_) => HttpResponse::Ok().body("ok"),
+                    Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
+                }
             }
         }
         Err(e) => HttpResponse::InternalServerError().body(e),
@@ -416,7 +422,7 @@ pub async fn update_instance(
 pub async fn del_instance(
     a: web::Query<InstanceWebParams>,
     b: web::Form<InstanceWebParams>,
-    naming_addr: web::Data<Addr<NamingActor>>,
+    appdata: web::Data<Arc<AppShareData>>,
 ) -> impl Responder {
     let param = a.select_option(&b);
     let instance = param.convert_to_instance();
@@ -425,8 +431,10 @@ pub async fn del_instance(
             if !instance.check_vaild() {
                 HttpResponse::InternalServerError().body("instance check is invalid")
             } else {
-                let _ = naming_addr.send(NamingCmd::Delete(instance)).await;
-                HttpResponse::Ok().body("ok")
+                match appdata.naming_route.delete_instance(instance).await {
+                    Ok(_) => HttpResponse::Ok().body("ok"),
+                    Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
+                }
             }
         }
         Err(e) => HttpResponse::InternalServerError().body(e),
@@ -436,7 +444,7 @@ pub async fn del_instance(
 pub async fn beat_instance(
     a: web::Query<BeatRequest>,
     b: web::Form<BeatRequest>,
-    naming_addr: web::Data<Addr<NamingActor>>,
+    appdata: web::Data<Arc<AppShareData>>,
 ) -> impl Responder {
     let param = a.select_option(&b);
     let instance = param.convert_to_instance();
@@ -452,10 +460,10 @@ pub async fn beat_instance(
                     metadata: false,
                     from_update: false,
                 };
-                let _ = naming_addr
-                    .send(NamingCmd::Update(instance, Some(tag)))
-                    .await;
-                HttpResponse::Ok().body("ok")
+                match appdata.naming_route.update_instance(instance, Some(tag)).await {
+                    Ok(_) => HttpResponse::Ok().body("ok"),
+                    Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
+                }
             }
         }
         Err(e) => HttpResponse::InternalServerError().body(e),

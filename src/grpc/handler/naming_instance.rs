@@ -102,8 +102,8 @@ impl PayloadHandler for InstanceRequestHandler {
             }
         }
         let instance = Self::convert_to_instance(request, request_meta.connection_id)?;
-        let cmd = if is_de_register {
-            NamingCmd::Delete(instance)
+        let res= if is_de_register {
+            self.app_data.naming_route.delete_instance(instance).await
         } else {
             let update_tag = InstanceUpdateTag {
                 weight: instance.weight != 1.0f32,
@@ -112,14 +112,14 @@ impl PayloadHandler for InstanceRequestHandler {
                 ephemeral: false,
                 from_update: false,
             };
-            NamingCmd::Update(instance, Some(update_tag))
+            self.app_data.naming_route.update_instance(instance, Some(update_tag)).await
         };
         let mut response = InstanceResponse {
             request_id,
             ..Default::default()
         };
-        match self.app_data.naming_addr.send(cmd).await {
-            Ok(_res) => {
+        match res {
+            Ok(_) => {
                 //let res:ConfigResult = res.unwrap();
                 response.result_code = SUCCESS_CODE;
                 if is_de_register {

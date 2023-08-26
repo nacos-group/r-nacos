@@ -116,8 +116,8 @@ impl PayloadHandler for BatchInstanceRequestHandler {
             ..Default::default()
         };
         for instance in instances {
-            let cmd = if is_de_register {
-                NamingCmd::Delete(instance)
+            let res= if is_de_register {
+                self.app_data.naming_route.delete_instance(instance).await
             } else {
                 let update_tag = InstanceUpdateTag {
                     weight: instance.weight != 1.0f32,
@@ -126,10 +126,10 @@ impl PayloadHandler for BatchInstanceRequestHandler {
                     ephemeral: false,
                     from_update: false,
                 };
-                NamingCmd::Update(instance, Some(update_tag))
+                self.app_data.naming_route.update_instance(instance, Some(update_tag)).await
             };
-            match self.app_data.naming_addr.send(cmd).await {
-                Ok(_res) => {
+            match res {
+                Ok(_) => {
                     //let res:ConfigResult = res.unwrap();
                     response.result_code = SUCCESS_CODE;
                     if is_de_register {
