@@ -336,3 +336,31 @@ pub struct NotifySubscriberRequest {
 
     pub service_info: Option<ServiceInfo>,
 }
+
+#[derive(Debug, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct ServiceListRequest {
+    pub module: Option<String>,
+    pub request_id: Option<String>,
+    pub headers: HashMap<String, String>,
+
+    pub namespace: Option<String>,
+    pub service_name: Option<String>,
+    pub group_name: Option<String>,
+
+    pub page_no: u32,
+    pub page_size: u32,
+    pub selector: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct ServiceListResponse {
+    pub result_code: u16,
+    pub error_code: u16,
+    pub message: Option<String>,
+    pub request_id: Option<String>,
+
+    pub count: usize,
+    pub service_names: Option<Vec<Arc<String>>>,
+}
