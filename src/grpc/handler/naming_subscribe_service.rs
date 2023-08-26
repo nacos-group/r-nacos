@@ -17,7 +17,7 @@ use crate::{
         naming_subscriber::NamingListenerItem,
         NamingUtils,
     },
-    now_millis_i64,
+    now_millis_i64, common::appdata::AppShareData,
 };
 use actix::prelude::Addr;
 use async_trait::async_trait;
@@ -25,12 +25,12 @@ use async_trait::async_trait;
 use super::converter::ModelConverter;
 
 pub struct SubscribeServiceRequestHandler {
-    naming_addr: Addr<NamingActor>,
+    app_data: Arc<AppShareData>,
 }
 
 impl SubscribeServiceRequestHandler {
-    pub fn new(naming_addr: Addr<NamingActor>) -> Self {
-        Self { naming_addr }
+    pub fn new(app_data: Arc<AppShareData>) -> Self {
+        Self { app_data }
     }
 
     fn convert_to_service_info(&self, info: ServiceInfo) -> ApiServiceInfo {
@@ -90,9 +90,9 @@ impl PayloadHandler for SubscribeServiceRequestHandler {
             key.clone(),
             request_meta.connection_id.clone(),
         );
-        self.naming_addr.do_send(subscribe_cmd);
+        self.app_data.naming_addr.do_send(subscribe_cmd);
         let cmd = NamingCmd::QueryServiceInfo(key, cluster, true);
-        match self.naming_addr.send(cmd).await {
+        match self.app_data.naming_addr.send(cmd).await {
             Ok(res) => {
                 let result: NamingResult = res.unwrap();
                 match result {

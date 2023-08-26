@@ -18,7 +18,7 @@ use crate::{
         model::{Instance, InstanceUpdateTag},
         NamingUtils,
     },
-    now_millis_i64,
+    now_millis_i64, common::appdata::AppShareData,
 };
 use actix::prelude::Addr;
 use async_trait::async_trait;
@@ -28,12 +28,12 @@ const REGISTER_INSTANCE: &str = "registerInstance";
 const DE_REGISTER_INSTANCE: &str = "deregisterInstance";
 
 pub struct InstanceRequestHandler {
-    naming_addr: Addr<NamingActor>,
+    app_data: Arc<AppShareData>,
 }
 
 impl InstanceRequestHandler {
-    pub fn new(naming_addr: Addr<NamingActor>) -> Self {
-        Self { naming_addr }
+    pub fn new(app_data: Arc<AppShareData>) -> Self {
+        Self { app_data }
     }
 
     pub(crate) fn convert_to_instance(
@@ -118,7 +118,7 @@ impl PayloadHandler for InstanceRequestHandler {
             request_id,
             ..Default::default()
         };
-        match self.naming_addr.send(cmd).await {
+        match self.app_data.naming_addr.send(cmd).await {
             Ok(_res) => {
                 //let res:ConfigResult = res.unwrap();
                 response.result_code = SUCCESS_CODE;

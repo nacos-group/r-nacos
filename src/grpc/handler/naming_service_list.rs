@@ -1,5 +1,7 @@
 #![allow(unused_imports)]
 
+use std::sync::Arc;
+
 use actix::prelude::Addr;
 use async_trait::async_trait;
 
@@ -13,18 +15,18 @@ use crate::{
         core::{NamingActor, NamingCmd, NamingResult},
         model::ServiceKey,
         NamingUtils,
-    },
+    }, common::appdata::AppShareData,
 };
 
 use super::converter::ModelConverter;
 
 pub struct ServiceListRequestHandler {
-    naming_addr: Addr<NamingActor>,
+    app_data: Arc<AppShareData>,
 }
 
 impl ServiceListRequestHandler {
-    pub fn new(naming_addr: Addr<NamingActor>) -> Self {
-        Self { naming_addr }
+    pub fn new(app_data: Arc<AppShareData>) -> Self {
+        Self { app_data }
     }
 }
 
@@ -55,7 +57,7 @@ impl PayloadHandler for ServiceListRequestHandler {
         );
         let cmd =
             NamingCmd::QueryServicePage(key, request.page_size as usize, request.page_no as usize);
-        match self.naming_addr.send(cmd).await {
+        match self.app_data.naming_addr.send(cmd).await {
             Ok(res) => {
                 let result: NamingResult = res.unwrap();
                 match result {

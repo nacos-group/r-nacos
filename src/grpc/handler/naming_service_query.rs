@@ -1,5 +1,7 @@
 #![allow(unused_imports)]
 
+use std::sync::Arc;
+
 use crate::{
     grpc::{
         api_model::{
@@ -14,7 +16,7 @@ use crate::{
         model::{Instance, ServiceInfo, ServiceKey},
         NamingUtils,
     },
-    now_millis_i64,
+    now_millis_i64, common::appdata::AppShareData,
 };
 use actix::prelude::Addr;
 use async_trait::async_trait;
@@ -22,12 +24,12 @@ use async_trait::async_trait;
 use super::converter::ModelConverter;
 
 pub struct ServiceQueryRequestHandler {
-    naming_addr: Addr<NamingActor>,
+    app_data: Arc<AppShareData>,
 }
 
 impl ServiceQueryRequestHandler {
-    pub fn new(naming_addr: Addr<NamingActor>) -> Self {
-        Self { naming_addr }
+    pub fn new(app_data: Arc<AppShareData>) -> Self {
+        Self { app_data }
     }
 
     fn convert_to_service_info(&self, info: ServiceInfo) -> ApiServiceInfo {
@@ -66,7 +68,7 @@ impl PayloadHandler for ServiceQueryRequestHandler {
             &request.service_name.unwrap_or_default(),
         );
         let cmd = NamingCmd::QueryServiceInfo(key, cluster, true);
-        match self.naming_addr.send(cmd).await {
+        match self.app_data.naming_addr.send(cmd).await {
             Ok(res) => {
                 let result: NamingResult = res.unwrap();
                 match result {

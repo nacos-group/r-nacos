@@ -131,26 +131,26 @@ impl InvokerHandler {
         );
     }
 
-    pub fn add_naming_handler(&mut self, naming_addr: &Addr<NamingActor>) {
+    pub fn add_naming_handler(&mut self, app_data: &Arc<AppShareData>) {
         self.add_handler(
             "InstanceRequest",
-            Box::new(InstanceRequestHandler::new(naming_addr.clone())),
+            Box::new(InstanceRequestHandler::new(app_data.clone())),
         );
         self.add_handler(
             "BatchInstanceRequest",
-            Box::new(BatchInstanceRequestHandler::new(naming_addr.clone())),
+            Box::new(BatchInstanceRequestHandler::new(app_data.clone())),
         );
         self.add_handler(
             "SubscribeServiceRequest",
-            Box::new(SubscribeServiceRequestHandler::new(naming_addr.clone())),
+            Box::new(SubscribeServiceRequestHandler::new(app_data.clone())),
         );
         self.add_handler(
             "ServiceQueryRequest",
-            Box::new(ServiceQueryRequestHandler::new(naming_addr.clone())),
+            Box::new(ServiceQueryRequestHandler::new(app_data.clone())),
         );
         self.add_handler(
             "ServiceListRequest",
-            Box::new(ServiceListRequestHandler::new(naming_addr.clone())),
+            Box::new(ServiceListRequestHandler::new(app_data.clone())),
         );
     }
 }
