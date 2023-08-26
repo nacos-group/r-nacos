@@ -4,7 +4,7 @@ use crate::{
     common::{appdata::AppShareData, AppSysConfig},
     config::core::{ConfigActor, ConfigCmd},
     grpc::{bistream_manage::BiStreamManage, PayloadUtils},
-    naming::core::{NamingActor, NamingCmd},
+    naming::{core::{NamingActor, NamingCmd}, cluster::{node_manage::{NodeManage, InnerNodeManage}, route::NamingRoute}},
     raft::{
         cluster::{
             model::RouterRequest,
@@ -59,6 +59,10 @@ pub fn build_share_data(sys_config: Arc<AppSysConfig>) -> anyhow::Result<Arc<App
         cluster_sender.clone(),
     ));
 
+    let naming_inner_node_manage_addr = InnerNodeManage::new(sys_config.raft_node_id.to_owned()).start();
+    let naming_node_manage = Arc::new(NodeManage::new(naming_inner_node_manage_addr));
+    let naming_route = Arc::new(NamingRoute::new(naming_addr.clone(),naming_node_manage,cluster_sender.clone()));
+
     let mut bistream_manage = BiStreamManage::new();
     bistream_manage.set_config_addr(config_addr.clone());
     bistream_manage.set_naming_addr(naming_addr.clone());
@@ -75,6 +79,7 @@ pub fn build_share_data(sys_config: Arc<AppSysConfig>) -> anyhow::Result<Arc<App
         sys_config,
         config_route,
         cluster_sender,
+        naming_route,
     });
     Ok(app_data)
 }

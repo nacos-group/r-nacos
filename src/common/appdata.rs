@@ -1,6 +1,7 @@
 use crate::common::AppSysConfig;
 use crate::config::core::ConfigActor;
 use crate::grpc::bistream_manage::BiStreamManage;
+use crate::naming::cluster::route::NamingRoute;
 use crate::naming::core::NamingActor;
 use crate::raft::cluster::route::ConfigRoute;
 use crate::raft::network::factory::RaftClusterRequestSender;
@@ -18,4 +19,5 @@ pub struct AppShareData {
     pub sys_config: Arc<AppSysConfig>,
     pub config_route: Arc<ConfigRoute>,
     pub cluster_sender: Arc<RaftClusterRequestSender>,
+    pub naming_route: Arc<NamingRoute>,
 }

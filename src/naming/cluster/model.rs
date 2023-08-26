@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 
-use crate::naming::model::Instance;
+use crate::naming::model::{Instance, InstanceUpdateTag};
 
 #[derive(Clone, Debug)]
 pub enum NamingRouteAddr {
@@ -17,12 +17,23 @@ pub struct UpdateInstanceReq {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum NamingRouterRequest {
+    Ping(u64),
     UpdateInstance {
+        instance: Instance,
+        tag: Option<InstanceUpdateTag>,
+    },
+    RemoveInstance {
+        instance: Instance,
+    },
+    SyncUpdateInstance{
+        instance: Instance,
+    },
+    SyncRemoveInstance{
         instance: Instance,
     }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum NamingRouterResponse {
-    None
+    None,
 }

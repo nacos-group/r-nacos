@@ -153,7 +153,7 @@ impl ServiceDetailDto {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct InstanceUpdateTag {
     pub weight: bool,
     pub metadata: bool,
