@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{common::appdata::AppShareData, naming::cluster::{model::NamingRouterRequest, handle_naming_route}, grpc::{PayloadHandler, nacos_proto::Payload, RequestMeta, PayloadUtils}};
+use crate::{common::appdata::AppShareData, naming::cluster::{model::NamingRouteRequest, handle_naming_route}, grpc::{PayloadHandler, nacos_proto::Payload, RequestMeta, PayloadUtils}};
 use async_trait::async_trait;
 
 
@@ -23,7 +23,7 @@ impl PayloadHandler for NamingRouteRequestHandler {
         _request_meta: RequestMeta,
     ) -> anyhow::Result<Payload> {
         let body_vec = request_payload.body.unwrap_or_default().value;
-        let request: NamingRouterRequest = serde_json::from_slice(&body_vec)?;
+        let request: NamingRouteRequest = serde_json::from_slice(&body_vec)?;
         let res = handle_naming_route(&self.app_data, request).await?;
         let value = serde_json::to_string(&res)?;
         let payload = PayloadUtils::build_payload("NamingRouteResponse", value);

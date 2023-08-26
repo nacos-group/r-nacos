@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::{naming::{core::{NamingActor, NamingCmd, NamingResult}, model::{Instance, InstanceUpdateTag}}, raft::network::factory::RaftClusterRequestSender, grpc::PayloadUtils};
 
-use super::{node_manage::NodeManage, model::{NamingRouteAddr, NamingRouterRequest, NamingRouterResponse}};
+use super::{node_manage::NodeManage, model::{NamingRouteAddr, NamingRouteRequest, NamingRouterResponse}};
 
 use actix::prelude::*;
 
@@ -32,9 +32,9 @@ impl NamingRoute{
                 let _:NamingResult  = self.naming_addr.send(cmd).await??;
             },
             NamingRouteAddr::Remote(_, addr) => {
-                let req = NamingRouterRequest::UpdateInstance { instance, tag };
+                let req = NamingRouteRequest::UpdateInstance { instance, tag };
                 let request = serde_json::to_string(&req).unwrap_or_default();
-                let payload = PayloadUtils::build_payload("NamingRouterRequest", request);
+                let payload = PayloadUtils::build_payload("NamingRouteRequest", request);
                 let resp_payload = self.cluster_sender.send_request(addr, payload).await?;
                 let body_vec = resp_payload.body.unwrap_or_default().value;
                 let _: NamingRouterResponse = serde_json::from_slice(&body_vec)?;
@@ -51,9 +51,9 @@ impl NamingRoute{
                 let _:NamingResult  = self.naming_addr.send(cmd).await??;
             },
             NamingRouteAddr::Remote(_, addr) => {
-                let req = NamingRouterRequest::RemoveInstance { instance };
+                let req = NamingRouteRequest::RemoveInstance { instance };
                 let request = serde_json::to_string(&req).unwrap_or_default();
-                let payload = PayloadUtils::build_payload("NamingRouterRequest", request);
+                let payload = PayloadUtils::build_payload("NamingRouteRequest", request);
                 let resp_payload = self.cluster_sender.send_request(addr, payload).await?;
                 let body_vec = resp_payload.body.unwrap_or_default().value;
                 let _: NamingRouterResponse = serde_json::from_slice(&body_vec)?;

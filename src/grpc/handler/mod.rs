@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{common::appdata::AppShareData, naming::core::NamingActor};
+use crate::{common::appdata::AppShareData};
 
 use self::{
     config_change_batch_listen::ConfigChangeBatchListenRequestHandler,
@@ -18,7 +18,6 @@ use super::{
 use crate::grpc::handler::raft_append::RaftAppendRequestHandler;
 use crate::grpc::handler::raft_snapshot::RaftSnapshotRequestHandler;
 use crate::grpc::handler::raft_vote::RaftVoteRequestHandler;
-use actix::Addr;
 use async_trait::async_trait;
 
 pub mod config_change_batch_listen;

@@ -16,7 +16,7 @@ pub struct UpdateInstanceReq {
 
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum NamingRouterRequest {
+pub enum NamingRouteRequest {
     Ping(u64),
     UpdateInstance {
         instance: Instance,
