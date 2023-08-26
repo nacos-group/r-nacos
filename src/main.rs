@@ -56,7 +56,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let mut invoker = InvokerHandler::new();
     invoker.add_config_handler(&app_data);
-    invoker.add_naming_handler(&app_data.naming_addr);
+    invoker.add_naming_handler(&app_data);
     invoker.add_raft_handler(&app_data);
 
     let grpc_app_data = app_data.clone();
