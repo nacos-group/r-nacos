@@ -136,6 +136,7 @@ impl Handler<NodeManageRequest> for InnerNodeManage {
     fn handle(&mut self, msg: NodeManageRequest, _ctx: &mut Self::Context) -> Self::Result {
         match msg {
             NodeManageRequest::UpdateNodes(nodes) => {
+                log::info!("InnerNodeManage UpdateNodes,size:{}",nodes.len());
                 self.update_nodes(nodes);
                 Ok(NodeManageResponse::None)
             },

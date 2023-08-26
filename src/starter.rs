@@ -60,6 +60,7 @@ pub fn build_share_data(sys_config: Arc<AppSysConfig>) -> anyhow::Result<Arc<App
     ));
 
     let naming_inner_node_manage_addr = InnerNodeManage::new(sys_config.raft_node_id.to_owned()).start();
+    store.set_naming_manage_addr(naming_inner_node_manage_addr.clone());
     let naming_node_manage = Arc::new(NodeManage::new(naming_inner_node_manage_addr));
     let naming_route = Arc::new(NamingRoute::new(naming_addr.clone(),naming_node_manage,cluster_sender.clone()));
 

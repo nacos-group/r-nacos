@@ -2,6 +2,7 @@ use std::io::Cursor;
 use std::sync::Arc;
 
 use crate::config::core::ConfigActor;
+use crate::naming::cluster::node_manage::InnerNodeManage;
 
 use super::ClientRequest;
 use super::ClientResponse;
@@ -55,6 +56,10 @@ impl RaftStore {
             StoreResponse::TargetAddr(Some(v)) => Ok(v),
             _ => Err(anyhow::anyhow!("get_state_value error")),
         }
+    }
+
+    pub fn set_naming_manage_addr(&self,naming_addr:Addr<InnerNodeManage>) {
+        self.inner_addr.do_send(StoreRequest::SetNamingNodeManageAddr(naming_addr));
     }
 }
 

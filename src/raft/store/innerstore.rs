@@ -5,6 +5,7 @@ use crate::common::byte_utils::{bin_to_id, id_to_bin};
 use crate::common::sled_utils::TABLE_SEQUENCE_TREE_NAME;
 use crate::config::core::ConfigActor;
 use crate::config::model::ConfigRaftCmd;
+use crate::naming::cluster::node_manage::{InnerNodeManage, NodeManageRequest};
 
 use super::{
     ClientRequest, ClientResponse, Membership, SnapshotDataInfo, SnapshotItem, SnapshotMeta,
@@ -29,6 +30,7 @@ fn logs(db: &sled::Db) -> sled::Tree {
 pub struct InnerStore {
     db: Arc<sled::Db>,
     config_addr: Addr<ConfigActor>,
+    naming_inner_node_manage: Option<Addr<InnerNodeManage>>,
     id: NodeId,
     /// The Raft log.
     log: BTreeMap<u64, Entry<ClientRequest>>,
@@ -52,6 +54,7 @@ impl InnerStore {
             state_machine: Default::default(),
             hs: None,
             membership: Default::default(),
+            naming_inner_node_manage: None,
         }
     }
 
@@ -379,6 +382,7 @@ impl InnerStore {
                 EntryPayload::ConfigChange(config_change) => {
                     self.membership.membership_config = Some(config_change.membership.to_owned());
                     self.set_membership_(&self.membership)?;
+                    self.do_notify_membership();
                 }
                 _ => {}
             }
@@ -386,6 +390,19 @@ impl InnerStore {
         self.state_machine.last_applied_log = last_index;
         self.set_last_applied_log_(last_index)?;
         Ok(())
+    }
+
+    fn do_notify_membership(&self) {
+        if let (Some(naming_node_manage),Some(membership)) 
+            = (&self.naming_inner_node_manage,self.membership.membership_config.as_ref()) {
+            let mut nodes = vec![];
+            for nid in membership.all_nodes() {
+                if let Some(addr) = self.membership.node_addr.get(&nid){
+                    nodes.push((nid,addr.to_owned()))
+                }
+            }
+            naming_node_manage.do_send(NodeManageRequest::UpdateNodes(nodes));
+        }
     }
 
     fn do_log_compaction(
@@ -626,6 +643,7 @@ pub enum StoreRequest {
     },
     GetCurrentSnapshot,
     GetTargetAddr(u64),
+    SetNamingNodeManageAddr(Addr<InnerNodeManage>),
 }
 
 pub enum StoreResponse {
@@ -721,6 +739,11 @@ impl Handler<StoreRequest> for InnerStore {
             StoreRequest::GetTargetAddr(id) => {
                 let v = self.membership.node_addr.get(&id).cloned();
                 Ok(StoreResponse::TargetAddr(v))
+            }
+            StoreRequest::SetNamingNodeManageAddr(addr) => {
+                self.naming_inner_node_manage = Some(addr);
+                self.do_notify_membership();
+                Ok(StoreResponse::None)
             }
         }
     }
