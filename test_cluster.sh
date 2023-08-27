@@ -2,9 +2,15 @@
 
 set -o errexit
 
-cargo build --release
 
 app_name='rnacos'
+#release
+cargo build --release
+app_path="./target/release/$app_name"
+
+#debug
+#cargo build
+#app_path="./target/debug/$app_name"
 
 kill() {
     if [ "$(uname)" = "Darwin" ]; then
@@ -165,7 +171,7 @@ restart_cluster() {
 
 }
 
-restart_cluster
+#restart_cluster
 
 kill
 
