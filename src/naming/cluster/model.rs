@@ -1,5 +1,6 @@
 use std::sync::Arc;
 use serde::{Deserialize, Serialize};
+use actix::prelude::*;
 
 use crate::naming::model::{Instance, InstanceUpdateTag};
 
@@ -36,4 +37,25 @@ pub enum NamingRouteRequest {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum NamingRouterResponse {
     None,
+}
+
+#[derive(Message,Debug,Clone)]
+#[rtype(result = "anyhow::Result<SyncSenderResponse>")]
+pub enum SyncSenderRequest {
+    SyncUpdateInstance{
+        instance: Instance,
+    },
+    SyncRemoveInstance{
+        instance: Instance,
+    },
+}
+
+#[derive(Message,Debug)]
+#[rtype(result = "anyhow::Result<SyncSenderResponse>")]
+pub enum SyncSenderSetCmd {
+    UpdateTargetAddr(Arc<String>),
+}
+
+pub enum SyncSenderResponse {
+    None
 }

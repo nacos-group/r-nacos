@@ -2,11 +2,15 @@ use std::{sync::Arc, collections::{BTreeMap, HashSet, hash_map::DefaultHasher}, 
 
 use actix::prelude::*;
 
+use crate::raft::network::factory::RaftClusterRequestSender;
+
 use super::model::NamingRouteAddr;
+use super::model::SyncSenderRequest;
+use super::sync_sender::ClusteSyncSender;
 
 
 
-#[derive(Debug,Clone)]
+#[derive(Debug,Clone,PartialEq,Eq)]
 pub enum NodeStatus {
     Valid,
     Ill,
@@ -28,15 +32,39 @@ pub struct ClusterNode{
     pub status: NodeStatus,
 }
 
+#[derive(Default,Debug,Clone)]
+pub struct ClusterInnerNode{
+    pub id: u64,
+    pub index: u64,
+    pub is_local: bool,
+    pub addr: Arc<String>,
+    pub status: NodeStatus,
+    pub sync_sender: Option<Addr<ClusteSyncSender>>,
+}
+
+impl From<ClusterInnerNode> for ClusterNode {
+    fn from(value: ClusterInnerNode) -> Self {
+        Self {
+            id: value.id,
+            index: value.index,
+            is_local: value.is_local,
+            addr: value.addr,
+            status: value.status
+        }
+    }
+}
+
 pub struct InnerNodeManage {
     this_id: u64,
-    all_nodes: BTreeMap<u64,ClusterNode>,
+    all_nodes: BTreeMap<u64,ClusterInnerNode>,
+    cluster_sender: Arc<RaftClusterRequestSender>,
 }
 
 impl InnerNodeManage {
-    pub fn new(this_id:u64) -> Self {
+    pub fn new(this_id:u64,cluster_sender: Arc<RaftClusterRequestSender>) -> Self {
         Self {
             this_id,
+            cluster_sender,
             all_nodes: Default::default(),
         }
     }
@@ -57,12 +85,20 @@ impl InnerNodeManage {
                 node.addr =  addr;
             }
             else{
-                let node = ClusterNode{
+                let is_local = self.this_id==key;
+                let sync_sender = if is_local {
+                    None
+                }
+                else{
+                    Some(ClusteSyncSender::new(key,addr.clone(),self.cluster_sender.clone()).start())
+                };
+                let node = ClusterInnerNode{
                     id: key,
                     index: 0,
-                    is_local: self.this_id==key,
+                    is_local: is_local,
                     addr,
                     status: NodeStatus::Valid,
+                    sync_sender,
                 };
                 self.all_nodes.insert(key, node);
             }
@@ -82,12 +118,12 @@ impl InnerNodeManage {
         }
     }
 
-    fn get_this_node(&self) -> ClusterNode {
+    fn get_this_node(&self) -> ClusterInnerNode {
         if let Some(node) =  self.all_nodes.get(&self.this_id) {
             node.to_owned()
         }
         else{
-            ClusterNode {
+            ClusterInnerNode {
                 id: self.this_id,
                 is_local: true,
                 ..Default::default()
@@ -97,10 +133,10 @@ impl InnerNodeManage {
 
     fn get_all_nodes(&self) -> Vec<ClusterNode> {
         if self.all_nodes.len() == 0 {
-            vec![self.get_this_node()]
+            vec![self.get_this_node().into()]
         }
         else{
-            self.all_nodes.values().cloned().collect()
+            self.all_nodes.values().cloned().map(|e|e.into()).collect()
         }
     }
 
@@ -122,6 +158,7 @@ pub enum NodeManageRequest {
     UpdateNodes(Vec<(u64,Arc<String>)>),
     GetThisNode,
     GetAllNodes,
+    SendToOtherNodes(SyncSenderRequest),
 }
 
 pub enum NodeManageResponse {
@@ -141,11 +178,22 @@ impl Handler<NodeManageRequest> for InnerNodeManage {
                 Ok(NodeManageResponse::None)
             },
             NodeManageRequest::GetThisNode => {
-                Ok(NodeManageResponse::ThisNode(self.get_this_node()))
+                Ok(NodeManageResponse::ThisNode(self.get_this_node().into()))
             },
             NodeManageRequest::GetAllNodes => {
                 Ok(NodeManageResponse::AllNodes(self.get_all_nodes()))
             },
+            NodeManageRequest::SendToOtherNodes(req) => {
+                for node in self.all_nodes.values() {
+                    if node.is_local || node.status!=NodeStatus::Valid {
+                        continue;
+                    }
+                    if let Some(sync_sender) = node.sync_sender.as_ref() {
+                        sync_sender.do_send(req.clone());
+                    }
+                }
+                Ok(NodeManageResponse::None)
+            }
         }
     }
 }

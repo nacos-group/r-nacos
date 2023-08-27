@@ -59,9 +59,9 @@ pub fn build_share_data(sys_config: Arc<AppSysConfig>) -> anyhow::Result<Arc<App
         cluster_sender.clone(),
     ));
 
-    let naming_inner_node_manage_addr = InnerNodeManage::new(sys_config.raft_node_id.to_owned()).start();
+    let naming_inner_node_manage_addr = InnerNodeManage::new(sys_config.raft_node_id.to_owned(),cluster_sender.clone()).start();
     store.set_naming_manage_addr(naming_inner_node_manage_addr.clone());
-    let naming_node_manage = Arc::new(NodeManage::new(naming_inner_node_manage_addr));
+    let naming_node_manage = Arc::new(NodeManage::new(naming_inner_node_manage_addr.clone()));
     let naming_route = Arc::new(NamingRoute::new(naming_addr.clone(),naming_node_manage,cluster_sender.clone()));
 
     let mut bistream_manage = BiStreamManage::new();
@@ -70,6 +70,7 @@ pub fn build_share_data(sys_config: Arc<AppSysConfig>) -> anyhow::Result<Arc<App
     let bistream_manage_addr = bistream_manage.start();
     config_addr.do_send(ConfigCmd::SetConnManage(bistream_manage_addr.clone()));
     naming_addr.do_send(NamingCmd::SetConnManage(bistream_manage_addr.clone()));
+    naming_addr.do_send(NamingCmd::SetClusterNodeManage(naming_inner_node_manage_addr));
 
     let app_data = Arc::new(AppShareData {
         config_addr,

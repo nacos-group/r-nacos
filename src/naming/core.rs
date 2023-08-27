@@ -7,6 +7,8 @@
 )]
 
 use super::api_model::QueryListResult;
+use super::cluster::model::SyncSenderRequest;
+use super::cluster::node_manage::{InnerNodeManage, NodeManageRequest};
 use super::filter::InstanceFilterUtils;
 use super::listener::{InnerNamingListener, ListenerItem, NamingListenerCmd};
 use super::model::Instance;
@@ -60,6 +62,7 @@ pub struct NamingActor {
     instance_metadate_set: TimeoutSet<InstanceKey>,
     namespace_index: NamespaceIndex,
     pub(crate) client_instance_set: HashMap<Arc<String>, HashSet<InstanceKey>>,
+    cluster_node_manage: Option<Addr<InnerNodeManage>>,
     //dal_addr: Addr<ServiceDalActor>,
 }
 
@@ -84,6 +87,7 @@ impl NamingActor {
             namespace_index: NamespaceIndex::new(),
             instance_metadate_set: Default::default(),
             client_instance_set: Default::default(),
+            cluster_node_manage: None,
             //dal_addr,
         }
     }
@@ -204,16 +208,37 @@ impl NamingActor {
         }
     }
 
-    fn do_notify(&mut self, tag: &UpdateInstanceType, key: ServiceKey) {
+    fn do_notify(&mut self, tag: &UpdateInstanceType, key: ServiceKey,instance :Option<Instance>) {
         match tag {
             UpdateInstanceType::New => {
                 self.subscriber.notify(key);
+                match (&self.cluster_node_manage,instance) {
+                    (Some(node_manage), Some(instance)) => {
+                        let req = SyncSenderRequest::SyncUpdateInstance { instance };
+                        node_manage.do_send(NodeManageRequest::SendToOtherNodes(req));
+                    },
+                    _ => {}
+                }
             }
             UpdateInstanceType::Remove => {
                 self.subscriber.notify(key);
+                match (&self.cluster_node_manage,instance) {
+                    (Some(node_manage), Some(instance)) => {
+                        let req = SyncSenderRequest::SyncRemoveInstance { instance };
+                        node_manage.do_send(NodeManageRequest::SendToOtherNodes(req));
+                    },
+                    _ => {}
+                }
             }
             UpdateInstanceType::UpdateValue => {
                 self.subscriber.notify(key);
+                match (&self.cluster_node_manage,instance) {
+                    (Some(node_manage), Some(instance)) => {
+                        let req = SyncSenderRequest::SyncUpdateInstance { instance };
+                        node_manage.do_send(NodeManageRequest::SendToOtherNodes(req));
+                    },
+                    _ => {}
+                }
             }
             _ => {}
         }
@@ -231,7 +256,6 @@ impl NamingActor {
     pub fn remove_instance(
         &mut self,
         key: &ServiceKey,
-        cluster_name: &str,
         instance_id: &InstanceShortKey,
         client_id: Option<&Arc<String>>,
     ) -> UpdateInstanceType {
@@ -242,7 +266,7 @@ impl NamingActor {
         };
         let old_instance = service.remove_instance(instance_id, client_id);
         let now = now_millis();
-        let tag = if let Some(old_instance) = old_instance {
+        let tag = if let Some(old_instance) = &old_instance {
             let short_key = old_instance.get_short_key();
             if service.exist_priority_metadata(&short_key) {
                 let instance_key =
@@ -260,7 +284,18 @@ impl NamingActor {
             self.empty_service_set
                 .add(now + self.sys_config.service_time_out_millis, key.clone());
         }
-        self.do_notify(&tag, key.clone());
+        let remove_instance = match old_instance {
+            Some(e) => {
+                if e.from_cluster {
+                    None
+                }
+                else{
+                    Some(e.as_ref().to_owned())
+                }
+            },
+            None => None,
+        };
+        self.do_notify(&tag, key.clone(),remove_instance);
         tag
     }
 
@@ -287,9 +322,23 @@ impl NamingActor {
                 self.client_instance_set.insert(client_id, set);
             }
         }
+        let instance_key = instance.get_short_key();
         let tag = service.update_instance(instance, tag);
+        let instance = match service.get_instance(&instance_key){
+            Some(e) => {
+                if e.from_cluster{
+                    None
+                }
+                else{
+                    let mut e = e.as_ref().to_owned();
+                    e.from_cluster=true;
+                    Some(e)
+                }
+            },
+            None => None,
+        };
         //change notify
-        self.do_notify(&tag, key.clone());
+        self.do_notify(&tag, key.clone(),instance);
         tag
     }
 
@@ -298,7 +347,7 @@ impl NamingActor {
             for instance_key in keys {
                 let service_key = instance_key.get_service_key();
                 let short_key = instance_key.get_short_key();
-                self.remove_instance(&service_key, "", &short_key, Some(client_id));
+                self.remove_instance(&service_key, &short_key, Some(client_id));
             }
         }
     }
@@ -555,6 +604,7 @@ pub enum NamingCmd {
     PeekListenerTimeout,
     NotifyListener(ServiceKey, u64),
     SetConnManage(Addr<BiStreamManage>),
+    SetClusterNodeManage(Addr<InnerNodeManage>),
     Subscribe(Vec<NamingListenerItem>, Arc<String>),
     RemoveSubscribe(Vec<NamingListenerItem>, Arc<String>),
     RemoveClient(Arc<String>),
@@ -611,7 +661,6 @@ impl Handler<NamingCmd> for NamingActor {
             NamingCmd::Delete(instance) => {
                 self.remove_instance(
                     &instance.get_service_key(),
-                    &instance.cluster_name,
                     &instance.get_short_key(),
                     Some(&instance.client_id),
                 );
@@ -730,6 +779,10 @@ impl Handler<NamingCmd> for NamingActor {
                 }
                 Ok(NamingResult::ClientInstanceCount(client_instance_count))
             }
+            NamingCmd::SetClusterNodeManage(addr) => {
+                self.cluster_node_manage = Some(addr);
+                Ok(NamingResult::NULL)
+            }
         }
     }
 }
@@ -830,7 +883,6 @@ fn test_remove_has_instance_service() {
 
     naming.remove_instance(
         &service_key,
-        &instance.cluster_name,
         &instance.get_short_key(),
         None,
     );

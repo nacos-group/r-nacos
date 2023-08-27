@@ -10,6 +10,7 @@ use self::model::{NamingRouteRequest, NamingRouterResponse};
 pub mod node_manage;
 pub mod route;
 pub mod model;
+pub mod sync_sender;
 
 
 
