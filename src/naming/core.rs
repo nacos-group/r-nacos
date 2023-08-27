@@ -450,22 +450,19 @@ impl NamingActor {
         QueryListResult::get_instance_list_string(cluster_str, key, list)
     }
 
-    pub fn time_check(&mut self) -> (Vec<InstanceShortKey>, Vec<InstanceShortKey>) {
+    pub fn time_check(&mut self) {
         let current_time = Local::now().timestamp_millis();
         let healthy_time = current_time - 15000;
         let offline_time = current_time - 30000;
-        let mut remove_list = vec![];
-        let mut update_list = vec![];
         let mut size = 0;
         let now = now_millis();
+        let mut change_list = vec![];
         for item in self.service_map.values_mut() {
-            let (mut rlist, mut ulist) = item.time_check(healthy_time, offline_time);
+            let service_key = item.get_service_key();
+            let (rlist, ulist) = item.time_check(healthy_time, offline_time);
             size += rlist.len() + ulist.len();
-            remove_list.append(&mut rlist);
-            update_list.append(&mut ulist);
-            if !remove_list.is_empty() {
-                let service_key = item.get_service_key();
-                for short_key in &remove_list {
+            if !rlist.is_empty() {
+                for short_key in &rlist {
                     if item.exist_priority_metadata(short_key) {
                         let instance_key = InstanceKey::new_by_service_key(
                             &service_key,
@@ -485,11 +482,61 @@ impl NamingActor {
                     );
                 }
             }
+            change_list.push((service_key,rlist,ulist));
             if size >= self.sys_config.once_time_check_size {
                 break;
             }
         }
-        (remove_list, update_list)
+        for (service_key,rlist,ulist) in change_list {
+            self.time_check_notify(service_key, rlist, ulist);
+        }
+    }
+
+    fn time_check_notify(&mut self,key: ServiceKey,remove_list:Vec<InstanceShortKey>, update_list:Vec<InstanceShortKey>) {
+        if !remove_list.is_empty() {
+            self.time_check_sync_remove_info_to_cluster(key.clone(),remove_list);
+            self.do_notify(&UpdateInstanceType::Remove, key.clone(), None);
+        }
+        if !update_list.is_empty() {
+            self.time_check_sync_update_info_to_cluster(key.clone(),update_list);
+            self.do_notify(&UpdateInstanceType::UpdateValue, key.clone(), None);
+        }
+    }
+
+    fn time_check_sync_update_info_to_cluster(&self,key: ServiceKey,update_list:Vec<InstanceShortKey>) {
+        if let (Some(node_manage),Some(service)) =  (&self.cluster_node_manage,self.service_map.get(&key)) {
+            if service.instances.is_empty() {
+                return;
+            }
+            for instance_key in update_list {
+                if let Some(instance) = service.get_instance(&instance_key) {
+                    if instance.from_cluster {
+                        continue;
+                    }
+                    let mut instance = instance.as_ref().to_owned();
+                    instance.from_cluster = true;
+                    let req = SyncSenderRequest::SyncUpdateInstance { instance };
+                    node_manage.do_send(NodeManageRequest::SendToOtherNodes(req));
+                }
+            }
+        }
+    }
+
+    fn time_check_sync_remove_info_to_cluster(&self,key: ServiceKey,remove_list:Vec<InstanceShortKey>) {
+        if let Some(node_manage) =  &self.cluster_node_manage {
+            for instance_key in remove_list {
+                let instance = Instance { 
+                    namespace_id: key.namespace_id.clone(),
+                    group_name: key.group_name.clone(),
+                    service_name: key.service_name.clone(),
+                    ip: instance_key.ip,
+                    port: instance_key.port,
+                    ..Default::default()
+                };
+                let req = SyncSenderRequest::SyncRemoveInstance { instance };
+                node_manage.do_send(NodeManageRequest::SendToOtherNodes(req));
+            }
+        }
     }
 
     pub fn get_service_list(

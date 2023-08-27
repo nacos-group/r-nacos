@@ -81,8 +81,11 @@ impl Service {
         let short_key = instance.get_short_key();
         let old_instance = self.instances.get(&key);
         if let Some(old_instance) = old_instance {
-            if !old_instance.healthy {
+            if !old_instance.healthy && instance.healthy {
                 self.healthy_instance_size += 1;
+            }
+            else if old_instance.healthy && !instance.healthy {
+                self.healthy_instance_size -= 1;
             }
             rtype = UpdateInstanceType::UpdateValue;
             if let Some(update_tag) = update_tag {

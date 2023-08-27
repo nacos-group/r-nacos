@@ -5,12 +5,12 @@ set -o errexit
 
 app_name='rnacos'
 #release
-cargo build --release
-app_path="./target/release/$app_name"
+#cargo build --release
+#app_path="./target/release/$app_name"
 
 #debug
-#cargo build
-#app_path="./target/debug/$app_name"
+cargo build
+app_path="./target/debug/$app_name"
 
 kill() {
     if [ "$(uname)" = "Darwin" ]; then
@@ -45,7 +45,7 @@ RNACOS_CONFIG_DB_DIR=cluster_example/db_01
 RNACOS_RAFT_NODE_ID=1
 RNACOS_RAFT_AUTO_INIT=true
 EOF
-    nohup ./target/release/${app_name}  -e $env_file  > "$test_dir/node_01.log" &
+    nohup ${app_path}  -e $env_file  > "$test_dir/node_01.log" &
     sleep 1
 
     echo "start node:2"
@@ -57,7 +57,7 @@ RNACOS_CONFIG_DB_DIR=cluster_example/db_02
 RNACOS_RAFT_NODE_ID=2
 RNACOS_RAFT_JOIN_ADDR=127.0.0.1:9848
 EOF
-    nohup ./target/release/${app_name}  -e $env_file  > "$test_dir/node_02.log" &
+    nohup ${app_path}  -e $env_file  > "$test_dir/node_02.log" &
     sleep 1
 
     echo "start node:3"
@@ -69,7 +69,7 @@ RNACOS_CONFIG_DB_DIR=cluster_example/db_03
 RNACOS_RAFT_NODE_ID=3
 RNACOS_RAFT_JOIN_ADDR=127.0.0.1:9848
 EOF
-    nohup ./target/release/${app_name}  -e $env_file  > "$test_dir/node_03.log" &
+    nohup ${app_path}  -e $env_file  > "$test_dir/node_03.log" &
     sleep 1
 }
 
@@ -173,6 +173,6 @@ restart_cluster() {
 
 #restart_cluster
 
-kill
+#kill
 
 echo "\n==== end ===="
