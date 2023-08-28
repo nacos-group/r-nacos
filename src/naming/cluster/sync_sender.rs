@@ -53,14 +53,7 @@ impl Handler<SyncSenderRequest> for ClusteSyncSender {
         let cluster_sender = self.cluster_sender.clone();
         let target_addr = self.target_addr.clone();
         let fut = async move {
-            let req = match msg {
-                SyncSenderRequest::SyncUpdateInstance { instance } => {
-                    NamingRouteRequest::SyncUpdateInstance{ instance }
-                },
-                SyncSenderRequest::SyncRemoveInstance { instance } => {
-                    NamingRouteRequest::SyncRemoveInstance { instance }
-                },
-            };
+            let req = msg.0;
             let request = serde_json::to_string(&req).unwrap_or_default();
             let payload = PayloadUtils::build_payload("NamingRouteRequest", request);
             let resp_payload = match cluster_sender.send_request(target_addr.clone(), payload).await {

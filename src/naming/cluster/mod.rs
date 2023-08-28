@@ -21,7 +21,7 @@ pub async fn handle_naming_route(
     match req {
         NamingRouteRequest::Ping(node_id) => {
             //更新node_id节点活跃状态
-            todo!()
+            app.naming_node_manage.active_node(node_id);
         },
         NamingRouteRequest::UpdateInstance { instance,tag } => {
             let cmd = NamingCmd::Update(instance, tag);

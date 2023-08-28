@@ -41,14 +41,7 @@ pub enum NamingRouterResponse {
 
 #[derive(Message,Debug,Clone)]
 #[rtype(result = "anyhow::Result<SyncSenderResponse>")]
-pub enum SyncSenderRequest {
-    SyncUpdateInstance{
-        instance: Instance,
-    },
-    SyncRemoveInstance{
-        instance: Instance,
-    },
-}
+pub struct SyncSenderRequest(pub NamingRouteRequest);
 
 #[derive(Message,Debug)]
 #[rtype(result = "anyhow::Result<SyncSenderResponse>")]

@@ -7,7 +7,7 @@
 )]
 
 use super::api_model::QueryListResult;
-use super::cluster::model::SyncSenderRequest;
+use super::cluster::model::{NamingRouteRequest};
 use super::cluster::node_manage::{InnerNodeManage, NodeManageRequest};
 use super::filter::InstanceFilterUtils;
 use super::listener::{InnerNamingListener, ListenerItem, NamingListenerCmd};
@@ -214,7 +214,7 @@ impl NamingActor {
                 self.subscriber.notify(key);
                 match (&self.cluster_node_manage,instance) {
                     (Some(node_manage), Some(instance)) => {
-                        let req = SyncSenderRequest::SyncUpdateInstance { instance };
+                        let req = NamingRouteRequest::SyncUpdateInstance { instance };
                         node_manage.do_send(NodeManageRequest::SendToOtherNodes(req));
                     },
                     _ => {}
@@ -224,7 +224,7 @@ impl NamingActor {
                 self.subscriber.notify(key);
                 match (&self.cluster_node_manage,instance) {
                     (Some(node_manage), Some(instance)) => {
-                        let req = SyncSenderRequest::SyncRemoveInstance { instance };
+                        let req = NamingRouteRequest::SyncRemoveInstance { instance };
                         node_manage.do_send(NodeManageRequest::SendToOtherNodes(req));
                     },
                     _ => {}
@@ -234,7 +234,7 @@ impl NamingActor {
                 self.subscriber.notify(key);
                 match (&self.cluster_node_manage,instance) {
                     (Some(node_manage), Some(instance)) => {
-                        let req = SyncSenderRequest::SyncUpdateInstance { instance };
+                        let req = NamingRouteRequest::SyncUpdateInstance { instance };
                         node_manage.do_send(NodeManageRequest::SendToOtherNodes(req));
                     },
                     _ => {}
@@ -515,7 +515,7 @@ impl NamingActor {
                     }
                     let mut instance = instance.as_ref().to_owned();
                     instance.from_cluster = true;
-                    let req = SyncSenderRequest::SyncUpdateInstance { instance };
+                    let req = NamingRouteRequest::SyncUpdateInstance { instance };
                     node_manage.do_send(NodeManageRequest::SendToOtherNodes(req));
                 }
             }
@@ -533,7 +533,7 @@ impl NamingActor {
                     port: instance_key.port,
                     ..Default::default()
                 };
-                let req = SyncSenderRequest::SyncRemoveInstance { instance };
+                let req = NamingRouteRequest::SyncRemoveInstance { instance };
                 node_manage.do_send(NodeManageRequest::SendToOtherNodes(req));
             }
         }

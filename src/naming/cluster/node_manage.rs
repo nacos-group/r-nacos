@@ -1,11 +1,12 @@
-use std::{sync::Arc, collections::{BTreeMap, HashSet, hash_map::DefaultHasher}, hash::{Hash, Hasher}};
+use std::{sync::Arc, collections::{BTreeMap, HashSet, hash_map::DefaultHasher}, hash::{Hash, Hasher}, time::Duration};
 
 use actix::prelude::*;
 
-use crate::raft::network::factory::RaftClusterRequestSender;
+use crate::{raft::network::factory::RaftClusterRequestSender, now_millis};
 
 use super::model::NamingRouteAddr;
 use super::model::SyncSenderRequest;
+use super::model::NamingRouteRequest;
 use super::sync_sender::ClusteSyncSender;
 
 
@@ -13,7 +14,6 @@ use super::sync_sender::ClusteSyncSender;
 #[derive(Debug,Clone,PartialEq,Eq)]
 pub enum NodeStatus {
     Valid,
-    Ill,
     Unvalid
 }
 
@@ -38,18 +38,30 @@ pub struct ClusterInnerNode{
     pub index: u64,
     pub is_local: bool,
     pub addr: Arc<String>,
-    pub status: NodeStatus,
+    pub last_active_time: u64,
     pub sync_sender: Option<Addr<ClusteSyncSender>>,
+}
+
+impl ClusterInnerNode {
+    pub fn is_valid(&self) -> bool {
+        self.is_local || (self.last_active_time> now_millis() - 15000)
+    }
 }
 
 impl From<ClusterInnerNode> for ClusterNode {
     fn from(value: ClusterInnerNode) -> Self {
+        let status = if value.is_valid() {
+            NodeStatus::Valid
+        }
+        else{
+            NodeStatus::Unvalid
+        };
         Self {
             id: value.id,
             index: value.index,
             is_local: value.is_local,
             addr: value.addr,
-            status: value.status
+            status,
         }
     }
 }
@@ -80,6 +92,7 @@ impl InnerNodeManage {
         for key in dels {
             self.all_nodes.remove(&key);
         }
+        let now = now_millis();
         for (key,addr) in nodes {
             if let Some(node) = self.all_nodes.get_mut(&key) {
                 node.addr =  addr;
@@ -97,8 +110,8 @@ impl InnerNodeManage {
                     index: 0,
                     is_local: is_local,
                     addr,
-                    status: NodeStatus::Valid,
                     sync_sender,
+                    last_active_time: now,
                 };
                 self.all_nodes.insert(key, node);
             }
@@ -140,15 +153,45 @@ impl InnerNodeManage {
         }
     }
 
+    fn send_to_other_node(&self,req:SyncSenderRequest) {
+        for node in self.all_nodes.values() {
+            if node.is_local || !node.is_valid() {
+                continue;
+            }
+            if let Some(sync_sender) = node.sync_sender.as_ref() {
+                sync_sender.do_send(req.clone());
+            }
+        }
+    }
+
+    fn ping_other(&mut self) {
+        let req = SyncSenderRequest(NamingRouteRequest::Ping(self.this_id));
+        self.send_to_other_node(req);
+    }
+
+    fn hb(&mut self,ctx: &mut Context<Self>) {
+        ctx.run_later(Duration::from_millis(3000), |act, ctx| {
+            act.ping_other();
+            act.hb(ctx);
+        });
+    }
+
+    fn active_node(&mut self,node_id:u64) {
+        if let Some(node)=self.all_nodes.get_mut(&node_id){
+            node.last_active_time = now_millis();
+        }
+    }
+
 }
 
 impl Actor for InnerNodeManage {
     type Context = Context<Self>;
 
-    fn started(&mut self, _ctx: &mut Self::Context) {
-        log::info!("InnerNodeManage started!")
+    fn started(&mut self, ctx: &mut Self::Context) {
+        log::info!("InnerNodeManage started!");
 
-        //TODO 定时检测节点的可用性
+        //定时检测节点的可用性
+        self.hb(ctx);
     }
 }
 
@@ -158,7 +201,8 @@ pub enum NodeManageRequest {
     UpdateNodes(Vec<(u64,Arc<String>)>),
     GetThisNode,
     GetAllNodes,
-    SendToOtherNodes(SyncSenderRequest),
+    ActiveNode(u64),
+    SendToOtherNodes(NamingRouteRequest),
 }
 
 pub enum NodeManageResponse {
@@ -184,14 +228,11 @@ impl Handler<NodeManageRequest> for InnerNodeManage {
                 Ok(NodeManageResponse::AllNodes(self.get_all_nodes()))
             },
             NodeManageRequest::SendToOtherNodes(req) => {
-                for node in self.all_nodes.values() {
-                    if node.is_local || node.status!=NodeStatus::Valid {
-                        continue;
-                    }
-                    if let Some(sync_sender) = node.sync_sender.as_ref() {
-                        sync_sender.do_send(req.clone());
-                    }
-                }
+                self.send_to_other_node(SyncSenderRequest(req));
+                Ok(NodeManageResponse::None)
+            }
+            NodeManageRequest::ActiveNode(node_id) => {
+                self.active_node(node_id);
                 Ok(NodeManageResponse::None)
             }
         }
@@ -235,7 +276,9 @@ impl NodeManage {
     pub async fn get_all_valid_nodes(&self) -> anyhow::Result<Vec<ClusterNode>> {
         let resp:NodeManageResponse = self.inner_node_manage.send(NodeManageRequest::GetAllNodes).await??;
         match resp {
-            NodeManageResponse::AllNodes(nodes) => Ok(nodes),
+            NodeManageResponse::AllNodes(nodes) => Ok(nodes.into_iter()
+                .filter(|e|e.status==NodeStatus::Valid).collect())
+            ,
             _ => {
                 Err(anyhow::anyhow!("get_all_valid_nodes error NodeManageResponse!"))
             }
@@ -245,4 +288,9 @@ impl NodeManage {
         Ok(self.get_all_valid_nodes().await?
             .into_iter().filter(|e|!e.is_local).collect())
     }
+
+    pub fn active_node(&self,node_id:u64) {
+        self.inner_node_manage.do_send(NodeManageRequest::ActiveNode(node_id))
+    }
+
 }
