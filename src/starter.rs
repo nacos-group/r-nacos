@@ -70,7 +70,7 @@ pub fn build_share_data(sys_config: Arc<AppSysConfig>) -> anyhow::Result<Arc<App
     let bistream_manage_addr = bistream_manage.start();
     config_addr.do_send(ConfigCmd::SetConnManage(bistream_manage_addr.clone()));
     naming_addr.do_send(NamingCmd::SetConnManage(bistream_manage_addr.clone()));
-    naming_addr.do_send(NamingCmd::SetClusterNodeManage(naming_inner_node_manage_addr));
+    naming_addr.do_send(NamingCmd::SetClusterNodeManage(naming_inner_node_manage_addr.clone()));
 
     let app_data = Arc::new(AppShareData {
         config_addr,
@@ -82,6 +82,7 @@ pub fn build_share_data(sys_config: Arc<AppSysConfig>) -> anyhow::Result<Arc<App
         config_route,
         cluster_sender,
         naming_route,
+        naming_inner_node_manage: naming_inner_node_manage_addr,
         naming_node_manage,
     });
     Ok(app_data)

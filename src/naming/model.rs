@@ -23,7 +23,8 @@ pub struct Instance {
     pub namespace_id: Arc<String>,
     pub app_name: String,
     pub from_grpc: bool,
-    pub from_cluster: bool,
+    //本节点管理的实例设置为0
+    pub from_cluster: u64,
     pub client_id: Arc<String>,
 }
 
@@ -35,6 +36,10 @@ impl Instance {
             ..Default::default()
         }
     }
+
+    pub fn is_from_cluster(&self) -> bool {
+        self.from_cluster > 0
+    } 
 
     pub fn generate_key(&mut self) {
         //self.id = format!("{}#{}#{}#{}#{}",&self.ip,&self.port,&self.cluster_name,&self.service_name,&self.group_name)
@@ -111,7 +116,7 @@ impl Default for Instance {
             namespace_id: Default::default(),
             app_name: Default::default(),
             from_grpc: false,
-            from_cluster: false,
+            from_cluster: 0,
             client_id: Default::default(),
         }
     }

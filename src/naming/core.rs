@@ -286,7 +286,7 @@ impl NamingActor {
         }
         let remove_instance = match old_instance {
             Some(e) => {
-                if e.from_cluster {
+                if e.is_from_cluster() {
                     None
                 }
                 else{
@@ -326,12 +326,11 @@ impl NamingActor {
         let tag = service.update_instance(instance, tag);
         let instance = match service.get_instance(&instance_key){
             Some(e) => {
-                if e.from_cluster{
+                if e.is_from_cluster(){
                     None
                 }
                 else{
-                    let mut e = e.as_ref().to_owned();
-                    e.from_cluster=true;
+                    let e = e.as_ref().to_owned();
                     Some(e)
                 }
             },
@@ -510,11 +509,10 @@ impl NamingActor {
             }
             for instance_key in update_list {
                 if let Some(instance) = service.get_instance(&instance_key) {
-                    if instance.from_cluster {
+                    if instance.is_from_cluster() {
                         continue;
                     }
-                    let mut instance = instance.as_ref().to_owned();
-                    instance.from_cluster = true;
+                    let instance = instance.as_ref().to_owned();
                     let req = NamingRouteRequest::SyncUpdateInstance { instance };
                     node_manage.do_send(NodeManageRequest::SendToOtherNodes(req));
                 }

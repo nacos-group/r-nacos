@@ -74,7 +74,7 @@ impl InstanceRequestHandler {
                 )),
                 app_name: "".to_owned(),
                 from_grpc: true,
-                from_cluster: false,
+                from_cluster: 0,
                 client_id,
             };
             instance.generate_key();

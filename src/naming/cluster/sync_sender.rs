@@ -1,26 +1,33 @@
 
-use std::{sync::Arc, time::Duration};
+use std::{sync::Arc, time::Duration, collections::HashMap};
 
 use actix::prelude::*;
 
 use crate::{raft::network::factory::RaftClusterRequestSender, grpc::PayloadUtils};
 
-use super::model::{SyncSenderRequest, SyncSenderResponse, NamingRouteRequest, NamingRouterResponse, SyncSenderSetCmd};
+use super::model::{SyncSenderRequest, SyncSenderResponse, NamingRouterResponse, SyncSenderSetCmd};
 
 pub struct ClusteSyncSender {
+    //local_id:u64,
     target_id:u64,
     target_addr:Arc<String>,
     cluster_sender: Arc<RaftClusterRequestSender>,
+    send_extend_infos: HashMap<String,String>,
 }
 
 impl ClusteSyncSender {
-    pub fn new(target_id:u64,
+    pub fn new(local_id:u64,
+            target_id:u64,
             target_addr:Arc<String>,
             cluster_sender: Arc<RaftClusterRequestSender>) -> Self {
+        let mut send_extend_infos = HashMap::default();
+        send_extend_infos.insert("cluster_id".to_owned(), local_id.to_string());
         Self {
+            //local_id,
             target_id,
             target_addr,
             cluster_sender,
+            send_extend_infos,
         }
     }
 }
@@ -52,17 +59,18 @@ impl Handler<SyncSenderRequest> for ClusteSyncSender {
     fn handle(&mut self, msg: SyncSenderRequest, _ctx: &mut Self::Context) -> Self::Result {
         let cluster_sender = self.cluster_sender.clone();
         let target_addr = self.target_addr.clone();
+        let send_extend_infos = self.send_extend_infos.clone();
         let fut = async move {
             let req = msg.0;
             let request = serde_json::to_string(&req).unwrap_or_default();
-            let payload = PayloadUtils::build_payload("NamingRouteRequest", request);
+            let payload = PayloadUtils::build_full_payload("NamingRouteRequest", request,"",send_extend_infos.clone());
             let resp_payload = match cluster_sender.send_request(target_addr.clone(), payload).await {
                 Ok(v) => v,
                 Err(_) => {
                     //retry request
                     tokio::time::sleep(Duration::from_millis(100)).await;
                     let request = serde_json::to_string(&req).unwrap_or_default();
-                    let payload = PayloadUtils::build_payload("NamingRouteRequest", request);
+                    let payload = PayloadUtils::build_full_payload("NamingRouteRequest", request,"",send_extend_infos);
                     cluster_sender.send_request(target_addr, payload).await?
                 },
             };

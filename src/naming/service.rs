@@ -120,7 +120,7 @@ impl Service {
                     rtype = UpdateInstanceType::UpdateTime;
                 }
             }
-            if !instance.from_cluster && !instance.from_grpc && old_instance.from_grpc {
+            if !instance.is_from_cluster() && !instance.from_grpc && old_instance.from_grpc {
                 //如果新实例来自http,旧实例来自grpc,则保持grpc的实例信息
                 instance.from_grpc = old_instance.from_grpc;
                 instance.client_id = old_instance.client_id.clone();
@@ -136,7 +136,7 @@ impl Service {
         }
         let new_instance = Arc::new(instance);
         //grpc 不走timecheck
-        if !new_instance.from_grpc && !new_instance.from_cluster {
+        if !new_instance.from_grpc && !new_instance.is_from_cluster() {
             let time_info = new_instance.get_time_info();
             self.update_timeinfos(time_info);
         }

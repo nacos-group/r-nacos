@@ -44,6 +44,7 @@ pub struct ClusterInnerNode {
     pub status: NodeStatus,
     pub last_active_time: u64,
     pub sync_sender: Option<Addr<ClusteSyncSender>>,
+    pub client_set: HashSet<Arc<String>>,
 }
 
 impl From<ClusterInnerNode> for ClusterNode {
@@ -59,15 +60,15 @@ impl From<ClusterInnerNode> for ClusterNode {
 }
 
 pub struct InnerNodeManage {
-    this_id: u64,
+    local_id: u64,
     all_nodes: BTreeMap<u64, ClusterInnerNode>,
     cluster_sender: Arc<RaftClusterRequestSender>,
 }
 
 impl InnerNodeManage {
-    pub fn new(this_id: u64, cluster_sender: Arc<RaftClusterRequestSender>) -> Self {
+    pub fn new(local_id: u64, cluster_sender: Arc<RaftClusterRequestSender>) -> Self {
         Self {
-            this_id,
+            local_id: local_id,
             cluster_sender,
             all_nodes: Default::default(),
         }
@@ -89,12 +90,12 @@ impl InnerNodeManage {
             if let Some(node) = self.all_nodes.get_mut(&key) {
                 node.addr = addr;
             } else {
-                let is_local = self.this_id == key;
+                let is_local = self.local_id == key;
                 let sync_sender = if is_local {
                     None
                 } else {
                     Some(
-                        ClusteSyncSender::new(key, addr.clone(), self.cluster_sender.clone())
+                        ClusteSyncSender::new(self.local_id,key, addr.clone(), self.cluster_sender.clone())
                             .start(),
                     )
                 };
@@ -106,13 +107,14 @@ impl InnerNodeManage {
                     sync_sender,
                     status: NodeStatus::Valid,
                     last_active_time: now,
+                    client_set: Default::default(),
                 };
                 self.all_nodes.insert(key, node);
             }
         }
-        if !self.all_nodes.contains_key(&self.this_id) {
+        if !self.all_nodes.contains_key(&self.local_id) {
             let node = self.get_this_node();
-            self.all_nodes.insert(self.this_id, node);
+            self.all_nodes.insert(self.local_id, node);
         }
         self.update_nodes_index();
     }
@@ -126,11 +128,11 @@ impl InnerNodeManage {
     }
 
     fn get_this_node(&self) -> ClusterInnerNode {
-        if let Some(node) = self.all_nodes.get(&self.this_id) {
+        if let Some(node) = self.all_nodes.get(&self.local_id) {
             node.to_owned()
         } else {
             ClusterInnerNode {
-                id: self.this_id,
+                id: self.local_id,
                 is_local: true,
                 ..Default::default()
             }
@@ -166,7 +168,7 @@ impl InnerNodeManage {
     }
 
     fn ping_other(&mut self) {
-        let req = SyncSenderRequest(NamingRouteRequest::Ping(self.this_id));
+        let req = SyncSenderRequest(NamingRouteRequest::Ping(self.local_id));
         self.send_to_other_node(req);
     }
 
@@ -182,6 +184,16 @@ impl InnerNodeManage {
         if let Some(node) = self.all_nodes.get_mut(&node_id) {
             node.last_active_time = now_millis();
             node.status = NodeStatus::Valid;
+        }
+    }
+
+    fn node_add_client(&mut self, node_id: u64,client_id: Arc<String>) {
+        if let Some(node) = self.all_nodes.get_mut(&node_id) {
+            node.last_active_time = now_millis();
+            node.status = NodeStatus::Valid;
+            if !client_id.is_empty() {
+                node.client_set.insert(client_id);
+            }
         }
     }
 }
@@ -205,6 +217,8 @@ pub enum NodeManageRequest {
     GetAllNodes,
     ActiveNode(u64),
     SendToOtherNodes(NamingRouteRequest),
+    AddClientId(u64,Arc<String>),
+    RemoveClientId(u64,Arc<String>),
 }
 
 pub enum NodeManageResponse {
@@ -237,6 +251,11 @@ impl Handler<NodeManageRequest> for InnerNodeManage {
                 self.active_node(node_id);
                 Ok(NodeManageResponse::None)
             }
+            NodeManageRequest::AddClientId(node_id, client_id) => {
+                self.node_add_client(node_id,client_id);
+                Ok(NodeManageResponse::None)
+            },
+            NodeManageRequest::RemoveClientId(_, _) => todo!(),
         }
     }
 }
