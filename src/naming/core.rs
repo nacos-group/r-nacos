@@ -310,7 +310,7 @@ impl NamingActor {
         self.create_empty_service(key);
         //let cluster_name = instance.cluster_name.clone();
         let service = self.service_map.get_mut(key).unwrap();
-        if instance.from_grpc && !instance.client_id.is_empty() {
+        if (instance.from_grpc || instance.is_from_cluster()) && !instance.client_id.is_empty() {
             let client_id = instance.client_id.clone();
             let key =
                 InstanceKey::new_by_service_key(key, instance.ip.clone(), instance.port.to_owned());

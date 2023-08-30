@@ -20,11 +20,11 @@ impl PayloadHandler for NamingRouteRequestHandler {
     async fn handle(
         &self,
         request_payload: Payload,
-        request_meta: RequestMeta,
+        _request_meta: RequestMeta,
     ) -> anyhow::Result<Payload> {
         let body_vec = request_payload.body.unwrap_or_default().value;
         let request: NamingRouteRequest = serde_json::from_slice(&body_vec)?;
-        let res = handle_naming_route(&self.app_data, request,request_meta.labels).await?;
+        let res = handle_naming_route(&self.app_data, request,request_payload.metadata.map(|e|e.headers).unwrap_or_default()).await?;
         let value = serde_json::to_string(&res)?;
         let payload = PayloadUtils::build_payload("NamingRouteResponse", value);
         Ok(payload)

@@ -7,7 +7,7 @@ use std::{
 
 use actix::prelude::*;
 
-use crate::{now_millis, raft::network::factory::RaftClusterRequestSender};
+use crate::{now_millis, raft::network::factory::RaftClusterRequestSender, naming::core::{NamingActor, NamingCmd}};
 
 use super::model::NamingRouteAddr;
 use super::model::NamingRouteRequest;
@@ -63,6 +63,7 @@ pub struct InnerNodeManage {
     local_id: u64,
     all_nodes: BTreeMap<u64, ClusterInnerNode>,
     cluster_sender: Arc<RaftClusterRequestSender>,
+    naming_actor: Option<Addr<NamingActor>>,
 }
 
 impl InnerNodeManage {
@@ -71,6 +72,7 @@ impl InnerNodeManage {
             local_id: local_id,
             cluster_sender,
             all_nodes: Default::default(),
+            naming_actor: None,
         }
     }
 
@@ -160,11 +162,22 @@ impl InnerNodeManage {
 
     fn check_node_status(&mut self) {
         let timeout = now_millis() - 15000;
+        let naming_actor = &self.naming_actor;
         for node in self.all_nodes.values_mut() {
             if !node.is_local && node.status==NodeStatus::Valid && node.last_active_time < timeout {
                 node.status = NodeStatus::Unvalid;
+                Self::client_unvalid_instance(naming_actor,node);
             }
         }
+    }
+
+    fn client_unvalid_instance(naming_actor:&Option<Addr<NamingActor>>,node:&mut ClusterInnerNode) {
+        if let Some(naming_actor) = naming_actor.as_ref() {
+            for client_id in &node.client_set {
+                naming_actor.do_send(NamingCmd::RemoveClient(client_id.clone()));
+            }
+        }
+        node.client_set.clear();
     }
 
     fn ping_other(&mut self) {
@@ -219,6 +232,7 @@ pub enum NodeManageRequest {
     SendToOtherNodes(NamingRouteRequest),
     AddClientId(u64,Arc<String>),
     RemoveClientId(u64,Arc<String>),
+    SetNamingAddr(Addr<NamingActor>),
 }
 
 pub enum NodeManageResponse {
@@ -256,6 +270,11 @@ impl Handler<NodeManageRequest> for InnerNodeManage {
                 Ok(NodeManageResponse::None)
             },
             NodeManageRequest::RemoveClientId(_, _) => todo!(),
+            NodeManageRequest::SetNamingAddr(naming_actor) => {
+                self.naming_actor=Some(naming_actor);
+                Ok(NodeManageResponse::None)
+            },
+            
         }
     }
 }
