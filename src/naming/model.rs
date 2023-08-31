@@ -144,7 +144,7 @@ pub struct ServiceDetailDto {
     pub namespace_id: Arc<String>,
     pub service_name: Arc<String>,
     pub group_name: Arc<String>,
-    pub metadata: Option<HashMap<String, String>>,
+    pub metadata: Option<Arc<HashMap<String, String>>>,
     pub protect_threshold: Option<f32>,
 }
 

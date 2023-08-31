@@ -30,7 +30,7 @@ pub struct Service {
     pub service_name: Arc<String>,
     pub group_name: Arc<String>,
     pub group_service: Arc<String>,
-    pub metadata: HashMap<String, String>,
+    pub metadata: Arc<HashMap<String, String>>,
     pub protect_threshold: f32,
     pub last_modified_millis: i64,
     //pub has_instance:bool,
@@ -312,6 +312,6 @@ pub struct ServiceInfoDto {
     pub healthy_instance_size: i64,
     pub cluster_count: i64,
     pub trigger_flag: bool,
-    pub metadata: Option<HashMap<String, String>>,
+    pub metadata: Option<Arc<HashMap<String, String>>>,
     pub protect_threshold: Option<f32>,
 }

@@ -35,7 +35,7 @@ impl ClusteSyncSender {
 impl Actor for ClusteSyncSender {
     type Context = Context<Self>;
 
-    fn stopped(&mut self, ctx: &mut Self::Context) {
+    fn started(&mut self, _ctx: &mut Self::Context) {
         log::info!("ClusteSyncSender started,target_id:{}",&self.target_id);
     }
 }

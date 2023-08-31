@@ -15,7 +15,6 @@ pub struct UpdateInstanceReq {
     instance: Instance,
 }
 
-
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum NamingRouteRequest {
     Ping(u64),
@@ -31,7 +30,8 @@ pub enum NamingRouteRequest {
     },
     SyncRemoveInstance{
         instance: Instance,
-    }
+    },
+    Snapshot(Vec<u8>),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -52,3 +52,17 @@ pub enum SyncSenderSetCmd {
 pub enum SyncSenderResponse {
     None
 }
+
+
+#[derive(Clone, PartialEq, prost::Message, Deserialize, Serialize)]
+pub struct SnapshotDataInfo {
+    #[prost(uint32, tag = "1")]
+    route_index:u32,
+    #[prost(uint32, tag = "2")]
+    node_count:u32,
+    #[prost(message, repeated, tag = "3")]
+    pub services: Vec<String>,
+    #[prost(message, repeated, tag = "4")]
+    pub instances: Vec<String>,
+}
+
