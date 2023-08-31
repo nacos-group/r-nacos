@@ -5,7 +5,7 @@ use actix::prelude::*;
 
 use crate::{raft::network::factory::RaftClusterRequestSender, grpc::PayloadUtils};
 
-use super::model::{SyncSenderRequest, SyncSenderResponse, NamingRouterResponse, SyncSenderSetCmd};
+use super::model::{SyncSenderRequest, SyncSenderResponse, NamingRouterResponse, SyncSenderSetCmd, NamingRouteRequest};
 
 pub struct ClusteSyncSender {
     //local_id:u64,
@@ -66,7 +66,14 @@ impl Handler<SyncSenderRequest> for ClusteSyncSender {
             let payload = PayloadUtils::build_full_payload("NamingRouteRequest", request,"",send_extend_infos.clone());
             let resp_payload = match cluster_sender.send_request(target_addr.clone(), payload).await {
                 Ok(v) => v,
-                Err(_) => {
+                Err(err) => {
+                    match &req {
+                        NamingRouteRequest::Ping(_) => {
+                            //ping 不重试
+                            return Err(err)
+                        },
+                        _ => {}
+                    };
                     //retry request
                     tokio::time::sleep(Duration::from_millis(100)).await;
                     let request = serde_json::to_string(&req).unwrap_or_default();

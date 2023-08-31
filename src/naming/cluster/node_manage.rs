@@ -149,9 +149,9 @@ impl InnerNodeManage {
         }
     }
 
-    fn send_to_other_node(&self, req: SyncSenderRequest) {
+    fn send_to_other_node(&self, req: SyncSenderRequest,is_valid: bool) {
         for node in self.all_nodes.values() {
-            if node.is_local || node.status != NodeStatus::Valid {
+            if node.is_local || (is_valid && node.status != NodeStatus::Valid) {
                 continue;
             }
             if let Some(sync_sender) = node.sync_sender.as_ref() {
@@ -182,7 +182,7 @@ impl InnerNodeManage {
 
     fn ping_other(&mut self) {
         let req = SyncSenderRequest(NamingRouteRequest::Ping(self.local_id));
-        self.send_to_other_node(req);
+        self.send_to_other_node(req,false);
     }
 
     fn hb(&mut self, ctx: &mut Context<Self>) {
@@ -258,7 +258,7 @@ impl Handler<NodeManageRequest> for InnerNodeManage {
                 Ok(NodeManageResponse::AllNodes(self.get_all_nodes()))
             }
             NodeManageRequest::SendToOtherNodes(req) => {
-                self.send_to_other_node(SyncSenderRequest(req));
+                self.send_to_other_node(SyncSenderRequest(req),true);
                 Ok(NodeManageResponse::None)
             }
             NodeManageRequest::ActiveNode(node_id) => {
