@@ -47,6 +47,12 @@ pub struct ClusterInnerNode {
     pub client_set: HashSet<Arc<String>>,
 }
 
+impl ClusterInnerNode {
+    pub(crate) fn is_valid(&self) -> bool {
+        self.is_local || self.status==NodeStatus::Valid
+    }
+}
+
 impl From<ClusterInnerNode> for ClusterNode {
     fn from(value: ClusterInnerNode) -> Self {
         Self {
@@ -149,6 +155,18 @@ impl InnerNodeManage {
         }
     }
 
+    fn get_cluster_area(&self) -> (usize,usize) {
+        if self.all_nodes.len() == 0 {
+            (0,1)
+        }
+        else{
+            (
+                self.get_this_node().index as usize,
+                self.all_nodes.iter().filter(|(_,v)|v.is_valid()).count()
+            )
+        }
+    }
+
     fn send_to_other_node(&self, req: SyncSenderRequest,is_valid: bool) {
         for node in self.all_nodes.values() {
             if node.is_local || (is_valid && node.status != NodeStatus::Valid) {
@@ -233,12 +251,17 @@ pub enum NodeManageRequest {
     AddClientId(u64,Arc<String>),
     RemoveClientId(u64,Arc<String>),
     SetNamingAddr(Addr<NamingActor>),
+    QueryOwnerArea,
 }
 
 pub enum NodeManageResponse {
     None,
     ThisNode(ClusterNode),
     AllNodes(Vec<ClusterNode>),
+    OwnerArea{
+        index:usize,
+        len:usize,
+    }
 }
 
 impl Handler<NodeManageRequest> for InnerNodeManage {
@@ -274,7 +297,10 @@ impl Handler<NodeManageRequest> for InnerNodeManage {
                 self.naming_actor=Some(naming_actor);
                 Ok(NodeManageResponse::None)
             },
-            
+            NodeManageRequest::QueryOwnerArea => {
+                let (i,l) = self.get_cluster_area();
+                Ok(NodeManageResponse::OwnerArea { index: i, len: l })
+            },
         }
     }
 }

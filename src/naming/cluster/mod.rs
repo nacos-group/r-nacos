@@ -62,6 +62,7 @@ pub async fn handle_naming_route(
             let cmd = NamingCmd::Delete(instance);
             let _:NamingResult  = app.naming_addr.send(cmd).await??;
         },
+        NamingRouteRequest::QuerySnapshot { index, len } => todo!(),
         NamingRouteRequest::Snapshot(_data) => todo!(),
     };
     Ok(NamingRouterResponse::None)
