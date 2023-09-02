@@ -7,7 +7,9 @@
 )]
 
 use super::api_model::QueryListResult;
-use super::cluster::model::{NamingRouteRequest};
+use super::cluster::model::{
+    NamingRouteRequest, ProcessRange, SnapshotForReceive, SnapshotForSend,
+};
 use super::cluster::node_manage::{InnerNodeManage, NodeManageRequest};
 use super::filter::InstanceFilterUtils;
 use super::listener::{InnerNamingListener, ListenerItem, NamingListenerCmd};
@@ -31,6 +33,7 @@ use super::service_index::NamespaceIndex;
 use super::service_index::ServiceQueryParam;
 use super::NamingUtils;
 use crate::common::delay_notify;
+use crate::common::hash_utils::get_hash_value;
 use crate::common::NamingSysConfig;
 use crate::grpc::bistream_manage::BiStreamManage;
 use crate::now_millis;
@@ -208,35 +211,35 @@ impl NamingActor {
         }
     }
 
-    fn do_notify(&mut self, tag: &UpdateInstanceType, key: ServiceKey,instance :Option<Instance>) {
+    fn do_notify(&mut self, tag: &UpdateInstanceType, key: ServiceKey, instance: Option<Instance>) {
         match tag {
             UpdateInstanceType::New => {
                 self.subscriber.notify(key);
-                match (&self.cluster_node_manage,instance) {
+                match (&self.cluster_node_manage, instance) {
                     (Some(node_manage), Some(instance)) => {
                         let req = NamingRouteRequest::SyncUpdateInstance { instance };
                         node_manage.do_send(NodeManageRequest::SendToOtherNodes(req));
-                    },
+                    }
                     _ => {}
                 }
             }
             UpdateInstanceType::Remove => {
                 self.subscriber.notify(key);
-                match (&self.cluster_node_manage,instance) {
+                match (&self.cluster_node_manage, instance) {
                     (Some(node_manage), Some(instance)) => {
                         let req = NamingRouteRequest::SyncRemoveInstance { instance };
                         node_manage.do_send(NodeManageRequest::SendToOtherNodes(req));
-                    },
+                    }
                     _ => {}
                 }
             }
             UpdateInstanceType::UpdateValue => {
                 self.subscriber.notify(key);
-                match (&self.cluster_node_manage,instance) {
+                match (&self.cluster_node_manage, instance) {
                     (Some(node_manage), Some(instance)) => {
                         let req = NamingRouteRequest::SyncUpdateInstance { instance };
                         node_manage.do_send(NodeManageRequest::SendToOtherNodes(req));
-                    },
+                    }
                     _ => {}
                 }
             }
@@ -288,14 +291,13 @@ impl NamingActor {
             Some(e) => {
                 if e.is_from_cluster() {
                     None
-                }
-                else{
+                } else {
                     Some(e.as_ref().to_owned())
                 }
-            },
+            }
             None => None,
         };
-        self.do_notify(&tag, key.clone(),remove_instance);
+        self.do_notify(&tag, key.clone(), remove_instance);
         tag
     }
 
@@ -324,20 +326,19 @@ impl NamingActor {
         }
         let instance_key = instance.get_short_key();
         let tag = service.update_instance(instance, tag);
-        let instance = match service.get_instance(&instance_key){
+        let instance = match service.get_instance(&instance_key) {
             Some(e) => {
-                if e.is_from_cluster(){
+                if e.is_from_cluster() {
                     None
-                }
-                else{
+                } else {
                     let e = e.as_ref().to_owned();
                     Some(e)
                 }
-            },
+            }
             None => None,
         };
         //change notify
-        self.do_notify(&tag, key.clone(),instance);
+        self.do_notify(&tag, key.clone(), instance);
         tag
     }
 
@@ -354,13 +355,13 @@ impl NamingActor {
     pub fn get_instance(
         &self,
         key: &ServiceKey,
-        cluster_name: &str,
         instance_id: &InstanceShortKey,
     ) -> Option<Arc<Instance>> {
         if let Some(service) = self.service_map.get(key) {
-            return service.get_instance(instance_id);
+            service.get_instance(instance_id)
+        } else {
+            None
         }
-        None
     }
 
     pub fn get_instance_list(
@@ -481,29 +482,40 @@ impl NamingActor {
                     );
                 }
             }
-            change_list.push((service_key,rlist,ulist));
+            change_list.push((service_key, rlist, ulist));
             if size >= self.sys_config.once_time_check_size {
                 break;
             }
         }
-        for (service_key,rlist,ulist) in change_list {
+        for (service_key, rlist, ulist) in change_list {
             self.time_check_notify(service_key, rlist, ulist);
         }
     }
 
-    fn time_check_notify(&mut self,key: ServiceKey,remove_list:Vec<InstanceShortKey>, update_list:Vec<InstanceShortKey>) {
+    fn time_check_notify(
+        &mut self,
+        key: ServiceKey,
+        remove_list: Vec<InstanceShortKey>,
+        update_list: Vec<InstanceShortKey>,
+    ) {
         if !remove_list.is_empty() {
-            self.time_check_sync_remove_info_to_cluster(key.clone(),remove_list);
+            self.time_check_sync_remove_info_to_cluster(key.clone(), remove_list);
             self.do_notify(&UpdateInstanceType::Remove, key.clone(), None);
         }
         if !update_list.is_empty() {
-            self.time_check_sync_update_info_to_cluster(key.clone(),update_list);
+            self.time_check_sync_update_info_to_cluster(key.clone(), update_list);
             self.do_notify(&UpdateInstanceType::UpdateValue, key.clone(), None);
         }
     }
 
-    fn time_check_sync_update_info_to_cluster(&self,key: ServiceKey,update_list:Vec<InstanceShortKey>) {
-        if let (Some(node_manage),Some(service)) =  (&self.cluster_node_manage,self.service_map.get(&key)) {
+    fn time_check_sync_update_info_to_cluster(
+        &self,
+        key: ServiceKey,
+        update_list: Vec<InstanceShortKey>,
+    ) {
+        if let (Some(node_manage), Some(service)) =
+            (&self.cluster_node_manage, self.service_map.get(&key))
+        {
             if service.instances.is_empty() {
                 return;
             }
@@ -520,10 +532,14 @@ impl NamingActor {
         }
     }
 
-    fn time_check_sync_remove_info_to_cluster(&self,key: ServiceKey,remove_list:Vec<InstanceShortKey>) {
-        if let Some(node_manage) =  &self.cluster_node_manage {
+    fn time_check_sync_remove_info_to_cluster(
+        &self,
+        key: ServiceKey,
+        remove_list: Vec<InstanceShortKey>,
+    ) {
+        if let Some(node_manage) = &self.cluster_node_manage {
             for instance_key in remove_list {
-                let instance = Instance { 
+                let instance = Instance {
                     namespace_id: key.namespace_id.clone(),
                     group_name: key.group_name.clone(),
                     service_name: key.service_name.clone(),
@@ -628,6 +644,47 @@ impl NamingActor {
             act.instance_time_out_heartbeat(ctx);
         });
     }
+
+    pub fn build_snapshot_data(&self, ranges: Vec<ProcessRange>) -> SnapshotForSend {
+        let mut service_details = vec![];
+        let mut instances = vec![];
+        for (service_key, service) in &self.service_map {
+            let hash_value = get_hash_value(service_key) as usize;
+            if !ProcessRange::is_range_at_list(hash_value, &ranges) {
+                continue;
+            }
+            service_details.push(service.get_service_detail());
+            instances.append(&mut service.get_owner_http_instances());
+        }
+
+        for (_, keys) in &self.client_instance_set {
+            for instance_key in keys {
+                let service_key = instance_key.get_service_key();
+                let short_key = instance_key.get_short_key();
+                if let Some(v) = self.get_instance(&service_key, &short_key) {
+                    if !v.is_from_cluster() {
+                        instances.push(v)
+                    }
+                }
+            }
+        }
+
+        SnapshotForSend {
+            route_index: 0,
+            node_count: 0,
+            services: service_details,
+            instances,
+        }
+    }
+
+    fn receive_snapshot(&mut self, snapshot: SnapshotForReceive) {
+        for service_detail in snapshot.services {
+            self.update_service(service_detail);
+        }
+        for mut instance in snapshot.instances {
+            self.update_instance(&instance.get_service_key(), instance, None);
+        }
+    }
 }
 
 #[derive(Debug, Message)]
@@ -655,6 +712,8 @@ pub enum NamingCmd {
     RemoveClient(Arc<String>),
     QueryClientInstanceCount,
     QueryDalAddr,
+    QuerySnapshot(Vec<ProcessRange>),
+    ReceiveSnapshot(SnapshotForReceive),
 }
 
 pub enum NamingResult {
@@ -666,6 +725,7 @@ pub enum NamingResult {
     ServicePage((usize, Vec<Arc<String>>)),
     ServiceInfoPage((usize, Vec<ServiceInfoDto>)),
     ClientInstanceCount(Vec<(Arc<String>, usize)>),
+    Snapshot(SnapshotForSend),
 }
 
 impl Actor for NamingActor {
@@ -712,11 +772,9 @@ impl Handler<NamingCmd> for NamingActor {
                 Ok(NamingResult::NULL)
             }
             NamingCmd::Query(instance) => {
-                if let Some(i) = self.get_instance(
-                    &instance.get_service_key(),
-                    &instance.cluster_name,
-                    &instance.get_short_key(),
-                ) {
+                if let Some(i) =
+                    self.get_instance(&instance.get_service_key(), &instance.get_short_key())
+                {
                     return Ok(NamingResult::Instance(i));
                 }
                 Ok(NamingResult::NULL)
@@ -828,6 +886,14 @@ impl Handler<NamingCmd> for NamingActor {
                 self.cluster_node_manage = Some(addr);
                 Ok(NamingResult::NULL)
             }
+            NamingCmd::QuerySnapshot(ranges) => {
+                let res = self.build_snapshot_data(ranges);
+                Ok(NamingResult::Snapshot(res))
+            }
+            NamingCmd::ReceiveSnapshot(snapshot) => {
+                self.receive_snapshot(snapshot);
+                Ok(NamingResult::NULL)
+            }
         }
     }
 }
@@ -926,11 +992,7 @@ fn test_remove_has_instance_service() {
     assert!(naming.remove_empty_service(service_key.clone()).is_err());
     assert!(naming.namespace_index.service_size == 1);
 
-    naming.remove_instance(
-        &service_key,
-        &instance.get_short_key(),
-        None,
-    );
+    naming.remove_instance(&service_key, &instance.get_short_key(), None);
     assert!(naming.namespace_index.service_size == 1);
     assert!(naming.remove_empty_service(service_key.clone()).is_ok());
     assert!(naming.namespace_index.service_size == 0);

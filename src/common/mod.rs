@@ -6,6 +6,7 @@ pub mod appdata;
 pub mod byte_utils;
 pub mod cycle_queue;
 pub mod delay_notify;
+pub mod hash_utils;
 pub mod rusqlite_utils;
 pub mod sled_utils;
 pub mod string_utils;

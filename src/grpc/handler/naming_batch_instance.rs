@@ -3,6 +3,7 @@
 use std::sync::Arc;
 
 use crate::{
+    common::appdata::AppShareData,
     grpc::{
         api_model::{
             BatchInstanceRequest, Instance as ApiInstance, InstanceResponse, ERROR_CODE,
@@ -16,7 +17,7 @@ use crate::{
         model::{Instance, InstanceUpdateTag},
         NamingUtils,
     },
-    now_millis_i64, common::appdata::AppShareData,
+    now_millis_i64,
 };
 use actix::prelude::Addr;
 use async_trait::async_trait;

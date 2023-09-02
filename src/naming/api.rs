@@ -365,10 +365,8 @@ pub async fn add_instance(
             if !instance.check_vaild() {
                 HttpResponse::InternalServerError().body("instance check is invalid")
             } else {
-                match appdata.naming_route.update_instance(instance, None).await{
-                    Ok(_) => {
-                        HttpResponse::Ok().body("ok")
-                    },
+                match appdata.naming_route.update_instance(instance, None).await {
+                    Ok(_) => HttpResponse::Ok().body("ok"),
                     Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
                 }
             }
@@ -409,7 +407,11 @@ pub async fn update_instance(
             if !instance.check_vaild() {
                 HttpResponse::InternalServerError().body("instance check is invalid")
             } else {
-                match appdata.naming_route.update_instance(instance, Some(update_tag)).await {
+                match appdata
+                    .naming_route
+                    .update_instance(instance, Some(update_tag))
+                    .await
+                {
                     Ok(_) => HttpResponse::Ok().body("ok"),
                     Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
                 }
@@ -460,7 +462,11 @@ pub async fn beat_instance(
                     metadata: false,
                     from_update: false,
                 };
-                match appdata.naming_route.update_instance(instance, Some(tag)).await {
+                match appdata
+                    .naming_route
+                    .update_instance(instance, Some(tag))
+                    .await
+                {
                     Ok(_) => HttpResponse::Ok().body("ok"),
                     Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
                 }

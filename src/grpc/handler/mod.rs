@@ -1,13 +1,15 @@
 use std::sync::Arc;
 
-use crate::{common::appdata::AppShareData};
+use crate::common::appdata::AppShareData;
 
 use self::{
     config_change_batch_listen::ConfigChangeBatchListenRequestHandler,
     config_publish::ConfigPublishRequestHandler, config_query::ConfigQueryRequestHandler,
     config_remove::ConfigRemoveRequestHandler, naming_batch_instance::BatchInstanceRequestHandler,
-    naming_instance::InstanceRequestHandler, naming_service_list::ServiceListRequestHandler, naming_service_query::ServiceQueryRequestHandler,
-    naming_subscribe_service::SubscribeServiceRequestHandler, raft_route::RaftRouteRequestHandler, naming_route::NamingRouteRequestHandler,
+    naming_instance::InstanceRequestHandler, naming_route::NamingRouteRequestHandler,
+    naming_service_list::ServiceListRequestHandler,
+    naming_service_query::ServiceQueryRequestHandler,
+    naming_subscribe_service::SubscribeServiceRequestHandler, raft_route::RaftRouteRequestHandler,
 };
 
 use super::{
@@ -28,10 +30,10 @@ pub mod config_remove;
 pub mod converter;
 pub mod naming_batch_instance;
 pub mod naming_instance;
+pub mod naming_route;
 pub mod naming_service_list;
 pub mod naming_service_query;
 pub mod naming_subscribe_service;
-pub mod naming_route;
 pub mod raft_append;
 pub mod raft_route;
 mod raft_snapshot;

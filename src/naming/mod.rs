@@ -9,9 +9,9 @@ pub mod naming_subscriber;
 pub mod service;
 pub mod udp_actor;
 //pub(crate) mod dal;
+pub mod cluster;
 pub mod ops;
 pub mod service_index;
-pub mod cluster;
 
 pub struct NamingUtils;
 

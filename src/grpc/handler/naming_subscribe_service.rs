@@ -3,6 +3,7 @@
 use std::sync::Arc;
 
 use crate::{
+    common::appdata::AppShareData,
     grpc::{
         api_model::{
             Instance as ApiInstance, ServiceInfo as ApiServiceInfo, SubscribeServiceRequest,
@@ -17,7 +18,7 @@ use crate::{
         naming_subscriber::NamingListenerItem,
         NamingUtils,
     },
-    now_millis_i64, common::appdata::AppShareData,
+    now_millis_i64,
 };
 use actix::prelude::Addr;
 use async_trait::async_trait;

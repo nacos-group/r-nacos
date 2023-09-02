@@ -58,8 +58,9 @@ impl RaftStore {
         }
     }
 
-    pub fn set_naming_manage_addr(&self,naming_addr:Addr<InnerNodeManage>) {
-        self.inner_addr.do_send(StoreRequest::SetNamingNodeManageAddr(naming_addr));
+    pub fn set_naming_manage_addr(&self, naming_addr: Addr<InnerNodeManage>) {
+        self.inner_addr
+            .do_send(StoreRequest::SetNamingNodeManageAddr(naming_addr));
     }
 }
 

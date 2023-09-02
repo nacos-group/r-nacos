@@ -7,10 +7,17 @@ use std::{
 
 use actix::prelude::*;
 
-use crate::{now_millis, raft::network::factory::RaftClusterRequestSender, naming::core::{NamingActor, NamingCmd}};
+use crate::{
+    naming::core::{NamingActor, NamingCmd},
+    now_millis,
+    raft::network::factory::RaftClusterRequestSender,
+};
 
 use super::model::NamingRouteAddr;
 use super::model::NamingRouteRequest;
+use super::model::ProcessRange;
+use super::model::SnapshotDataInfo;
+use super::model::SnapshotForSend;
 use super::model::SyncSenderRequest;
 use super::sync_sender::ClusteSyncSender;
 
@@ -49,7 +56,7 @@ pub struct ClusterInnerNode {
 
 impl ClusterInnerNode {
     pub(crate) fn is_valid(&self) -> bool {
-        self.is_local || self.status==NodeStatus::Valid
+        self.is_local || self.status == NodeStatus::Valid
     }
 }
 
@@ -70,6 +77,7 @@ pub struct InnerNodeManage {
     all_nodes: BTreeMap<u64, ClusterInnerNode>,
     cluster_sender: Arc<RaftClusterRequestSender>,
     naming_actor: Option<Addr<NamingActor>>,
+    start_query_snapshot: bool,
 }
 
 impl InnerNodeManage {
@@ -79,10 +87,11 @@ impl InnerNodeManage {
             cluster_sender,
             all_nodes: Default::default(),
             naming_actor: None,
+            start_query_snapshot: false,
         }
     }
 
-    fn update_nodes(&mut self, nodes: Vec<(u64, Arc<String>)>) {
+    fn update_nodes(&mut self, nodes: Vec<(u64, Arc<String>)>, ctx: &mut Context<Self>) {
         let new_sets: HashSet<u64> = (&nodes).iter().map(|e| e.0.to_owned()).collect();
         let mut dels = vec![];
         for key in self.all_nodes.keys() {
@@ -103,8 +112,13 @@ impl InnerNodeManage {
                     None
                 } else {
                     Some(
-                        ClusteSyncSender::new(self.local_id,key, addr.clone(), self.cluster_sender.clone())
-                            .start(),
+                        ClusteSyncSender::new(
+                            self.local_id,
+                            key,
+                            addr.clone(),
+                            self.cluster_sender.clone(),
+                        )
+                        .start(),
                     )
                 };
                 let node = ClusterInnerNode {
@@ -125,6 +139,13 @@ impl InnerNodeManage {
             self.all_nodes.insert(self.local_id, node);
         }
         self.update_nodes_index();
+        //第一次需要触发从其它实例加载snapshot
+        if !self.start_query_snapshot {
+            self.start_query_snapshot = true;
+            ctx.run_later(Duration::from_millis(500), |act, _ctx| {
+                act.load_snapshot_from_node();
+            });
+        }
     }
 
     fn update_nodes_index(&mut self) {
@@ -155,19 +176,33 @@ impl InnerNodeManage {
         }
     }
 
-    fn get_cluster_area(&self) -> (usize,usize) {
-        if self.all_nodes.len() == 0 {
-            (0,1)
-        }
-        else{
-            (
-                self.get_this_node().index as usize,
-                self.all_nodes.iter().filter(|(_,v)|v.is_valid()).count()
-            )
-        }
+    fn get_last_valid_range(&self) -> Option<ProcessRange> {
+        None
     }
 
-    fn send_to_other_node(&self, req: SyncSenderRequest,is_valid: bool) {
+    fn get_cluster_process_range(&self, input: ProcessRange) -> Vec<ProcessRange> {
+        let current = if self.all_nodes.len() == 0 {
+            ProcessRange::new(0, 1)
+        } else {
+            ProcessRange::new(
+                self.get_this_node().index as usize,
+                self.all_nodes.iter().filter(|(_, v)| v.is_valid()).count(),
+            )
+        };
+        let mut list = vec![];
+        if let Some(v) = self.get_last_valid_range() {
+            if v != current && v != input {
+                list.push(v);
+            }
+        }
+        if input != current {
+            list.push(input);
+        }
+        list.push(current);
+        list
+    }
+
+    fn send_to_other_node(&self, req: SyncSenderRequest, is_valid: bool) {
         for node in self.all_nodes.values() {
             if node.is_local || (is_valid && node.status != NodeStatus::Valid) {
                 continue;
@@ -178,18 +213,53 @@ impl InnerNodeManage {
         }
     }
 
-    fn check_node_status(&mut self) {
-        let timeout = now_millis() - 15000;
-        let naming_actor = &self.naming_actor;
-        for node in self.all_nodes.values_mut() {
-            if !node.is_local && node.status==NodeStatus::Valid && node.last_active_time < timeout {
-                node.status = NodeStatus::Unvalid;
-                Self::client_unvalid_instance(naming_actor,node);
+    fn load_snapshot_from_node(&self) {
+        let list: Vec<(&u64, &ClusterInnerNode)> = self
+            .all_nodes
+            .iter()
+            .filter(|(_k, e)| e.is_valid())
+            .collect();
+        let len = list.len();
+        for (_, node) in list {
+            if node.is_local {
+                continue;
+            };
+            let req = SyncSenderRequest(NamingRouteRequest::QuerySnapshot {
+                index: node.index as usize,
+                len,
+            });
+            if let Some(sync_sender) = node.sync_sender.as_ref() {
+                sync_sender.do_send(req.clone());
             }
         }
     }
 
-    fn client_unvalid_instance(naming_actor:&Option<Addr<NamingActor>>,node:&mut ClusterInnerNode) {
+    fn send_snapshot_to_node(&self, node_id: u64, snapshot_for_send: SnapshotForSend) {
+        self.all_nodes.get(&node_id).map(|n| {
+            let snapshot = SnapshotDataInfo::from(snapshot_for_send);
+            let data = snapshot.to_bytes();
+            if let (Ok(data), Some(sender)) = (data, &n.sync_sender) {
+                sender.do_send(SyncSenderRequest(NamingRouteRequest::Snapshot(data)));
+            }
+        });
+    }
+
+    fn check_node_status(&mut self) {
+        let timeout = now_millis() - 15000;
+        let naming_actor = &self.naming_actor;
+        for node in self.all_nodes.values_mut() {
+            if !node.is_local && node.status == NodeStatus::Valid && node.last_active_time < timeout
+            {
+                node.status = NodeStatus::Unvalid;
+                Self::client_unvalid_instance(naming_actor, node);
+            }
+        }
+    }
+
+    fn client_unvalid_instance(
+        naming_actor: &Option<Addr<NamingActor>>,
+        node: &mut ClusterInnerNode,
+    ) {
         if let Some(naming_actor) = naming_actor.as_ref() {
             for client_id in &node.client_set {
                 naming_actor.do_send(NamingCmd::RemoveClient(client_id.clone()));
@@ -200,7 +270,7 @@ impl InnerNodeManage {
 
     fn ping_other(&mut self) {
         let req = SyncSenderRequest(NamingRouteRequest::Ping(self.local_id));
-        self.send_to_other_node(req,false);
+        self.send_to_other_node(req, false);
     }
 
     fn hb(&mut self, ctx: &mut Context<Self>) {
@@ -218,7 +288,7 @@ impl InnerNodeManage {
         }
     }
 
-    fn node_add_client(&mut self, node_id: u64,client_id: Arc<String>) {
+    fn node_add_client(&mut self, node_id: u64, client_id: Arc<String>) {
         if let Some(node) = self.all_nodes.get_mut(&node_id) {
             node.last_active_time = now_millis();
             node.status = NodeStatus::Valid;
@@ -248,30 +318,28 @@ pub enum NodeManageRequest {
     GetAllNodes,
     ActiveNode(u64),
     SendToOtherNodes(NamingRouteRequest),
-    AddClientId(u64,Arc<String>),
-    RemoveClientId(u64,Arc<String>),
+    AddClientId(u64, Arc<String>),
+    RemoveClientId(u64, Arc<String>),
     SetNamingAddr(Addr<NamingActor>),
-    QueryOwnerArea,
+    QueryOwnerRange(ProcessRange),
+    SendSnapshot(u64, SnapshotForSend),
 }
 
 pub enum NodeManageResponse {
     None,
     ThisNode(ClusterNode),
     AllNodes(Vec<ClusterNode>),
-    OwnerArea{
-        index:usize,
-        len:usize,
-    }
+    OwnerRange(Vec<ProcessRange>),
 }
 
 impl Handler<NodeManageRequest> for InnerNodeManage {
     type Result = anyhow::Result<NodeManageResponse>;
 
-    fn handle(&mut self, msg: NodeManageRequest, _ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, msg: NodeManageRequest, ctx: &mut Self::Context) -> Self::Result {
         match msg {
             NodeManageRequest::UpdateNodes(nodes) => {
                 log::info!("InnerNodeManage UpdateNodes,size:{}", nodes.len());
-                self.update_nodes(nodes);
+                self.update_nodes(nodes, ctx);
                 Ok(NodeManageResponse::None)
             }
             NodeManageRequest::GetThisNode => {
@@ -281,7 +349,7 @@ impl Handler<NodeManageRequest> for InnerNodeManage {
                 Ok(NodeManageResponse::AllNodes(self.get_all_nodes()))
             }
             NodeManageRequest::SendToOtherNodes(req) => {
-                self.send_to_other_node(SyncSenderRequest(req),true);
+                self.send_to_other_node(SyncSenderRequest(req), true);
                 Ok(NodeManageResponse::None)
             }
             NodeManageRequest::ActiveNode(node_id) => {
@@ -289,18 +357,22 @@ impl Handler<NodeManageRequest> for InnerNodeManage {
                 Ok(NodeManageResponse::None)
             }
             NodeManageRequest::AddClientId(node_id, client_id) => {
-                self.node_add_client(node_id,client_id);
+                self.node_add_client(node_id, client_id);
                 Ok(NodeManageResponse::None)
-            },
+            }
             NodeManageRequest::RemoveClientId(_, _) => todo!(),
             NodeManageRequest::SetNamingAddr(naming_actor) => {
-                self.naming_actor=Some(naming_actor);
+                self.naming_actor = Some(naming_actor);
                 Ok(NodeManageResponse::None)
-            },
-            NodeManageRequest::QueryOwnerArea => {
-                let (i,l) = self.get_cluster_area();
-                Ok(NodeManageResponse::OwnerArea { index: i, len: l })
-            },
+            }
+            NodeManageRequest::QueryOwnerRange(range) => {
+                let ranges = self.get_cluster_process_range(range);
+                Ok(NodeManageResponse::OwnerRange(ranges))
+            }
+            NodeManageRequest::SendSnapshot(node_id, snapshot) => {
+                self.send_snapshot_to_node(node_id, snapshot);
+                Ok(NodeManageResponse::None)
+            }
         }
     }
 }

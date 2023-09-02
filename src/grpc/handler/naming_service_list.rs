@@ -6,6 +6,7 @@ use actix::prelude::Addr;
 use async_trait::async_trait;
 
 use crate::{
+    common::appdata::AppShareData,
     grpc::{
         api_model::{ServiceListRequest, ServiceListResponse, ERROR_CODE, SUCCESS_CODE},
         nacos_proto::Payload,
@@ -15,7 +16,7 @@ use crate::{
         core::{NamingActor, NamingCmd, NamingResult},
         model::ServiceKey,
         NamingUtils,
-    }, common::appdata::AppShareData,
+    },
 };
 
 use super::converter::ModelConverter;

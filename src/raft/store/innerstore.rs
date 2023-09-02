@@ -393,12 +393,14 @@ impl InnerStore {
     }
 
     fn do_notify_membership(&self) {
-        if let (Some(naming_node_manage),Some(membership)) 
-            = (&self.naming_inner_node_manage,self.membership.membership_config.as_ref()) {
+        if let (Some(naming_node_manage), Some(membership)) = (
+            &self.naming_inner_node_manage,
+            self.membership.membership_config.as_ref(),
+        ) {
             let mut nodes = vec![];
             for nid in membership.all_nodes() {
-                if let Some(addr) = self.membership.node_addr.get(&nid){
-                    nodes.push((nid,addr.to_owned()))
+                if let Some(addr) = self.membership.node_addr.get(&nid) {
+                    nodes.push((nid, addr.to_owned()))
                 }
             }
             naming_node_manage.do_send(NodeManageRequest::UpdateNodes(nodes));

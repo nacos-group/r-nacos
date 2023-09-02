@@ -39,7 +39,7 @@ impl Instance {
 
     pub fn is_from_cluster(&self) -> bool {
         self.from_cluster > 0
-    } 
+    }
 
     pub fn generate_key(&mut self) {
         //self.id = format!("{}#{}#{}#{}#{}",&self.ip,&self.port,&self.cluster_name,&self.service_name,&self.group_name)

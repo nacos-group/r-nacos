@@ -13,8 +13,8 @@ use crate::now_millis;
 use super::{
     api_model::QueryListResult,
     model::{
-        Instance, InstanceShortKey, InstanceTimeInfo, InstanceUpdateTag, ServiceKey,
-        UpdateInstanceType,
+        Instance, InstanceShortKey, InstanceTimeInfo, InstanceUpdateTag, ServiceDetailDto,
+        ServiceKey, UpdateInstanceType,
     },
 };
 
@@ -83,8 +83,7 @@ impl Service {
         if let Some(old_instance) = old_instance {
             if !old_instance.healthy && instance.healthy {
                 self.healthy_instance_size += 1;
-            }
-            else if old_instance.healthy && !instance.healthy {
+            } else if old_instance.healthy && !instance.healthy {
                 self.healthy_instance_size -= 1;
             }
             rtype = UpdateInstanceType::UpdateValue;
@@ -297,6 +296,29 @@ impl Service {
             metadata: Some(self.metadata.clone()),
             protect_threshold: Some(self.protect_threshold),
         }
+    }
+
+    pub fn get_service_detail(&self) -> ServiceDetailDto {
+        let metadata = if self.metadata.is_empty() {
+            None
+        } else {
+            Some(self.metadata.clone())
+        };
+        ServiceDetailDto {
+            namespace_id: self.namespace_id.clone(),
+            service_name: self.service_name.clone(),
+            group_name: self.group_name.clone(),
+            metadata,
+            protect_threshold: Some(self.protect_threshold),
+        }
+    }
+
+    pub fn get_owner_http_instances(&self) -> Vec<Arc<Instance>> {
+        self.instances
+            .values()
+            .filter(|x| x.client_id.is_empty())
+            .cloned()
+            .collect::<Vec<_>>()
     }
 
     pub(crate) fn exist_priority_metadata(&self, instance_key: &InstanceShortKey) -> bool {
