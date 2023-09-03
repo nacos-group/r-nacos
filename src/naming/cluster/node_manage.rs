@@ -316,6 +316,7 @@ pub enum NodeManageRequest {
     ActiveNode(u64),
     SendToOtherNodes(NamingRouteRequest),
     AddClientId(u64, Arc<String>),
+    AddClientIds(u64, HashSet<Arc<String>>),
     RemoveClientId(u64, Arc<String>),
     SetNamingAddr(Addr<NamingActor>),
     QueryOwnerRange(ProcessRange),
@@ -356,6 +357,13 @@ impl Handler<NodeManageRequest> for InnerNodeManage {
             NodeManageRequest::AddClientId(node_id, client_id) => {
                 self.active_node(node_id);
                 self.node_add_client(node_id, client_id);
+                Ok(NodeManageResponse::None)
+            }
+            NodeManageRequest::AddClientIds(node_id, client_id_set) => {
+                self.active_node(node_id);
+                for client_id in client_id_set {
+                    self.node_add_client(node_id, client_id);
+                }
                 Ok(NodeManageResponse::None)
             }
             NodeManageRequest::RemoveClientId(_, _) => todo!(),

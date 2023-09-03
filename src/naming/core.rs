@@ -7,6 +7,7 @@
 )]
 
 use super::api_model::QueryListResult;
+use super::cluster::instance_delay_notify::{ClusterInstanceDelayNotifyActor, InstanceDelayNotifyRequest};
 use super::cluster::model::{
     NamingRouteRequest, ProcessRange, SnapshotForReceive, SnapshotForSend,
 };
@@ -66,6 +67,7 @@ pub struct NamingActor {
     namespace_index: NamespaceIndex,
     pub(crate) client_instance_set: HashMap<Arc<String>, HashSet<InstanceKey>>,
     cluster_node_manage: Option<Addr<InnerNodeManage>>,
+    cluster_delay_notify: Option<Addr<ClusterInstanceDelayNotifyActor>>,
     //dal_addr: Addr<ServiceDalActor>,
 }
 
@@ -91,6 +93,7 @@ impl NamingActor {
             instance_metadate_set: Default::default(),
             client_instance_set: Default::default(),
             cluster_node_manage: None,
+            cluster_delay_notify: None,
             //dal_addr,
         }
     }
@@ -211,27 +214,24 @@ impl NamingActor {
         }
     }
 
-    fn do_notify(&mut self, tag: &UpdateInstanceType, key: ServiceKey, instance: Option<Instance>) {
+    fn do_notify(&mut self, tag: &UpdateInstanceType, key: ServiceKey, instance: Option<Arc<Instance>>) {
         match tag {
             UpdateInstanceType::New => {
                 self.subscriber.notify(key);
-                if let (Some(node_manage), Some(instance)) = (&self.cluster_node_manage, instance) {
-                    let req = NamingRouteRequest::SyncUpdateInstance { instance };
-                    node_manage.do_send(NodeManageRequest::SendToOtherNodes(req));
+                if let (Some(cluster_delay_notify), Some(instance)) = (&self.cluster_delay_notify, instance) {
+                    cluster_delay_notify.do_send(InstanceDelayNotifyRequest::UpdateInstance(instance));
                 }
             }
             UpdateInstanceType::Remove => {
                 self.subscriber.notify(key);
-                if let (Some(node_manage), Some(instance)) = (&self.cluster_node_manage, instance) {
-                    let req = NamingRouteRequest::SyncRemoveInstance { instance };
-                    node_manage.do_send(NodeManageRequest::SendToOtherNodes(req));
+                if let (Some(cluster_delay_notify), Some(instance)) = (&self.cluster_delay_notify, instance) {
+                    cluster_delay_notify.do_send(InstanceDelayNotifyRequest::RemoveInstance(instance));
                 }
             }
             UpdateInstanceType::UpdateValue => {
                 self.subscriber.notify(key);
-                if let (Some(node_manage), Some(instance)) = (&self.cluster_node_manage, instance) {
-                    let req = NamingRouteRequest::SyncUpdateInstance { instance };
-                    node_manage.do_send(NodeManageRequest::SendToOtherNodes(req));
+                if let (Some(cluster_delay_notify), Some(instance)) = (&self.cluster_delay_notify, instance) {
+                    cluster_delay_notify.do_send(InstanceDelayNotifyRequest::UpdateInstance(instance));
                 }
             }
             _ => {}
@@ -283,7 +283,7 @@ impl NamingActor {
                 if e.is_from_cluster() {
                     None
                 } else {
-                    Some(e.as_ref().to_owned())
+                    Some(e)
                 }
             }
             None => None,
@@ -322,7 +322,6 @@ impl NamingActor {
                 if e.is_from_cluster() {
                     None
                 } else {
-                    let e = e.as_ref().to_owned();
                     Some(e)
                 }
             }
@@ -504,8 +503,8 @@ impl NamingActor {
         key: ServiceKey,
         update_list: Vec<InstanceShortKey>,
     ) {
-        if let (Some(node_manage), Some(service)) =
-            (&self.cluster_node_manage, self.service_map.get(&key))
+        if let (Some(cluster_delay_notify), Some(service)) =
+            (&self.cluster_delay_notify, self.service_map.get(&key))
         {
             if service.instances.is_empty() {
                 return;
@@ -515,9 +514,7 @@ impl NamingActor {
                     if instance.is_from_cluster() {
                         continue;
                     }
-                    let instance = instance.as_ref().to_owned();
-                    let req = NamingRouteRequest::SyncUpdateInstance { instance };
-                    node_manage.do_send(NodeManageRequest::SendToOtherNodes(req));
+                    cluster_delay_notify.do_send(InstanceDelayNotifyRequest::UpdateInstance(instance));
                 }
             }
         }
@@ -528,18 +525,17 @@ impl NamingActor {
         key: ServiceKey,
         remove_list: Vec<InstanceShortKey>,
     ) {
-        if let Some(node_manage) = &self.cluster_node_manage {
+        if let Some(cluster_delay_notify) = &self.cluster_delay_notify {
             for instance_key in remove_list {
-                let instance = Instance {
+                let instance = Arc::new(Instance {
                     namespace_id: key.namespace_id.clone(),
                     group_name: key.group_name.clone(),
                     service_name: key.service_name.clone(),
                     ip: instance_key.ip,
                     port: instance_key.port,
                     ..Default::default()
-                };
-                let req = NamingRouteRequest::SyncRemoveInstance { instance };
-                node_manage.do_send(NodeManageRequest::SendToOtherNodes(req));
+                });
+                cluster_delay_notify.do_send(InstanceDelayNotifyRequest::RemoveInstance(instance));
             }
         }
     }
@@ -682,7 +678,9 @@ impl NamingActor {
 #[rtype(result = "anyhow::Result<NamingResult>")]
 pub enum NamingCmd {
     Update(Instance, Option<InstanceUpdateTag>),
+    UpdateBatch(Vec<Instance>),
     Delete(Instance),
+    DeleteBatch(Vec<Instance>),
     Query(Instance),
     QueryList(ServiceKey, String, bool, Option<SocketAddr>),
     QueryAllInstanceList(ServiceKey),
@@ -699,6 +697,7 @@ pub enum NamingCmd {
     NotifyListener(ServiceKey, u64),
     SetConnManage(Addr<BiStreamManage>),
     SetClusterNodeManage(Addr<InnerNodeManage>),
+    SetClusterDelayNotify(Addr<ClusterInstanceDelayNotifyActor>),
     Subscribe(Vec<NamingListenerItem>, Arc<String>),
     RemoveSubscribe(Vec<NamingListenerItem>, Arc<String>),
     RemoveClient(Arc<String>),
@@ -755,12 +754,28 @@ impl Handler<NamingCmd> for NamingActor {
                 self.update_instance(&instance.get_service_key(), instance, tag);
                 Ok(NamingResult::NULL)
             }
+            NamingCmd::UpdateBatch(instances) => {
+                for mut instance in instances {
+                    self.update_instance(&instance.get_service_key(), instance, None);
+                }
+                Ok(NamingResult::NULL)
+            }
             NamingCmd::Delete(instance) => {
                 self.remove_instance(
                     &instance.get_service_key(),
                     &instance.get_short_key(),
                     Some(&instance.client_id),
                 );
+                Ok(NamingResult::NULL)
+            }
+            NamingCmd::DeleteBatch(instances) => {
+                for instance in instances {
+                    self.remove_instance(
+                        &instance.get_service_key(),
+                        &instance.get_short_key(),
+                        Some(&instance.client_id),
+                    );
+                }
                 Ok(NamingResult::NULL)
             }
             NamingCmd::Query(instance) => {
@@ -885,6 +900,10 @@ impl Handler<NamingCmd> for NamingActor {
             }
             NamingCmd::SetClusterNodeManage(addr) => {
                 self.cluster_node_manage = Some(addr);
+                Ok(NamingResult::NULL)
+            }
+            NamingCmd::SetClusterDelayNotify(addr) => {
+                self.cluster_delay_notify = Some(addr);
                 Ok(NamingResult::NULL)
             }
             NamingCmd::QuerySnapshot(ranges) => {

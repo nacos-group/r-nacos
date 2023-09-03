@@ -34,6 +34,7 @@ pub enum NamingRouteRequest {
     SyncUpdateService {
         service: ServiceDetailDto,
     },
+    SyncBatchInstances(Vec<u8>),
     QuerySnapshot {
         index: usize,
         len: usize,
@@ -82,6 +83,79 @@ impl ProcessRange {
             }
         }
         false
+    }
+}
+
+#[derive(Clone, PartialEq, prost::Message, Deserialize, Serialize)]
+pub struct SyncBatchDataInfo {
+    #[prost(message, repeated, tag = "1")]
+    pub update_instances: Vec<String>,
+    #[prost(message, repeated, tag = "2")]
+    pub remove_instances: Vec<String>,
+}
+
+impl SyncBatchDataInfo {
+    pub fn to_bytes(&self) -> anyhow::Result<Vec<u8>> {
+        use prost::Message;
+        let mut data_bytes: Vec<u8> = Vec::new();
+        self.encode(&mut data_bytes)?;
+        Ok(data_bytes)
+    }
+
+    pub fn from_bytes(buf: &[u8]) -> anyhow::Result<Self> {
+        use prost::Message;
+        let s = SyncBatchDataInfo::decode(buf)?;
+        Ok(s)
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct SyncBatchForSend {
+    pub update_instances: Vec<Arc<Instance>>,
+    pub remove_instances: Vec<Arc<Instance>>,
+}
+
+#[derive(Clone, Debug)]
+pub struct SyncBatchForReceive {
+    pub update_instances: Vec<Instance>,
+    pub remove_instances: Vec<Instance>,
+}
+
+impl From<SyncBatchForSend> for SyncBatchDataInfo {
+    fn from(v: SyncBatchForSend) -> Self {
+        Self {
+            update_instances: v
+                .update_instances
+                .iter()
+                .map(|e| serde_json::to_string(e).unwrap())
+                .collect(),
+                remove_instances: v
+                .remove_instances
+                .iter()
+                .map(|e| serde_json::to_string(e).unwrap())
+                .collect(),
+        }
+    }
+}
+
+impl TryFrom<SyncBatchDataInfo> for SyncBatchForReceive {
+    type Error = anyhow::Error;
+
+    fn try_from(value: SyncBatchDataInfo) -> Result<Self, Self::Error> {
+        let mut update_instances = Vec::with_capacity(value.update_instances.len());
+        for e in &value.update_instances {
+            let v = serde_json::from_str(e)?;
+            update_instances.push(v);
+        }
+        let mut remove_instances = Vec::with_capacity(value.remove_instances.len());
+        for e in &value.remove_instances {
+            let v = serde_json::from_str(e)?;
+            remove_instances.push(v);
+        }
+        Ok(Self {
+            update_instances,
+            remove_instances,
+        })
     }
 }
 

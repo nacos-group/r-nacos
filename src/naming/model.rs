@@ -88,6 +88,16 @@ impl Instance {
         }
     }
 
+    pub fn get_instance_key(&self) -> InstanceKey {
+        InstanceKey {
+            namespace_id: self.namespace_id.clone(),
+            group_name: self.group_name.clone(),
+            service_name: self.service_name.clone(),
+            ip: self.ip.clone(),
+            port: self.port.to_owned(),
+        }
+    }
+
     pub fn get_id_string(&self) -> String {
         format!("{}#{}", &self.ip, &self.port)
     }
