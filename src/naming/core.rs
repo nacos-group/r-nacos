@@ -215,21 +215,21 @@ impl NamingActor {
         match tag {
             UpdateInstanceType::New => {
                 self.subscriber.notify(key);
-                if let(Some(node_manage), Some(instance)) = (&self.cluster_node_manage, instance) {
+                if let (Some(node_manage), Some(instance)) = (&self.cluster_node_manage, instance) {
                     let req = NamingRouteRequest::SyncUpdateInstance { instance };
                     node_manage.do_send(NodeManageRequest::SendToOtherNodes(req));
                 }
             }
             UpdateInstanceType::Remove => {
                 self.subscriber.notify(key);
-                if let(Some(node_manage), Some(instance)) = (&self.cluster_node_manage, instance) {
+                if let (Some(node_manage), Some(instance)) = (&self.cluster_node_manage, instance) {
                     let req = NamingRouteRequest::SyncRemoveInstance { instance };
                     node_manage.do_send(NodeManageRequest::SendToOtherNodes(req));
                 }
             }
             UpdateInstanceType::UpdateValue => {
                 self.subscriber.notify(key);
-                if let(Some(node_manage), Some(instance)) = (&self.cluster_node_manage, instance) {
+                if let (Some(node_manage), Some(instance)) = (&self.cluster_node_manage, instance) {
                     let req = NamingRouteRequest::SyncUpdateInstance { instance };
                     node_manage.do_send(NodeManageRequest::SendToOtherNodes(req));
                 }
@@ -851,9 +851,13 @@ impl Handler<NamingCmd> for NamingActor {
             }
             NamingCmd::UpdateService(service_info) => {
                 self.update_service(service_info.clone());
-                if let Some(node_manage)=self.cluster_node_manage.as_ref() {
+                if let Some(node_manage) = self.cluster_node_manage.as_ref() {
                     //来源于客户端的变更通知其它节点
-                    node_manage.do_send(NodeManageRequest::SendToOtherNodes(NamingRouteRequest::SyncUpdateService { service:service_info }));
+                    node_manage.do_send(NodeManageRequest::SendToOtherNodes(
+                        NamingRouteRequest::SyncUpdateService {
+                            service: service_info,
+                        },
+                    ));
                 }
                 Ok(NamingResult::NULL)
             }

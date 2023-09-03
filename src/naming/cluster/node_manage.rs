@@ -147,7 +147,7 @@ impl InnerNodeManage {
     }
 
     fn update_nodes_index(&mut self) {
-        for (i,value) in self.all_nodes.values_mut().enumerate() {
+        for (i, value) in self.all_nodes.values_mut().enumerate() {
             value.index = i as u64;
         }
     }

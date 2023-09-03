@@ -51,7 +51,8 @@ pub async fn handle_naming_route(
         }
         NamingRouteRequest::SyncUpdateService { service } => {
             let cluster_id = get_cluster_id(extend_info)?;
-            app.naming_addr.do_send(NamingCmd::UpdateServiceFromCluster(service));
+            app.naming_addr
+                .do_send(NamingCmd::UpdateServiceFromCluster(service));
             app.naming_node_manage.active_node(cluster_id);
         }
         NamingRouteRequest::SyncUpdateInstance { mut instance } => {
@@ -98,7 +99,11 @@ pub async fn handle_naming_route(
             app.naming_node_manage.active_node(cluster_id);
             //接收snapshot data
             let snapshot = SnapshotDataInfo::from_bytes(&data)?;
-            log::info!("receive snapshot from {},instance size:{}", &cluster_id,snapshot.instances.len());
+            log::info!(
+                "receive snapshot from {},instance size:{}",
+                &cluster_id,
+                snapshot.instances.len()
+            );
             let mut snapshot_receive = SnapshotForReceive::try_from(snapshot)?;
             for instance in &mut snapshot_receive.instances {
                 if instance.client_id.is_empty() {
