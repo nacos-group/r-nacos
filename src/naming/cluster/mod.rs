@@ -49,6 +49,11 @@ pub async fn handle_naming_route(
             let cmd = NamingCmd::Delete(instance);
             let _: NamingResult = app.naming_addr.send(cmd).await??;
         }
+        NamingRouteRequest::SyncUpdateService { service } => {
+            let cluster_id = get_cluster_id(extend_info)?;
+            app.naming_addr.do_send(NamingCmd::UpdateServiceFromCluster(service));
+            app.naming_node_manage.active_node(cluster_id);
+        }
         NamingRouteRequest::SyncUpdateInstance { mut instance } => {
             let cluster_id = get_cluster_id(extend_info)?;
             if instance.client_id.is_empty() {

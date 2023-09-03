@@ -700,8 +700,9 @@ pub enum NamingCmd {
     QueryServicePage(ServiceKey, usize, usize),
     //查询服务实际信息列表
     QueryServiceInfoPage(ServiceQueryParam),
-    CreateService(ServiceDetailDto),
+    //CreateService(ServiceDetailDto),
     UpdateService(ServiceDetailDto),
+    UpdateServiceFromCluster(ServiceDetailDto),
     RemoveService(ServiceKey),
     PeekListenerTimeout,
     NotifyListener(ServiceKey, u64),
@@ -852,12 +853,17 @@ impl Handler<NamingCmd> for NamingActor {
                 //Ok(NamingResult::DalAddr(self.dal_addr.clone()))
                 Ok(NamingResult::NULL)
             }
-            NamingCmd::CreateService(service_info) => {
+            NamingCmd::UpdateServiceFromCluster(service_info) => {
+                //来源于集群的更新不再通知其它节点
                 self.update_service(service_info);
                 Ok(NamingResult::NULL)
             }
             NamingCmd::UpdateService(service_info) => {
-                self.update_service(service_info);
+                self.update_service(service_info.clone());
+                if let Some(node_manage)=self.cluster_node_manage.as_ref() {
+                    //来源于客户端的变更通知其它节点
+                    node_manage.do_send(NodeManageRequest::SendToOtherNodes(NamingRouteRequest::SyncUpdateService { service:service_info }));
+                }
                 Ok(NamingResult::NULL)
             }
             NamingCmd::RemoveService(service_key) => {

@@ -357,6 +357,7 @@ impl Handler<NodeManageRequest> for InnerNodeManage {
                 Ok(NodeManageResponse::None)
             }
             NodeManageRequest::AddClientId(node_id, client_id) => {
+                self.active_node(node_id);
                 self.node_add_client(node_id, client_id);
                 Ok(NodeManageResponse::None)
             }

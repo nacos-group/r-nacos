@@ -31,6 +31,9 @@ pub enum NamingRouteRequest {
     SyncRemoveInstance {
         instance: Instance,
     },
+    SyncUpdateService{
+        service: ServiceDetailDto,
+    },
     QuerySnapshot {
         index: usize,
         len: usize,
