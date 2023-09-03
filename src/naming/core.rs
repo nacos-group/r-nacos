@@ -343,6 +343,13 @@ impl NamingActor {
                 self.remove_instance(&service_key, &short_key, Some(client_id));
             }
         }
+        if let Some(node_manage) = self.cluster_node_manage.as_ref() {
+            let req = NamingRouteRequest::RemoveClientId {
+                client_id: client_id.to_owned(),
+            };
+            node_manage.do_send(NodeManageRequest::SendToOtherNodes(req));
+            node_manage.do_send(NodeManageRequest::RemoveClientId(client_id.to_owned()));
+        }
     }
 
     pub fn get_instance(

@@ -35,6 +35,9 @@ pub enum NamingRouteRequest {
         service: ServiceDetailDto,
     },
     SyncBatchInstances(Vec<u8>),
+    RemoveClientId {
+        client_id: Arc<String>,
+    },
     QuerySnapshot {
         index: usize,
         len: usize,

@@ -100,6 +100,10 @@ pub async fn handle_naming_route(
             app.naming_addr
                 .do_send(NamingCmd::UpdateBatch(batch_receive.update_instances));
         }
+        NamingRouteRequest::RemoveClientId { client_id } => {
+            app.naming_inner_node_manage
+                .do_send(NodeManageRequest::RemoveClientId(client_id));
+        }
         NamingRouteRequest::QuerySnapshot { index, len } => {
             //请求 snapshot data
             let cluster_id = get_cluster_id(extend_info)?;

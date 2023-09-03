@@ -1,5 +1,5 @@
 use std::{
-    collections::{hash_map::DefaultHasher, BTreeMap, HashSet},
+    collections::{hash_map::DefaultHasher, BTreeMap, HashMap, HashSet},
     hash::{Hash, Hasher},
     sync::Arc,
     time::Duration,
@@ -75,6 +75,7 @@ impl From<ClusterInnerNode> for ClusterNode {
 pub struct InnerNodeManage {
     local_id: u64,
     all_nodes: BTreeMap<u64, ClusterInnerNode>,
+    client_to_node: HashMap<Arc<String>, u64>,
     cluster_sender: Arc<RaftClusterRequestSender>,
     naming_actor: Option<Addr<NamingActor>>,
     first_query_snapshot: bool,
@@ -86,6 +87,7 @@ impl InnerNodeManage {
             local_id,
             cluster_sender,
             all_nodes: Default::default(),
+            client_to_node: Default::default(),
             naming_actor: None,
             first_query_snapshot: false,
         }
@@ -285,12 +287,29 @@ impl InnerNodeManage {
         }
     }
 
+    fn remove_client_id(&mut self, client_id: Arc<String>) {
+        if let Some(node_id) = self.client_to_node.remove(&client_id) {
+            if let Some(node) = self.all_nodes.get_mut(&node_id) {
+                node.client_set.remove(&client_id);
+            }
+        }
+    }
+
     fn node_add_client(&mut self, node_id: u64, client_id: Arc<String>) {
+        if client_id.is_empty() {
+            return;
+        }
         if let Some(node) = self.all_nodes.get_mut(&node_id) {
             node.last_active_time = now_millis();
             node.status = NodeStatus::Valid;
-            if !client_id.is_empty() {
-                node.client_set.insert(client_id);
+            node.client_set.insert(client_id.clone());
+        }
+        if let Some(old_node_id) = self.client_to_node.insert(client_id.clone(), node_id) {
+            if old_node_id != node_id {
+                //remove old client_id
+                if let Some(node) = self.all_nodes.get_mut(&old_node_id) {
+                    node.client_set.remove(&client_id);
+                }
             }
         }
     }
@@ -318,7 +337,7 @@ pub enum NodeManageRequest {
     SendToOtherNodes(NamingRouteRequest),
     AddClientId(u64, Arc<String>),
     AddClientIds(u64, HashSet<Arc<String>>),
-    RemoveClientId(u64, Arc<String>),
+    RemoveClientId(Arc<String>),
     SetNamingAddr(Addr<NamingActor>),
     QueryOwnerRange(ProcessRange),
     SendSnapshot(u64, SnapshotForSend),
@@ -372,7 +391,10 @@ impl Handler<NodeManageRequest> for InnerNodeManage {
                 }
                 Ok(NodeManageResponse::None)
             }
-            NodeManageRequest::RemoveClientId(_, _) => todo!(),
+            NodeManageRequest::RemoveClientId(client_id) => {
+                self.remove_client_id(client_id);
+                Ok(NodeManageResponse::None)
+            }
             NodeManageRequest::SetNamingAddr(naming_actor) => {
                 self.naming_actor = Some(naming_actor);
                 Ok(NodeManageResponse::None)
