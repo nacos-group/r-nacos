@@ -7,7 +7,9 @@
 )]
 
 use super::api_model::QueryListResult;
-use super::cluster::instance_delay_notify::{ClusterInstanceDelayNotifyActor, InstanceDelayNotifyRequest};
+use super::cluster::instance_delay_notify::{
+    ClusterInstanceDelayNotifyActor, InstanceDelayNotifyRequest,
+};
 use super::cluster::model::{
     NamingRouteRequest, ProcessRange, SnapshotForReceive, SnapshotForSend,
 };
@@ -214,24 +216,38 @@ impl NamingActor {
         }
     }
 
-    fn do_notify(&mut self, tag: &UpdateInstanceType, key: ServiceKey, instance: Option<Arc<Instance>>) {
+    fn do_notify(
+        &mut self,
+        tag: &UpdateInstanceType,
+        key: ServiceKey,
+        instance: Option<Arc<Instance>>,
+    ) {
         match tag {
             UpdateInstanceType::New => {
                 self.subscriber.notify(key);
-                if let (Some(cluster_delay_notify), Some(instance)) = (&self.cluster_delay_notify, instance) {
-                    cluster_delay_notify.do_send(InstanceDelayNotifyRequest::UpdateInstance(instance));
+                if let (Some(cluster_delay_notify), Some(instance)) =
+                    (&self.cluster_delay_notify, instance)
+                {
+                    cluster_delay_notify
+                        .do_send(InstanceDelayNotifyRequest::UpdateInstance(instance));
                 }
             }
             UpdateInstanceType::Remove => {
                 self.subscriber.notify(key);
-                if let (Some(cluster_delay_notify), Some(instance)) = (&self.cluster_delay_notify, instance) {
-                    cluster_delay_notify.do_send(InstanceDelayNotifyRequest::RemoveInstance(instance));
+                if let (Some(cluster_delay_notify), Some(instance)) =
+                    (&self.cluster_delay_notify, instance)
+                {
+                    cluster_delay_notify
+                        .do_send(InstanceDelayNotifyRequest::RemoveInstance(instance));
                 }
             }
             UpdateInstanceType::UpdateValue => {
                 self.subscriber.notify(key);
-                if let (Some(cluster_delay_notify), Some(instance)) = (&self.cluster_delay_notify, instance) {
-                    cluster_delay_notify.do_send(InstanceDelayNotifyRequest::UpdateInstance(instance));
+                if let (Some(cluster_delay_notify), Some(instance)) =
+                    (&self.cluster_delay_notify, instance)
+                {
+                    cluster_delay_notify
+                        .do_send(InstanceDelayNotifyRequest::UpdateInstance(instance));
                 }
             }
             _ => {}
@@ -317,6 +333,9 @@ impl NamingActor {
         }
         let instance_key = instance.get_short_key();
         let tag = service.update_instance(instance, tag);
+        if let UpdateInstanceType::UpdateOtherClusterMetaData(_, _) = &tag {
+            return tag;
+        }
         let instance = match service.get_instance(&instance_key) {
             Some(e) => {
                 if e.is_from_cluster() {
@@ -514,7 +533,8 @@ impl NamingActor {
                     if instance.is_from_cluster() {
                         continue;
                     }
-                    cluster_delay_notify.do_send(InstanceDelayNotifyRequest::UpdateInstance(instance));
+                    cluster_delay_notify
+                        .do_send(InstanceDelayNotifyRequest::UpdateInstance(instance));
                 }
             }
         }
@@ -716,6 +736,7 @@ pub enum NamingResult {
     ServicePage((usize, Vec<Arc<String>>)),
     ServiceInfoPage((usize, Vec<ServiceInfoDto>)),
     ClientInstanceCount(Vec<(Arc<String>, usize)>),
+    RewriteToCluster(u64, Instance),
     Snapshot(SnapshotForSend),
 }
 
@@ -751,8 +772,12 @@ impl Handler<NamingCmd> for NamingActor {
     fn handle(&mut self, msg: NamingCmd, ctx: &mut Context<Self>) -> Self::Result {
         match msg {
             NamingCmd::Update(instance, tag) => {
-                self.update_instance(&instance.get_service_key(), instance, tag);
-                Ok(NamingResult::NULL)
+                let tag = self.update_instance(&instance.get_service_key(), instance, tag);
+                if let UpdateInstanceType::UpdateOtherClusterMetaData(node_id, instance) = tag {
+                    Ok(NamingResult::RewriteToCluster(node_id, instance))
+                } else {
+                    Ok(NamingResult::NULL)
+                }
             }
             NamingCmd::UpdateBatch(instances) => {
                 for mut instance in instances {

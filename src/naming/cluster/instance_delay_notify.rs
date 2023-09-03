@@ -1,20 +1,21 @@
-
-use std::{sync::Arc, time::Duration, collections::HashMap};
+use std::{collections::HashMap, sync::Arc, time::Duration};
 
 use actix::prelude::*;
 
-use crate::{naming::model::{Instance, InstanceKey}};
+use crate::naming::model::{Instance, InstanceKey};
 
-use super::{node_manage::{InnerNodeManage, NodeManageRequest}, model::{NamingRouteRequest, SyncBatchForSend, SyncBatchDataInfo}};
+use super::{
+    model::{NamingRouteRequest, SyncBatchDataInfo, SyncBatchForSend},
+    node_manage::{InnerNodeManage, NodeManageRequest},
+};
 
-pub struct NotifyItem{
+pub struct NotifyItem {
     instance: Arc<Instance>,
     is_update: bool,
 }
 
-
 pub struct ClusterInstanceDelayNotifyActor {
-    instances_map: HashMap<InstanceKey,NotifyItem>,
+    instances_map: HashMap<InstanceKey, NotifyItem>,
     manage_addr: Option<Addr<InnerNodeManage>>,
     delay: u64,
 }
@@ -33,15 +34,15 @@ impl ClusterInstanceDelayNotifyActor {
         Self {
             instances_map: Default::default(),
             manage_addr: None,
-            delay: 500
+            delay: 500,
         }
     }
 
-    fn delay_notify(&mut self,instance:Arc<Instance>,is_update:bool) {
+    fn delay_notify(&mut self, instance: Arc<Instance>, is_update: bool) {
         let key = instance.get_instance_key();
-        let item = NotifyItem{
+        let item = NotifyItem {
             instance,
-            is_update
+            is_update,
         };
         self.instances_map.insert(key, item);
     }
@@ -55,8 +56,7 @@ impl ClusterInstanceDelayNotifyActor {
         for item in self.instances_map.values() {
             if item.is_update {
                 update_instances.push(item.instance.clone());
-            }
-            else {
+            } else {
                 remove_instances.push(item.instance.clone());
             }
         }
@@ -70,8 +70,7 @@ impl ClusterInstanceDelayNotifyActor {
             if let Ok(batch_data) = batch_info.to_bytes() {
                 let req = NamingRouteRequest::SyncBatchInstances(batch_data);
                 manage_addr.do_send(NodeManageRequest::SendToOtherNodes(req));
-            }
-            else{
+            } else {
                 log::error!("SyncBatchDataInfo to_bytes error!");
             }
         }
@@ -85,7 +84,6 @@ impl ClusterInstanceDelayNotifyActor {
     }
 }
 
-
 #[derive(Message, Debug)]
 #[rtype(result = "anyhow::Result<InstanceDelayNotifyResponse>")]
 pub enum InstanceDelayNotifyRequest {
@@ -95,23 +93,27 @@ pub enum InstanceDelayNotifyRequest {
 }
 
 pub enum InstanceDelayNotifyResponse {
-    None
+    None,
 }
 
 impl Handler<InstanceDelayNotifyRequest> for ClusterInstanceDelayNotifyActor {
-    type Result=anyhow::Result<InstanceDelayNotifyResponse>;
+    type Result = anyhow::Result<InstanceDelayNotifyResponse>;
 
-    fn handle(&mut self, msg: InstanceDelayNotifyRequest, _ctx: &mut Self::Context) -> Self::Result {
+    fn handle(
+        &mut self,
+        msg: InstanceDelayNotifyRequest,
+        _ctx: &mut Self::Context,
+    ) -> Self::Result {
         match msg {
             InstanceDelayNotifyRequest::SetNamingNodeManageAddr(manage_addr) => {
                 self.manage_addr = Some(manage_addr);
-            },
+            }
             InstanceDelayNotifyRequest::UpdateInstance(instance) => {
                 self.delay_notify(instance, true);
-            },
+            }
             InstanceDelayNotifyRequest::RemoveInstance(instance) => {
                 self.delay_notify(instance, false);
-            },
+            }
         };
         Ok(InstanceDelayNotifyResponse::None)
     }

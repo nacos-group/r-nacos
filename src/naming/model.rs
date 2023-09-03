@@ -314,4 +314,6 @@ pub enum UpdateInstanceType {
     Remove,
     UpdateTime,
     UpdateValue,
+    ///更新其它节点元信息
+    UpdateOtherClusterMetaData(u64, Instance),
 }

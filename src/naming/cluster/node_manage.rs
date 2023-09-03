@@ -313,6 +313,7 @@ pub enum NodeManageRequest {
     UpdateNodes(Vec<(u64, Arc<String>)>),
     GetThisNode,
     GetAllNodes,
+    GetNode(u64),
     ActiveNode(u64),
     SendToOtherNodes(NamingRouteRequest),
     AddClientId(u64, Arc<String>),
@@ -326,6 +327,7 @@ pub enum NodeManageRequest {
 pub enum NodeManageResponse {
     None,
     ThisNode(ClusterNode),
+    Node(Option<ClusterNode>),
     AllNodes(Vec<ClusterNode>),
     OwnerRange(Vec<ProcessRange>),
 }
@@ -342,6 +344,10 @@ impl Handler<NodeManageRequest> for InnerNodeManage {
             }
             NodeManageRequest::GetThisNode => {
                 Ok(NodeManageResponse::ThisNode(self.get_this_node().into()))
+            }
+            NodeManageRequest::GetNode(node_id) => {
+                let node = self.all_nodes.get(&node_id).map(|e| e.to_owned().into());
+                Ok(NodeManageResponse::Node(node))
             }
             NodeManageRequest::GetAllNodes => {
                 Ok(NodeManageResponse::AllNodes(self.get_all_nodes()))
@@ -408,6 +414,23 @@ impl NodeManage {
             } else {
                 NamingRouteAddr::Remote(index as u64, node.addr.clone())
             }
+        }
+    }
+
+    pub async fn get_node_addr(&self, node_id: u64) -> anyhow::Result<Arc<String>> {
+        let resp: NodeManageResponse = self
+            .inner_node_manage
+            .send(NodeManageRequest::GetNode(node_id))
+            .await??;
+        match resp {
+            NodeManageResponse::Node(node) => {
+                if let Some(node) = node {
+                    Ok(node.addr)
+                } else {
+                    Err(anyhow::anyhow!("the node {} addr is empty", &node_id))
+                }
+            }
+            _ => Err(anyhow::anyhow!("get_node_addr error NodeManageResponse!")),
         }
     }
 

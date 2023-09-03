@@ -44,18 +44,37 @@ impl NamingRoute {
         let key = instance.get_service_key();
         match self.node_manage.route_addr(&key).await {
             NamingRouteAddr::Local(_) => {
-                let cmd = NamingCmd::Update(instance, tag);
-                let _: NamingResult = self.naming_addr.send(cmd).await??;
+                let cmd = NamingCmd::Update(instance, tag.clone());
+                let res: NamingResult = self.naming_addr.send(cmd).await??;
+                if let NamingResult::RewriteToCluster(node_id, instance) = res {
+                    let addr = self.node_manage.get_node_addr(node_id).await?;
+                    self.do_route_instance(addr, instance, tag, true).await?;
+                }
             }
             NamingRouteAddr::Remote(_, addr) => {
-                let req = NamingRouteRequest::UpdateInstance { instance, tag };
-                let request = serde_json::to_string(&req).unwrap_or_default();
-                let payload = PayloadUtils::build_payload("NamingRouteRequest", request);
-                let resp_payload = self.cluster_sender.send_request(addr, payload).await?;
-                let body_vec = resp_payload.body.unwrap_or_default().value;
-                let _: NamingRouterResponse = serde_json::from_slice(&body_vec)?;
+                self.do_route_instance(addr, instance, tag, true).await?;
             }
         };
+        Ok(())
+    }
+
+    async fn do_route_instance(
+        &self,
+        addr: Arc<String>,
+        instance: Instance,
+        tag: Option<InstanceUpdateTag>,
+        is_update: bool,
+    ) -> anyhow::Result<()> {
+        let req = if is_update {
+            NamingRouteRequest::UpdateInstance { instance, tag }
+        } else {
+            NamingRouteRequest::RemoveInstance { instance }
+        };
+        let request = serde_json::to_string(&req).unwrap_or_default();
+        let payload = PayloadUtils::build_payload("NamingRouteRequest", request);
+        let resp_payload = self.cluster_sender.send_request(addr, payload).await?;
+        let body_vec = resp_payload.body.unwrap_or_default().value;
+        let _: NamingRouterResponse = serde_json::from_slice(&body_vec)?;
         Ok(())
     }
 
@@ -67,12 +86,7 @@ impl NamingRoute {
                 let _: NamingResult = self.naming_addr.send(cmd).await??;
             }
             NamingRouteAddr::Remote(_, addr) => {
-                let req = NamingRouteRequest::RemoveInstance { instance };
-                let request = serde_json::to_string(&req).unwrap_or_default();
-                let payload = PayloadUtils::build_payload("NamingRouteRequest", request);
-                let resp_payload = self.cluster_sender.send_request(addr, payload).await?;
-                let body_vec = resp_payload.body.unwrap_or_default().value;
-                let _: NamingRouterResponse = serde_json::from_slice(&body_vec)?;
+                self.do_route_instance(addr, instance, None, false).await?;
             }
         };
         Ok(())

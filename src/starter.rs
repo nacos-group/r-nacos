@@ -6,8 +6,9 @@ use crate::{
     grpc::{bistream_manage::BiStreamManage, PayloadUtils},
     naming::{
         cluster::{
+            instance_delay_notify::{ClusterInstanceDelayNotifyActor, InstanceDelayNotifyRequest},
             node_manage::{InnerNodeManage, NodeManage, NodeManageRequest},
-            route::NamingRoute, instance_delay_notify::{ClusterInstanceDelayNotifyActor, InstanceDelayNotifyRequest},
+            route::NamingRoute,
         },
         core::{NamingActor, NamingCmd},
     },
@@ -76,7 +77,9 @@ pub fn build_share_data(sys_config: Arc<AppSysConfig>) -> anyhow::Result<Arc<App
         cluster_sender.clone(),
     ));
     let naming_cluster_delay_notify_addr = ClusterInstanceDelayNotifyActor::new().start();
-    naming_cluster_delay_notify_addr.do_send(InstanceDelayNotifyRequest::SetNamingNodeManageAddr(naming_inner_node_manage_addr.clone()));
+    naming_cluster_delay_notify_addr.do_send(InstanceDelayNotifyRequest::SetNamingNodeManageAddr(
+        naming_inner_node_manage_addr.clone(),
+    ));
 
     let mut bistream_manage = BiStreamManage::new();
     bistream_manage.set_config_addr(config_addr.clone());
@@ -87,7 +90,9 @@ pub fn build_share_data(sys_config: Arc<AppSysConfig>) -> anyhow::Result<Arc<App
     naming_addr.do_send(NamingCmd::SetClusterNodeManage(
         naming_inner_node_manage_addr.clone(),
     ));
-    naming_addr.do_send(NamingCmd::SetClusterDelayNotify(naming_cluster_delay_notify_addr));
+    naming_addr.do_send(NamingCmd::SetClusterDelayNotify(
+        naming_cluster_delay_notify_addr,
+    ));
 
     let app_data = Arc::new(AppShareData {
         config_addr,

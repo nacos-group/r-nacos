@@ -81,6 +81,25 @@ impl Service {
         let short_key = instance.get_short_key();
         let old_instance = self.instances.get(&key);
         if let Some(old_instance) = old_instance {
+            if !instance.from_grpc {
+                match (old_instance.from_grpc, old_instance.is_from_cluster()) {
+                    (true, true) => {
+                        //需要路由到远程服务更新
+                        rtype = UpdateInstanceType::UpdateOtherClusterMetaData(
+                            old_instance.from_cluster,
+                            instance,
+                        );
+                        return rtype;
+                    }
+                    (true, false) => {
+                        //如果新实例来自http,旧实例来自grpc,则保持grpc的实例信息
+                        instance.from_grpc = old_instance.from_grpc;
+                        instance.client_id = old_instance.client_id.clone();
+                    }
+                    //直接更新
+                    (false, _) => {}
+                };
+            }
             if !old_instance.healthy && instance.healthy {
                 self.healthy_instance_size += 1;
             } else if old_instance.healthy && !instance.healthy {
@@ -118,11 +137,6 @@ impl Service {
                     instance.metadata = old_instance.metadata.clone();
                     rtype = UpdateInstanceType::UpdateTime;
                 }
-            }
-            if !instance.is_from_cluster() && !instance.from_grpc && old_instance.from_grpc {
-                //如果新实例来自http,旧实例来自grpc,则保持grpc的实例信息
-                instance.from_grpc = old_instance.from_grpc;
-                instance.client_id = old_instance.client_id.clone();
             }
         } else {
             //新增的尝试使用高优先级metadata

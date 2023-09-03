@@ -129,7 +129,7 @@ impl From<SyncBatchForSend> for SyncBatchDataInfo {
                 .iter()
                 .map(|e| serde_json::to_string(e).unwrap())
                 .collect(),
-                remove_instances: v
+            remove_instances: v
                 .remove_instances
                 .iter()
                 .map(|e| serde_json::to_string(e).unwrap())

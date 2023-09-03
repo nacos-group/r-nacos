@@ -1,6 +1,10 @@
 //distor cluster
 
-use std::{collections::{HashMap, HashSet}, convert::TryFrom, sync::Arc};
+use std::{
+    collections::{HashMap, HashSet},
+    convert::TryFrom,
+    sync::Arc,
+};
 
 use crate::{
     common::appdata::AppShareData,
@@ -15,11 +19,11 @@ use self::{
     node_manage::{NodeManageRequest, NodeManageResponse},
 };
 
+pub mod instance_delay_notify;
 pub mod model;
 pub mod node_manage;
 pub mod route;
 pub mod sync_sender;
-pub mod instance_delay_notify;
 
 fn get_cluster_id(extend_info: HashMap<String, String>) -> anyhow::Result<u64> {
     if let Some(id_str) = extend_info.get("cluster_id") {
@@ -90,9 +94,7 @@ pub async fn handle_naming_route(
                 client_sets.insert(instance.client_id.clone());
             }
             app.naming_inner_node_manage
-                .do_send(NodeManageRequest::AddClientIds(
-                    cluster_id,client_sets
-                ));
+                .do_send(NodeManageRequest::AddClientIds(cluster_id, client_sets));
             app.naming_addr
                 .do_send(NamingCmd::DeleteBatch(batch_receive.remove_instances));
             app.naming_addr
@@ -135,9 +137,7 @@ pub async fn handle_naming_route(
                 client_sets.insert(instance.client_id.clone());
             }
             app.naming_inner_node_manage
-                .do_send(NodeManageRequest::AddClientIds(
-                    cluster_id,client_sets
-                ));
+                .do_send(NodeManageRequest::AddClientIds(cluster_id, client_sets));
             app.naming_addr
                 .do_send(NamingCmd::ReceiveSnapshot(snapshot_receive));
         }
