@@ -77,22 +77,22 @@ pub struct InnerNodeManage {
     all_nodes: BTreeMap<u64, ClusterInnerNode>,
     cluster_sender: Arc<RaftClusterRequestSender>,
     naming_actor: Option<Addr<NamingActor>>,
-    start_query_snapshot: bool,
+    first_query_snapshot: bool,
 }
 
 impl InnerNodeManage {
     pub fn new(local_id: u64, cluster_sender: Arc<RaftClusterRequestSender>) -> Self {
         Self {
-            local_id: local_id,
+            local_id,
             cluster_sender,
             all_nodes: Default::default(),
             naming_actor: None,
-            start_query_snapshot: false,
+            first_query_snapshot: false,
         }
     }
 
     fn update_nodes(&mut self, nodes: Vec<(u64, Arc<String>)>, ctx: &mut Context<Self>) {
-        let new_sets: HashSet<u64> = (&nodes).iter().map(|e| e.0.to_owned()).collect();
+        let new_sets: HashSet<u64> = nodes.iter().map(|e| e.0.to_owned()).collect();
         let mut dels = vec![];
         for key in self.all_nodes.keys() {
             if !new_sets.contains(key) {
@@ -124,7 +124,7 @@ impl InnerNodeManage {
                 let node = ClusterInnerNode {
                     id: key,
                     index: 0,
-                    is_local: is_local,
+                    is_local,
                     addr,
                     sync_sender,
                     status: NodeStatus::Valid,
@@ -134,14 +134,12 @@ impl InnerNodeManage {
                 self.all_nodes.insert(key, node);
             }
         }
-        if !self.all_nodes.contains_key(&self.local_id) {
-            let node = self.get_this_node();
-            self.all_nodes.insert(self.local_id, node);
-        }
+        let local_node = self.get_this_node();
+        self.all_nodes.entry(self.local_id).or_insert(local_node);
         self.update_nodes_index();
         //第一次需要触发从其它实例加载snapshot
-        if !self.start_query_snapshot {
-            self.start_query_snapshot = true;
+        if !self.first_query_snapshot {
+            self.first_query_snapshot = true;
             ctx.run_later(Duration::from_millis(500), |act, _ctx| {
                 act.load_snapshot_from_node();
             });
@@ -149,10 +147,8 @@ impl InnerNodeManage {
     }
 
     fn update_nodes_index(&mut self) {
-        let mut i = 0;
-        for value in self.all_nodes.values_mut() {
-            value.index = i.to_owned();
-            i += 1;
+        for (i,value) in self.all_nodes.values_mut().enumerate() {
+            value.index = i as u64;
         }
     }
 
@@ -169,7 +165,7 @@ impl InnerNodeManage {
     }
 
     fn get_all_nodes(&self) -> Vec<ClusterNode> {
-        if self.all_nodes.len() == 0 {
+        if self.all_nodes.is_empty() {
             vec![self.get_this_node().into()]
         } else {
             self.all_nodes.values().cloned().map(|e| e.into()).collect()
@@ -177,11 +173,12 @@ impl InnerNodeManage {
     }
 
     fn get_last_valid_range(&self) -> Option<ProcessRange> {
+        //TODO 获取上一个有效的负责区域
         None
     }
 
     fn get_cluster_process_range(&self, input: ProcessRange) -> Vec<ProcessRange> {
-        let current = if self.all_nodes.len() == 0 {
+        let current = if self.all_nodes.is_empty() {
             ProcessRange::new(0, 1)
         } else {
             ProcessRange::new(
@@ -235,13 +232,13 @@ impl InnerNodeManage {
     }
 
     fn send_snapshot_to_node(&self, node_id: u64, snapshot_for_send: SnapshotForSend) {
-        self.all_nodes.get(&node_id).map(|n| {
+        if let Some(n) = self.all_nodes.get(&node_id) {
             let snapshot = SnapshotDataInfo::from(snapshot_for_send);
             let data = snapshot.to_bytes();
             if let (Ok(data), Some(sender)) = (data, &n.sync_sender) {
                 sender.do_send(SyncSenderRequest(NamingRouteRequest::Snapshot(data)));
             }
-        });
+        }
     }
 
     fn check_node_status(&mut self) {

@@ -79,13 +79,10 @@ impl Handler<SyncSenderRequest> for ClusteSyncSender {
             {
                 Ok(v) => v,
                 Err(err) => {
-                    match &req {
-                        NamingRouteRequest::Ping(_) => {
-                            //ping 不重试
-                            return Err(err);
-                        }
-                        _ => {}
-                    };
+                    if let NamingRouteRequest::Ping(_) = &req {
+                        //ping 不重试
+                        return Err(err);
+                    }
                     //retry request
                     tokio::time::sleep(Duration::from_millis(100)).await;
                     let request = serde_json::to_string(&req).unwrap_or_default();

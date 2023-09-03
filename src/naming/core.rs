@@ -215,32 +215,23 @@ impl NamingActor {
         match tag {
             UpdateInstanceType::New => {
                 self.subscriber.notify(key);
-                match (&self.cluster_node_manage, instance) {
-                    (Some(node_manage), Some(instance)) => {
-                        let req = NamingRouteRequest::SyncUpdateInstance { instance };
-                        node_manage.do_send(NodeManageRequest::SendToOtherNodes(req));
-                    }
-                    _ => {}
+                if let(Some(node_manage), Some(instance)) = (&self.cluster_node_manage, instance) {
+                    let req = NamingRouteRequest::SyncUpdateInstance { instance };
+                    node_manage.do_send(NodeManageRequest::SendToOtherNodes(req));
                 }
             }
             UpdateInstanceType::Remove => {
                 self.subscriber.notify(key);
-                match (&self.cluster_node_manage, instance) {
-                    (Some(node_manage), Some(instance)) => {
-                        let req = NamingRouteRequest::SyncRemoveInstance { instance };
-                        node_manage.do_send(NodeManageRequest::SendToOtherNodes(req));
-                    }
-                    _ => {}
+                if let(Some(node_manage), Some(instance)) = (&self.cluster_node_manage, instance) {
+                    let req = NamingRouteRequest::SyncRemoveInstance { instance };
+                    node_manage.do_send(NodeManageRequest::SendToOtherNodes(req));
                 }
             }
             UpdateInstanceType::UpdateValue => {
                 self.subscriber.notify(key);
-                match (&self.cluster_node_manage, instance) {
-                    (Some(node_manage), Some(instance)) => {
-                        let req = NamingRouteRequest::SyncUpdateInstance { instance };
-                        node_manage.do_send(NodeManageRequest::SendToOtherNodes(req));
-                    }
-                    _ => {}
+                if let(Some(node_manage), Some(instance)) = (&self.cluster_node_manage, instance) {
+                    let req = NamingRouteRequest::SyncUpdateInstance { instance };
+                    node_manage.do_send(NodeManageRequest::SendToOtherNodes(req));
                 }
             }
             _ => {}
@@ -657,7 +648,7 @@ impl NamingActor {
             instances.append(&mut service.get_owner_http_instances());
         }
 
-        for (_, keys) in &self.client_instance_set {
+        for keys in self.client_instance_set.values() {
             for instance_key in keys {
                 let service_key = instance_key.get_service_key();
                 let short_key = instance_key.get_short_key();

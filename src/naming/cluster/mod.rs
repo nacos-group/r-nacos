@@ -81,21 +81,15 @@ pub async fn handle_naming_route(
             log::info!("query snapshot from {}", &cluster_id);
             let cmd = NodeManageRequest::QueryOwnerRange(ProcessRange::new(index, len));
             let resp: NodeManageResponse = app.naming_inner_node_manage.send(cmd).await??;
-            match resp {
-                NodeManageResponse::OwnerRange(ranges) => {
-                    let cmd = NamingCmd::QuerySnapshot(ranges);
-                    let result: NamingResult = app.naming_addr.send(cmd).await??;
-                    match result {
-                        NamingResult::Snapshot(snapshot) => {
-                            //发送 snapshot data
-                            log::info!("send snapshot to {}", &cluster_id);
-                            app.naming_inner_node_manage
-                                .do_send(NodeManageRequest::SendSnapshot(cluster_id, snapshot));
-                        }
-                        _ => {}
-                    }
+            if let NodeManageResponse::OwnerRange(ranges) = resp {
+                let cmd = NamingCmd::QuerySnapshot(ranges);
+                let result: NamingResult = app.naming_addr.send(cmd).await??;
+                if let NamingResult::Snapshot(snapshot) = result {
+                    //发送 snapshot data
+                    log::info!("send snapshot to {}", &cluster_id);
+                    app.naming_inner_node_manage
+                        .do_send(NodeManageRequest::SendSnapshot(cluster_id, snapshot));
                 }
-                _ => {}
             }
             app.naming_node_manage.active_node(cluster_id);
         }
@@ -103,8 +97,8 @@ pub async fn handle_naming_route(
             let cluster_id = get_cluster_id(extend_info)?;
             app.naming_node_manage.active_node(cluster_id);
             //接收snapshot data
-            log::info!("receive snapshot from {}", &cluster_id);
             let snapshot = SnapshotDataInfo::from_bytes(&data)?;
+            log::info!("receive snapshot from {},instance size:{}", &cluster_id,snapshot.instances.len());
             let mut snapshot_receive = SnapshotForReceive::try_from(snapshot)?;
             for instance in &mut snapshot_receive.instances {
                 if instance.client_id.is_empty() {

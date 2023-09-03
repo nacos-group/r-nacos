@@ -158,7 +158,7 @@ impl InnerStore {
         let membership = self.get_membership_config()?;
         match &self.hs {
             Some(hs) => {
-                let (last_log_index, last_log_term) = match self.log.values().rev().next() {
+                let (last_log_index, last_log_term) = match self.log.values().next_back() {
                     Some(log) => (log.index, log.term),
                     None => (0, 0),
                 };
