@@ -294,16 +294,7 @@ impl NamingActor {
             self.empty_service_set
                 .add(now + self.sys_config.service_time_out_millis, key.clone());
         }
-        let remove_instance = match old_instance {
-            Some(e) => {
-                if e.is_from_cluster() {
-                    None
-                } else {
-                    Some(e)
-                }
-            }
-            None => None,
-        };
+        let remove_instance = old_instance.filter(|e| !e.is_from_cluster());
         self.do_notify(&tag, key.clone(), remove_instance);
         tag
     }
@@ -336,16 +327,9 @@ impl NamingActor {
         if let UpdateInstanceType::UpdateOtherClusterMetaData(_, _) = &tag {
             return tag;
         }
-        let instance = match service.get_instance(&instance_key) {
-            Some(e) => {
-                if e.is_from_cluster() {
-                    None
-                } else {
-                    Some(e)
-                }
-            }
-            None => None,
-        };
+        let instance = service
+            .get_instance(&instance_key)
+            .filter(|e| !e.is_from_cluster());
         //change notify
         self.do_notify(&tag, key.clone(), instance);
         tag

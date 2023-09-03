@@ -29,6 +29,12 @@ impl Actor for ClusterInstanceDelayNotifyActor {
     }
 }
 
+impl Default for ClusterInstanceDelayNotifyActor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ClusterInstanceDelayNotifyActor {
     pub fn new() -> Self {
         Self {
