@@ -4,7 +4,7 @@ use std::sync::Arc;
 use actix_web::web::Data;
 use actix_web::web::Json;
 use actix_web::Responder;
-use async_raft::raft::ClientWriteRequest;
+use async_raft_ext::raft::ClientWriteRequest;
 
 use crate::common::appdata::AppShareData;
 use crate::raft::join_node;

@@ -11,9 +11,9 @@ use super::{
 };
 
 use actix::prelude::*;
-use async_raft::raft::{Entry, MembershipConfig};
-use async_raft::storage::{CurrentSnapshotData, HardState, InitialState};
-use async_raft::RaftStorage;
+use async_raft_ext::raft::{Entry, MembershipConfig};
+use async_raft_ext::storage::{CurrentSnapshotData, HardState, InitialState};
+use async_raft_ext::RaftStorage;
 use async_trait::async_trait;
 
 fn init_inner_store(inner: InnerStore) -> Addr<InnerStore> {

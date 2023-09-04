@@ -11,8 +11,8 @@ use super::{
     StateMachine,
 };
 use actix::prelude::*;
-use async_raft::raft::{Entry, EntryPayload, MembershipConfig};
-use async_raft::storage::{CurrentSnapshotData, HardState, InitialState};
+use async_raft_ext::raft::{Entry, EntryPayload, MembershipConfig};
+use async_raft_ext::storage::{CurrentSnapshotData, HardState, InitialState};
 use std::io::Cursor;
 use std::sync::Arc;
 
@@ -59,7 +59,7 @@ impl InnerStore {
         //load last log
         let logs_tree = logs(&self.db);
         if let Ok(Some((key, val))) = logs_tree.last() {
-            let entry: async_raft::raft::Entry<ClientRequest> = serde_json::from_slice(&val)?;
+            let entry: async_raft_ext::raft::Entry<ClientRequest> = serde_json::from_slice(&val)?;
             let id = bin_to_id(&key);
             self.log.insert(id, entry);
         }
@@ -140,7 +140,7 @@ impl InnerStore {
         Ok(val)
     }
 
-    fn get_membership_config(&mut self) -> anyhow::Result<async_raft::raft::MembershipConfig> {
+    fn get_membership_config(&mut self) -> anyhow::Result<async_raft_ext::raft::MembershipConfig> {
         //Ok(self.membership.membership_config.to_owned())
         match self.membership.membership_config.as_ref() {
             Some(v) => Ok(v.to_owned()),
@@ -151,7 +151,7 @@ impl InnerStore {
         }
     }
 
-    fn get_initial_state(&mut self) -> anyhow::Result<async_raft::storage::InitialState> {
+    fn get_initial_state(&mut self) -> anyhow::Result<async_raft_ext::storage::InitialState> {
         let membership = self.get_membership_config()?;
         match &self.hs {
             Some(hs) => {
@@ -176,7 +176,7 @@ impl InnerStore {
         }
     }
 
-    fn save_hard_state(&mut self, hs: async_raft::storage::HardState) -> anyhow::Result<()> {
+    fn save_hard_state(&mut self, hs: async_raft_ext::storage::HardState) -> anyhow::Result<()> {
         self.set_hard_state_(&hs)?;
         self.hs = Some(hs);
         Ok(())
@@ -186,7 +186,7 @@ impl InnerStore {
         &mut self,
         start_index: u64,
         end_index: u64,
-    ) -> anyhow::Result<Vec<async_raft::raft::Entry<ClientRequest>>> {
+    ) -> anyhow::Result<Vec<async_raft_ext::raft::Entry<ClientRequest>>> {
         if start_index > end_index {
             tracing::error!("invalid request, start > stop");
             return Ok(vec![]);
@@ -214,7 +214,7 @@ impl InnerStore {
                 let el = el_res.expect("Failed read log entry");
                 let id = el.0;
                 let val = el.1;
-                let entry: async_raft::raft::Entry<ClientRequest> =
+                let entry: async_raft_ext::raft::Entry<ClientRequest> =
                     serde_json::from_slice(&val).unwrap();
                 let id = bin_to_id(&id);
                 assert_eq!(id, entry.index);
@@ -262,7 +262,7 @@ impl InnerStore {
 
     fn append_entry_to_log(
         &mut self,
-        entry: async_raft::raft::Entry<ClientRequest>,
+        entry: async_raft_ext::raft::Entry<ClientRequest>,
     ) -> anyhow::Result<()> {
         let logs_tree = logs(&self.db);
         let id = id_to_bin(entry.index);
@@ -276,7 +276,7 @@ impl InnerStore {
 
     fn replicate_to_log(
         &mut self,
-        entries: Vec<async_raft::raft::Entry<ClientRequest>>,
+        entries: Vec<async_raft_ext::raft::Entry<ClientRequest>>,
     ) -> anyhow::Result<()> {
         let logs_tree = logs(&self.db);
         let mut batch = sled::Batch::default();
@@ -390,7 +390,7 @@ impl InnerStore {
 
     fn do_log_compaction(
         &mut self,
-    ) -> anyhow::Result<async_raft::storage::CurrentSnapshotData<Cursor<Vec<u8>>>> {
+    ) -> anyhow::Result<async_raft_ext::storage::CurrentSnapshotData<Cursor<Vec<u8>>>> {
         let index = self.state_machine.last_applied_log;
         let term = self
             .get_log_entries(index, index + 1)?
@@ -565,7 +565,7 @@ impl InnerStore {
 
     fn get_current_snapshot(
         &mut self,
-    ) -> anyhow::Result<Option<async_raft::storage::CurrentSnapshotData<Cursor<Vec<u8>>>>> {
+    ) -> anyhow::Result<Option<async_raft_ext::storage::CurrentSnapshotData<Cursor<Vec<u8>>>>> {
         let snapshot = self.get_snapshot_()?;
         match snapshot {
             Some((snapshot, data)) => {
@@ -608,7 +608,7 @@ pub enum StoreRequest {
         start: u64,
         stop: Option<u64>,
     },
-    AppendEntryToLog(async_raft::raft::Entry<ClientRequest>),
+    AppendEntryToLog(async_raft_ext::raft::Entry<ClientRequest>),
     ReplicateToLog(Vec<Entry<ClientRequest>>),
     //ApplyEntryToStateMachine { index: u64, request: ClientRequest, },
     //ReplicateToStateMachine(Vec<(u64, ClientRequest)>),

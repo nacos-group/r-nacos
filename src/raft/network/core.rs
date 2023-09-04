@@ -1,8 +1,8 @@
-use async_raft::raft::{
+use async_raft_ext::raft::{
     AppendEntriesRequest, AppendEntriesResponse, InstallSnapshotRequest, InstallSnapshotResponse,
     VoteRequest, VoteResponse,
 };
-use async_raft::{NodeId, RaftNetwork};
+use async_raft_ext::{NodeId, RaftNetwork};
 use async_trait::async_trait;
 use std::sync::Arc;
 
