@@ -1,4 +1,4 @@
-use async_raft::raft::ClientWriteRequest;
+use async_raft_ext::raft::ClientWriteRequest;
 use chrono::Local;
 use std::collections::BTreeMap;
 use std::collections::HashMap;

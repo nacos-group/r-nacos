@@ -23,7 +23,7 @@ impl PayloadHandler for RaftSnapshotRequestHandler {
         _request_meta: RequestMeta,
     ) -> anyhow::Result<Payload> {
         let body_vec = request_payload.body.unwrap_or_default().value;
-        let request: async_raft::raft::InstallSnapshotRequest = serde_json::from_slice(&body_vec)?;
+        let request: async_raft_ext::raft::InstallSnapshotRequest = serde_json::from_slice(&body_vec)?;
         let res = self.app_data.raft.install_snapshot(request).await?;
         let value = serde_json::to_string(&res)?;
         let payload = PayloadUtils::build_payload("RaftSnapshotResponse", value);

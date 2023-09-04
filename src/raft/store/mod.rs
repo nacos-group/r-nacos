@@ -4,9 +4,9 @@ pub mod innerstore;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use async_raft::raft::MembershipConfig;
-use async_raft::AppData;
-use async_raft::AppDataResponse;
+use async_raft_ext::raft::MembershipConfig;
+use async_raft_ext::AppData;
+use async_raft_ext::AppDataResponse;
 use prost::Message;
 use serde::Deserialize;
 use serde::Serialize;

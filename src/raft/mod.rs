@@ -1,4 +1,4 @@
-use async_raft::{Raft, RaftStorage};
+use async_raft_ext::{Raft, RaftStorage};
 
 use self::network::core::RaftRouter;
 use self::store::{core::RaftStore, ClientRequest, ClientResponse};

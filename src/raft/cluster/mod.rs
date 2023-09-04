@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use async_raft::raft::ClientWriteRequest;
+use async_raft_ext::raft::ClientWriteRequest;
 
 use crate::{
     common::appdata::AppShareData,

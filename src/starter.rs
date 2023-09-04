@@ -28,7 +28,7 @@ use crate::{
     },
 };
 use actix::prelude::*;
-use async_raft::{raft::ClientWriteRequest, Config, Raft, RaftStorage};
+use async_raft_ext::{raft::ClientWriteRequest, Config, Raft, RaftStorage};
 
 pub fn build_share_data(sys_config: Arc<AppSysConfig>) -> anyhow::Result<Arc<AppShareData>> {
     let db = Arc::new(

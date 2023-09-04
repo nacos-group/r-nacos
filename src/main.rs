@@ -2,8 +2,8 @@
 
 use actix::Actor;
 use actix_web::{web::Data, App};
-use async_raft::raft::ClientWriteRequest;
-use async_raft::{Config, Raft, RaftStorage};
+use async_raft_ext::raft::ClientWriteRequest;
+use async_raft_ext::{Config, Raft, RaftStorage};
 use rnacos::common::AppSysConfig;
 use rnacos::config::core::{ConfigActor, ConfigCmd};
 use rnacos::grpc::bistream_manage::BiStreamManage;
