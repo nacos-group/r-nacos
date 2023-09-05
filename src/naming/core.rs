@@ -343,13 +343,7 @@ impl NamingActor {
                 self.remove_instance(&service_key, &short_key, Some(client_id));
             }
         }
-        if let Some(node_manage) = self.cluster_node_manage.as_ref() {
-            let req = NamingRouteRequest::RemoveClientId {
-                client_id: client_id.to_owned(),
-            };
-            node_manage.do_send(NodeManageRequest::SendToOtherNodes(req));
-            node_manage.do_send(NodeManageRequest::RemoveClientId(client_id.to_owned()));
-        }
+        
     }
 
     pub fn get_instance(
@@ -683,6 +677,17 @@ impl NamingActor {
             self.update_instance(&instance.get_service_key(), instance, None);
         }
     }
+
+    fn notify_cluster_remove_client_id(&mut self,client_id:Arc<String>) {
+        if let Some(node_manage) = self.cluster_node_manage.as_ref() {
+            let req = NamingRouteRequest::RemoveClientId {
+                client_id: client_id.clone(),
+            };
+            node_manage.do_send(NodeManageRequest::SendToOtherNodes(req));
+            node_manage.do_send(NodeManageRequest::RemoveClientId(client_id.clone()));
+        }
+    }
+
 }
 
 #[derive(Debug, Message)]
@@ -712,6 +717,7 @@ pub enum NamingCmd {
     Subscribe(Vec<NamingListenerItem>, Arc<String>),
     RemoveSubscribe(Vec<NamingListenerItem>, Arc<String>),
     RemoveClient(Arc<String>),
+    RemoveClientFromCluster(Arc<String>),
     QueryClientInstanceCount,
     QueryDalAddr,
     QuerySnapshot(Vec<ProcessRange>),
@@ -867,6 +873,12 @@ impl Handler<NamingCmd> for NamingActor {
                 Ok(NamingResult::NULL)
             }
             NamingCmd::RemoveClient(client_id) => {
+                self.subscriber.remove_client_subscribe(client_id.clone());
+                self.remove_client_instance(&client_id);
+                self.notify_cluster_remove_client_id(client_id);
+                Ok(NamingResult::NULL)
+            }
+            NamingCmd::RemoveClientFromCluster(client_id) => {
                 self.subscriber.remove_client_subscribe(client_id.clone());
                 self.remove_client_instance(&client_id);
                 Ok(NamingResult::NULL)

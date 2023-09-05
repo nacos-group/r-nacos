@@ -245,6 +245,15 @@ impl InnerNodeManage {
         let timeout = now_millis() - 15000;
         let naming_actor = &self.naming_actor;
         for node in self.all_nodes.values_mut() {
+            /*
+            //log for debug
+            log::warn!("NAMING_NODE_CHECK node:{} status:{} client_set:{} timeout:{}",
+                node.id,
+                node.is_valid(),
+                &serde_json::to_string(&node.client_set).unwrap_or_default(),
+                node.last_active_time < timeout
+            );
+            */
             if !node.is_local && node.status == NodeStatus::Valid && node.last_active_time < timeout
             {
                 node.status = NodeStatus::Unvalid;
@@ -259,7 +268,7 @@ impl InnerNodeManage {
     ) {
         if let Some(naming_actor) = naming_actor.as_ref() {
             for client_id in &node.client_set {
-                naming_actor.do_send(NamingCmd::RemoveClient(client_id.clone()));
+                naming_actor.do_send(NamingCmd::RemoveClientFromCluster(client_id.clone()));
             }
         }
         node.client_set.clear();
@@ -288,6 +297,9 @@ impl InnerNodeManage {
     fn remove_client_id(&mut self, client_id: Arc<String>) {
         for node in self.all_nodes.values_mut() {
             node.client_set.remove(&client_id);
+        }
+        if let Some(naming_actor) = self.naming_actor.as_ref() {
+            naming_actor.do_send(NamingCmd::RemoveClientFromCluster(client_id.clone()));
         }
     }
 
