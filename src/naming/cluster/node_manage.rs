@@ -413,7 +413,7 @@ impl Handler<NodeManageRequest> for InnerNodeManage {
 
 #[derive(Debug)]
 pub struct NodeManage {
-    inner_node_manage: Addr<InnerNodeManage>,
+    pub(crate) inner_node_manage: Addr<InnerNodeManage>,
 }
 
 impl NodeManage {

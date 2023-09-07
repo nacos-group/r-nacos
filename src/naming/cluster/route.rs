@@ -11,7 +11,7 @@ use crate::{
 
 use super::{
     model::{NamingRouteAddr, NamingRouteRequest, NamingRouterResponse},
-    node_manage::NodeManage,
+    node_manage::{NodeManage, NodeManageRequest},
 };
 
 use actix::prelude::*;
@@ -48,11 +48,13 @@ impl NamingRoute {
                 let res: NamingResult = self.naming_addr.send(cmd).await??;
                 if let NamingResult::RewriteToCluster(node_id, instance) = res {
                     let addr = self.node_manage.get_node_addr(node_id).await?;
-                    self.do_route_instance(addr, instance, tag, true).await?;
+                    self.do_route_instance(node_id, addr, instance, tag, true)
+                        .await?;
                 }
             }
-            NamingRouteAddr::Remote(_, addr) => {
-                self.do_route_instance(addr, instance, tag, true).await?;
+            NamingRouteAddr::Remote(cluster_id, addr) => {
+                self.do_route_instance(cluster_id, addr, instance, tag, true)
+                    .await?;
             }
         };
         Ok(())
@@ -60,21 +62,49 @@ impl NamingRoute {
 
     async fn do_route_instance(
         &self,
+        cluster_id: u64,
         addr: Arc<String>,
-        instance: Instance,
+        mut instance: Instance,
         tag: Option<InstanceUpdateTag>,
         is_update: bool,
     ) -> anyhow::Result<()> {
         let req = if is_update {
-            NamingRouteRequest::UpdateInstance { instance, tag }
+            NamingRouteRequest::UpdateInstance {
+                instance: instance.clone(),
+                tag,
+            }
         } else {
-            NamingRouteRequest::RemoveInstance { instance }
+            NamingRouteRequest::RemoveInstance {
+                instance: instance.clone(),
+            }
         };
         let request = serde_json::to_string(&req).unwrap_or_default();
         let payload = PayloadUtils::build_payload("NamingRouteRequest", request);
         let resp_payload = self.cluster_sender.send_request(addr, payload).await?;
         let body_vec = resp_payload.body.unwrap_or_default().value;
         let _: NamingRouterResponse = serde_json::from_slice(&body_vec)?;
+
+        //路由在其它节点后，立即同步本节点
+        if is_update {
+            if instance.client_id.is_empty() {
+                instance.client_id = Arc::new(format!("{}_G", &cluster_id));
+            }
+            self.node_manage
+                .inner_node_manage
+                .do_send(NodeManageRequest::AddClientId(
+                    cluster_id,
+                    instance.client_id.clone(),
+                ));
+            instance.from_cluster = cluster_id;
+            let cmd = NamingCmd::Update(instance, None);
+            self.naming_addr.send(cmd).await.ok();
+        }
+        else{
+            instance.from_cluster = cluster_id;
+            let cmd = NamingCmd::Delete(instance);
+            self.naming_addr.send(cmd).await.ok();
+        }
+
         Ok(())
     }
 
@@ -85,8 +115,9 @@ impl NamingRoute {
                 let cmd = NamingCmd::Delete(instance);
                 let _: NamingResult = self.naming_addr.send(cmd).await??;
             }
-            NamingRouteAddr::Remote(_, addr) => {
-                self.do_route_instance(addr, instance, None, false).await?;
+            NamingRouteAddr::Remote(cluster_id, addr) => {
+                self.do_route_instance(cluster_id, addr, instance, None, false)
+                    .await?;
             }
         };
         Ok(())
