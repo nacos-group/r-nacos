@@ -1,6 +1,7 @@
 pub mod config_model;
 pub mod naming_model;
 pub mod raft_model;
+pub mod cluster_model;
 
 use serde::{Deserialize, Serialize};
 

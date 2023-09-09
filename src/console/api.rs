@@ -7,6 +7,7 @@ use crate::common::appdata::AppShareData;
 use crate::config::core::ConfigActor;
 //use crate::console::raft_api::{raft_add_learner, raft_change_membership, raft_init, raft_metrics, raft_read, raft_write};
 
+use super::cluster_api::query_cluster_info;
 use super::config_api::query_config_list;
 use super::{
     config_api::{download_config, import_config, query_history_config_page},
@@ -112,6 +113,10 @@ pub fn app_config(config: &mut web::ServiceConfig) {
             .service(
                 web::resource("/naming/client_instance_count")
                     .route(web::get().to(query_grpc_client_instance_count)),
+            )
+            .service(
+                web::resource("/cluster/cluster_node_list")
+                    .route(web::get().to(query_cluster_info)),
             )
             .service(web::resource("/connections").route(web::get().to(query_grpc_connection))),
     );
