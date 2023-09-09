@@ -44,7 +44,7 @@ start_cluster() {
     local env_file="$test_dir/env_01"
     cat >$env_file <<EOF
 #file:env01
-#RUST_LOG=debug|info|warn|error , default is info
+#RUST_LOG=debug|info|warn|error, default is info
 RNACOS_HTTP_PORT=8848
 RNACOS_RAFT_NODE_ADDR=127.0.0.1:9848
 RNACOS_CONFIG_DB_DIR=cluster_example/db_01
@@ -58,7 +58,7 @@ EOF
     local env_file="$test_dir/env_02"
     cat >$env_file <<EOF
 #file:env02
-#RUST_LOG=error
+#RUST_LOG=debug|info|warn|error, default is info
 RNACOS_HTTP_PORT=8849
 RNACOS_RAFT_NODE_ADDR=127.0.0.1:9849
 RNACOS_CONFIG_DB_DIR=cluster_example/db_02
@@ -72,7 +72,8 @@ EOF
     local env_file="$test_dir/env_03"
     cat >$env_file <<EOF
 #file:env03
-RUST_LOG=error
+#RUST_LOG=debug|info|warn|error, default is info
+RUST_LOG=warn
 RNACOS_HTTP_PORT=8850
 RNACOS_RAFT_NODE_ADDR=127.0.0.1:9850
 RNACOS_CONFIG_DB_DIR=cluster_example/db_03

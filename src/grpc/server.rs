@@ -104,7 +104,13 @@ impl request_server::Request for RequestServerImpl {
                 //log::info!("{}|ok|{}",PayloadUtils::get_payload_header(&res));
                 //debug
                 //log::info!("client response: {}",PayloadUtils::get_payload_string(&res));
-                log::info!("{}|ok|{}", request_log_info, duration);
+                if duration < 1f64 {
+                    log::info!("{}|ok|{}", request_log_info, duration);
+                }
+                else{
+                    //slow request handle
+                    log::warn!("{}|ok|{}", request_log_info, duration);
+                }
                 Ok(tonic::Response::new(res))
             }
             Err(e) => {
