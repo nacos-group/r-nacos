@@ -6,7 +6,7 @@ action=$1
 
 usage() {
     echo "cmd args unvalid"
-    echo "usage: $0 start | start_debug | restart | restart_debug | kill | clean"
+    echo "usage: $0 start | start_debug | restart | restart_debug  | kill | clean | test_naming"
     exit 2
 }
 
@@ -129,34 +129,8 @@ test_config_cluster() {
     curl 'http://127.0.0.1:8850/nacos/v1/cs/configs?dataId=t002&group=foo'
 }
 
-#query_node_metrics
-
-restart_cluster() {
-
-    kill
-
-    echo "\nrestart cluster"
-
-    sleep 1
-
-    start_cluster
-
-    sleep 1
-
-    echo "\ncluster restart metrics:"
-
-    query_node_metrics
-
-    echo "\n\nwait until the clusters restart (need 5 seconds)"
-
-    # the async-raft-ext all clusters restart need 5 seconds
-
-    sleep 6
-
-    query_node_metrics
-
+test_restart_config_cluster() {
     echo "\n\nquery the contents before restart"
-
     echo "\nget config info t002 from node 1, value:"
     curl 'http://127.0.0.1:8848/nacos/v1/cs/configs?dataId=t002&group=foo'
 
@@ -178,9 +152,48 @@ restart_cluster() {
 
     echo "\nget config info t002 from node 3, value:"
     curl 'http://127.0.0.1:8850/nacos/v1/cs/configs?dataId=t003&group=foo'
+}
+
+test_naming_cluster() {
+    echo "\nregister instance nacos.test.001 to node 1"
+    curl -X POST 'http://127.0.0.1:8848/nacos/v1/ns/instance' -d 'port=8000&healthy=true&ip=192.168.1.11&weight=1.0&serviceName=nacos.test.001&groupName=foo&metadata={"app":"foo","id":"001"}'
+    echo "\nregister instance nacos.test.001 to node 2"
+    curl -X POST 'http://127.0.0.1:8849/nacos/v1/ns/instance' -d 'port=8000&healthy=true&ip=192.168.1.12&weight=1.0&serviceName=nacos.test.001&groupName=foo&metadata={"app":"foo","id":"002"}'
+    echo "\nregister instance nacos.test.001 to node 3"
+    curl -X POST 'http://127.0.0.1:8850/nacos/v1/ns/instance' -d 'port=8000&healthy=true&ip=192.168.1.13&weight=1.0&serviceName=nacos.test.001&groupName=foo&metadata={"app":"foo","id":"003"}'
+    sleep 1
+    echo "\n\nquery service instance nacos.test.001 from node 1, value:"
+    curl "http://127.0.0.1:8848/nacos/v1/ns/instance/list?&namespaceId=public&serviceName=foo%40%40nacos.test.001&groupName=foo&clusters=&healthyOnly=true"
+    echo "\n\nquery service instance nacos.test.001 from node 2, value:"
+    curl "http://127.0.0.1:8849/nacos/v1/ns/instance/list?&namespaceId=public&serviceName=foo%40%40nacos.test.001&groupName=foo&clusters=&healthyOnly=true"
+    echo "\n\nquery service instance nacos.test.001 from node 3, value:"
+    curl "http://127.0.0.1:8850/nacos/v1/ns/instance/list?&namespaceId=public&serviceName=foo%40%40nacos.test.001&groupName=foo&clusters=&healthyOnly=true"
+    echo "\n"
+}
+
+#query_node_metrics
+
+restart_cluster() {
+
+    kill
+
+    echo "\nrestart cluster"
+
+    sleep 1
+
+    start_cluster
+
+    sleep 1
+
+    echo "\ncluster restart metrics:"
 
     query_node_metrics
 
+    echo "\n\nwait until the clusters restart (need 5 seconds)"
+
+    # the async-raft-ext all clusters restart need 5 seconds
+    sleep 6
+    query_node_metrics
 }
 
 #restart_cluster
@@ -196,6 +209,7 @@ start() {
     start_cluster
     query_node_metrics
     test_config_cluster
+    test_naming_cluster
     query_node_metrics
 }
 
@@ -208,6 +222,7 @@ start_debug() {
     start_cluster
     query_node_metrics
     test_config_cluster
+    test_naming_cluster
     query_node_metrics
 }
 
@@ -215,12 +230,18 @@ restart() {
     cargo build --release
     app_path="./target/release/$app_name"
     restart_cluster
+    test_restart_config_cluster
+    test_naming_cluster
+    query_node_metrics
 }
 
 restart_debug() {
     cargo build
     app_path="./target/debug/$app_name"
     restart_cluster
+    test_restart_config_cluster
+    test_naming_cluster
+    query_node_metrics
 }
 
 main() {
@@ -241,6 +262,9 @@ main() {
         kill
         sleep 1
         clean_cluster_dir
+        ;;
+    test_naming)
+        test_naming_cluster
         ;;
     kill)
         kill
