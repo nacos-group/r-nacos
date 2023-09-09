@@ -2,17 +2,23 @@
 
 set -o errexit
 
+action=$1
+
+usage() {
+    echo "cmd args unvalid"
+    echo "usage: $0 start | start_debug | restart | restart_debug | kill | clean"
+    exit 2
+}
 
 app_name='rnacos'
-#release
-#cargo build --release
-#app_path="./target/release/$app_name"
 
-#debug
-cargo build
-app_path="./target/debug/$app_name"
+test_dir='cluster_example'
+
+#defuat path
+app_path="./target/release/$app_name"
 
 kill() {
+    echo "Killing all running ${app_name}"
     if [ "$(uname)" = "Darwin" ]; then
         if pgrep -xq -- "${app_name}"; then
             pkill -f "${app_name}"
@@ -24,20 +30,25 @@ kill() {
     fi
 }
 
-echo "Killing all running ${app_name}"
-kill
-sleep 1
+#kill
+#sleep 1
 
-test_dir='cluster_example'
+init_cluster_dir() {
+    echo "init cluster dir: $test_dir"
+    #rm -rf $test_dir
+    mkdir -p $test_dir
+}
 
-echo "init cluster dir: $test_dir"
-rm -rf $test_dir
-mkdir -p $test_dir
+clean_cluster_dir() {
+    echo "init cluster dir: $test_dir"
+    rm -rf $test_dir
+    mkdir -p $test_dir
+}
 
 start_cluster() {
     echo "start node:1"
     local env_file="$test_dir/env_01"
-    cat > $env_file <<EOF
+    cat >$env_file <<EOF
 #file:env01
 RNACOS_HTTP_PORT=8848
 RNACOS_RAFT_NODE_ADDR=127.0.0.1:9848
@@ -45,31 +56,31 @@ RNACOS_CONFIG_DB_DIR=cluster_example/db_01
 RNACOS_RAFT_NODE_ID=1
 RNACOS_RAFT_AUTO_INIT=true
 EOF
-    nohup ${app_path}  -e $env_file  > "$test_dir/node_01.log" &
+    nohup ${app_path} -e $env_file >"$test_dir/node_01.log" &
     sleep 1
 
     echo "start node:2"
     local env_file="$test_dir/env_02"
-    cat > $env_file <<EOF
+    cat >$env_file <<EOF
 RNACOS_HTTP_PORT=8849
 RNACOS_RAFT_NODE_ADDR=127.0.0.1:9849
 RNACOS_CONFIG_DB_DIR=cluster_example/db_02
 RNACOS_RAFT_NODE_ID=2
 RNACOS_RAFT_JOIN_ADDR=127.0.0.1:9848
 EOF
-    nohup ${app_path}  -e $env_file  > "$test_dir/node_02.log" &
+    nohup ${app_path} -e $env_file >"$test_dir/node_02.log" &
     sleep 1
 
     echo "start node:3"
     local env_file="$test_dir/env_03"
-    cat > $env_file <<EOF
+    cat >$env_file <<EOF
 RNACOS_HTTP_PORT=8850
 RNACOS_RAFT_NODE_ADDR=127.0.0.1:9850
 RNACOS_CONFIG_DB_DIR=cluster_example/db_03
 RNACOS_RAFT_NODE_ID=3
 RNACOS_RAFT_JOIN_ADDR=127.0.0.1:9848
 EOF
-    nohup ${app_path}  -e $env_file  > "$test_dir/node_03.log" &
+    nohup ${app_path} -e $env_file >"$test_dir/node_03.log" &
     sleep 1
 }
 
@@ -84,43 +95,45 @@ query_node_metrics() {
     curl "http://127.0.0.1:8850/nacos/v1/raft/metrics"
 }
 
-start_cluster
+#start_cluster
 
-query_node_metrics
+#query_node_metrics
 
-echo "\npublish config t001:contentTest to node 1"
-curl -X POST 'http://127.0.0.1:8848/nacos/v1/cs/configs' -d 'dataId=t001&group=foo&content=contentTest'
-sleep 1
+test_config_cluster() {
 
-echo "\nget config info t001 from node 1, value:"
-curl 'http://127.0.0.1:8848/nacos/v1/cs/configs?dataId=t001&group=foo'
+    echo "\npublish config t001:contentTest to node 1"
+    curl -X POST 'http://127.0.0.1:8848/nacos/v1/cs/configs' -d 'dataId=t001&group=foo&content=contentTest'
+    sleep 1
 
-echo "\nget config info t001 from node 2, value:"
-curl 'http://127.0.0.1:8849/nacos/v1/cs/configs?dataId=t001&group=foo'
+    echo "\nget config info t001 from node 1, value:"
+    curl 'http://127.0.0.1:8848/nacos/v1/cs/configs?dataId=t001&group=foo'
 
-echo "\nget config info t001 from node 3, value:"
-curl 'http://127.0.0.1:8850/nacos/v1/cs/configs?dataId=t001&group=foo'
-sleep 1
+    echo "\nget config info t001 from node 2, value:"
+    curl 'http://127.0.0.1:8849/nacos/v1/cs/configs?dataId=t001&group=foo'
 
-echo "\npublish config t002:contentTest02 to node 2"
-curl -X POST 'http://127.0.0.1:8849/nacos/v1/cs/configs' -d 'dataId=t002&group=foo&content=contentTest02'
-sleep 1
+    echo "\nget config info t001 from node 3, value:"
+    curl 'http://127.0.0.1:8850/nacos/v1/cs/configs?dataId=t001&group=foo'
+    sleep 1
 
-echo "\nget config info t002 from node 1, value:"
-curl 'http://127.0.0.1:8848/nacos/v1/cs/configs?dataId=t002&group=foo'
+    echo "\npublish config t002:contentTest02 to node 2"
+    curl -X POST 'http://127.0.0.1:8849/nacos/v1/cs/configs' -d 'dataId=t002&group=foo&content=contentTest02'
+    sleep 1
 
-echo "\nget config info t002 from node 2, value:"
-curl 'http://127.0.0.1:8849/nacos/v1/cs/configs?dataId=t002&group=foo'
+    echo "\nget config info t002 from node 1, value:"
+    curl 'http://127.0.0.1:8848/nacos/v1/cs/configs?dataId=t002&group=foo'
 
-echo "\nget config info t002 from node 3, value:"
-curl 'http://127.0.0.1:8850/nacos/v1/cs/configs?dataId=t002&group=foo'
+    echo "\nget config info t002 from node 2, value:"
+    curl 'http://127.0.0.1:8849/nacos/v1/cs/configs?dataId=t002&group=foo'
 
-query_node_metrics
+    echo "\nget config info t002 from node 3, value:"
+    curl 'http://127.0.0.1:8850/nacos/v1/cs/configs?dataId=t002&group=foo'
+}
 
+#query_node_metrics
 
 restart_cluster() {
 
-    kill 
+    kill
 
     echo "\nrestart cluster"
 
@@ -134,11 +147,11 @@ restart_cluster() {
 
     query_node_metrics
 
-    echo "\n\nwait until the clusters restart (need 30 seconds)"
+    echo "\n\nwait until the clusters restart (need 5 seconds)"
 
-    # the async-raft clusters restart need 30 seconds
+    # the async-raft-ext all clusters restart need 5 seconds
 
-    sleep 32
+    sleep 6
 
     query_node_metrics
 
@@ -152,7 +165,6 @@ restart_cluster() {
 
     echo "\nget config info t002 from node 3, value:"
     curl 'http://127.0.0.1:8850/nacos/v1/cs/configs?dataId=t002&group=foo'
-
 
     echo "\n\npublish config t003:contentTest03 to node 3"
     curl -X POST 'http://127.0.0.1:8850/nacos/v1/cs/configs' -d 'dataId=t003&group=foo&content=contentTest03'
@@ -175,4 +187,68 @@ restart_cluster() {
 
 #kill
 
+start() {
+    kill
+    sleep 1
+    cargo build --release
+    app_path="./target/release/$app_name"
+    init_cluster_dir
+    start_cluster
+    query_node_metrics
+    test_config_cluster
+    query_node_metrics
+}
+
+start_debug() {
+    kill
+    sleep 1
+    cargo build
+    app_path="./target/debug/$app_name"
+    init_cluster_dir
+    start_cluster
+    query_node_metrics
+    test_config_cluster
+    query_node_metrics
+}
+
+restart() {
+    cargo build --release
+    app_path="./target/release/$app_name"
+    restart_cluster
+}
+
+restart_debug() {
+    cargo build
+    app_path="./target/debug/$app_name"
+    restart_cluster
+}
+
+main() {
+    case $action in
+    start)
+        start
+        ;;
+    start_debug)
+        start_debug
+        ;;
+    restart)
+        restart
+        ;;
+    restart_debug)
+        restart_debug
+        ;;
+    clean)
+        kill
+        sleep 1
+        clean_cluster_dir
+        ;;
+    kill)
+        kill
+        ;;
+    *)
+        usage
+        ;;
+    esac
+}
+main
 echo "\n==== end ===="
