@@ -33,12 +33,6 @@ kill() {
 #kill
 #sleep 1
 
-init_cluster_dir() {
-    echo "init cluster dir: $test_dir"
-    #rm -rf $test_dir
-    mkdir -p $test_dir
-}
-
 clean_cluster_dir() {
     echo "init cluster dir: $test_dir"
     rm -rf $test_dir
@@ -50,6 +44,7 @@ start_cluster() {
     local env_file="$test_dir/env_01"
     cat >$env_file <<EOF
 #file:env01
+#RUST_LOG=debug|info|warn|error , default is info
 RNACOS_HTTP_PORT=8848
 RNACOS_RAFT_NODE_ADDR=127.0.0.1:9848
 RNACOS_CONFIG_DB_DIR=cluster_example/db_01
@@ -62,6 +57,8 @@ EOF
     echo "start node:2"
     local env_file="$test_dir/env_02"
     cat >$env_file <<EOF
+#file:env02
+#RUST_LOG=error
 RNACOS_HTTP_PORT=8849
 RNACOS_RAFT_NODE_ADDR=127.0.0.1:9849
 RNACOS_CONFIG_DB_DIR=cluster_example/db_02
@@ -74,6 +71,8 @@ EOF
     echo "start node:3"
     local env_file="$test_dir/env_03"
     cat >$env_file <<EOF
+#file:env03
+RUST_LOG=error
 RNACOS_HTTP_PORT=8850
 RNACOS_RAFT_NODE_ADDR=127.0.0.1:9850
 RNACOS_CONFIG_DB_DIR=cluster_example/db_03
@@ -205,7 +204,7 @@ start() {
     sleep 1
     cargo build --release
     app_path="./target/release/$app_name"
-    init_cluster_dir
+    clean_cluster_dir
     start_cluster
     query_node_metrics
     test_config_cluster
@@ -218,7 +217,7 @@ start_debug() {
     sleep 1
     cargo build
     app_path="./target/debug/$app_name"
-    init_cluster_dir
+    clean_cluster_dir
     start_cluster
     query_node_metrics
     test_config_cluster

@@ -44,8 +44,10 @@ pub struct AppOpt {
 
 #[actix_web::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    std::env::set_var("RUST_LOG", "actix_web=debug,actix_server=info,info");
     init_env();
+    let rust_log= std::env::var("RUST_LOG").unwrap_or("info".to_owned());
+    println!("RUST_LOG:{}",&rust_log);
+    std::env::set_var("RUST_LOG", &rust_log);
     env_logger::builder().format_timestamp_micros().init();
     let sys_config = Arc::new(AppSysConfig::init_from_env());
     let app_data = build_share_data(sys_config.clone())?;
@@ -95,6 +97,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     if let Some(num) = sys_config.http_workers {
         server = server.workers(num);
     }
+    println!("rnacos started");
     server.bind(http_addr)?.run().await?;
     Ok(())
 }
