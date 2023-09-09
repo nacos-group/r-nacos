@@ -90,7 +90,10 @@ impl ConfigRoute {
                 let resp_payload = self.cluster_sender.send_request(addr, payload).await?;
                 let body_vec = resp_payload.body.unwrap_or_default().value;
                 let _: RouterResponse = serde_json::from_slice(&body_vec)?;
-                self.config_addr.do_send(ConfigCmd::SetTmpValue(source_req.config_key,source_req.value));
+                self.config_addr.do_send(ConfigCmd::SetTmpValue(
+                    source_req.config_key,
+                    source_req.value,
+                ));
             }
             RouteAddr::Unknown => {
                 return Err(self.unknown_err());

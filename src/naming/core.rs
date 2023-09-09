@@ -343,7 +343,6 @@ impl NamingActor {
                 self.remove_instance(&service_key, &short_key, Some(client_id));
             }
         }
-        
     }
 
     pub fn get_instance(
@@ -678,7 +677,7 @@ impl NamingActor {
         }
     }
 
-    fn notify_cluster_remove_client_id(&mut self,client_id:Arc<String>) {
+    fn notify_cluster_remove_client_id(&mut self, client_id: Arc<String>) {
         if let Some(node_manage) = self.cluster_node_manage.as_ref() {
             let req = NamingRouteRequest::RemoveClientId {
                 client_id: client_id.clone(),
@@ -687,7 +686,6 @@ impl NamingActor {
             node_manage.do_send(NodeManageRequest::RemoveClientId(client_id.clone()));
         }
     }
-
 }
 
 #[derive(Debug, Message)]

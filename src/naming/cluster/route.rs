@@ -98,8 +98,7 @@ impl NamingRoute {
             instance.from_cluster = cluster_id;
             let cmd = NamingCmd::Update(instance, None);
             self.naming_addr.do_send(cmd);
-        }
-        else{
+        } else {
             instance.from_cluster = cluster_id;
             let cmd = NamingCmd::Delete(instance);
             self.naming_addr.do_send(cmd);

@@ -158,6 +158,19 @@ async fn auto_init_raft(
         }))
         .await
         .ok();
+    } else if state.membership.all_nodes().len() < 2 {
+        // 单节点支持更新集群ip地址
+        tokio::time::sleep(Duration::from_millis(500)).await;
+        if let Some(node_id) = raft.current_leader().await {
+            if node_id == sys_config.raft_node_id {
+                raft.client_write(ClientWriteRequest::new(ClientRequest::NodeAddr {
+                    id: sys_config.raft_node_id,
+                    addr: Arc::new(sys_config.raft_node_addr.to_owned()),
+                }))
+                .await
+                .ok();
+            }
+        }
     }
     Ok(())
 }

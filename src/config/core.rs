@@ -314,7 +314,7 @@ impl ConfigActor {
         s
     }
 
-    fn set_tmp_config(&mut self,key: ConfigKey,val: Arc<String>) {
+    fn set_tmp_config(&mut self, key: ConfigKey, val: Arc<String>) {
         let mut config_val = ConfigValue::new(val);
         config_val.tmp = true;
         self.cache.insert(key, config_val);
@@ -329,7 +329,7 @@ impl ConfigActor {
     ) -> anyhow::Result<ConfigResult> {
         let config_val = ConfigValue::new(val);
         if let Some(v) = self.cache.get(&key) {
-            if v.tmp ==false &&  v.md5 == config_val.md5 {
+            if !v.tmp && v.md5 == config_val.md5 {
                 return Ok(ConfigResult::NULL);
             }
         }
@@ -440,7 +440,7 @@ impl ConfigActor {
 pub enum ConfigCmd {
     //ADD(ConfigKey, Arc<String>),
     //DELETE(ConfigKey),
-    SetTmpValue(ConfigKey,Arc<String>),
+    SetTmpValue(ConfigKey, Arc<String>),
     GET(ConfigKey),
     QueryPageInfo(Box<ConfigQueryParam>),
     QueryHistoryPageInfo(Box<ConfigHistoryParam>),
@@ -487,7 +487,7 @@ impl Handler<ConfigCmd> for ConfigActor {
 
     fn handle(&mut self, msg: ConfigCmd, _ctx: &mut Context<Self>) -> Self::Result {
         match msg {
-            ConfigCmd::SetTmpValue(key,value ) => {
+            ConfigCmd::SetTmpValue(key, value) => {
                 self.set_tmp_config(key, value);
             }
             ConfigCmd::GET(key) => {
