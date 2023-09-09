@@ -77,14 +77,16 @@ impl From<&str> for ConfigKey {
 pub struct ConfigValue {
     pub(crate) content: Arc<String>,
     pub(crate) md5: Arc<String>,
+    pub(crate) tmp: bool,
 }
 
 impl ConfigValue {
-    fn new(content: Arc<String>) -> Self {
+    pub fn new(content: Arc<String>) -> Self {
         let md5 = get_md5(&content);
         Self {
             content,
             md5: Arc::new(md5),
+            tmp: false,
         }
     }
 }
@@ -312,6 +314,12 @@ impl ConfigActor {
         s
     }
 
+    fn set_tmp_config(&mut self,key: ConfigKey,val: Arc<String>) {
+        let mut config_val = ConfigValue::new(val);
+        config_val.tmp = true;
+        self.cache.insert(key, config_val);
+    }
+
     fn set_config(
         &mut self,
         key: ConfigKey,
@@ -321,7 +329,7 @@ impl ConfigActor {
     ) -> anyhow::Result<ConfigResult> {
         let config_val = ConfigValue::new(val);
         if let Some(v) = self.cache.get(&key) {
-            if v.md5 == config_val.md5 {
+            if v.tmp ==false &&  v.md5 == config_val.md5 {
                 return Ok(ConfigResult::NULL);
             }
         }
@@ -356,6 +364,7 @@ impl ConfigActor {
             let val = ConfigValue {
                 content: Arc::new(item.content.unwrap_or_default()),
                 md5: Arc::new(item.content_md5.unwrap_or_default()),
+                tmp: false,
             };
             self.tenant_index.insert_config(key.clone());
             self.cache.insert(key, val);
@@ -431,6 +440,7 @@ impl ConfigActor {
 pub enum ConfigCmd {
     //ADD(ConfigKey, Arc<String>),
     //DELETE(ConfigKey),
+    SetTmpValue(ConfigKey,Arc<String>),
     GET(ConfigKey),
     QueryPageInfo(Box<ConfigQueryParam>),
     QueryHistoryPageInfo(Box<ConfigHistoryParam>),
@@ -477,6 +487,9 @@ impl Handler<ConfigCmd> for ConfigActor {
 
     fn handle(&mut self, msg: ConfigCmd, _ctx: &mut Context<Self>) -> Self::Result {
         match msg {
+            ConfigCmd::SetTmpValue(key,value ) => {
+                self.set_tmp_config(key, value);
+            }
             ConfigCmd::GET(key) => {
                 if let Some(v) = self.cache.get(&key) {
                     return Ok(ConfigResult::DATA(v.content.clone(), v.md5.clone()));

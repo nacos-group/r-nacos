@@ -287,8 +287,6 @@ impl ConfigDB {
 
 #[cfg(test)]
 mod tests {
-    use crate::utils::get_md5;
-
     use super::*;
     use std::sync::Arc;
 
@@ -301,12 +299,11 @@ mod tests {
             group: Arc::new("dev".to_owned()),
             data_id: Arc::new("iris-app-dev.properties".to_owned()),
         };
-        let val = ConfigValue {
-            content: Arc::new(
+        let val = ConfigValue::new(
+            Arc::new(
                 "appid=iris-app\r\nusername=iris\r\npass=1***5\r\nabc=123".to_owned(),
-            ),
-            md5: Arc::new("".to_owned()),
-        };
+            )
+        );
         config_db.update_config(&key, &val).unwrap();
 
         let v = config_db.query_config_list().unwrap();
@@ -324,10 +321,7 @@ mod tests {
                 data_id: Arc::new("iris-app-dev.properties".to_owned()),
             };
             let val_string = format!("appid=iris-app\r\nusername=iris\r\npass=1***5\r\nid={}", i);
-            let val = ConfigValue {
-                md5: Arc::new(get_md5(&val_string)),
-                content: Arc::new(val_string),
-            };
+            let val = ConfigValue::new( Arc::new(val_string)); 
             config_db.update_config(&key, &val).unwrap();
         }
     }
@@ -341,12 +335,10 @@ mod tests {
             group: Arc::new("dev".to_owned()),
             data_id: Arc::new("iris-app-dev.properties".to_owned()),
         };
-        let val = ConfigValue {
-            content: Arc::new(
+        let val = ConfigValue::new(
+            Arc::new(
                 "appid=iris-app\r\nusername=iris\r\npass=1***5\r\nabc=123".to_owned(),
-            ),
-            md5: Arc::new("".to_owned()),
-        };
+            ));
         config_db.update_config(&key, &val).unwrap();
         let param = ConfigHistoryParam {
             id: None,
@@ -376,12 +368,10 @@ mod tests {
             group: Arc::new("dev".to_owned()),
             data_id: Arc::new("iris-app-dev.properties".to_owned()),
         };
-        let val = ConfigValue {
-            content: Arc::new(
+        let val = ConfigValue::new(
+            Arc::new(
                 "appid=iris-app\r\nusername=iris\r\npass=1***5\r\nabc=123".to_owned(),
-            ),
-            md5: Arc::new("".to_owned()),
-        };
+            ));
         config_db.update_config(&key, &val).unwrap();
         config_db.del_config(&key).unwrap();
     }
@@ -395,12 +385,10 @@ mod tests {
             group: Arc::new("dev".to_owned()),
             data_id: Arc::new("iris-app-dev.properties".to_owned()),
         };
-        let val = ConfigValue {
-            content: Arc::new(
+        let val = ConfigValue::new(
+            Arc::new(
                 "appid=iris-app\r\nusername=iris\r\npass=1***5\r\nabc=123".to_owned(),
-            ),
-            md5: Arc::new("".to_owned()),
-        };
+            ));
         config_db.update_config(&key, &val).unwrap();
         let v = config_db.query_config_list().unwrap();
         println!("{:?}", v)

@@ -3,7 +3,7 @@ use std::{fmt::Debug, sync::Arc};
 use actix::prelude::*;
 
 use crate::{
-    config::core::{ConfigActor, ConfigAsyncCmd},
+    config::core::{ConfigActor, ConfigAsyncCmd, ConfigCmd},
     grpc::PayloadUtils,
     raft::{
         NacosRaft,
@@ -83,12 +83,14 @@ impl ConfigRoute {
                 self.config_addr.send(cmd).await?.ok();
             }
             RouteAddr::Remote(_, addr) => {
+                let source_req = req.clone();
                 let req: RouterRequest = req.into();
                 let request = serde_json::to_string(&req).unwrap_or_default();
                 let payload = PayloadUtils::build_payload("RaftRouteRequest", request);
                 let resp_payload = self.cluster_sender.send_request(addr, payload).await?;
                 let body_vec = resp_payload.body.unwrap_or_default().value;
                 let _: RouterResponse = serde_json::from_slice(&body_vec)?;
+                self.config_addr.do_send(ConfigCmd::SetTmpValue(source_req.config_key,source_req.value));
             }
             RouteAddr::Unknown => {
                 return Err(self.unknown_err());
