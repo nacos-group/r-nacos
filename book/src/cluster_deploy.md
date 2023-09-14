@@ -141,7 +141,7 @@ nohup ./rnacos -e env03 > n03.log &
 
 集群服务启动后，即可运行原有的 nacos 应用。
 
-### 配置中心http api例子
+#### 配置中心http api例子
 
 ```sh
 echo "\npublish config t001:contentTest to node 1"
@@ -173,7 +173,7 @@ curl 'http://127.0.0.1:8850/nacos/v1/cs/configs?dataId=t002&group=foo'
 
 ```
 
-### 注册中心http api例子
+#### 注册中心http api例子
 
 ```sh
 echo "\nregister instance nacos.test.001 to node 1"
@@ -193,7 +193,8 @@ echo "\n"
 
 ```
 
-如果在本地源码编译，可参考 [test_cluster.sh](https://github.com/heqingpan/rnacos/blob/master/test_cluster.sh)
+如果在本地源码编译，可使用或参考[test_cluster.sh](https://github.com/heqingpan/rnacos/blob/master/test_cluster.sh) 创建、测试集群。
+
 
 具体的用法参考 nacos.io 的用户指南。
 
@@ -204,9 +205,44 @@ echo "\n"
 [open-api](https://nacos.io/zh-cn/docs/open-api.html)
 
 
-
-
 ## 集群管理工具
 
+### 通过控制台查看集群状态
 
+![](https://github.com/heqingpan/rnacos/raw/master/doc/assets/imgs/20230915000345.png)
+
+在控制台页面主要观注集群节点列表状态与raft主角点是否正常
+
+### 通过接口查看集群状态
+
+1. 查询指定节点的raft 集群状态
+
+```sh
+curl "http://127.0.0.1:8848/nacos/v1/raft/metrics"
+# {"id":1,"state":"Leader","current_term":1,"last_log_index":10,"last_applied":10,"current_leader":1,"membership_config":{"members":[1,2,3],"members_after_consensus":null}}
+# 主要关注 current_leader和members
+```
+
+2. 增加节点
+
+
+```sh
+curl -X POST "http://127.0.0.1:8848/nacos/v1/raft/add-learner" -H "Content-Type: application/json" -d '[2, "127.0.0.1:9849"]'
+```
+
+推荐通过启动新节点时设置`RNACOS_RAFT_JOIN_ADDR`加入集群。
+如果配置时主节点不确定，可以启动后再调用主节点接口把新节点加入集群。
+
+此接口也可以用于在集群运行期更新集群节点地址。
+
+3. 更新集群节点列表
+
+
+```sh
+curl -X POST "http://127.0.0.1:8848/nacos/v1/raft/change-membership" -H "Content-Type: application/json" -d '[1, 2, 3]'
+```
+
+如果通过手动方式增加节点，需要调用本接口更新集群节点列表。
+
+此接口可以用于对集群缩容，下线指定节点。
 
