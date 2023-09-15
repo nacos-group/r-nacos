@@ -232,15 +232,8 @@ curl "http://127.0.0.1:8848/nacos/v1/ns/instance/list?&namespaceId=public&servic
 
 **注：** 具体结果和压测环境有关
 
-
-### 性能压测总结
-
-1. rnacos,除了服务服务注册不能稳定在1万以上，其它的接口qps都能稳定在1万以上。
-2. java 的查询接口基本能压到1万以上，但不平稳，后继浮动比较大。如果降低压测流程，qps 可以相对平稳。
-3. 在多服务查询叠加上多服务注册场景，rnacos  qps能稳定在1.2万左右, java nacos qps 下降明显在0.6万左右。
-4. rnacos 综合 qps是 java版的2倍以上，因 java 有 GC，qps水位稳定性上 java较差（相同施压流量，qps 能从峰值1万能降到1百以下）。
-5. rnacos 服务,线程数稳定在20个左右，cpu 用例率最大200%左右（相当用个2核），内存在80M 以下
-6. java nacos 服务，线程数最大300左右， cpu 用例率最大500%左右，内存600M到900M。
+详细信息可以参考
+[性能与容量说明](https://heqingpan.github.io/rnacos/performance.html)
 
 
 ## 后继计划
