@@ -1,0 +1,364 @@
+<!DOCTYPE HTML>
+<html lang="cn" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>集群部署 - rnacos文档</title>
+                
+
+        <!-- Custom HTML head -->
+        
+
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+                <link rel="icon" href="favicon.svg">
+                        <link rel="shortcut icon" href="favicon.png">
+                <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+                <link rel="stylesheet" href="css/print.css" media="print">
+        
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+                <link rel="stylesheet" href="fonts/fonts.css">
+        
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        
+            </head>
+    <body>
+        <!-- Provide site root to javascript -->
+        <script type="text/javascript">
+            var path_to_root = "";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="intro.html">简介</a></li><li class="chapter-item expanded "><a href="quick-started.html"><strong aria-hidden="true">1.</strong> 快速开始</a></li><li class="chapter-item expanded "><a href="cluster_deploy.html" class="active"><strong aria-hidden="true">2.</strong> 集群部署</a></li><li class="chapter-item expanded "><a href="deplay_env.html"><strong aria-hidden="true">3.</strong> 运行参数说明</a></li><li class="chapter-item expanded "><a href="performance.html"><strong aria-hidden="true">4.</strong> 性能与容量说明</a></li><li class="chapter-item expanded "><a href="version_describe.html"><strong aria-hidden="true">5.</strong> 版本说明</a></li><li class="chapter-item expanded "><a href="faq.html"><strong aria-hidden="true">6.</strong> 常见问题</a></li><li class="chapter-item expanded "><a href="architecture.html"><strong aria-hidden="true">7.</strong> 架构</a></li></ol>            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                                                <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                                            </div>
+
+                    <h1 class="menu-title">rnacos文档</h1>
+
+                    <div class="right-buttons">
+                                                <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                                                                        
+                    </div>
+                </div>
+
+                                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+                
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="集群部署"><a class="header" href="#集群部署">集群部署</a></h1>
+<p>rnacos 在v0.2.2版本后支持集群部署。</p>
+<h2 id="集群功能机制简介"><a class="header" href="#集群功能机制简介">集群功能机制简介</a></h2>
+<p>集群部署的目标是通过多实例部署的方式，支持服务的水平扩容，支持部分节点异常后继续提供服务，提升稳定性。</p>
+<h3 id="配置中心"><a class="header" href="#配置中心">配置中心</a></h3>
+<p>配置中心使用raft集群协议+本地存储，持久化数据，不需求再依赖 mysql 存储配置。其持久化机制类似<code>etcd</code>。</p>
+<table><thead><tr><th>请求方式</th><th>说明</th><th>性能</th></tr></thead><tbody>
+<tr><td>写入</td><td>只有主节点能写入，其它节点收到写入请求后转发到主节点写入</td><td>集群2千tps左右，有优化空间</td></tr>
+<tr><td>读取</td><td>每个节点都能读取全量数据</td><td>单节点8万qps左右,集群总容量为n*8万</td></tr>
+</tbody></table>
+<h3 id="注册中心"><a class="header" href="#注册中心">注册中心</a></h3>
+<p>注册中心使用类distor协议，同步集群间的数据。</p>
+<p>注册中心复用配置中心节点列表信息，两者协议的实例是单独实例的。</p>
+<table><thead><tr><th>请求方式</th><th>说明</th><th>性能</th></tr></thead><tbody>
+<tr><td>写入</td><td>注册中心每个节点平等，按hash划分每个节点负责的内容；节点对负责的服务可写，否则转发到对应负责的节点处理。</td><td>集群1万tps左右</td></tr>
+<tr><td>读取</td><td>每个节点都能读取全量数据</td><td>单节点3万qps左右,集群总容量为n*3万</td></tr>
+</tbody></table>
+<h2 id="集群部署-1"><a class="header" href="#集群部署-1">集群部署</a></h2>
+<p>集群部署和单机部署步骤一致，只是对应的运行参数不同，增加了集群节点的配置。</p>
+<h3 id="一取得rnacos安装包"><a class="header" href="#一取得rnacos安装包">一、取得rnacos安装包</a></h3>
+<p>安装包的获取方式与 <a href="./quick-started.html">快速开始</a>一致</p>
+<h3 id="二配置集群规则"><a class="header" href="#二配置集群规则">二、配置集群规则</a></h3>
+<p>集群部署相关的配置参数有四个:RNACOS_RAFT_NODE_ID,RNACOS_RAFT_NODE_ADDR,RNACOS_RAFT_AUTO_INIT,RNACOS_RAFT_JOIN_ADDR。</p>
+<p>具体参数说明参考 <a href="./deplay_env.html">运行参数说明</a> </p>
+<p>集群配置规则： </p>
+<ol>
+<li>所有的集群节点都需要设置RNACOS_RAFT_NODE_ID,RNACOS_RAFT_NODE_ADDR ,其中不同节点的node_id和 node_addr不能相同；node_id为一个正整数，node_addr为<code>ip:grpc_port</code> </li>
+<li>集群主节点： 初始设置RNACOS_RAFT_AUTO_INIT为true （如果节点为1，默认是 true,不用额外设置）。</li>
+<li>集群从节点： 初始设置RNACOS_RAFT_AUTO_INIT为false (节点非1,默认就是false,不用额外设置)；另外需要设置RNACOS_RAFT_JOIN_ADDR为当前主节点的地址，以方便启动时自动加入集群中。</li>
+<li>第2、3点只是为了初始化组建集群。集群运行起来之后，后继启动配置从raft db中加载。</li>
+<li>集群节点数量不要求，可以是1、2、3、4、... ； 不过raft协议只支持小于集群半数节点异常后继续提供写入服务(查询不影响)。例如：3个节点集群支持1个节点异常后提供写入服务，2个节点集群可以正常运行，不支持节点异常后提供服务。</li>
+<li>从节点可以在使用过程中按需加入。比如原来3个节点，可能在使用一段时间后增加2个节点扩容。</li>
+</ol>
+<h4 id="实例规划集群节点信息并编写对应的配置文件"><a class="header" href="#实例规划集群节点信息并编写对应的配置文件">实例：规划集群节点信息并编写对应的配置文件</a></h4>
+<p>按上面的配置规则，下面我们配置一个3节点集群例子。</p>
+<p>初始化节信息</p>
+<ol>
+<li>主节点id为1，地址为127.0.0.1:9848</li>
+<li>第一个从节点id为2，地址为127.0.0.1:9849</li>
+<li>第二个从节点id为3，地址为127.0.0.1:9849</li>
+</ol>
+<p>正式集群部署的log等级建议设置为<code>warn</code>,不打正常的请求日志，只打报警或异常日志，减少日志量。</p>
+<p><strong>配置信息如下</strong></p>
+<p>env01</p>
+<pre><code>#file:env01 , Initialize with the leader node role
+RUST_LOG=warn
+RNACOS_HTTP_PORT=8848
+RNACOS_RAFT_NODE_ADDR=127.0.0.1:9848
+RNACOS_CONFIG_DB_DIR=db01
+RNACOS_RAFT_NODE_ID=1
+RNACOS_RAFT_AUTO_INIT=true
+</code></pre>
+<p>env02:</p>
+<pre><code>#file:env02 , Initialize with the follower node role
+RUST_LOG=warn
+RNACOS_HTTP_PORT=8849
+RNACOS_RAFT_NODE_ADDR=127.0.0.1:9849
+RNACOS_CONFIG_DB_DIR=db02
+RNACOS_RAFT_NODE_ID=2
+RNACOS_RAFT_JOIN_ADDR=127.0.0.1:9848
+</code></pre>
+<p>env03:</p>
+<pre><code>#file:env03 , Initialize with the follower node role
+RUST_LOG=warn
+RNACOS_HTTP_PORT=8850
+RNACOS_RAFT_NODE_ADDR=127.0.0.1:9850
+RNACOS_CONFIG_DB_DIR=db03
+RNACOS_RAFT_NODE_ID=3
+RNACOS_RAFT_JOIN_ADDR=127.0.0.1:9848
+</code></pre>
+<p><strong>注：</strong> 上面的地址是本机运行多实例的地址，实际使用时换成具体的服务ip和port即可。</p>
+<h3 id="三启动集群"><a class="header" href="#三启动集群">三、启动集群</a></h3>
+<h4 id="第一次启动"><a class="header" href="#第一次启动">第一次启动</a></h4>
+<p>分别运行三个节点，需要先运行主节点成功后再运行</p>
+<p>先运行主节点</p>
+<pre><code class="language-sh">nohup ./rnacos -e env01 &gt; n01.log &amp;
+</code></pre>
+<p>主节点功能启动后，再运行从节点</p>
+<pre><code class="language-sh">nohup ./rnacos -e env02 &gt; n02.log &amp;
+nohup ./rnacos -e env03 &gt; n03.log &amp;
+</code></pre>
+<p>实例过程中不同的节点需要在不同的服务器运行服务。</p>
+<h4 id="集群重启"><a class="header" href="#集群重启">集群重启</a></h4>
+<p>节点重启和第一次启动的配置和启动方式不变。</p>
+<p>集群启动后，集群的节点信息已久化节点本地数据库中。
+在节点重启时后直接从本地数据库加载集群节点的信息。这时就不需要读取需要加入的集群地址，RNACOS_RAFT_JOIN_ADDR不会再被使用(留在配置中也不影响)。</p>
+<p>部分节点重启，在重启一个心跳时间(0.5秒)就会被重新加入集群。</p>
+<p>全部节点重启， raft需要启动静默5秒+选举超时3秒后才重新选举主节点；10秒左右集群才提供配置写入服务。 期间配置查询，和注册中心的读写可以正常使用。</p>
+<h3 id="四运行应用使用集群"><a class="header" href="#四运行应用使用集群">四、运行应用使用集群</a></h3>
+<p>集群服务启动后，即可运行原有的 nacos 应用。</p>
+<h4 id="配置中心http-api例子"><a class="header" href="#配置中心http-api例子">配置中心http api例子</a></h4>
+<pre><code class="language-sh">echo &quot;\npublish config t001:contentTest to node 1&quot;
+curl -X POST 'http://127.0.0.1:8848/nacos/v1/cs/configs' -d 'dataId=t001&amp;group=foo&amp;content=contentTest'
+sleep 1
+
+echo &quot;\nget config info t001 from node 1, value:&quot;
+curl 'http://127.0.0.1:8848/nacos/v1/cs/configs?dataId=t001&amp;group=foo'
+
+echo &quot;\nget config info t001 from node 2, value:&quot;
+curl 'http://127.0.0.1:8849/nacos/v1/cs/configs?dataId=t001&amp;group=foo'
+
+echo &quot;\nget config info t001 from node 3, value:&quot;
+curl 'http://127.0.0.1:8850/nacos/v1/cs/configs?dataId=t001&amp;group=foo'
+sleep 1
+
+echo &quot;\npublish config t002:contentTest02 to node 2&quot;
+curl -X POST 'http://127.0.0.1:8849/nacos/v1/cs/configs' -d 'dataId=t002&amp;group=foo&amp;content=contentTest02'
+sleep 1
+
+echo &quot;\nget config info t002 from node 1, value:&quot;
+curl 'http://127.0.0.1:8848/nacos/v1/cs/configs?dataId=t002&amp;group=foo'
+
+echo &quot;\nget config info t002 from node 2, value:&quot;
+curl 'http://127.0.0.1:8849/nacos/v1/cs/configs?dataId=t002&amp;group=foo'
+
+echo &quot;\nget config info t002 from node 3, value:&quot;
+curl 'http://127.0.0.1:8850/nacos/v1/cs/configs?dataId=t002&amp;group=foo'
+
+</code></pre>
+<h4 id="注册中心http-api例子"><a class="header" href="#注册中心http-api例子">注册中心http api例子</a></h4>
+<pre><code class="language-sh">echo &quot;\nregister instance nacos.test.001 to node 1&quot;
+curl -X POST 'http://127.0.0.1:8848/nacos/v1/ns/instance' -d 'port=8000&amp;healthy=true&amp;ip=192.168.1.11&amp;weight=1.0&amp;serviceName=nacos.test.001&amp;groupName=foo&amp;metadata={&quot;app&quot;:&quot;foo&quot;,&quot;id&quot;:&quot;001&quot;}'
+echo &quot;\nregister instance nacos.test.001 to node 2&quot;
+curl -X POST 'http://127.0.0.1:8849/nacos/v1/ns/instance' -d 'port=8000&amp;healthy=true&amp;ip=192.168.1.12&amp;weight=1.0&amp;serviceName=nacos.test.001&amp;groupName=foo&amp;metadata={&quot;app&quot;:&quot;foo&quot;,&quot;id&quot;:&quot;002&quot;}'
+echo &quot;\nregister instance nacos.test.001 to node 3&quot;
+curl -X POST 'http://127.0.0.1:8850/nacos/v1/ns/instance' -d 'port=8000&amp;healthy=true&amp;ip=192.168.1.13&amp;weight=1.0&amp;serviceName=nacos.test.001&amp;groupName=foo&amp;metadata={&quot;app&quot;:&quot;foo&quot;,&quot;id&quot;:&quot;003&quot;}'
+sleep 1
+echo &quot;\n\nquery service instance nacos.test.001 from node 1, value:&quot;
+curl &quot;http://127.0.0.1:8848/nacos/v1/ns/instance/list?&amp;namespaceId=public&amp;serviceName=foo%40%40nacos.test.001&amp;groupName=foo&amp;clusters=&amp;healthyOnly=true&quot;
+echo &quot;\n\nquery service instance nacos.test.001 from node 2, value:&quot;
+curl &quot;http://127.0.0.1:8849/nacos/v1/ns/instance/list?&amp;namespaceId=public&amp;serviceName=foo%40%40nacos.test.001&amp;groupName=foo&amp;clusters=&amp;healthyOnly=true&quot;
+echo &quot;\n\nquery service instance nacos.test.001 from node 3, value:&quot;
+curl &quot;http://127.0.0.1:8850/nacos/v1/ns/instance/list?&amp;namespaceId=public&amp;serviceName=foo%40%40nacos.test.001&amp;groupName=foo&amp;clusters=&amp;healthyOnly=true&quot;
+echo &quot;\n&quot;
+
+</code></pre>
+<p>如果在本地源码编译，可使用或参考<a href="https://github.com/heqingpan/rnacos/blob/master/test_cluster.sh">test_cluster.sh</a> 创建、测试集群。</p>
+<p>具体的用法参考 nacos.io 的用户指南。</p>
+<p><a href="https://nacos.io/zh-cn/docs/sdk.html">JAVA-SDK</a></p>
+<p><a href="https://nacos.io/zh-cn/docs/other-language.html">其它语言</a></p>
+<p><a href="https://nacos.io/zh-cn/docs/open-api.html">open-api</a></p>
+<h2 id="集群管理工具"><a class="header" href="#集群管理工具">集群管理工具</a></h2>
+<h3 id="通过控制台查看集群状态"><a class="header" href="#通过控制台查看集群状态">通过控制台查看集群状态</a></h3>
+<p><img src="https://github.com/heqingpan/rnacos/raw/master/doc/assets/imgs/20230915000345.png" alt="" /></p>
+<p>在控制台页面主要观注集群节点列表状态与raft主角点是否正常</p>
+<h3 id="通过接口查看集群状态"><a class="header" href="#通过接口查看集群状态">通过接口查看集群状态</a></h3>
+<ol>
+<li>查询指定节点的raft 集群状态</li>
+</ol>
+<pre><code class="language-sh">curl &quot;http://127.0.0.1:8848/nacos/v1/raft/metrics&quot;
+# {&quot;id&quot;:1,&quot;state&quot;:&quot;Leader&quot;,&quot;current_term&quot;:1,&quot;last_log_index&quot;:10,&quot;last_applied&quot;:10,&quot;current_leader&quot;:1,&quot;membership_config&quot;:{&quot;members&quot;:[1,2,3],&quot;members_after_consensus&quot;:null}}
+# 主要关注 current_leader和members
+</code></pre>
+<ol start="2">
+<li>增加节点</li>
+</ol>
+<pre><code class="language-sh">curl -X POST &quot;http://127.0.0.1:8848/nacos/v1/raft/add-learner&quot; -H &quot;Content-Type: application/json&quot; -d '[2, &quot;127.0.0.1:9849&quot;]'
+</code></pre>
+<p>推荐通过启动新节点时设置<code>RNACOS_RAFT_JOIN_ADDR</code>加入集群。
+如果配置时主节点不确定，可以启动后再调用主节点接口把新节点加入集群。</p>
+<p>此接口也可以用于在集群运行期更新集群节点地址。</p>
+<ol start="3">
+<li>更新集群节点列表</li>
+</ol>
+<pre><code class="language-sh">curl -X POST &quot;http://127.0.0.1:8848/nacos/v1/raft/change-membership&quot; -H &quot;Content-Type: application/json&quot; -d '[1, 2, 3]'
+</code></pre>
+<p>如果通过手动方式增加节点，需要调用本接口更新集群节点列表。</p>
+<p>此接口可以用于对集群缩容，下线指定节点。</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                                                    <a rel="prev" href="quick-started.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+                        
+                                                    <a rel="next" href="deplay_env.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+                        
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                                    <a rel="prev" href="quick-started.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                
+                                    <a rel="next" href="deplay_env.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+                            </nav>
+
+        </div>
+
+        
+        
+        
+                <script type="text/javascript">
+            window.playground_copyable = true;
+        </script>
+        
+        
+                <script src="elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="searcher.js" type="text/javascript" charset="utf-8"></script>
+        
+        <script src="clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+        
+        
+    </body>
+</html>
