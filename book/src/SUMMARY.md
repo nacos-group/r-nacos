@@ -12,4 +12,6 @@
 
 - [版本说明](./version_describe.md)
 
+- [常见问题](./faq.md)
+
 - [架构](./architecture.md)

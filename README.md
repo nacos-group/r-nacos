@@ -9,6 +9,8 @@ rnacos是一个轻量、 快速、稳定、高性能的服务；包含注册中�
 
 rnacos设计上完全兼容最新版本nacos面向client sdk 的协议（包含1.x的http OpenApi，和2.x的grpc协议）, 支持使用nacos服务的应用平迁到 rnacos。
 
+rnacos相较于java nacos来说，是一个提供相同功能，启动更快、占用系统资源更小、性能更高、运行更稳定的服务。
+
 详细说明可以看 [rnacos book](https://heqingpan.github.io/rnacos/index.html)
 
 ## 开发原由
@@ -21,21 +23,19 @@ rnacos设计上完全兼容最新版本nacos面向client sdk 的协议（包含1
 
 自己写完后用下来整体体验很顺畅，就想开源出来给有需要的人使用。
 
-最开始只兼容sdk 协议，没有配置控制台，后面补上控制台发才放出来。
+最开始只兼容v1.x sdk协议，没有配置控制台，后面补上v2.x协议和控制台发才放出来。
 
 ## 适用场景
 
 1. 开发测试环境使用nacos，nacos服务可以换成rnacos。启动更快，秒启动。
-2. 个人资源云服务部署的 nacos，可以考虑换成rnacos。资源占用率低: 包10M 左右，不依赖 JDK；运行时 cpu 小于0.5% ，小于5M（具体和实例有关）。
-3. 使用非订制nacos服务 ，希望能提升服务性能与稳定性，理论上都支持迁移到 rnacos。 
-4. 目前 rnacos 只支持单机部署，其支持容量在一万个服务实例以上。在一万服务实例场景下压测，qps可以稳定在1.3万左右，内存稳定在50 M以下，cpu稳定在33%左右（和压测环境有关）。
-
+2. 个人资源云服务部署的 nacos，可以考虑换成rnacos。资源占用率低: 包10M 出头，不依赖 JDK；运行时 cpu 小于0.5% ，小于5M（具体和实例有关）。
+3. 使用非订制nacos服务 ，希望能提升服务性能与稳定性，可以考虑迁移到 rnacos。
 
 ## 快速开始
 
 ### 一、 安装运行 rnacos
 
-#### 1) 单机部署
+【单机部署】
 
 方式1：从 [github release](https://github.com/heqingpan/rnacos/releases) 下载对应系统的应用包，解压后即可运行。
 
@@ -53,7 +53,8 @@ windows 解压后直接运行 rnacos.exe 即可。
 方式2:  通过docker 运行
 
 ```
-docker pull qingpan/rnacos:stable
+#stable是最新正式版本号，也可以指定镜像版本号，如： qingpan/rnacos:v0.2.1
+docker pull qingpan/rnacos:stable  
 docker run --name mynacos -p 8848:8848 -p 9848:9848 -d qingpan/rnacos:stable
 ```
 
@@ -77,108 +78,48 @@ cargo build --release
 cargo run
 ```
 
-推荐使用第1、第2种方式。
+测试、试用推荐使用第1、第2种方式，直接下载就可以使用。
 
-**运行参数**
+在linux下第1、第2种方式默认是musl版本(性能比gnu版本差一些)，在生产服务对性能有要求的可以考虑使用第3、第4种在对应环境编译gnu版本部署。
 
-rnacos 运行时支持的环境变量，如果不设置则按默认配置运行。
+启动配置可以参考： [运行参数说明](https://heqingpan.github.io/rnacos/deplay_env.html)
 
-```
-RNACOS_CONFIG_DB_FILE: 配置中心的本地数据库文件地址，默认为运行目录下的 config.db 【标记废弃，0.1.x老版本数据文件配置】
-RNACOS_CONFIG_DB_DIR: 配置中心的本地数据库sled文件夹，默认为运行目录下的nacos_db ,会在系统运行时自动创建
-RNACOS_HTTP_PORT: rnacos监听http端口，默认是8848
-RNACOS_GRPC_PORT: rnacos监听的grpc端口，默认是 HTTP端口+1000
-RNACOS_HTTP_WORKERS: http工作线程数，默认是cpu核数
-```
+【集群部署】
 
-也支持从运行目录下的.env读取环境变量
-.env 配置格式如下：
-
-```
-RNACOS_CONFIG_DB_FILE=config.db
-RNACOS_HTTP_PORT=8848
-```
-
-#### 2) 集群部署
-
-集群部署由多个节点组成，单个节点的部署方式和单机部署基本一样，只需要额外增加集群的配置信息。
-
-| 参数|内容描述|默认值|示例|
-|--|--|--|--|
-|RNACOS_RAFT_NODE_ID|节点id|1|1|
-|RNACOS_RAFT_NODE_ADDR|节点地址,Ip:GrpcPort|127.0.0.1:GrpcPort|127.0.0.1:9848|
-|RNACOS_RAFT_AUTO_INIT|是否当做主节点初始化,(只在每一次启动时生效)|节点1时默认为true\n节点非1时为false|true|
-|RNACOS_RAFT_JOIN_ADDR|是否当做节点加入对应的主节点,LeaderIp:GrpcPort(只在每一次启动时生效)|空|127.0.0.1:9848|
-
-
-##### 一个本地集群样例
-
-1. 配置3个节点的配置信息
-
-env01
-
-```
-#file:env01 , Initialize with the leader node role
-RNACOS_HTTP_PORT=8848
-RNACOS_RAFT_NODE_ADDR=127.0.0.1:9848
-RNACOS_CONFIG_DB_DIR=db01
-RNACOS_RAFT_NODE_ID=1
-RNACOS_RAFT_AUTO_INIT=true
-```
-
-
-env02:
-
-```
-#file:env02 , Initialize with the follower node role
-RNACOS_HTTP_PORT=8849
-RNACOS_RAFT_NODE_ADDR=127.0.0.1:9849
-RNACOS_CONFIG_DB_DIR=db02
-RNACOS_RAFT_NODE_ID=2
-RNACOS_RAFT_JOIN_ADDR=127.0.0.1:9848
-```
-
-env03:
-
-```
-#file:env03 , Initialize with the follower node role
-RNACOS_HTTP_PORT=8850
-RNACOS_RAFT_NODE_ADDR=127.0.0.1:9850
-RNACOS_CONFIG_DB_DIR=db03
-RNACOS_RAFT_NODE_ID=3
-RNACOS_RAFT_JOIN_ADDR=127.0.0.1:9848
-```
-
-
-2. 分别依次运行3个节点
-
-```sh
-nohup ./rnacos -e env01 > n01.log &
-sleep 1
-nohup ./rnacos -e env02 > n02.log &
-sleep 1
-nohup ./rnacos -e env03 > n03.log &
-sleep 1
-```
-
-可以查询集群的状态
-
-
-```sh
-curl "http://127.0.0.1:8848/nacos/v1/raft/metrics"
-curl "http://127.0.0.1:8849/nacos/v1/raft/metrics"
-curl "http://127.0.0.1:8850/nacos/v1/raft/metrics"
-```
-
-集群运行成功后，就可以开始提供集群服务（目前只支持配置中心，注册中心的集群功能计划开发中）。
-
-具体的运行细节可参考 [test_cluster.sh
-](https://github.com/heqingpan/rnacos/blob/master/test_cluster.sh)
+集群部署参考： [集群部署](https://heqingpan.github.io/rnacos/cluster_deploy.html)
 
 
 ### 二、运行nacos 应用
 
 服务启动后，即可运行原有的 nacos 应用。
+
+### 配置中心http api例子
+
+```
+# 设置配置
+curl -X POST 'http://127.0.0.1:8848/nacos/v1/cs/configs' -d 'dataId=t001&group=foo&content=contentTest'
+
+# 查询
+curl 'http://127.0.0.1:8848/nacos/v1/cs/configs?dataId=t001&group=foo'
+
+```
+
+### 注册中心http api例子
+
+```
+# 注册服务实例
+curl -X POST 'http://127.0.0.1:8848/nacos/v1/ns/instance' -d 'port=8000&healthy=true&ip=192.168.1.11&weight=1.0&serviceName=nacos.test.001&groupName=foo&metadata={"app":"foo","id":"001"}'
+
+curl -X POST 'http://127.0.0.1:8848/nacos/v1/ns/instance' -d 'port=8000&healthy=true&ip=192.168.1.12&weight=1.0&serviceName=nacos.test.001&groupName=foo&metadata={"app":"foo","id":"002"}'
+
+ curl -X POST 'http://127.0.0.1:8848/nacos/v1/ns/instance' -d 'port=8000&healthy=true&ip=192.168.1.13&weight=1.0&serviceName=nacos.test.001&groupName=foo&metadata={"app":"foo","id":"003"}'
+
+# 查询服务实例
+
+curl "http://127.0.0.1:8848/nacos/v1/ns/instance/list?&namespaceId=public&serviceName=foo%40%40nacos.test.001&groupName=foo&clusters=&healthyOnly=true"
+
+```
+
 
 具体的用法参考 nacos.io 的用户指南。
 
@@ -212,6 +153,11 @@ curl "http://127.0.0.1:8850/nacos/v1/raft/metrics"
 
 ![](https://github.com/heqingpan/rnacos/raw/master/doc/assets/imgs/20230506155158.png)
 
+4、命名空间管理
+
+![](https://user-images.githubusercontent.com/1174480/268299574-4947b9f8-79e1-48e2-97fe-e9767e26ddc0.png)
+
+
 
 ## 功能说明
 
@@ -220,7 +166,7 @@ curl "http://127.0.0.1:8850/nacos/v1/raft/metrics"
 2、面向控制台的功能
 3、面向部署、集群的功能
 
-第一块做一个对nacos服务的对比说明。
+每一块做一个对nacos服务的对比说明。
 
 ### 一、面向 SDK 的功能
 
@@ -246,94 +192,54 @@ curl "http://127.0.0.1:8850/nacos/v1/raft/metrics"
 访问认证：
 暂时不开启认证
 
+命名空间：
+
+1. 支持管理命名空间列表
+2. 支持切换命名空间查询配置、服务数据。
+
 配置中心：
 
-1. 已支持配置导入、导出,其文件格式与nacos兼容
-2. 暂不支持tag的高级查询
-3. 暂不支持配置历史记录查看与恢复
+1. 支持配置中心信息管理
+1. 支持配置导入、导出,其文件格式与nacos兼容
+2. 支持配置历史记录查看与恢复
+3. 暂不支持tag的高级查询
 4. 暂不支持查询配置监听记录
 
 服务中心：
 
-1. 暂不支持路由类型的设置
+1. 支持注册中心的服务、服务实例管理
 2. 暂不支持查询监听记录
 
 ### 三、面向部署、集群的功能
 
-1. 目前只支持单机部署，后继考虑支持集群部署。
-2. 配置中心的数据存放在本地sled中(0.1.x是sqlite,0.2.x是sled)，后继考虑支持raft支持集群同步。
+1. 支持单机部署
+2. 支持集群部署。集群部署配置中心数据使用raft+节点本地存储组成的分布式存储，不需要依赖mysql。具体参考 [集群部署说明](https://heqingpan.github.io/rnacos/cluster_deploy.html)
 
 
 ## 性能
 
 
-### 压测环境与工具
+|模块|场景|单节点qps|集群qps|总结|
+|--|--|--|--|--|
+|配置中心|配置写入,单机模式|1.5万|1.5万||
+|配置中心|配置写入,集群模式|1.8千|1.5千|接入raft后没有充分优化,待优化,理论上可接近单机模式|
+|配置中心|配置查询|8万|n*8万|集群的查询总qps是节点的倍数|
+|注册中心|服务实例注册,http协议|1.2万|1.0万|注册中心单机模式与集群模式写入的性能一致|
+|注册中心|服务实例注册,grpc协议|1.2万|1.2万|grpc协议压测工具没有支持，目前没有实际压测，理论不会比http协议低|
+|注册中心|服务实例心跳,http协议|1.2万|1.0万|心跳是按实例计算和服务实例注册一致共享qps|
+|注册中心|服务实例心跳,grpc协议|8万以上|n*8万|心跳是按请求链接计算,且不过注册中心处理线程,每个节点只需管理当前节点的心跳，集群总心跳qps是节点的倍数|
+|注册中心|查询服务实例|3万|n*3万|集群的查询总qps是节点的倍数|
 
-压测环境:macos i7四核 /16G  ， 施压、受压机器是同一台机器（会拉低压测结果）。
-压测工具: 
-	* wrk ,qps: 24450左右
-	* goose, qps 17000左右 （单进程加限流施压比 wrk低） 
-	* 单进程施压请求wrk比goose 输出高
+**注：** 具体结果和压测环境有关
 
-rnacos server版本：v0.1.1 
-java nacos server版本: 2.1.0
-
-**因wrk,goose暂时不支持grpc协议，暂时只压测http协议接口**
-
-
-### 配置中心
-
-配置中心，不会频繁更新，写入不做压测。
-
-#### rust rnacos server：
-
-1. 配置中心单机查询 wrk 压测 qps 在2.4万左右.
-
-#### java nacos server：
-
-1. 配置中心单机查询 wrk 压测, qps 在7700左右
-
-
-
-### 注册中心
-
-#### rust rnacos server：
-
-2. naming 注册1000 x 1个实例，每秒200qps，单核cpu: 4.5% 左右
-3. naming 单查询1.5万 QPS 左右
-	1. wrk  查询单个服务 ，1.65万 qps 
-	2. goose 查询1000个服务 ，1.5万 qps 
-4. naming 单注册服务
-	1. goose,5万到7万实例数  0.7万 qps左右。
-4. 查询与注册混合
-	1. wrk 查询单个服务（1.5万 qps) + goose 注册（0.075 万qps) 【5千实例】
-	2. goose 查询1000个服务（1.3万 qps) + goose 注册（0.07万 qps) 【5千实例】
-	3. wrk 查询单个服务（1.5万 qps) + goose 注册（0.15万qps) 【1万实例】
-	4. goose 查询1000个服务（1.3万 qps) + goose 注册（0.13万 qps) 【1万实例】
-
-#### java nacos server：
-
-1. 配置中心查询 wrk 压测, 7700 qps 左右
-2. naming 注册1000 x 1个实例，每秒200qps，单核cpu: 17% 左右
-3. naming 单查询
-	1. wrk 查询单个服务 ，1.35万 qps 。
-	2. goose 查询1000个服务，1万 qps（前期应该还能上去一些）。前30秒能稳定在1万左右，30秒后，跌到200左右之后再上下浮动，可能受 GC 影响。
-4. naming 单注册
-	1. goose,5万到7万实例数  0.45万 qps左右。
-5. 查询与注册混合
-	1. wrk 查询单个服务（1.3万 qps) + goose 注册（0.07 万qps) 【5千实例】
-	2. goose 查询1000个服务（1万 qps) + goose 注册（0.07万 qps) 【5千实例】;  前期能保持，后期 qps 上下浮动比较大，最低小于50。
-	3.  wrk 查询单个服务（0.9万 qps) + goose 注册（0.12万qps) 【1万实例】
-	4. goose 查询1000个服务（0.6万 qps) + goose 注册（0.08万 qps) 【1万实例】
 
 ### 性能压测总结
 
 1. rnacos,除了服务服务注册不能稳定在1万以上，其它的接口qps都能稳定在1万以上。
-
 2. java 的查询接口基本能压到1万以上，但不平稳，后继浮动比较大。如果降低压测流程，qps 可以相对平稳。
-3. 在多服务查询叠加上多服务注册场景，rnacos  qps能稳定在1.3万左右, java nacos qps 下降明显在0.6万左右。
+3. 在多服务查询叠加上多服务注册场景，rnacos  qps能稳定在1.2万左右, java nacos qps 下降明显在0.6万左右。
 4. rnacos 综合 qps是 java版的2倍以上，因 java 有 GC，qps水位稳定性上 java较差（相同施压流量，qps 能从峰值1万能降到1百以下）。
-5. rnacos 服务,线程数稳定在7，cpu 用例率最大200%左右（相当用个2核），内存在50M 以下
+5. rnacos 服务,线程数稳定在20个左右，cpu 用例率最大200%左右（相当用个2核），内存在80M 以下
 6. java nacos 服务，线程数最大300左右， cpu 用例率最大500%左右，内存600M到900M。
 
 
@@ -354,15 +260,18 @@ java nacos server版本: 2.1.0
 
 ### 二、支持集群部署
 
-1. 配置中心数据支持sled + raft存储
-2. 注册中心支持集群
-	1. 写路由
-	2. 集群间的数据同步
+1. [x] 配置中心数据支持sled + raft存储
+2. [x] 注册中心支持集群
 3. 其它
 	1. 集群用户认证同步
 
 ## rnacos架构图
 
+单实例：
+
 ![](https://github.com/heqingpan/rnacos/raw/master/doc/assets/imgs/rnacos_L2_0.1.4.svg)
 
 前端应用因依赖nodejs,所以单独放到另一个项目 [rnacos-console-web](https://github.com/heqingpan/rnacos-console-web) ,再通过cargo 把打包好的前端资源引入到本项目,避免开发rust时还要依赖nodejs。
+
+
+多实例的raft和distro分布式协议说明待补充

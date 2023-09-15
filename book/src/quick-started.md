@@ -119,3 +119,7 @@ curl "http://127.0.0.1:8848/nacos/v1/ns/instance/list?&namespaceId=public&servic
 ![](https://github.com/heqingpan/rnacos/raw/master/doc/assets/imgs/20230506155158.png)
 
 
+4、命名空间管理
+
+![](https://user-images.githubusercontent.com/1174480/268299574-4947b9f8-79e1-48e2-97fe-e9767e26ddc0.png)
+

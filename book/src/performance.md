@@ -19,8 +19,18 @@
 |注册中心|服务实例心跳,grpc协议|8万以上|n*8万|心跳是按请求链接计算,且不过注册中心处理线程,每个节点只需管理当前节点的心跳，集群总心跳qps是节点的倍数|
 |注册中心|查询服务实例|3万|n*3万|集群的查询总qps是节点的倍数|
 
-
 **注：** 具体结果和压测环境有关
+
+### 压测记录
+
+注册中心查询：
+
+![](https://github.com/heqingpan/rnacos/raw/master/doc/assets/imgs/20230903202816.png)
+
+
+配置中心查询，两个进程分别限流4万qps同时压测(共8万qps)，其中一个的压测记录：
+
+![](https://github.com/heqingpan/rnacos/raw/master/doc/assets/imgs/20230903205737.png)
 
 
 ## 容量分析
@@ -49,3 +59,79 @@
 如果使用v1.0x http协议，支持的实例在5万个左右。
 如果使用v2.0x grpc协议，理论上基本没有瓶颈。
 
+
+----
+
+
+## rnacos与java nacos性能压测对比 （单机模式）
+
+旧版本的单机压测记录，有和java 版本nacos的比较.
+
+### 压测环境与工具
+
+压测环境:macos i7四核 /16G  ， 施压、受压机器是同一台机器（会拉低压测结果）。
+压测工具: 
+	* wrk ,qps: 24450左右
+	* goose, qps 17000左右 （单进程加限流施压比 wrk低） 
+	* 单进程施压请求wrk比goose 输出高
+
+rnacos server版本：v0.1.1 
+java nacos server版本: 2.1.0
+
+**因wrk,goose暂时不支持grpc协议，暂时只压测http协议接口**
+
+
+### 配置中心
+
+配置中心，不会频繁更新，写入不做压测。
+
+#### rust rnacos server：
+
+1. 配置中心单机查询 wrk 压测 qps 在2.4万左右.
+
+#### java nacos server：
+
+1. 配置中心单机查询 wrk 压测, qps 在7700左右
+
+
+
+### 注册中心
+
+#### rust rnacos server：
+
+2. naming 注册1000 x 1个实例，每秒200qps，单核cpu: 4.5% 左右
+3. naming 单查询1.5万 QPS 左右
+	1. wrk  查询单个服务 ，1.65万 qps 
+	2. goose 查询1000个服务 ，1.5万 qps 
+4. naming 单注册服务
+	1. goose,5万到7万实例数  0.7万 qps左右。
+4. 查询与注册混合
+	1. wrk 查询单个服务（1.5万 qps) + goose 注册（0.075 万qps) 【5千实例】
+	2. goose 查询1000个服务（1.3万 qps) + goose 注册（0.07万 qps) 【5千实例】
+	3. wrk 查询单个服务（1.5万 qps) + goose 注册（0.15万qps) 【1万实例】
+	4. goose 查询1000个服务（1.3万 qps) + goose 注册（0.13万 qps) 【1万实例】
+
+#### java nacos server：
+
+1. 配置中心查询 wrk 压测, 7700 qps 左右
+2. naming 注册1000 x 1个实例，每秒200qps，单核cpu: 17% 左右
+3. naming 单查询
+	1. wrk 查询单个服务 ，1.35万 qps 。
+	2. goose 查询1000个服务，1万 qps（前期应该还能上去一些）。前30秒能稳定在1万左右，30秒后，跌到200左右之后再上下浮动，可能受 GC 影响。
+4. naming 单注册
+	1. goose,5万到7万实例数  0.45万 qps左右。
+5. 查询与注册混合
+	1. wrk 查询单个服务（1.3万 qps) + goose 注册（0.07 万qps) 【5千实例】
+	2. goose 查询1000个服务（1万 qps) + goose 注册（0.07万 qps) 【5千实例】;  前期能保持，后期 qps 上下浮动比较大，最低小于50。
+	3.  wrk 查询单个服务（0.9万 qps) + goose 注册（0.12万qps) 【1万实例】
+	4. goose 查询1000个服务（0.6万 qps) + goose 注册（0.08万 qps) 【1万实例】
+
+### 性能压测总结
+
+1. rnacos,除了服务服务注册不能稳定在1万以上，其它的接口qps都能稳定在1万以上。
+
+2. java 的查询接口基本能压到1万以上，但不平稳，后继浮动比较大。如果降低压测流程，qps 可以相对平稳。
+3. 在多服务查询叠加上多服务注册场景，rnacos  qps能稳定在1.3万左右, java nacos qps 下降明显在0.6万左右。
+4. rnacos 综合 qps是 java版的2倍以上，因 java 有 GC，qps水位稳定性上 java较差（相同施压流量，qps 能从峰值1万能降到1百以下）。
+5. rnacos 服务,线程数稳定在7，cpu 用例率最大200%左右（相当用个2核），内存在50M 以下
+6. java nacos 服务，线程数最大300左右， cpu 用例率最大500%左右，内存600M到900M。
