@@ -21,7 +21,7 @@ windows 解压后直接运行 rnacos.exe 即可。
 方式2:  通过docker 运行
 
 ```
-#stable是最新正式版本号，也可以指定镜像版本号，如： qingpan/rnacos:v0.2.1
+#stable是最新正式版本号，也可以指定镜像版本号，如： qingpan/rnacos:v0.3.0
 docker pull qingpan/rnacos:stable  
 docker run --name mynacos -p 8848:8848 -p 9848:9848 -d qingpan/rnacos:stable
 ```
