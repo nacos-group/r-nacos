@@ -217,7 +217,7 @@ tar -xvf rnacos-x86_64-apple-darwin.tar.gz
 </code></pre>
 <p>windows 解压后直接运行 rnacos.exe 即可。</p>
 <p>方式2:  通过docker 运行</p>
-<pre><code>#stable是最新正式版本号，也可以指定镜像版本号，如： qingpan/rnacos:v0.2.1
+<pre><code>#stable是最新正式版本号，也可以指定镜像版本号，如： qingpan/rnacos:v0.3.0
 docker pull qingpan/rnacos:stable  
 docker run --name mynacos -p 8848:8848 -p 9848:9848 -d qingpan/rnacos:stable
 </code></pre>
@@ -279,7 +279,7 @@ curl &quot;http://127.0.0.1:8848/nacos/v1/ns/instance/list?&amp;namespaceId=publ
 <p>4、命名空间管理</p>
 <p><img src="https://user-images.githubusercontent.com/1174480/268299574-4947b9f8-79e1-48e2-97fe-e9767e26ddc0.png" alt="" /></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="集群部署"><a class="header" href="#集群部署">集群部署</a></h1>
-<p>rnacos 在v0.2.2版本后支持集群部署。</p>
+<p>rnacos 在v0.3.0版本后支持集群部署。</p>
 <h2 id="集群功能机制简介"><a class="header" href="#集群功能机制简介">集群功能机制简介</a></h2>
 <p>集群部署的目标是通过多实例部署的方式，支持服务的水平扩容，支持部分节点异常后继续提供服务，提升稳定性。</p>
 <h3 id="配置中心"><a class="header" href="#配置中心">配置中心</a></h3>
@@ -474,11 +474,11 @@ KEY3=VALUE3
 <tr><td>RNACOS_HTTP_WORKERS</td><td>http工作线程数</td><td>cpu核数</td><td>8</td><td>0.1.x</td></tr>
 <tr><td>RNACOS_CONFIG_DB_FILE</td><td>配置中心的本地数据库文件地址【0.2.x后不在使用】</td><td>config.db</td><td>config.db</td><td>0.1.x</td></tr>
 <tr><td>RNACOS_CONFIG_DB_DIR</td><td>配置中心的本地数据库sled文件夹, 会在系统运行时自动创建</td><td>nacos_db</td><td>nacos_db</td><td>0.2.x</td></tr>
-<tr><td>RNACOS_RAFT_NODE_ID</td><td>节点id</td><td>1</td><td>1</td><td>0.2.2</td></tr>
-<tr><td>RNACOS_RAFT_NODE_ADDR</td><td>节点地址Ip:GrpcPort,单节点运行时每次启动都会生效；多节点集群部署时，只取加入集群时配置的值</td><td>127.0.0.1:GrpcPort</td><td>127.0.0.1:9848</td><td>0.2.2</td></tr>
-<tr><td>RNACOS_RAFT_AUTO_INIT</td><td>是否当做主节点初始化,(只在每一次启动时生效)</td><td>节点1时默认为true,节点非1时为false</td><td>true</td><td>0.2.2</td></tr>
-<tr><td>RNACOS_RAFT_JOIN_ADDR</td><td>是否当做节点加入对应的主节点,LeaderIp:GrpcPort；只在第一次启动时生效</td><td>空</td><td>127.0.0.1:9848</td><td>0.2.2</td></tr>
-<tr><td>RUST_LOG</td><td>日志等级:debug,info,warn,error;所有http,grpc请求都会打info日志,如果不观注可以设置为error减少日志量</td><td>info</td><td>error</td><td>0.2.2</td></tr>
+<tr><td>RNACOS_RAFT_NODE_ID</td><td>节点id</td><td>1</td><td>1</td><td>0.3.0</td></tr>
+<tr><td>RNACOS_RAFT_NODE_ADDR</td><td>节点地址Ip:GrpcPort,单节点运行时每次启动都会生效；多节点集群部署时，只取加入集群时配置的值</td><td>127.0.0.1:GrpcPort</td><td>127.0.0.1:9848</td><td>0.3.0</td></tr>
+<tr><td>RNACOS_RAFT_AUTO_INIT</td><td>是否当做主节点初始化,(只在每一次启动时生效)</td><td>节点1时默认为true,节点非1时为false</td><td>true</td><td>0.3.0</td></tr>
+<tr><td>RNACOS_RAFT_JOIN_ADDR</td><td>是否当做节点加入对应的主节点,LeaderIp:GrpcPort；只在第一次启动时生效</td><td>空</td><td>127.0.0.1:9848</td><td>0.3.0</td></tr>
+<tr><td>RUST_LOG</td><td>日志等级:debug,info,warn,error;所有http,grpc请求都会打info日志,如果不观注可以设置为error减少日志量</td><td>info</td><td>error</td><td>0.3.0</td></tr>
 </tbody></table>
 <p>注：从v0.2.2开始，默认参数启动的节点会被当做只有一个节点，当前节点是主节点的集群部署。支持其它新增的从节点加入。</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="性能与容量说明"><a class="header" href="#性能与容量说明">性能与容量说明</a></h1>
@@ -618,8 +618,8 @@ java nacos server版本: 2.1.0</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="版本说明"><a class="header" href="#版本说明">版本说明</a></h1>
 <table><thead><tr><th>版本</th><th>对nacos兼容说明</th><th>版本特点说明</th><th>适用场景</th></tr></thead><tbody>
 <tr><td>v0.1.10</td><td>支持1.x服务接口;除了查询服务中心服务列表外，支持2.x大部分接口</td><td>单机部署版本,配置中心数据库使用sqlite，内存占用比较低，但配置写入tps不高，7百左右</td><td>不使用2.x的注册中心服务，对内存占用敏感的小应用可以考虑使用</td></tr>
-<tr><td>v0.2.1</td><td>支持2.x新最版nacos面向sdk的协议</td><td>单机部署版本,配置中心数据库使用sled, 初始内存多占用25M左右,配置中心单机写入tps在1.5万以上</td><td>对配置中心有高频写入需求的应用可以考虑使用</td></tr>
-<tr><td>v0.2.2以上</td><td>支持2.x新最版nacos面向sdk的协议</td><td>支持集群部署版本，使用1个节点的集群方式当做单机模式,配置中心raft 协议没有充分优化，配置中心集群写入tps在1.5千左右</td><td>对配置中心没有太高频写入需求的应用都推荐使用这个版本</td></tr>
+<tr><td>v0.2.3</td><td>支持2.x新最版nacos面向sdk的协议</td><td>单机部署版本,配置中心数据库使用sled, 初始内存多占用25M左右,配置中心单机写入tps在1.5万以上</td><td>对配置中心有高频写入需求的应用可以考虑使用</td></tr>
+<tr><td>v0.3.0以上</td><td>支持2.x新最版nacos面向sdk的协议</td><td>支持集群部署版本，使用1个节点的集群方式当做单机模式,配置中心raft 协议没有充分优化，配置中心集群写入tps在1.5千左右</td><td>对配置中心没有太高频写入需求的应用都推荐使用这个版本</td></tr>
 </tbody></table>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="常见问题"><a class="header" href="#常见问题">常见问题</a></h1>
 <h2 id="控制台查询不到信息"><a class="header" href="#控制台查询不到信息">控制台查询不到信息</a></h2>
