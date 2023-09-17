@@ -376,13 +376,14 @@ impl InnerStore {
                         ClientRequest::NodeAddr { id, addr } => {
                             self.membership.node_addr.insert(id, addr);
                             self.set_membership_(&self.membership)?;
+                            self.do_notify_membership(false);
                         }
                     }
                 }
                 EntryPayload::ConfigChange(config_change) => {
                     self.membership.membership_config = Some(config_change.membership.to_owned());
                     self.set_membership_(&self.membership)?;
-                    self.do_notify_membership();
+                    self.do_notify_membership(true);
                 }
                 _ => {}
             }
@@ -392,15 +393,21 @@ impl InnerStore {
         Ok(())
     }
 
-    fn do_notify_membership(&self) {
+    fn do_notify_membership(&self, is_change_member: bool) {
         if let (Some(naming_node_manage), Some(membership)) = (
             &self.naming_inner_node_manage,
             self.membership.membership_config.as_ref(),
         ) {
             let mut nodes = vec![];
-            for nid in membership.all_nodes() {
-                if let Some(addr) = self.membership.node_addr.get(&nid) {
-                    nodes.push((nid, addr.to_owned()))
+            if is_change_member {
+                for nid in membership.all_nodes() {
+                    if let Some(addr) = self.membership.node_addr.get(&nid) {
+                        nodes.push((nid, addr.to_owned()))
+                    }
+                }
+            } else {
+                for (nid, addr) in &self.membership.node_addr {
+                    nodes.push((*nid, addr.to_owned()));
                 }
             }
             naming_node_manage.do_send(NodeManageRequest::UpdateNodes(nodes));
@@ -744,7 +751,7 @@ impl Handler<StoreRequest> for InnerStore {
             }
             StoreRequest::SetNamingNodeManageAddr(addr) => {
                 self.naming_inner_node_manage = Some(addr);
-                self.do_notify_membership();
+                self.do_notify_membership(true);
                 Ok(StoreResponse::None)
             }
         }

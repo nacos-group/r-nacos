@@ -106,8 +106,7 @@ impl request_server::Request for RequestServerImpl {
                 //log::info!("client response: {}",PayloadUtils::get_payload_string(&res));
                 if duration < 1f64 {
                     log::info!("{}|ok|{}", request_log_info, duration);
-                }
-                else{
+                } else {
                     //slow request handle
                     log::warn!("{}|ok|{}", request_log_info, duration);
                 }

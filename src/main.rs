@@ -45,8 +45,8 @@ pub struct AppOpt {
 #[actix_web::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     init_env();
-    let rust_log= std::env::var("RUST_LOG").unwrap_or("info".to_owned());
-    println!("RUST_LOG:{}",&rust_log);
+    let rust_log = std::env::var("RUST_LOG").unwrap_or("info".to_owned());
+    println!("RUST_LOG:{}", &rust_log);
     std::env::set_var("RUST_LOG", &rust_log);
     env_logger::builder().format_timestamp_micros().init();
     let sys_config = Arc::new(AppSysConfig::init_from_env());
