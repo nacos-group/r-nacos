@@ -457,7 +457,7 @@ echo &quot;\n&quot;
 <p>这种方式在自定义少量参数时比较方便</p>
 <h3 id="通过指定配置文件方式设置参数"><a class="header" href="#通过指定配置文件方式设置参数">通过指定配置文件方式设置参数</a></h3>
 <p>例子</p>
-<pre><code class="language-sh"># 从2.2.0版本开始支持 -e env_file 运行参数
+<pre><code class="language-sh"># 从0.3.0版本开始支持 -e env_file 运行参数
 ./rnacos -e env_file
 </code></pre>
 <p>如果不指定文件时也会尝试从当前目录下.env文件加载配置参数</p>
@@ -480,7 +480,7 @@ KEY3=VALUE3
 <tr><td>RNACOS_RAFT_JOIN_ADDR</td><td>是否当做节点加入对应的主节点,LeaderIp:GrpcPort；只在第一次启动时生效</td><td>空</td><td>127.0.0.1:9848</td><td>0.3.0</td></tr>
 <tr><td>RUST_LOG</td><td>日志等级:debug,info,warn,error;所有http,grpc请求都会打info日志,如果不观注可以设置为error减少日志量</td><td>info</td><td>error</td><td>0.3.0</td></tr>
 </tbody></table>
-<p>注：从v0.2.2开始，默认参数启动的节点会被当做只有一个节点，当前节点是主节点的集群部署。支持其它新增的从节点加入。</p>
+<p>注：从v0.3.0开始，默认参数启动的节点会被当做只有一个节点，当前节点是主节点的集群部署。支持其它新增的从节点加入。</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="性能与容量说明"><a class="header" href="#性能与容量说明">性能与容量说明</a></h1>
 <h2 id="压测工具"><a class="header" href="#压测工具">压测工具</a></h2>
 <p>主要使用goose压测。</p>
