@@ -524,7 +524,7 @@ impl Handler<ConfigCmd> for ConfigActor {
                         if v.md5 != item.md5 {
                             changes.push(item.key.clone());
                         }
-                    } else {
+                    } else if !item.md5.is_empty() {
                         changes.push(item.key.clone());
                     }
                 }
