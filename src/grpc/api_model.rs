@@ -3,6 +3,7 @@ use std::{collections::HashMap, sync::Arc};
 use serde::{Deserialize, Serialize};
 
 pub const SUCCESS_CODE: u16 = 200u16;
+pub const NOT_FOUND: u16 = 300u16;
 pub const ERROR_CODE: u16 = 500u16;
 
 pub const INTERNAL_MODEL: &str = "internal";

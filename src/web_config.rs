@@ -45,6 +45,7 @@ async fn assets(path: web::Path<String>) -> impl Responder {
 
 pub fn app_config(config: &mut web::ServiceConfig) {
     config.service(web::resource("/nacos/v1/auth/login").route(web::post().to(mock_token)));
+    config.service(web::resource("/nacos/v1/auth/users/login").route(web::post().to(mock_token)));
     cs_config(config);
     ns_config(config);
     raft_config(config);
