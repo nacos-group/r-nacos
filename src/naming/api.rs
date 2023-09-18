@@ -6,7 +6,10 @@ use super::api_model::{InstanceVO, QueryListResult, ServiceInfoParam};
 use super::core::{NamingActor, NamingCmd, NamingResult};
 use super::model::{Instance, InstanceUpdateTag, ServiceKey};
 use super::ops::ops_api::query_opt_service_list;
-use super::NamingUtils;
+use super::{
+    NamingUtils, CLIENT_BEAT_INTERVAL_KEY, LIGHT_BEAT_ENABLED_KEY, RESPONSE_CODE_KEY,
+    RESPONSE_CODE_OK,
+};
 
 use actix_web::{
     http::header, middleware, web, App, HttpMessage, HttpRequest, HttpResponse, HttpServer,
@@ -193,8 +196,13 @@ impl BeatRequest {
     }
 
     pub fn convert_to_instance(self) -> Result<Instance, String> {
-        let beat = self.beat.as_ref().unwrap();
-        let beat_info = serde_json::from_str::<BeatInfo>(beat).unwrap();
+        let beat = self.beat.unwrap_or_default();
+        let beat_info = match serde_json::from_str::<BeatInfo>(&beat) {
+            Ok(v) => v,
+            Err(err) => {
+                return Err(err.to_string());
+            }
+        };
         let service_name_option = beat_info.service_name.clone();
         let mut instance = beat_info.convert_to_instance();
         if service_name_option.is_none() {
@@ -449,6 +457,8 @@ pub async fn beat_instance(
     appdata: web::Data<Arc<AppShareData>>,
 ) -> impl Responder {
     let param = a.select_option(&b);
+    //debug
+    //log::info!("beat request param:{}",serde_json::to_string(&param).unwrap());
     let instance = param.convert_to_instance();
     match instance {
         Ok(instance) => {
@@ -467,7 +477,16 @@ pub async fn beat_instance(
                     .update_instance(instance, Some(tag))
                     .await
                 {
-                    Ok(_) => HttpResponse::Ok().body("ok"),
+                    Ok(_) => {
+                        let mut result = HashMap::new();
+                        result.insert(RESPONSE_CODE_KEY, serde_json::json!(RESPONSE_CODE_OK));
+                        result.insert(CLIENT_BEAT_INTERVAL_KEY, serde_json::json!(5000));
+                        //result.insert(LIGHT_BEAT_ENABLED_KEY, serde_json::json!(false));
+                        let v = serde_json::to_string(&result).unwrap();
+                        HttpResponse::Ok()
+                            .insert_header(header::ContentType(mime::APPLICATION_JSON))
+                            .body(v)
+                    }
                     Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
                 }
             }

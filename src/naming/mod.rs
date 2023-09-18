@@ -15,6 +15,11 @@ pub mod service_index;
 
 pub struct NamingUtils;
 
+pub const RESPONSE_CODE_KEY: &str = "code";
+pub const RESPONSE_CODE_OK: i32 = 10200;
+pub const CLIENT_BEAT_INTERVAL_KEY: &str = "clientBeatInterval";
+pub const LIGHT_BEAT_ENABLED_KEY: &str = "lightBeatEnabled";
+
 pub const DEFAULT_NAMESPACE: &str = "public";
 pub const DEFAULT_CLUSTER: &str = "DEFAULT";
 pub const DEFAULT_GROUP: &str = "DEFAULT_GROUP";

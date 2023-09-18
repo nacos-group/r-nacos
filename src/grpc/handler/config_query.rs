@@ -2,6 +2,7 @@
 
 use std::sync::Arc;
 
+use crate::grpc::api_model::NOT_FOUND;
 use crate::{
     common::appdata::AppShareData,
     config::core::{ConfigActor, ConfigCmd, ConfigKey, ConfigResult},
@@ -16,7 +17,6 @@ use crate::{
 };
 use actix::prelude::Addr;
 use async_trait::async_trait;
-use crate::grpc::api_model::NOT_FOUND;
 
 pub struct ConfigQueryRequestHandler {
     app_data: Arc<AppShareData>,
