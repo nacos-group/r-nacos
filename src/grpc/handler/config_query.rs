@@ -16,6 +16,7 @@ use crate::{
 };
 use actix::prelude::Addr;
 use async_trait::async_trait;
+use crate::grpc::api_model::NOT_FOUND;
 
 pub struct ConfigQueryRequestHandler {
     app_data: Arc<AppShareData>,
@@ -59,7 +60,7 @@ impl PayloadHandler for ConfigQueryRequestHandler {
                     }
                     _ => {
                         response.result_code = ERROR_CODE;
-                        response.error_code = ERROR_CODE;
+                        response.error_code = NOT_FOUND;
                         response.message = Some("config data not exist".to_owned());
                     }
                 }
