@@ -361,11 +361,7 @@ impl ConfigActor {
                 item.group.as_ref(),
                 item.tenant.as_ref(),
             );
-            let val = ConfigValue {
-                content: Arc::new(item.content.unwrap_or_default()),
-                md5: Arc::new(item.content_md5.unwrap_or_default()),
-                tmp: false,
-            };
+            let val = ConfigValue::new(Arc::new(item.content.unwrap_or_default()));
             self.tenant_index.insert_config(key.clone());
             self.cache.insert(key, val);
         }
