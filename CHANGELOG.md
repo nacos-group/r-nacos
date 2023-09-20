@@ -1,3 +1,16 @@
+## v0.3.4
+
+2023-09-20
+
+1. 配置中心从数据库加载信息时,需要重算md5,不直接取db的值，避免db md5值为空导致客户端一直循环请求的问题。修复`nacos-client 2.2.1的auth、query和configChange问题`中的第3点问题 #14
+
+## v0.3.3
+
+2023-09-17
+
+1. 修复nacos-client 2.2.1的auth、query和configChange问题 #14
+2. 修复nacos-client 1.4.6的nacos-client 2.2.1的`/nacos/v1/ns/instance/beat exception`问题 #13
+
 ## v0.3.2
 
 2023-09-17
