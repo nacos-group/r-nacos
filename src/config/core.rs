@@ -9,7 +9,6 @@ use std::sync::Arc;
 use std::sync::Weak;
 use std::time::Duration;
 
-use crate::grpc::bistream_manage::BiStreamManage;
 use crate::raft::store::ClientRequest;
 use crate::raft::NacosRaft;
 //use crate::raft::store::Request;
@@ -301,6 +300,9 @@ impl Inject for ConfigActor {
     fn inject(&mut self, factory_data: bean_factory::FactoryData, _factory: bean_factory::BeanFactory, _ctx: &mut Self::Context) {
         let raft:Option<Arc<NacosRaft>> = factory_data.get_bean();
         self.raft = raft.map(|e|Arc::downgrade(&e));
+        if let Some(conn_manage )= factory_data.get_actor() {
+            self.subscriber.set_conn_manage(conn_manage);
+        }
         log::info!("ConfigActor inject complete");
     }
 
@@ -458,11 +460,9 @@ pub enum ConfigCmd {
     QueryPageInfo(Box<ConfigQueryParam>),
     QueryHistoryPageInfo(Box<ConfigHistoryParam>),
     LISTENER(Vec<ListenerItem>, ListenerSenderType, i64),
-    SetConnManage(Addr<BiStreamManage>),
     Subscribe(Vec<ListenerItem>, Arc<String>),
     RemoveSubscribe(Vec<ListenerItem>, Arc<String>),
     RemoveSubscribeClient(Arc<String>),
-    SetRaft(Arc<NacosRaft>),
 }
 
 #[derive(Message)]
@@ -527,9 +527,6 @@ impl Handler<ConfigCmd> for ConfigActor {
                     return Ok(ConfigResult::NULL);
                 }
             }
-            ConfigCmd::SetConnManage(conn_manage) => {
-                self.subscriber.set_conn_manage(conn_manage);
-            }
             ConfigCmd::Subscribe(items, client_id) => {
                 let mut changes = vec![];
                 for item in &items {
@@ -559,9 +556,6 @@ impl Handler<ConfigCmd> for ConfigActor {
             ConfigCmd::QueryHistoryPageInfo(query_param) => {
                 let (size, list) = self.get_history_info_page(query_param.as_ref());
                 return Ok(ConfigResult::ConfigHistoryInfoPage(size, list));
-            }
-            ConfigCmd::SetRaft(raft) => {
-                self.raft = Some(Arc::downgrade(&raft));
             }
         }
         Ok(ConfigResult::NULL)

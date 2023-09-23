@@ -3,6 +3,7 @@
 use std::{collections::HashSet, sync::Arc, time::Duration};
 
 use actix::prelude::*;
+use bean_factory::{bean, Inject};
 
 use crate::{
     common::delay_notify::{DelayNotify, NotifyEvent},
@@ -45,6 +46,7 @@ impl NotifyEvent for NamingDelayEvent {
     }
 }
 
+#[bean(inject)]
 pub struct DelayNotifyActor {
     inner_delay_notify: DelayNotify<ServiceKey, NamingDelayEvent>,
     conn_manage: Option<Addr<BiStreamManage>>,
@@ -123,6 +125,19 @@ impl Actor for DelayNotifyActor {
     }
 }
 
+impl Inject for DelayNotifyActor {
+    type Context = Context<Self>;
+
+    fn inject(&mut self, factory_data: bean_factory::FactoryData, _factory: bean_factory::BeanFactory, _ctx: &mut Self::Context) {
+        self.conn_manage = factory_data.get_actor();
+        self.naming_addr = factory_data.get_actor();
+        log::info!(" DelayNotifyActor inject complete");
+    }
+
+    fn complete(&mut self, _ctx: &mut Self::Context) {
+    }
+}
+
 impl Supervised for DelayNotifyActor {
     fn restarting(&mut self, _ctx: &mut <Self as Actor>::Context) {
         log::warn!("DelayNotifyActor restart ...");
@@ -132,8 +147,6 @@ impl Supervised for DelayNotifyActor {
 #[derive(Message)]
 #[rtype(result = "anyhow::Result<DelayNotifyResult>")]
 pub enum DelayNotifyCmd {
-    SetConnManageAddr(Addr<BiStreamManage>),
-    SetNamingAddr(Addr<NamingActor>),
     Notify(ServiceKey, HashSet<Arc<String>>),
 }
 
@@ -155,12 +168,6 @@ impl Handler<DelayNotifyCmd> for DelayNotifyActor {
                 };
                 self.inner_delay_notify
                     .add_event(self.delay, event.key.clone(), event)?;
-            }
-            DelayNotifyCmd::SetConnManageAddr(conn_manage) => {
-                self.conn_manage = Some(conn_manage);
-            }
-            DelayNotifyCmd::SetNamingAddr(naming_addr) => {
-                self.naming_addr = Some(naming_addr);
             }
         }
         Ok(DelayNotifyResult::None)

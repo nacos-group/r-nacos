@@ -2,15 +2,15 @@ use std::{collections::HashSet, sync::Arc, time::Duration};
 
 use crate::{
     common::{appdata::AppShareData, AppSysConfig},
-    config::core::{ConfigActor, ConfigCmd},
+    config::core::{ConfigActor},
     grpc::{bistream_manage::BiStreamManage, PayloadUtils},
     naming::{
         cluster::{
-            instance_delay_notify::{ClusterInstanceDelayNotifyActor, InstanceDelayNotifyRequest},
-            node_manage::{InnerNodeManage, NodeManage, NodeManageRequest},
+            instance_delay_notify::{ClusterInstanceDelayNotifyActor},
+            node_manage::{InnerNodeManage, NodeManage},
             route::NamingRoute,
         },
-        core::{NamingActor, NamingCmd},
+        core::{NamingActor}, naming_delay_nofity::DelayNotifyActor,
     },
     raft::{
         cluster::{
@@ -49,6 +49,7 @@ pub fn build_share_data(sys_config: Arc<AppSysConfig>) -> anyhow::Result<Arc<App
     factory.register(BeanDefinition::actor_with_inject_from_obj::<ConfigActor>(config_addr.clone()));
     let naming_addr = NamingActor::create_at_new_system();
     factory.register(BeanDefinition::actor_with_inject_from_obj(naming_addr.clone()));
+    factory.register(BeanDefinition::actor_with_inject_from_obj(DelayNotifyActor::new().start()));
 
     let store = Arc::new(RaftStore::new(
         sys_config.raft_node_id.to_owned(),
@@ -62,7 +63,6 @@ pub fn build_share_data(sys_config: Arc<AppSysConfig>) -> anyhow::Result<Arc<App
     factory.register(BeanDefinition::from_obj(cluster_sender.clone()));
     let raft = build_raft(&sys_config, store.clone(), cluster_sender.clone())?;
     factory.register(BeanDefinition::from_obj(raft.clone()));
-    //config_addr.do_send(ConfigCmd::SetRaft(raft.clone()));
 
     let raft_addr_router = Arc::new(RaftAddrRouter::new(
         raft.clone(),
@@ -80,7 +80,6 @@ pub fn build_share_data(sys_config: Arc<AppSysConfig>) -> anyhow::Result<Arc<App
     let naming_inner_node_manage_addr =
         InnerNodeManage::new(sys_config.raft_node_id.to_owned()).start();
     factory.register(BeanDefinition::actor_with_inject_from_obj(naming_inner_node_manage_addr.clone()));
-    naming_inner_node_manage_addr.do_send(NodeManageRequest::SetNamingAddr(naming_addr.clone()));
     store.set_naming_manage_addr(naming_inner_node_manage_addr.clone());
     let naming_node_manage = Arc::new(NodeManage::new(naming_inner_node_manage_addr.clone()));
     factory.register(BeanDefinition::from_obj(naming_node_manage.clone()));
@@ -92,23 +91,9 @@ pub fn build_share_data(sys_config: Arc<AppSysConfig>) -> anyhow::Result<Arc<App
     factory.register(BeanDefinition::from_obj(naming_route.clone()));
     let naming_cluster_delay_notify_addr = ClusterInstanceDelayNotifyActor::new().start();
     factory.register(BeanDefinition::actor_with_inject_from_obj(naming_cluster_delay_notify_addr.clone()));
-    naming_cluster_delay_notify_addr.do_send(InstanceDelayNotifyRequest::SetNamingNodeManageAddr(
-        naming_inner_node_manage_addr.clone(),
-    ));
 
-    let mut bistream_manage = BiStreamManage::new();
-    bistream_manage.set_config_addr(config_addr.clone());
-    bistream_manage.set_naming_addr(naming_addr.clone());
-    let bistream_manage_addr = bistream_manage.start();
+    let bistream_manage_addr = BiStreamManage::new().start();
     factory.register(BeanDefinition::actor_with_inject_from_obj(bistream_manage_addr.clone()));
-    config_addr.do_send(ConfigCmd::SetConnManage(bistream_manage_addr.clone()));
-    naming_addr.do_send(NamingCmd::SetConnManage(bistream_manage_addr.clone()));
-    naming_addr.do_send(NamingCmd::SetClusterNodeManage(
-        naming_inner_node_manage_addr.clone(),
-    ));
-    naming_addr.do_send(NamingCmd::SetClusterDelayNotify(
-        naming_cluster_delay_notify_addr,
-    ));
 
     let app_data = Arc::new(AppShareData {
         config_addr,

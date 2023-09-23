@@ -62,6 +62,7 @@ use actix::prelude::*;
 pub struct NamingActor {
     service_map: HashMap<ServiceKey, Service>,
     last_id: u64,
+    //用于1.x udp实例变更通知,暂时不启用
     listener_addr: Option<Addr<InnerNamingListener>>,
     delay_notify_addr: Option<Addr<DelayNotifyActor>>,
     subscriber: Subscriber,
@@ -80,8 +81,8 @@ impl Actor for NamingActor {
     type Context = Context<Self>;
 
     fn started(&mut self, ctx: &mut Self::Context) {
+        self.instance_time_out_heartbeat(ctx);
         log::info!(" NamingActor started");
-        //self.do_started(ctx);
     }
 }
 
@@ -90,16 +91,13 @@ impl Inject for NamingActor {
 
     fn inject(&mut self, factory_data: bean_factory::FactoryData, _factory: bean_factory::BeanFactory, ctx: &mut Self::Context) {
         self.listener_addr = factory_data.get_actor();
-        if self.delay_notify_addr.is_none() {
-            self.delay_notify_addr = factory_data.get_actor();
-            if let Some(delay_notify) = self.delay_notify_addr.as_ref() {
-                self.subscriber.set_notify_addr(delay_notify.clone());
-            }
+        self.delay_notify_addr = factory_data.get_actor();
+        if let Some(notify_addr) = self.delay_notify_addr.as_ref() {
+            self.subscriber.set_notify_addr(notify_addr.clone());
         }
         self.cluster_node_manage = factory_data.get_actor();
         self.cluster_delay_notify = factory_data.get_actor();
-        log::info!("ConfigActor inject complete");
-        self.do_started(ctx);
+        log::info!("NamingActor inject complete");
     }
 
     fn complete(&mut self, ctx: &mut Self::Context) {
@@ -109,26 +107,20 @@ impl Inject for NamingActor {
 
 impl Default for NamingActor {
     fn default() -> Self {
-       Self::new(None,None) 
+       Self::new() 
     }
 }
 
 impl NamingActor {
-    pub fn new(
-        listener_addr: Option<Addr<InnerNamingListener>>,
-        delay_notify_addr: Option<Addr<DelayNotifyActor>>,
-    ) -> Self {
+    pub fn new() -> Self {
         let mut subscriber = Subscriber::default();
-        if let Some(delay_notify) = delay_notify_addr.as_ref() {
-            subscriber.set_notify_addr(delay_notify.clone());
-        }
         //let dal_addr = SyncArbiter::start(1,||ServiceDalActor::new());
         Self {
             service_map: Default::default(),
             last_id: 0u64,
-            listener_addr,
+            listener_addr: None,
             subscriber,
-            delay_notify_addr,
+            delay_notify_addr: None,
             sys_config: NamingSysConfig::new(),
             empty_service_set: Default::default(),
             namespace_index: NamespaceIndex::new(),
@@ -141,41 +133,18 @@ impl NamingActor {
     }
 
     pub fn new_and_create() -> Addr<Self> {
-        Self::create(move |ctx| {
-            //let addr = ctx.address();
-            //let listener_addr = InnerNamingListener::new_and_create(period, Some(addr.clone()));
-            let delay_notify_addr = DelayNotifyActor::new().start();
-            //Self::new(Some(listener_addr),Some(delay_notify_addr))
-            Self::new(None, Some(delay_notify_addr))
-        })
+        Self::new().start()
     }
 
     pub fn create_at_new_system() -> Addr<Self> {
-        let delay_notify_addr = DelayNotifyActor::new().start();
         let (tx, rx) = std::sync::mpsc::sync_channel(1);
         std::thread::spawn(move || {
             let rt = System::new();
-            let addrs = rt.block_on(async { Self::new(None, Some(delay_notify_addr)).start() });
+            let addrs = rt.block_on(async { Self::new().start() });
             tx.send(addrs).unwrap();
             rt.run().unwrap();
         });
         rx.recv().unwrap()
-    }
-
-    fn do_started(&mut self, ctx: &mut Context<Self>) {
-        let msg = NamingListenerCmd::InitNamingActor(ctx.address());
-        if let Some(listener_addr) = self.listener_addr.as_ref() {
-            listener_addr.do_send(msg);
-        }
-        if let Some(delay_notify_addr) = self.delay_notify_addr.as_ref() {
-            delay_notify_addr.do_send(DelayNotifyCmd::SetNamingAddr(ctx.address()));
-        } else {
-            let delay_notify_addr = DelayNotifyActor::new().start();
-            delay_notify_addr.do_send(DelayNotifyCmd::SetNamingAddr(ctx.address()));
-            self.delay_notify_addr = Some(delay_notify_addr);
-        }
-        //log::info!(" NamingActor started");
-        self.instance_time_out_heartbeat(ctx);
     }
 
     pub(crate) fn get_service(&mut self, key: &ServiceKey) -> Option<&mut Service> {
@@ -765,9 +734,6 @@ pub enum NamingCmd {
     RemoveService(ServiceKey),
     PeekListenerTimeout,
     NotifyListener(ServiceKey, u64),
-    SetConnManage(Addr<BiStreamManage>),
-    SetClusterNodeManage(Addr<InnerNodeManage>),
-    SetClusterDelayNotify(Addr<ClusterInstanceDelayNotifyActor>),
     Subscribe(Vec<NamingListenerItem>, Arc<String>),
     RemoveSubscribe(Vec<NamingListenerItem>, Arc<String>),
     RemoveClient(Arc<String>),
@@ -888,12 +854,6 @@ impl Handler<NamingCmd> for NamingActor {
                 }
                 Ok(NamingResult::NULL)
             }
-            NamingCmd::SetConnManage(conn_manage) => {
-                if let Some(notify_addr) = self.delay_notify_addr.as_ref() {
-                    notify_addr.do_send(DelayNotifyCmd::SetConnManageAddr(conn_manage));
-                }
-                Ok(NamingResult::NULL)
-            }
             NamingCmd::Subscribe(items, client_id) => {
                 self.subscriber.add_subscribe(client_id, items.clone());
                 //debug
@@ -960,14 +920,6 @@ impl Handler<NamingCmd> for NamingActor {
                 }
                 Ok(NamingResult::ClientInstanceCount(client_instance_count))
             }
-            NamingCmd::SetClusterNodeManage(addr) => {
-                self.cluster_node_manage = Some(addr);
-                Ok(NamingResult::NULL)
-            }
-            NamingCmd::SetClusterDelayNotify(addr) => {
-                self.cluster_delay_notify = Some(addr);
-                Ok(NamingResult::NULL)
-            }
             NamingCmd::QuerySnapshot(ranges) => {
                 let res = self.build_snapshot_data(ranges);
                 Ok(NamingResult::Snapshot(res))
@@ -985,7 +937,7 @@ async fn query_healthy_instances() {
     use super::*;
     use tokio::net::UdpSocket;
     //let listener_addr = InnerNamingListener::new_and_create(5000, None);
-    let mut naming = NamingActor::new(None, None);
+    let mut naming = NamingActor::new();
     let mut instance = Instance::new("127.0.0.1".to_owned(), 8080);
     instance.namespace_id = Arc::new("public".to_owned());
     instance.service_name = Arc::new("foo".to_owned());
@@ -1032,7 +984,7 @@ async fn query_healthy_instances() {
 fn test_add_service() {
     use super::*;
     use tokio::net::UdpSocket;
-    let mut naming = NamingActor::new(None, None);
+    let mut naming = NamingActor::new();
     let service_key = ServiceKey::new("1", "1", "1");
     let service_info = ServiceDetailDto {
         namespace_id: service_key.namespace_id.clone(),
@@ -1052,7 +1004,7 @@ fn test_add_service() {
 fn test_remove_has_instance_service() {
     use super::*;
     use tokio::net::UdpSocket;
-    let mut naming = NamingActor::new(None, None);
+    let mut naming = NamingActor::new();
     let mut instance = Instance::new("127.0.0.1".to_owned(), 8080);
     instance.namespace_id = Arc::new("public".to_owned());
     instance.service_name = Arc::new("foo".to_owned());

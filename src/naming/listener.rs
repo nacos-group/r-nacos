@@ -13,6 +13,7 @@ use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::Duration;
 use std::{collections::HashMap, net::SocketAddr};
+use bean_factory::{bean, Inject};
 use tokio::net::UdpSocket;
 
 use actix::prelude::*;
@@ -190,6 +191,7 @@ impl ListenerValue {
     }
 }
 
+#[bean(inject)]
 pub struct InnerNamingListener {
     //namespace\x01group@@service: listener
     listeners: HashMap<String, ListenerValue>,
@@ -352,6 +354,18 @@ impl Actor for InnerNamingListener {
     }
 }
 
+impl Inject for InnerNamingListener {
+    type Context = Context<Self>;
+
+    fn inject(&mut self, factory_data: bean_factory::FactoryData, factory: bean_factory::BeanFactory, ctx: &mut Self::Context) {
+        self.naming_addr = factory_data.get_actor();
+        log::info!(" InnerNamingListener inject complete");
+    }
+
+    fn complete(&mut self, ctx: &mut Self::Context) {
+    }
+}
+
 impl Supervised for InnerNamingListener {
     fn restarting(&mut self, _ctx: &mut <Self as Actor>::Context) {
         log::warn!("InnerNamingListener restart ...");
@@ -361,7 +375,6 @@ impl Supervised for InnerNamingListener {
 #[derive(Message)]
 #[rtype(result = "Result<(),std::io::Error>")]
 pub enum NamingListenerCmd {
-    InitNamingActor(Addr<NamingActor>),
     Add(ServiceKey, ListenerItem),
     Response(SocketAddr),
     Notify(ServiceKey, String, HashMap<String, Vec<Arc<Instance>>>, u64),
@@ -372,9 +385,6 @@ impl Handler<NamingListenerCmd> for InnerNamingListener {
     type Result = Result<(), std::io::Error>;
     fn handle(&mut self, msg: NamingListenerCmd, ctx: &mut Context<Self>) -> Self::Result {
         match msg {
-            NamingListenerCmd::InitNamingActor(naming_addr) => {
-                self.naming_addr = Some(naming_addr);
-            }
             NamingListenerCmd::Add(service_key, listener_item) => {
                 log::debug!(
                     "naming-listener add ,{:?},{},{}",

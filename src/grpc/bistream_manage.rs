@@ -60,14 +60,6 @@ impl BiStreamManage {
         }
     }
 
-    pub fn set_config_addr(&mut self, addr: Addr<ConfigActor>) {
-        self.config_addr = Some(addr);
-    }
-
-    pub fn set_naming_addr(&mut self, addr: Addr<NamingActor>) {
-        self.naming_addr = Some(addr);
-    }
-
     pub fn add_conn(&mut self, client_id: Arc<String>, sender: Addr<BiStreamConn>) {
         log::info!("add_conn client_id:{}", &client_id);
         let now = now_millis();

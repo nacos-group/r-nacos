@@ -335,13 +335,13 @@ impl Actor for InnerNodeManage {
 impl Inject for InnerNodeManage {
     type Context = Context<Self>;
 
-    fn inject(&mut self, factory_data: bean_factory::FactoryData, factory: bean_factory::BeanFactory, ctx: &mut Self::Context) {
+    fn inject(&mut self, factory_data: bean_factory::FactoryData, _factory: bean_factory::BeanFactory, _ctx: &mut Self::Context) {
         self.naming_actor = factory_data.get_actor();
         self.cluster_sender = factory_data.get_bean();
         log::info!("InnerNodeManage inject complete!");
     }
 
-    fn complete(&mut self, ctx: &mut Self::Context) {
+    fn complete(&mut self, _ctx: &mut Self::Context) {
         //
     }
 }
@@ -358,7 +358,6 @@ pub enum NodeManageRequest {
     AddClientId(u64, Arc<String>),
     AddClientIds(u64, HashSet<Arc<String>>),
     RemoveClientId(Arc<String>),
-    SetNamingAddr(Addr<NamingActor>),
     QueryOwnerRange(ProcessRange),
     SendSnapshot(u64, SnapshotForSend),
 }
@@ -413,10 +412,6 @@ impl Handler<NodeManageRequest> for InnerNodeManage {
             }
             NodeManageRequest::RemoveClientId(client_id) => {
                 self.remove_client_id(client_id);
-                Ok(NodeManageResponse::None)
-            }
-            NodeManageRequest::SetNamingAddr(naming_actor) => {
-                self.naming_actor = Some(naming_actor);
                 Ok(NodeManageResponse::None)
             }
             NodeManageRequest::QueryOwnerRange(range) => {

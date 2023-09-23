@@ -107,7 +107,6 @@ impl ClusterInstanceDelayNotifyActor {
 #[derive(Message, Debug)]
 #[rtype(result = "anyhow::Result<InstanceDelayNotifyResponse>")]
 pub enum InstanceDelayNotifyRequest {
-    SetNamingNodeManageAddr(Addr<InnerNodeManage>),
     UpdateInstance(Arc<Instance>),
     RemoveInstance(Arc<Instance>),
 }
@@ -125,9 +124,6 @@ impl Handler<InstanceDelayNotifyRequest> for ClusterInstanceDelayNotifyActor {
         _ctx: &mut Self::Context,
     ) -> Self::Result {
         match msg {
-            InstanceDelayNotifyRequest::SetNamingNodeManageAddr(manage_addr) => {
-                self.manage_addr = Some(manage_addr);
-            }
             InstanceDelayNotifyRequest::UpdateInstance(instance) => {
                 self.delay_notify(instance, true);
             }
