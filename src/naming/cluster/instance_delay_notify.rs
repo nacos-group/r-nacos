@@ -1,6 +1,7 @@
 use std::{collections::HashMap, sync::Arc, time::Duration};
 
 use actix::prelude::*;
+use bean_factory::{bean, Inject};
 
 use crate::naming::model::{Instance, InstanceKey};
 
@@ -14,6 +15,7 @@ pub struct NotifyItem {
     is_update: bool,
 }
 
+#[bean(inject)]
 pub struct ClusterInstanceDelayNotifyActor {
     instances_map: HashMap<InstanceKey, NotifyItem>,
     manage_addr: Option<Addr<InnerNodeManage>>,
@@ -24,8 +26,20 @@ impl Actor for ClusterInstanceDelayNotifyActor {
     type Context = Context<Self>;
 
     fn started(&mut self, ctx: &mut Self::Context) {
-        log::info!("InstanceDelayNotifyActor started");
+        log::info!("ClusterInstanceDelayNotifyActor started");
         self.notify_heartbeat(ctx);
+    }
+}
+
+impl Inject for ClusterInstanceDelayNotifyActor {
+    type Context = Context<Self>;
+
+    fn inject(&mut self, factory_data: bean_factory::FactoryData, _factory: bean_factory::BeanFactory, _ctx: &mut Self::Context) {
+        self.manage_addr = factory_data.get_actor();
+        log::info!("ClusterInstanceDelayNotifyActor inject complete");
+    }
+
+    fn complete(&mut self, _ctx: &mut Self::Context) {
     }
 }
 

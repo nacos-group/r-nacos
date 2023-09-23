@@ -6,6 +6,7 @@ use std::{
 };
 
 use actix::prelude::*;
+use bean_factory::{Inject, bean};
 
 use crate::{
     naming::core::{NamingActor, NamingCmd},
@@ -72,19 +73,20 @@ impl From<ClusterInnerNode> for ClusterNode {
     }
 }
 
+#[bean(inject)]
 pub struct InnerNodeManage {
     local_id: u64,
     all_nodes: BTreeMap<u64, ClusterInnerNode>,
-    cluster_sender: Arc<RaftClusterRequestSender>,
+    cluster_sender: Option<Arc<RaftClusterRequestSender>>,
     naming_actor: Option<Addr<NamingActor>>,
     first_query_snapshot: bool,
 }
 
 impl InnerNodeManage {
-    pub fn new(local_id: u64, cluster_sender: Arc<RaftClusterRequestSender>) -> Self {
+    pub fn new(local_id: u64) -> Self {
         Self {
             local_id,
-            cluster_sender,
+            cluster_sender: None,
             all_nodes: Default::default(),
             naming_actor: None,
             first_query_snapshot: false,
@@ -92,6 +94,10 @@ impl InnerNodeManage {
     }
 
     fn update_nodes(&mut self, nodes: Vec<(u64, Arc<String>)>, ctx: &mut Context<Self>) {
+        if self.cluster_sender.is_none() {
+            log::warn!("InnerNodeManage cluster_sender is none");
+            return;
+        }
         let new_sets: HashSet<u64> = nodes.iter().map(|e| e.0.to_owned()).collect();
         let mut dels = vec![];
         for key in self.all_nodes.keys() {
@@ -323,6 +329,20 @@ impl Actor for InnerNodeManage {
 
         //定时检测节点的可用性
         self.hb(ctx);
+    }
+}
+
+impl Inject for InnerNodeManage {
+    type Context = Context<Self>;
+
+    fn inject(&mut self, factory_data: bean_factory::FactoryData, factory: bean_factory::BeanFactory, ctx: &mut Self::Context) {
+        self.naming_actor = factory_data.get_actor();
+        self.cluster_sender = factory_data.get_bean();
+        log::info!("InnerNodeManage inject complete!");
+    }
+
+    fn complete(&mut self, ctx: &mut Self::Context) {
+        //
     }
 }
 

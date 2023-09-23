@@ -1,4 +1,6 @@
 use async_raft_ext::raft::ClientWriteRequest;
+use bean_factory::Inject;
+use bean_factory::bean;
 use chrono::Local;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
@@ -283,6 +285,7 @@ impl ConfigListener {
     }
 }
 
+#[bean(inject)]
 pub struct ConfigActor {
     cache: HashMap<ConfigKey, ConfigValue>,
     listener: ConfigListener,
@@ -290,6 +293,20 @@ pub struct ConfigActor {
     tenant_index: TenantIndex,
     config_db: ConfigDB,
     raft: Option<Weak<NacosRaft>>,
+}
+
+impl Inject for ConfigActor {
+    type Context=Context<Self>;
+
+    fn inject(&mut self, factory_data: bean_factory::FactoryData, _factory: bean_factory::BeanFactory, _ctx: &mut Self::Context) {
+        let raft:Option<Arc<NacosRaft>> = factory_data.get_bean();
+        self.raft = raft.map(|e|Arc::downgrade(&e));
+        log::info!("ConfigActor inject complete");
+    }
+
+    fn complete(&mut self, _ctx: &mut Self::Context) {
+        //Factory init complete
+    }
 }
 
 /*

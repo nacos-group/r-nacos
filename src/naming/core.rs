@@ -42,6 +42,7 @@ use crate::grpc::bistream_manage::BiStreamManage;
 use crate::now_millis;
 use crate::now_millis_i64;
 use crate::utils::gz_encode;
+use bean_factory::{Inject, InjectComponent, bean,};
 use chrono::Local;
 use inner_mem_cache::TimeoutSet;
 use serde::{Deserialize, Serialize};
@@ -57,6 +58,7 @@ use std::time::Duration;
 use actix::prelude::*;
 
 //#[derive(Default)]
+#[bean(inject)]
 pub struct NamingActor {
     service_map: HashMap<ServiceKey, Service>,
     last_id: u64,
@@ -71,6 +73,44 @@ pub struct NamingActor {
     cluster_node_manage: Option<Addr<InnerNodeManage>>,
     cluster_delay_notify: Option<Addr<ClusterInstanceDelayNotifyActor>>,
     //dal_addr: Addr<ServiceDalActor>,
+}
+
+
+impl Actor for NamingActor {
+    type Context = Context<Self>;
+
+    fn started(&mut self, ctx: &mut Self::Context) {
+        log::info!(" NamingActor started");
+        //self.do_started(ctx);
+    }
+}
+
+impl Inject for NamingActor {
+    type Context=Context<Self>;
+
+    fn inject(&mut self, factory_data: bean_factory::FactoryData, _factory: bean_factory::BeanFactory, ctx: &mut Self::Context) {
+        self.listener_addr = factory_data.get_actor();
+        if self.delay_notify_addr.is_none() {
+            self.delay_notify_addr = factory_data.get_actor();
+            if let Some(delay_notify) = self.delay_notify_addr.as_ref() {
+                self.subscriber.set_notify_addr(delay_notify.clone());
+            }
+        }
+        self.cluster_node_manage = factory_data.get_actor();
+        self.cluster_delay_notify = factory_data.get_actor();
+        log::info!("ConfigActor inject complete");
+        self.do_started(ctx);
+    }
+
+    fn complete(&mut self, ctx: &mut Self::Context) {
+        //Factory init complete
+    }
+}
+
+impl Default for NamingActor {
+    fn default() -> Self {
+       Self::new(None,None) 
+    }
 }
 
 impl NamingActor {
@@ -120,6 +160,22 @@ impl NamingActor {
             rt.run().unwrap();
         });
         rx.recv().unwrap()
+    }
+
+    fn do_started(&mut self, ctx: &mut Context<Self>) {
+        let msg = NamingListenerCmd::InitNamingActor(ctx.address());
+        if let Some(listener_addr) = self.listener_addr.as_ref() {
+            listener_addr.do_send(msg);
+        }
+        if let Some(delay_notify_addr) = self.delay_notify_addr.as_ref() {
+            delay_notify_addr.do_send(DelayNotifyCmd::SetNamingAddr(ctx.address()));
+        } else {
+            let delay_notify_addr = DelayNotifyActor::new().start();
+            delay_notify_addr.do_send(DelayNotifyCmd::SetNamingAddr(ctx.address()));
+            self.delay_notify_addr = Some(delay_notify_addr);
+        }
+        //log::info!(" NamingActor started");
+        self.instance_time_out_heartbeat(ctx);
     }
 
     pub(crate) fn get_service(&mut self, key: &ServiceKey) -> Option<&mut Service> {
@@ -733,26 +789,6 @@ pub enum NamingResult {
     ClientInstanceCount(Vec<(Arc<String>, usize)>),
     RewriteToCluster(u64, Instance),
     Snapshot(SnapshotForSend),
-}
-
-impl Actor for NamingActor {
-    type Context = Context<Self>;
-
-    fn started(&mut self, ctx: &mut Self::Context) {
-        let msg = NamingListenerCmd::InitNamingActor(ctx.address());
-        if let Some(listener_addr) = self.listener_addr.as_ref() {
-            listener_addr.do_send(msg);
-        }
-        if let Some(delay_notify_addr) = self.delay_notify_addr.as_ref() {
-            delay_notify_addr.do_send(DelayNotifyCmd::SetNamingAddr(ctx.address()));
-        } else {
-            let delay_notify_addr = DelayNotifyActor::new().start();
-            delay_notify_addr.do_send(DelayNotifyCmd::SetNamingAddr(ctx.address()));
-            self.delay_notify_addr = Some(delay_notify_addr);
-        }
-        log::info!(" NamingActor started");
-        self.instance_time_out_heartbeat(ctx);
-    }
 }
 
 impl Supervised for NamingActor {

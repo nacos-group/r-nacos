@@ -21,6 +21,7 @@ use super::{
     PayloadUtils,
 };
 use actix::prelude::*;
+use bean_factory::{bean, Inject};
 use inner_mem_cache::TimeoutSet;
 
 struct ConnCacheItem {
@@ -37,6 +38,7 @@ impl ConnCacheItem {
     }
 }
 
+#[bean(inject)]
 #[derive(Default)]
 pub struct BiStreamManage {
     conn_cache: HashMap<Arc<String>, ConnCacheItem>,
@@ -174,6 +176,20 @@ impl Actor for BiStreamManage {
     fn started(&mut self, ctx: &mut Self::Context) {
         self.time_out_heartbeat(ctx);
         log::info!("BiStreamManage started");
+    }
+}
+
+impl Inject for BiStreamManage {
+    type Context = Context<Self>;
+
+    fn inject(&mut self, factory_data: bean_factory::FactoryData, _factory: bean_factory::BeanFactory, _ctx: &mut Self::Context) {
+        self.config_addr = factory_data.get_actor();
+        self.naming_addr = factory_data.get_actor();
+        log::info!("BiStreamManage inject complete");
+    }
+
+    fn complete(&mut self, _ctx: &mut Self::Context) {
+        //
     }
 }
 

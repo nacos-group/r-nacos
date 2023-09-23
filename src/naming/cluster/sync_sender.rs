@@ -13,7 +13,7 @@ pub struct ClusteSyncSender {
     //local_id:u64,
     target_id: u64,
     target_addr: Arc<String>,
-    cluster_sender: Arc<RaftClusterRequestSender>,
+    pub(crate) cluster_sender: Option<Arc<RaftClusterRequestSender>>,
     send_extend_infos: HashMap<String, String>,
 }
 
@@ -22,7 +22,7 @@ impl ClusteSyncSender {
         local_id: u64,
         target_id: u64,
         target_addr: Arc<String>,
-        cluster_sender: Arc<RaftClusterRequestSender>,
+        cluster_sender: Option<Arc<RaftClusterRequestSender>>,
     ) -> Self {
         let mut send_extend_infos = HashMap::default();
         send_extend_infos.insert("cluster_id".to_owned(), local_id.to_string());
@@ -61,10 +61,14 @@ impl Handler<SyncSenderRequest> for ClusteSyncSender {
     type Result = ResponseActFuture<Self, anyhow::Result<SyncSenderResponse>>;
 
     fn handle(&mut self, msg: SyncSenderRequest, _ctx: &mut Self::Context) -> Self::Result {
-        let cluster_sender = self.cluster_sender.clone();
+        let cluster_sender =  self.cluster_sender.clone();
         let target_addr = self.target_addr.clone();
         let send_extend_infos = self.send_extend_infos.clone();
         let fut = async move {
+            let cluster_sender = match cluster_sender {
+                Some(v) => v,
+                None => return Err(anyhow::anyhow!("ClusteSyncSender,the cluster sender is none!")),
+            };
             let req = msg.0;
             let request = serde_json::to_string(&req).unwrap_or_default();
             let payload = PayloadUtils::build_full_payload(
