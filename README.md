@@ -141,6 +141,23 @@ curl "http://127.0.0.1:8848/nacos/v1/ns/instance/list?&namespaceId=public&servic
 
 [JAVA-SDK](https://nacos.io/zh-cn/docs/sdk.html)
 
+
+**nacos-client**
+
+```xml
+<dependency>
+    <groupId>com.alibaba.nacos</groupId>
+    <artifactId>nacos-client</artifactId>
+    <version>${nacos.version}</version>
+</dependency>
+```
+
+|协议|验证过版本|推荐版本|
+|--|--|--|
+|grpc协议(2.x)|2.1.0|>2.1.x|
+|http协议(1.x)|1.4.1|>1.4.x|
+
+
 [其它语言](https://nacos.io/zh-cn/docs/other-language.html)
 
 [open-api](https://nacos.io/zh-cn/docs/open-api.html)
@@ -284,86 +301,5 @@ curl "http://127.0.0.1:8848/nacos/v1/ns/instance/list?&namespaceId=public&servic
 
 前端应用因依赖nodejs,所以单独放到另一个项目 [rnacos-console-web](https://github.com/heqingpan/rnacos-console-web) ,再通过cargo 把打包好的前端资源引入到本项目,避免开发rust时还要依赖nodejs。
 
-### 配置中心raft协议
 
-raft协议的主要逻辑：
-1. 节点区分角色：leader(主节点),follower(从节点),candidate(选举节点); 
-2. 稳定状态是一个主节点，多个从节点；
-3. 主节点负责写入，写入时需要先把写入日志同步到其它节点，超过半数节点写入日志成功后才能提交日志到状态机。
-4. 主节点需要定时发心跳到从节点，从节点如果超时未收到心跳，则会发起选举。选举时收到超过半数节点的同意，就可以切换成主节点。
-
-具体协议可以参考 [raft协议论文](https://docs.qq.com/doc/DY0VxSkVGWHFYSlZJ)
-
-rnacos 接入 raft的主要逻辑：
-
-1.  基于 async-raft 库实现raft协议，主要实现网络层和存储层。在 rnacos中存储层的状态机就是配置中心。
-2.  配置中心接入raft 协议的状态机，由 raft 状态机驱动更新配置中心的内容。
-
-rnacos一个三节点的配置中心请求处理示例：
-
-
-![](https://github.com/heqingpan/rnacos/raw/master/doc/assets/imgs/20230917182416.png)
-
-
-写入:
-
-1. 客户端随机向一个节点发起一个更新配置请求
-2. 在请求入口层加一个raft路由判断，如果本节点是主节点则处理，否则路由到指定主节点处理
-3. 主节点写入请求到raft日志
-4. 将请求同步到其它从节点
-5. 如果超过半数节点写入日志成功（包含自身），则提交请求日志到状态机中，配置写入配置中心。（其它从节点的提交在下次日志同步或心跳时提交）
-6. 返回处理结果
-
-请求：
-1. 客户端随机向一个节点发起一个查询配置请求
-1. 收到请求的节点和单机处理一样，直接查询本节点配置中心数据返回。
-
-
-### 注册中心类distro协议
-
-协议主要逻辑：
-
-1. 每个节点有全量的数据，都可提供注册信息查询服务。
-2. 注册中心每个节点平等，按hash划分每个节点负责的内容；节点对负责的服务可写，否则转发到对应负责的节点处理。
-3. 通过 grpc协议注册的服务，接收的节点直接处理。
-4. 一个节点更新服务实例信息后再同步给其它节点。
-
-具体协议可以参考java nacos 的distro协议实现 。
-rnacos 和 java版主体逻辑相同，但实现的细节有些区别。
-
-
-rnacos一个三节点的注册中心请求处理示例：
-
-![](https://github.com/heqingpan/rnacos/raw/master/doc/assets/imgs/20230917182622.png)
-
-http 写入：
-
-1. 客户端随机向一个节点发起一个注册服务实例请求
-2. 请求跳过服务路由判断，如果服务路由的节点是本节点则处理，否则路由到指定的其它节点处理
-3. 收到本节点负责的服务实例请求，把请求注册到注册中心中
-4. 返回处理结果
-5. 异步同步更新的数据到其它节点
-
-grpc 写入（不路由，本节点直接处理）：
-
-1. 客户端随机向一个节点发起grpc长链接
-2. 客户端发起一个注册服务实例请求
-3. 像单机一样，把请求注册到注册中心中
-4. 返回处理结果
-5. 异步同步更新的数据到其它节点
-
-查询：
-
-1. 客户端随机向一个节点发起一个查询服务信息请求
-2. 收到请求的节点和单机处理一样，直接查询本节点注册中心数据返回。
-
-
-#### 为什么http的写入与grpc写入的路由逻辑不同？
-
-因为grpc的心跳是按长链接来处理，一个客户端的链接段开，则这个链接的所用请求都失效。【高效】
-
-然后http的实例注册是无状态的，只能通过定时器按注册时间更新实例的状态；同时注册中心中实例是按服务分类维护的。
-所以http注册的实例需要按服务做路由，这样才能支持不同的节点负责不同范围的服务。【低效】
-
-所以在注册中心使用grpc协议的性能会比http协议性能好很多。
-
+rnacos架构设计参考： [架构](https://heqingpan.github.io/rnacos/architecture.html)
