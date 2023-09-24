@@ -1,3 +1,9 @@
+## v0.3.5
+
+2023-09-24
+
+1. 通过将actix-web web::Form<T> 自动构建参数对象的方式更新为从 request body 手动构建参数，兼容兼容 java nacos-client 1.3.x 。  fix issues #18
+
 ## v0.3.4
 
 2023-09-20
