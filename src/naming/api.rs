@@ -1,5 +1,6 @@
 #![allow(unused_imports, unused_assignments, unused_variables)]
 use crate::common::appdata::AppShareData;
+use crate::common::web_utils::get_req_body;
 
 use super::super::utils::{get_bool_from_string, select_option_by_clone};
 use super::api_model::{InstanceVO, QueryListResult, ServiceInfoParam};
@@ -350,9 +351,21 @@ pub async fn get_instance_list(
 
 pub async fn add_instance(
     a: web::Query<InstanceWebParams>,
-    b: web::Form<InstanceWebParams>,
+    payload: web::Payload,
     appdata: web::Data<Arc<AppShareData>>,
 ) -> impl Responder {
+    let body = match get_req_body(payload).await {
+        Ok(v) => v,
+        Err(err) => {
+            return HttpResponse::InternalServerError().body(err.to_string());
+        }
+    };
+    let b = match serde_urlencoded::from_bytes(&body.to_vec()) {
+        Ok(v) => v,
+        Err(err) => {
+            return HttpResponse::InternalServerError().body(err.to_string());
+        }
+    };
     let param = a.select_option(&b);
     let update_tag = InstanceUpdateTag {
         weight: match &param.weight {
@@ -385,9 +398,21 @@ pub async fn add_instance(
 
 pub async fn update_instance(
     a: web::Query<InstanceWebParams>,
-    b: web::Form<InstanceWebParams>,
+    payload: web::Payload,
     appdata: web::Data<Arc<AppShareData>>,
 ) -> impl Responder {
+    let body = match get_req_body(payload).await {
+        Ok(v) => v,
+        Err(err) => {
+            return HttpResponse::InternalServerError().body(err.to_string());
+        }
+    };
+    let b = match serde_urlencoded::from_bytes(&body.to_vec()) {
+        Ok(v) => v,
+        Err(err) => {
+            return HttpResponse::InternalServerError().body(err.to_string());
+        }
+    };
     let param = a.select_option(&b);
     let update_tag = InstanceUpdateTag {
         weight: match &param.weight {
@@ -431,9 +456,21 @@ pub async fn update_instance(
 
 pub async fn del_instance(
     a: web::Query<InstanceWebParams>,
-    b: web::Form<InstanceWebParams>,
+    payload: web::Payload,
     appdata: web::Data<Arc<AppShareData>>,
 ) -> impl Responder {
+    let body = match get_req_body(payload).await {
+        Ok(v) => v,
+        Err(err) => {
+            return HttpResponse::InternalServerError().body(err.to_string());
+        }
+    };
+    let b = match serde_urlencoded::from_bytes(&body.to_vec()) {
+        Ok(v) => v,
+        Err(err) => {
+            return HttpResponse::InternalServerError().body(err.to_string());
+        }
+    };
     let param = a.select_option(&b);
     let instance = param.convert_to_instance();
     match instance {
@@ -453,9 +490,21 @@ pub async fn del_instance(
 
 pub async fn beat_instance(
     a: web::Query<BeatRequest>,
-    b: web::Form<BeatRequest>,
+    payload: web::Payload,
     appdata: web::Data<Arc<AppShareData>>,
 ) -> impl Responder {
+    let body = match get_req_body(payload).await {
+        Ok(v) => v,
+        Err(err) => {
+            return HttpResponse::InternalServerError().body(err.to_string());
+        }
+    };
+    let b = match serde_urlencoded::from_bytes(&body.to_vec()) {
+        Ok(v) => v,
+        Err(err) => {
+            return HttpResponse::InternalServerError().body(err.to_string());
+        }
+    };
     let param = a.select_option(&b);
     //debug
     //log::info!("beat request param:{}",serde_json::to_string(&param).unwrap());
@@ -503,11 +552,23 @@ pub async fn query_service(
 }
 
 pub async fn update_service(
-    param0: web::Form<ServiceInfoParam>,
-    param1: web::Query<ServiceInfoParam>,
+    a: web::Query<ServiceInfoParam>,
+    payload: web::Payload,
     naming_addr: web::Data<Addr<NamingActor>>,
 ) -> impl Responder {
-    let param = ServiceInfoParam::merge_value(param0.0, param1.0);
+    let body = match get_req_body(payload).await {
+        Ok(v) => v,
+        Err(err) => {
+            return HttpResponse::InternalServerError().body(err.to_string());
+        }
+    };
+    let b = match serde_urlencoded::from_bytes(&body.to_vec()) {
+        Ok(v) => v,
+        Err(err) => {
+            return HttpResponse::InternalServerError().body(err.to_string());
+        }
+    };
+    let param = ServiceInfoParam::merge_value(a.0, b);
     match param.build_service_info() {
         Ok(service_info) => {
             let _ = naming_addr
@@ -520,11 +581,23 @@ pub async fn update_service(
 }
 
 pub async fn remove_service(
-    param0: web::Form<ServiceInfoParam>,
-    param1: web::Query<ServiceInfoParam>,
+    a: web::Query<ServiceInfoParam>,
+    payload: web::Payload,
     naming_addr: web::Data<Addr<NamingActor>>,
 ) -> impl Responder {
-    let param = ServiceInfoParam::merge_value(param0.0, param1.0);
+    let body = match get_req_body(payload).await {
+        Ok(v) => v,
+        Err(err) => {
+            return HttpResponse::InternalServerError().body(err.to_string());
+        }
+    };
+    let b = match serde_urlencoded::from_bytes(&body.to_vec()) {
+        Ok(v) => v,
+        Err(err) => {
+            return HttpResponse::InternalServerError().body(err.to_string());
+        }
+    };
+    let param = ServiceInfoParam::merge_value(a.0, b);
     match param.build_service_info() {
         Ok(service_info) => {
             let key = service_info.to_service_key();

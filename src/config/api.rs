@@ -1,5 +1,6 @@
 use super::core::{ConfigActor, ConfigCmd, ConfigKey, ConfigResult, ListenerItem, ListenerResult};
 use crate::common::appdata::AppShareData;
+use crate::common::web_utils::get_req_body;
 use crate::raft::cluster::model::{DelConfigReq, SetConfigReq};
 use crate::utils::select_option_by_clone;
 use chrono::Local;
@@ -69,9 +70,21 @@ pub struct ConfigWebConfirmedParam {
 
 async fn add_config(
     a: web::Query<ConfigWebParams>,
-    b: web::Form<ConfigWebParams>,
+    payload: web::Payload,
     appdata: web::Data<Arc<AppShareData>>,
 ) -> impl Responder {
+    let body = match get_req_body(payload).await {
+        Ok(v) => v,
+        Err(err) => {
+            return HttpResponse::InternalServerError().body(err.to_string());
+        }
+    };
+    let b = match serde_urlencoded::from_bytes(&body.to_vec()) {
+        Ok(v) => v,
+        Err(err) => {
+            return HttpResponse::InternalServerError().body(err.to_string());
+        }
+    };
     let param = a.select_option(&b).to_confirmed_param();
     match param {
         Ok(p) => {
@@ -92,9 +105,21 @@ async fn add_config(
 
 async fn del_config(
     a: web::Query<ConfigWebParams>,
-    b: web::Form<ConfigWebParams>,
+    payload: web::Payload,
     appdata: web::Data<Arc<AppShareData>>,
 ) -> impl Responder {
+    let body = match get_req_body(payload).await {
+        Ok(v) => v,
+        Err(err) => {
+            return HttpResponse::InternalServerError().body(err.to_string());
+        }
+    };
+    let b = match serde_urlencoded::from_bytes(&body.to_vec()) {
+        Ok(v) => v,
+        Err(err) => {
+            return HttpResponse::InternalServerError().body(err.to_string());
+        }
+    };
     let param = a.select_option(&b).to_confirmed_param();
     match param {
         Ok(p) => {
@@ -158,9 +183,21 @@ impl ListenerParams {
 async fn listener_config(
     _req: HttpRequest,
     a: web::Query<ListenerParams>,
-    b: web::Form<ListenerParams>,
+    payload: web::Payload,
     config_addr: web::Data<Addr<ConfigActor>>,
 ) -> impl Responder {
+    let body = match get_req_body(payload).await {
+        Ok(v) => v,
+        Err(err) => {
+            return HttpResponse::InternalServerError().body(err.to_string());
+        }
+    };
+    let b = match serde_urlencoded::from_bytes(&body.to_vec()) {
+        Ok(v) => v,
+        Err(err) => {
+            return HttpResponse::InternalServerError().body(err.to_string());
+        }
+    };
     let list = a.select_option(&b).to_items();
     if list.is_empty() {
         //println!("listener_config error: listener item len == 0");
