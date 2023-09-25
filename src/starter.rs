@@ -109,7 +109,7 @@ pub fn build_share_data(sys_config: Arc<AppSysConfig>) -> anyhow::Result<Arc<App
         naming_node_manage,
     });
     factory.register(BeanDefinition::from_obj(app_data.clone()));
-    factory.init();
+    factory.do_init();
     Ok(app_data)
 }
 
