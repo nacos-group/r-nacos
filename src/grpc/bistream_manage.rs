@@ -174,7 +174,12 @@ impl Actor for BiStreamManage {
 impl Inject for BiStreamManage {
     type Context = Context<Self>;
 
-    fn inject(&mut self, factory_data: bean_factory::FactoryData, _factory: bean_factory::BeanFactory, _ctx: &mut Self::Context) {
+    fn inject(
+        &mut self,
+        factory_data: bean_factory::FactoryData,
+        _factory: bean_factory::BeanFactory,
+        _ctx: &mut Self::Context,
+    ) {
         self.config_addr = factory_data.get_actor();
         self.naming_addr = factory_data.get_actor();
         log::info!("BiStreamManage inject complete");

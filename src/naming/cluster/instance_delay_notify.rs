@@ -34,13 +34,17 @@ impl Actor for ClusterInstanceDelayNotifyActor {
 impl Inject for ClusterInstanceDelayNotifyActor {
     type Context = Context<Self>;
 
-    fn inject(&mut self, factory_data: bean_factory::FactoryData, _factory: bean_factory::BeanFactory, _ctx: &mut Self::Context) {
+    fn inject(
+        &mut self,
+        factory_data: bean_factory::FactoryData,
+        _factory: bean_factory::BeanFactory,
+        _ctx: &mut Self::Context,
+    ) {
         self.manage_addr = factory_data.get_actor();
         log::info!("ClusterInstanceDelayNotifyActor inject complete");
     }
 
-    fn complete(&mut self, _ctx: &mut Self::Context) {
-    }
+    fn complete(&mut self, _ctx: &mut Self::Context) {}
 }
 
 impl Default for ClusterInstanceDelayNotifyActor {

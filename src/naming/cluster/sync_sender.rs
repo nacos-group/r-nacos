@@ -61,13 +61,17 @@ impl Handler<SyncSenderRequest> for ClusteSyncSender {
     type Result = ResponseActFuture<Self, anyhow::Result<SyncSenderResponse>>;
 
     fn handle(&mut self, msg: SyncSenderRequest, _ctx: &mut Self::Context) -> Self::Result {
-        let cluster_sender =  self.cluster_sender.clone();
+        let cluster_sender = self.cluster_sender.clone();
         let target_addr = self.target_addr.clone();
         let send_extend_infos = self.send_extend_infos.clone();
         let fut = async move {
             let cluster_sender = match cluster_sender {
                 Some(v) => v,
-                None => return Err(anyhow::anyhow!("ClusteSyncSender,the cluster sender is none!")),
+                None => {
+                    return Err(anyhow::anyhow!(
+                        "ClusteSyncSender,the cluster sender is none!"
+                    ))
+                }
             };
             let req = msg.0;
             let request = serde_json::to_string(&req).unwrap_or_default();

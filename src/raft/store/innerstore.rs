@@ -14,6 +14,7 @@ use super::{
 use actix::prelude::*;
 use async_raft_ext::raft::{Entry, EntryPayload, MembershipConfig};
 use async_raft_ext::storage::{CurrentSnapshotData, HardState, InitialState};
+use bean_factory::{bean, Inject};
 use std::io::Cursor;
 use std::sync::Arc;
 
@@ -26,10 +27,11 @@ fn logs(db: &sled::Db) -> sled::Tree {
     db.open_tree("raft_logs").expect("logs open failed")
 }
 
+#[bean(inject)]
 #[derive(Debug)]
 pub struct InnerStore {
     db: Arc<sled::Db>,
-    config_addr: Addr<ConfigActor>,
+    config_addr: Option<Addr<ConfigActor>>,
     naming_inner_node_manage: Option<Addr<InnerNodeManage>>,
     id: NodeId,
     /// The Raft log.
@@ -45,10 +47,10 @@ pub struct InnerStore {
 }
 
 impl InnerStore {
-    pub fn new(id: u64, db: Arc<sled::Db>, config_addr: Addr<ConfigActor>) -> Self {
+    pub fn new(id: u64, db: Arc<sled::Db>) -> Self {
         Self {
             id,
-            config_addr,
+            config_addr: None,
             db,
             log: Default::default(),
             state_machine: Default::default(),
@@ -56,6 +58,18 @@ impl InnerStore {
             membership: Default::default(),
             naming_inner_node_manage: None,
         }
+    }
+
+    pub(crate) fn create_at_new_system(id: u64, db: Arc<sled::Db>) -> Addr<InnerStore> {
+        let inner = Self::new(id, db);
+        let (tx, rx) = std::sync::mpsc::sync_channel(1);
+        std::thread::spawn(move || {
+            let rt = System::new();
+            let addrs = rt.block_on(async { inner.start() });
+            tx.send(addrs).unwrap();
+            rt.run().unwrap();
+        });
+        rx.recv().unwrap()
     }
 
     fn init(&mut self) -> anyhow::Result<()> {
@@ -72,8 +86,14 @@ impl InnerStore {
             self.membership = m;
         }
         self.state_machine.last_applied_log = self.get_last_applied_log_()?;
-
+        self.do_notify_membership(true);
         Ok(())
+    }
+
+    fn do_send_to_config(&self, cmd: ConfigRaftCmd) {
+        if let Some(addr) = &self.config_addr {
+            addr.do_send(cmd);
+        }
     }
 
     fn set_hard_state_(&self, hs: &HardState) -> anyhow::Result<()> {
@@ -365,12 +385,12 @@ impl InnerStore {
                                 history_id,
                                 history_table_id,
                             };
-                            self.config_addr.do_send(cmd);
+                            self.do_send_to_config(cmd);
                             //self.wait_send_config_raft_cmd(cmd,ctx).ok();
                         }
                         ClientRequest::ConfigRemove { key } => {
                             let cmd = ConfigRaftCmd::ConfigRemove { key };
-                            self.config_addr.do_send(cmd);
+                            self.do_send_to_config(cmd);
                             //self.wait_send_config_raft_cmd(cmd,ctx).ok();
                         }
                         ClientRequest::NodeAddr { id, addr } => {
@@ -539,7 +559,7 @@ impl InnerStore {
         // Update current snapshot.
         self.set_snapshot_(snapshot.get_ref().as_slice())?;
         let cmd = ConfigRaftCmd::ApplySnaphot;
-        self.config_addr.do_send(cmd);
+        self.do_send_to_config(cmd);
         //self.wait_send_config_raft_cmd(cmd,ctx).ok();
 
         Ok(())
@@ -615,8 +635,23 @@ impl Actor for InnerStore {
     type Context = Context<Self>;
 
     fn started(&mut self, _ctx: &mut Self::Context) {
-        self.init().ok();
         log::info!("InnerStore started");
+    }
+}
+
+impl Inject for InnerStore {
+    type Context = Context<Self>;
+
+    fn inject(
+        &mut self,
+        factory_data: bean_factory::FactoryData,
+        _factory: bean_factory::BeanFactory,
+        _ctx: &mut Self::Context,
+    ) {
+        self.config_addr = factory_data.get_actor();
+        self.naming_inner_node_manage = factory_data.get_actor();
+        self.init().ok();
+        log::info!("InnerStore inject complete!");
     }
 }
 
@@ -652,7 +687,6 @@ pub enum StoreRequest {
     },
     GetCurrentSnapshot,
     GetTargetAddr(u64),
-    SetNamingNodeManageAddr(Addr<InnerNodeManage>),
 }
 
 pub enum StoreResponse {
@@ -748,11 +782,6 @@ impl Handler<StoreRequest> for InnerStore {
             StoreRequest::GetTargetAddr(id) => {
                 let v = self.membership.node_addr.get(&id).cloned();
                 Ok(StoreResponse::TargetAddr(v))
-            }
-            StoreRequest::SetNamingNodeManageAddr(addr) => {
-                self.naming_inner_node_manage = Some(addr);
-                self.do_notify_membership(true);
-                Ok(StoreResponse::None)
             }
         }
     }

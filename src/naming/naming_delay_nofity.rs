@@ -128,14 +128,18 @@ impl Actor for DelayNotifyActor {
 impl Inject for DelayNotifyActor {
     type Context = Context<Self>;
 
-    fn inject(&mut self, factory_data: bean_factory::FactoryData, _factory: bean_factory::BeanFactory, _ctx: &mut Self::Context) {
+    fn inject(
+        &mut self,
+        factory_data: bean_factory::FactoryData,
+        _factory: bean_factory::BeanFactory,
+        _ctx: &mut Self::Context,
+    ) {
         self.conn_manage = factory_data.get_actor();
         self.naming_addr = factory_data.get_actor();
         log::info!(" DelayNotifyActor inject complete");
     }
 
-    fn complete(&mut self, _ctx: &mut Self::Context) {
-    }
+    fn complete(&mut self, _ctx: &mut Self::Context) {}
 }
 
 impl Supervised for DelayNotifyActor {

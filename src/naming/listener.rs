@@ -8,12 +8,12 @@
 
 use crate::naming::api_model::QueryListResult;
 use crate::utils::gz_encode;
+use bean_factory::{bean, Inject};
 use std::cmp::max;
 use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::Duration;
 use std::{collections::HashMap, net::SocketAddr};
-use bean_factory::{bean, Inject};
 use tokio::net::UdpSocket;
 
 use actix::prelude::*;
@@ -357,13 +357,17 @@ impl Actor for InnerNamingListener {
 impl Inject for InnerNamingListener {
     type Context = Context<Self>;
 
-    fn inject(&mut self, factory_data: bean_factory::FactoryData, factory: bean_factory::BeanFactory, ctx: &mut Self::Context) {
+    fn inject(
+        &mut self,
+        factory_data: bean_factory::FactoryData,
+        factory: bean_factory::BeanFactory,
+        ctx: &mut Self::Context,
+    ) {
         self.naming_addr = factory_data.get_actor();
         log::info!(" InnerNamingListener inject complete");
     }
 
-    fn complete(&mut self, ctx: &mut Self::Context) {
-    }
+    fn complete(&mut self, ctx: &mut Self::Context) {}
 }
 
 impl Supervised for InnerNamingListener {

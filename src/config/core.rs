@@ -1,6 +1,6 @@
 use async_raft_ext::raft::ClientWriteRequest;
-use bean_factory::Inject;
 use bean_factory::bean;
+use bean_factory::Inject;
 use chrono::Local;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
@@ -295,12 +295,17 @@ pub struct ConfigActor {
 }
 
 impl Inject for ConfigActor {
-    type Context=Context<Self>;
+    type Context = Context<Self>;
 
-    fn inject(&mut self, factory_data: bean_factory::FactoryData, _factory: bean_factory::BeanFactory, _ctx: &mut Self::Context) {
-        let raft:Option<Arc<NacosRaft>> = factory_data.get_bean();
-        self.raft = raft.map(|e|Arc::downgrade(&e));
-        if let Some(conn_manage )= factory_data.get_actor() {
+    fn inject(
+        &mut self,
+        factory_data: bean_factory::FactoryData,
+        _factory: bean_factory::BeanFactory,
+        _ctx: &mut Self::Context,
+    ) {
+        let raft: Option<Arc<NacosRaft>> = factory_data.get_bean();
+        self.raft = raft.map(|e| Arc::downgrade(&e));
+        if let Some(conn_manage) = factory_data.get_actor() {
             self.subscriber.set_conn_manage(conn_manage);
         }
         log::info!("ConfigActor inject complete");

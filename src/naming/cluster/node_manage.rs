@@ -6,7 +6,7 @@ use std::{
 };
 
 use actix::prelude::*;
-use bean_factory::{Inject, bean};
+use bean_factory::{bean, Inject};
 
 use crate::{
     naming::core::{NamingActor, NamingCmd},
@@ -335,7 +335,12 @@ impl Actor for InnerNodeManage {
 impl Inject for InnerNodeManage {
     type Context = Context<Self>;
 
-    fn inject(&mut self, factory_data: bean_factory::FactoryData, _factory: bean_factory::BeanFactory, _ctx: &mut Self::Context) {
+    fn inject(
+        &mut self,
+        factory_data: bean_factory::FactoryData,
+        _factory: bean_factory::BeanFactory,
+        _ctx: &mut Self::Context,
+    ) {
         self.naming_actor = factory_data.get_actor();
         self.cluster_sender = factory_data.get_bean();
         log::info!("InnerNodeManage inject complete!");

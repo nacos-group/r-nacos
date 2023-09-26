@@ -1,9 +1,6 @@
 use std::io::Cursor;
 use std::sync::Arc;
 
-use crate::config::core::ConfigActor;
-use crate::naming::cluster::node_manage::InnerNodeManage;
-
 use super::ClientRequest;
 use super::ClientResponse;
 use super::{
@@ -17,25 +14,13 @@ use async_raft_ext::storage::{CurrentSnapshotData, HardState, InitialState};
 use async_raft_ext::RaftStorage;
 use async_trait::async_trait;
 
-fn init_inner_store(inner: InnerStore) -> Addr<InnerStore> {
-    let (tx, rx) = std::sync::mpsc::sync_channel(1);
-    std::thread::spawn(move || {
-        let rt = System::new();
-        let addrs = rt.block_on(async { inner.start() });
-        tx.send(addrs).unwrap();
-        rt.run().unwrap();
-    });
-    rx.recv().unwrap()
-}
-
 #[derive(Clone)]
 pub struct RaftStore {
     inner_addr: Addr<InnerStore>,
 }
 
 impl RaftStore {
-    pub fn new(id: u64, db: Arc<sled::Db>, config_addr: Addr<ConfigActor>) -> Self {
-        let inner_addr = init_inner_store(InnerStore::new(id, db, config_addr));
+    pub fn new(inner_addr: Addr<InnerStore>) -> Self {
         Self { inner_addr }
     }
 
@@ -56,11 +41,6 @@ impl RaftStore {
             StoreResponse::TargetAddr(Some(v)) => Ok(v),
             _ => Err(anyhow::anyhow!("get_state_value error")),
         }
-    }
-
-    pub fn set_naming_manage_addr(&self, naming_addr: Addr<InnerNodeManage>) {
-        self.inner_addr
-            .do_send(StoreRequest::SetNamingNodeManageAddr(naming_addr));
     }
 }
 

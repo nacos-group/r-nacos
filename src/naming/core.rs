@@ -42,7 +42,7 @@ use crate::grpc::bistream_manage::BiStreamManage;
 use crate::now_millis;
 use crate::now_millis_i64;
 use crate::utils::gz_encode;
-use bean_factory::{Inject, InjectComponent, bean,};
+use bean_factory::{bean, Inject, InjectComponent};
 use chrono::Local;
 use inner_mem_cache::TimeoutSet;
 use serde::{Deserialize, Serialize};
@@ -76,7 +76,6 @@ pub struct NamingActor {
     //dal_addr: Addr<ServiceDalActor>,
 }
 
-
 impl Actor for NamingActor {
     type Context = Context<Self>;
 
@@ -87,9 +86,14 @@ impl Actor for NamingActor {
 }
 
 impl Inject for NamingActor {
-    type Context=Context<Self>;
+    type Context = Context<Self>;
 
-    fn inject(&mut self, factory_data: bean_factory::FactoryData, _factory: bean_factory::BeanFactory, ctx: &mut Self::Context) {
+    fn inject(
+        &mut self,
+        factory_data: bean_factory::FactoryData,
+        _factory: bean_factory::BeanFactory,
+        ctx: &mut Self::Context,
+    ) {
         self.listener_addr = factory_data.get_actor();
         self.delay_notify_addr = factory_data.get_actor();
         if let Some(notify_addr) = self.delay_notify_addr.as_ref() {
@@ -107,7 +111,7 @@ impl Inject for NamingActor {
 
 impl Default for NamingActor {
     fn default() -> Self {
-       Self::new() 
+        Self::new()
     }
 }
 
