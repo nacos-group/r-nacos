@@ -26,14 +26,14 @@ use crate::{
                 factory::{RaftClusterRequestSender, RaftConnectionFactory},
             },
             store::{core::RaftStore, ClientRequest},
-        },
+        }
     },
 };
 use actix::prelude::*;
 use async_raft_ext::{raft::ClientWriteRequest, Config, Raft, RaftStorage};
-use bean_factory::{BeanDefinition, BeanFactory};
+use bean_factory::{BeanDefinition, BeanFactory, FactoryData};
 
-pub fn build_share_data(sys_config: Arc<AppSysConfig>) -> anyhow::Result<Arc<AppShareData>> {
+pub async fn config_factory(sys_config: Arc<AppSysConfig>) -> anyhow::Result<FactoryData> {
     let db = Arc::new(
         sled::Config::new()
             .path(&sys_config.config_db_dir)
@@ -107,22 +107,23 @@ pub fn build_share_data(sys_config: Arc<AppSysConfig>) -> anyhow::Result<Arc<App
     factory.register(BeanDefinition::actor_with_inject_from_obj(
         bistream_manage_addr.clone(),
     ));
+    Ok(factory.init().await)
+}
 
+pub fn build_share_data(factory_data : FactoryData) -> anyhow::Result<Arc<AppShareData>> {
     let app_data = Arc::new(AppShareData {
-        config_addr,
-        naming_addr,
-        bi_stream_manage: bistream_manage_addr,
-        raft,
-        raft_store: store,
-        sys_config,
-        config_route,
-        cluster_sender,
-        naming_route,
-        naming_inner_node_manage: naming_inner_node_manage_addr,
-        naming_node_manage,
+        config_addr: factory_data.get_actor().unwrap(),
+        naming_addr: factory_data.get_actor().unwrap(),
+        bi_stream_manage: factory_data.get_actor().unwrap(),
+        raft: factory_data.get_bean().unwrap(),
+        raft_store: factory_data.get_bean().unwrap(),
+        sys_config: factory_data.get_bean().unwrap(),
+        config_route: factory_data.get_bean().unwrap(),
+        cluster_sender: factory_data.get_bean().unwrap(),
+        naming_route: factory_data.get_bean().unwrap(),
+        naming_inner_node_manage: factory_data.get_actor().unwrap(),
+        naming_node_manage: factory_data.get_bean().unwrap(),
     });
-    factory.register(BeanDefinition::from_obj(app_data.clone()));
-    factory.do_init();
     Ok(app_data)
 }
 

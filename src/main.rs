@@ -19,7 +19,7 @@ use rnacos::raft::network::core::RaftRouter;
 use rnacos::raft::network::factory::{RaftClusterRequestSender, RaftConnectionFactory};
 use rnacos::raft::store::core::RaftStore;
 use rnacos::raft::store::ClientRequest;
-use rnacos::starter::build_share_data;
+use rnacos::starter::{build_share_data, config_factory};
 use rnacos::{grpc::server::RequestServerImpl, naming::core::NamingActor};
 use sled::Db;
 use std::collections::{BTreeMap, HashSet};
@@ -50,7 +50,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     std::env::set_var("RUST_LOG", &rust_log);
     env_logger::builder().format_timestamp_micros().init();
     let sys_config = Arc::new(AppSysConfig::init_from_env());
-    let app_data = build_share_data(sys_config.clone())?;
+    let factory_data = config_factory(sys_config.clone()).await?;
+    let app_data = build_share_data(factory_data.clone())?;
     let http_addr = sys_config.get_http_addr();
     let grpc_addr = sys_config.get_grpc_addr();
     log::info!("http server addr:{}", &http_addr);
@@ -84,13 +85,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
         let naming_addr = app_data.naming_addr.clone();
         let bistream_manage_http_addr = app_data.bi_stream_manage.clone();
         let app_data = app_data.clone();
-        //let naming_dal_addr = naming_dal_addr.clone();
+        let factory_data = factory_data.clone();
         App::new()
             .app_data(app_data)
             .app_data(Data::new(config_addr))
             .app_data(Data::new(naming_addr))
             .app_data(Data::new(bistream_manage_http_addr))
-            //.app_data(Data::new(naming_dal_addr))
+            .app_data(Data::new(factory_data))
             .wrap(middleware::Logger::default())
             .configure(app_config)
     });

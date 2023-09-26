@@ -184,10 +184,6 @@ impl Inject for BiStreamManage {
         self.naming_addr = factory_data.get_actor();
         log::info!("BiStreamManage inject complete");
     }
-
-    fn complete(&mut self, _ctx: &mut Self::Context) {
-        //
-    }
 }
 
 impl Supervised for BiStreamManage {

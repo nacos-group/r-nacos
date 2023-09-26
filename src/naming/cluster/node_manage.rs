@@ -345,10 +345,6 @@ impl Inject for InnerNodeManage {
         self.cluster_sender = factory_data.get_bean();
         log::info!("InnerNodeManage inject complete!");
     }
-
-    fn complete(&mut self, _ctx: &mut Self::Context) {
-        //
-    }
 }
 
 #[derive(Message, Debug)]

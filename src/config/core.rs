@@ -310,10 +310,6 @@ impl Inject for ConfigActor {
         }
         log::info!("ConfigActor inject complete");
     }
-
-    fn complete(&mut self, _ctx: &mut Self::Context) {
-        //Factory init complete
-    }
 }
 
 /*

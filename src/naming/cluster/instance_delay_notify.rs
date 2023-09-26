@@ -43,8 +43,6 @@ impl Inject for ClusterInstanceDelayNotifyActor {
         self.manage_addr = factory_data.get_actor();
         log::info!("ClusterInstanceDelayNotifyActor inject complete");
     }
-
-    fn complete(&mut self, _ctx: &mut Self::Context) {}
 }
 
 impl Default for ClusterInstanceDelayNotifyActor {

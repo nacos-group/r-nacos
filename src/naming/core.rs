@@ -103,10 +103,6 @@ impl Inject for NamingActor {
         self.cluster_delay_notify = factory_data.get_actor();
         log::info!("NamingActor inject complete");
     }
-
-    fn complete(&mut self, ctx: &mut Self::Context) {
-        //Factory init complete
-    }
 }
 
 impl Default for NamingActor {

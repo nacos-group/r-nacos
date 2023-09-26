@@ -366,8 +366,6 @@ impl Inject for InnerNamingListener {
         self.naming_addr = factory_data.get_actor();
         log::info!(" InnerNamingListener inject complete");
     }
-
-    fn complete(&mut self, ctx: &mut Self::Context) {}
 }
 
 impl Supervised for InnerNamingListener {
