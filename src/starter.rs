@@ -26,7 +26,7 @@ use crate::{
                 factory::{RaftClusterRequestSender, RaftConnectionFactory},
             },
             store::{core::RaftStore, ClientRequest},
-        }
+        },
     },
 };
 use actix::prelude::*;
@@ -110,7 +110,7 @@ pub async fn config_factory(sys_config: Arc<AppSysConfig>) -> anyhow::Result<Fac
     Ok(factory.init().await)
 }
 
-pub fn build_share_data(factory_data : FactoryData) -> anyhow::Result<Arc<AppShareData>> {
+pub fn build_share_data(factory_data: FactoryData) -> anyhow::Result<Arc<AppShareData>> {
     let app_data = Arc::new(AppShareData {
         config_addr: factory_data.get_actor().unwrap(),
         naming_addr: factory_data.get_actor().unwrap(),
@@ -123,7 +123,7 @@ pub fn build_share_data(factory_data : FactoryData) -> anyhow::Result<Arc<AppSha
         naming_route: factory_data.get_bean().unwrap(),
         naming_inner_node_manage: factory_data.get_actor().unwrap(),
         naming_node_manage: factory_data.get_bean().unwrap(),
-        factory_data
+        factory_data,
     });
     Ok(app_data)
 }
