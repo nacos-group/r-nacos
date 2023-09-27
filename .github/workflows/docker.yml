@@ -50,3 +50,49 @@ jobs:
             ${{ steps.meta.outputs.tags }}
             ${{ secrets.DOCKERHUB_USERNAME }}/rnacos:stable
           labels: ${{ steps.meta.outputs.labels }}
+
+  docker-alpine:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: use alpine dockerfile
+        run: cp docker/alpine_dockerfile Dockerfile
+      - name: Set up QEMU
+        if: ${{ startsWith(github.ref, 'refs/tags/') }}
+        uses: docker/setup-qemu-action@v2
+      - name: Set up Docker Buildx
+        if: ${{ startsWith(github.ref, 'refs/tags/') }}
+        uses: docker/setup-buildx-action@v2
+      - uses: docker/metadata-action@v4
+        if: ${{ startsWith(github.ref, 'refs/tags/') }}
+        id: meta
+        with:
+          images: ${{ secrets.DOCKERHUB_USERNAME }}/rnacos
+      - name: Login to Docker Hub
+        if: ${{ startsWith(github.ref, 'refs/tags/') }}
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Build and push
+        if: ${{ startsWith(github.ref, 'refs/tags/') && ( contains(github.ref, 'alpha') || contains(github.ref, 'beta') ) }}
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.tags }}-alpine
+          labels: ${{ steps.meta.outputs.labels }}
+      - name: Build and push with latest
+        if: ${{ startsWith(github.ref, 'refs/tags/') && !( contains(github.ref, 'alpha') || contains(github.ref, 'beta') ) }}
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.tags }}-alpine
+            ${{ secrets.DOCKERHUB_USERNAME }}/rnacos:stable-alpine
+          labels: ${{ steps.meta.outputs.labels }}

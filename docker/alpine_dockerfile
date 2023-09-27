@@ -1,0 +1,11 @@
+FROM --platform=$BUILDPLATFORM rust:1.72-alpine as builder
+WORKDIR /usr/src/rnacos
+COPY . .
+RUN cargo install --path .
+
+FROM alpine
+COPY --from=builder /usr/local/cargo/bin/rnacos /usr/bin/rnacos
+ENV USER root
+RUN mkdir /io
+WORKDIR /io
+ENTRYPOINT ["/usr/bin/rnacos"]
