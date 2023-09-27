@@ -1,38 +1,12 @@
-# x86_64 base
-FROM quay.io/pypa/manylinux2014_x86_64 as base-amd64
-# x86_64 builder
-FROM --platform=$BUILDPLATFORM messense/rust-musl-cross:x86_64-musl as builder-amd64
+FROM --platform=$BUILDPLATFORM rust:1.72 as builder
+WORKDIR /usr/src/rnacos
+COPY . .
+RUN cargo install --path .
 
-# aarch64 base
-FROM quay.io/pypa/manylinux2014_aarch64 as base-arm64
-# aarch64 cross compile builder
-FROM --platform=$BUILDPLATFORM messense/rust-musl-cross:aarch64-musl as builder-arm64
-
-ARG TARGETARCH
-FROM builder-$TARGETARCH as builder
-
-RUN echo $CARGO_BUILD_TARGET && \
-    echo $TARGETARCH && \
-    apt install -y openssh-client
-
+FROM debian:bookworm-slim
+# RUN apt-get update && apt-get install -y extra-runtime-dependencies && rm -rf /var/lib/apt/lists/*
+COPY --from=builder /usr/local/cargo/bin/rnacos /usr/bin/rnacos
 ENV USER root
-ENV PATH /root/.cargo/bin:$PATH
-
-ADD . /rnacos/
-
-RUN cd /rnacos && \ 
-    cargo build --release --target $CARGO_BUILD_TARGET && \
-    mv /rnacos/target/$CARGO_BUILD_TARGET/release/rnacos /usr/bin/rnacos
-
-FROM alpine
-
-ENV PATH /root/.cargo/bin:$PATH
-ENV USER root
-
 RUN mkdir /io
-
-COPY --from=builder /usr/bin/rnacos /usr/bin/rnacos
-
 WORKDIR /io
-
 ENTRYPOINT ["/usr/bin/rnacos"]
