@@ -85,13 +85,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
         let naming_addr = app_data.naming_addr.clone();
         let bistream_manage_http_addr = app_data.bi_stream_manage.clone();
         let app_data = app_data.clone();
-        let factory_data = factory_data.clone();
         App::new()
             .app_data(app_data)
             .app_data(Data::new(config_addr))
             .app_data(Data::new(naming_addr))
             .app_data(Data::new(bistream_manage_http_addr))
-            .app_data(Data::new(factory_data))
             .wrap(middleware::Logger::default())
             .configure(app_config)
     });

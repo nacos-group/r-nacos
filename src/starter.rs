@@ -123,6 +123,7 @@ pub fn build_share_data(factory_data : FactoryData) -> anyhow::Result<Arc<AppSha
         naming_route: factory_data.get_bean().unwrap(),
         naming_inner_node_manage: factory_data.get_actor().unwrap(),
         naming_node_manage: factory_data.get_bean().unwrap(),
+        factory_data
     });
     Ok(app_data)
 }

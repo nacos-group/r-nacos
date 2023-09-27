@@ -9,6 +9,7 @@ use crate::raft::network::factory::RaftClusterRequestSender;
 use crate::raft::store::core::RaftStore;
 use crate::raft::NacosRaft;
 use actix::Addr;
+use bean_factory::FactoryData;
 use std::sync::Arc;
 
 pub struct AppShareData {
@@ -23,4 +24,5 @@ pub struct AppShareData {
     pub naming_route: Arc<NamingRoute>,
     pub naming_inner_node_manage: Addr<InnerNodeManage>,
     pub naming_node_manage: Arc<NodeManage>,
+    pub factory_data : FactoryData,
 }
