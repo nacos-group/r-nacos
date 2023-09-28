@@ -53,12 +53,29 @@ windows 解压后直接运行 rnacos.exe 即可。
 方式2:  通过docker 运行
 
 ```
-#stable是最新正式版本号，也可以指定镜像版本号，如： qingpan/rnacos:v0.3.0
+#stable是最新正式版本号，也可以指定镜像版本号，如： qingpan/rnacos:v0.3.7
 docker pull qingpan/rnacos:stable  
 docker run --name mynacos -p 8848:8848 -p 9848:9848 -d qingpan/rnacos:stable
 ```
 
 docker 的容器运行目录是 /io，会从这个目录读写配置文件
+
+#### docker 版本说明
+
+应用每次打包都会同时打对应版本的docker包 ，qingpan/rnacos:$tag 。
+
+每个版本会打两类docker包
+
+|docker包类型|tag 格式| 示例 |说明 |
+|--|--|--|--|
+|gnu debian包|$version| qingpan/rnacos:v0.3.7 | docker包基于debian-slim,体积比较大(压缩包36M,解压后102M),运行性能相对较高|
+|musl alpine包|$version-alpine| qingpan/rnacos:v0.3.7-alpine | docker包基于alpine,体积比较小(压缩包11M,解压后34M),运行性能相对较低|
+
+
+如果不观注版本，可以使用最新正式版本tag: 
+
++ 最新的gnu正式版本: `qingpan/rnacos:stable`
++ 最新的alpine正式版本: `qingpan/rnacos:stable-alpine`
 
 方式3：通过 cargo 编译安装
 
@@ -80,7 +97,7 @@ cargo run
 
 测试、试用推荐使用第1、第2种方式，直接下载就可以使用。
 
-在linux下第1、第2种方式默认是musl版本(性能比gnu版本差一些)，在生产服务对性能有要求的可以考虑使用第3、第4种在对应环境编译gnu版本部署。
+在linux下第1种方式默认是musl版本(性能比gnu版本差一些)，在生产服务对性能有要求的可以考虑使用第2、第3、第4种在对应环境编译gnu版本部署。
 
 启动配置: 
 

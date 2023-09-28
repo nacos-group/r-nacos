@@ -8,6 +8,23 @@
 |v0.2.3 (不再推荐,新版bugfix暂定不再同步)|支持2.x新最版nacos面向sdk的协议|单机部署版本,配置中心数据库使用sled, 初始内存多占用25M左右,配置中心单机写入tps在1.5万以上|对配置中心有高频写入需求的应用可以考虑使用|
 |v0.1.10 (不再推荐,新版bugfix暂定不再同步)|支持1.x服务接口;除了查询服务中心服务列表外，支持2.x大部分接口|单机部署版本,配置中心数据库使用sqlite，内存占用比较低，但配置写入tps不高，7百左右|不使用2.x的注册中心服务，对内存占用敏感的小应用可以考虑使用|
 
+### docker 版本说明
+
+应用每次打包都会同时打对应版本的docker包 ，qingpan/rnacos:$tag 。
+
+每个版本会打两类docker包
+
+|docker包类型|tag 格式| 示例 |说明 |
+|--|--|--|--|
+|gnu debian包|$version| qingpan/rnacos:v0.3.7 | docker包基于debian-slim,体积比较大(压缩包36M,解压后102M),运行性能相对较高|
+|musl alpine包|$version-alpine| qingpan/rnacos:v0.3.7-alpine | docker包基于alpine,体积比较小(压缩包11M,解压后34M),运行性能相对较低|
+
+
+如果不观注版本，可以使用最新正式版本tag。
+
++ 最新的gnu正式版本: `qingpan/rnacos:stable`
++ 最新的alpine正式版本: `qingpan/rnacos:stable-alpine`
+
 
 ## nacos client sdk
 
