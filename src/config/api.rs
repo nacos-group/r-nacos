@@ -79,7 +79,7 @@ async fn add_config(
             return HttpResponse::InternalServerError().body(err.to_string());
         }
     };
-    let b = match serde_urlencoded::from_bytes(&body.to_vec()) {
+    let b = match serde_urlencoded::from_bytes(&body) {
         Ok(v) => v,
         Err(err) => {
             return HttpResponse::InternalServerError().body(err.to_string());
@@ -114,7 +114,7 @@ async fn del_config(
             return HttpResponse::InternalServerError().body(err.to_string());
         }
     };
-    let b = match serde_urlencoded::from_bytes(&body.to_vec()) {
+    let b = match serde_urlencoded::from_bytes(&body) {
         Ok(v) => v,
         Err(err) => {
             return HttpResponse::InternalServerError().body(err.to_string());
@@ -192,7 +192,7 @@ async fn listener_config(
             return HttpResponse::InternalServerError().body(err.to_string());
         }
     };
-    let b = match serde_urlencoded::from_bytes(&body.to_vec()) {
+    let b = match serde_urlencoded::from_bytes(&body) {
         Ok(v) => v,
         Err(err) => {
             return HttpResponse::InternalServerError().body(err.to_string());

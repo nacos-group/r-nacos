@@ -360,7 +360,7 @@ pub async fn add_instance(
             return HttpResponse::InternalServerError().body(err.to_string());
         }
     };
-    let b = match serde_urlencoded::from_bytes(&body.to_vec()) {
+    let b = match serde_urlencoded::from_bytes(&body) {
         Ok(v) => v,
         Err(err) => {
             return HttpResponse::InternalServerError().body(err.to_string());
@@ -407,7 +407,7 @@ pub async fn update_instance(
             return HttpResponse::InternalServerError().body(err.to_string());
         }
     };
-    let b = match serde_urlencoded::from_bytes(&body.to_vec()) {
+    let b = match serde_urlencoded::from_bytes(&body) {
         Ok(v) => v,
         Err(err) => {
             return HttpResponse::InternalServerError().body(err.to_string());
@@ -465,7 +465,7 @@ pub async fn del_instance(
             return HttpResponse::InternalServerError().body(err.to_string());
         }
     };
-    let b = match serde_urlencoded::from_bytes(&body.to_vec()) {
+    let b = match serde_urlencoded::from_bytes(&body) {
         Ok(v) => v,
         Err(err) => {
             return HttpResponse::InternalServerError().body(err.to_string());
@@ -499,7 +499,7 @@ pub async fn beat_instance(
             return HttpResponse::InternalServerError().body(err.to_string());
         }
     };
-    let b = match serde_urlencoded::from_bytes(&body.to_vec()) {
+    let b = match serde_urlencoded::from_bytes(&body) {
         Ok(v) => v,
         Err(err) => {
             return HttpResponse::InternalServerError().body(err.to_string());
@@ -562,7 +562,7 @@ pub async fn update_service(
             return HttpResponse::InternalServerError().body(err.to_string());
         }
     };
-    let b = match serde_urlencoded::from_bytes(&body.to_vec()) {
+    let b = match serde_urlencoded::from_bytes(&body) {
         Ok(v) => v,
         Err(err) => {
             return HttpResponse::InternalServerError().body(err.to_string());
@@ -591,7 +591,7 @@ pub async fn remove_service(
             return HttpResponse::InternalServerError().body(err.to_string());
         }
     };
-    let b = match serde_urlencoded::from_bytes(&body.to_vec()) {
+    let b = match serde_urlencoded::from_bytes(&body) {
         Ok(v) => v,
         Err(err) => {
             return HttpResponse::InternalServerError().body(err.to_string());
