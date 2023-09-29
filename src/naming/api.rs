@@ -655,6 +655,10 @@ pub async fn query_service_list(
     }
 }
 
+pub(crate) async fn mock_operator_metrics() -> impl Responder {
+    "{\"status\":\"UP\"}"
+}
+
 pub fn app_config(config: &mut web::ServiceConfig) {
     config.service(
         web::scope("/nacos/v1/ns")
@@ -676,6 +680,7 @@ pub fn app_config(config: &mut web::ServiceConfig) {
             )
             .service(web::resource("/service/list").route(web::get().to(query_service_list)))
             //ops
+            .service(web::resource("/operator/metrics").route(web::get().to(mock_operator_metrics)))
             .service(
                 web::resource("/catalog/services").route(web::get().to(query_opt_service_list)),
             ),
