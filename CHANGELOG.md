@@ -1,3 +1,17 @@
+## v0.3.8
+
+2023-09-29
+
+1. 修复1.x http协议对空配置监听时出现循环监听的问题。 issues #21
+2. mock `/nacos/v1/ns/operator/metrics`接口 。 issues #21 
+
+## v0.3.7
+
+2023-09-28
+
+1. 调整docker版本，同时支持gnu和musl版本。
+
+
 ## v0.3.6
 
 2023-09-27
