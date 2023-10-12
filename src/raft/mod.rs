@@ -4,9 +4,9 @@ use self::network::core::RaftRouter;
 use self::store::{core::RaftStore, ClientRequest, ClientResponse};
 
 pub mod cluster;
+pub mod db;
 pub mod network;
 pub mod store;
-pub mod db;
 
 pub type NacosRaft = Raft<ClientRequest, ClientResponse, RaftRouter, RaftStore>;
 
