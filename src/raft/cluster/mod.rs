@@ -52,6 +52,7 @@ pub async fn handle_route(
             app.raft.add_non_voter(node_id).await?;
             join_node(app.raft.as_ref(), app.raft_store.as_ref(), node_id).await?;
         }
+        RouterRequest::TableCmd { cmd } => todo!(),
     };
     Ok(RouterResponse::None)
 }

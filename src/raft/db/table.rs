@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use actix::prelude::*;
 
-use crate::common::sled_utils::TableSequence;
+use crate::{common::sled_utils::TableSequence, raft::cluster::model::RouterRequest};
 
 #[derive(Clone, prost::Message, Serialize, Deserialize)]
 pub struct TableDefinition {
@@ -175,20 +175,9 @@ impl Actor for TableManage {
 
 #[derive(Message)]
 #[rtype(result = "anyhow::Result<TableManageResult>")]
-pub enum TableManageAsyncCmd {
-    Insert {
-        table_name: Arc<String>,
-        key: Vec<u8>,
-        value: Vec<u8>,
-    },
-    Remove {
-        table_name: Arc<String>,
-        key: Vec<u8>,
-    },
-    Drop(Arc<String>),
-}
+pub struct TableManageAsyncCmd(pub TableManageCmd);
 
-#[derive(Message)]
+#[derive(Message, Clone, Debug, Serialize, Deserialize)]
 #[rtype(result = "anyhow::Result<TableManageResult>")]
 pub enum TableManageCmd {
     Set {
@@ -210,6 +199,12 @@ pub enum TableManageCmd {
         table_name: Arc<String>,
         last_seq_id: u64,
     },
+}
+
+impl From<TableManageCmd> for RouterRequest {
+    fn from(cmd: TableManageCmd) -> Self {
+        Self::TableCmd { cmd }
+    }
 }
 
 pub enum TableManageResult {
