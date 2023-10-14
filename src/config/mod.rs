@@ -1,3 +1,4 @@
+pub mod utils;
 pub mod api;
 pub mod config_db;
 pub mod config_index;
