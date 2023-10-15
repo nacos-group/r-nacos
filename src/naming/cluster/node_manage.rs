@@ -305,7 +305,7 @@ impl InnerNodeManage {
             node.client_set.remove(&client_id);
         }
         if let Some(naming_actor) = self.naming_actor.as_ref() {
-            naming_actor.do_send(NamingCmd::RemoveClientFromCluster(client_id.clone()));
+            naming_actor.do_send(NamingCmd::RemoveClientFromCluster(client_id));
         }
     }
 
@@ -316,7 +316,7 @@ impl InnerNodeManage {
         if let Some(node) = self.all_nodes.get_mut(&node_id) {
             node.last_active_time = now_millis();
             node.status = NodeStatus::Valid;
-            node.client_set.insert(client_id.clone());
+            node.client_set.insert(client_id);
         }
     }
 }

@@ -65,22 +65,10 @@ jobs:
 
       - name: Build 
         if: matrix.target != 'x86_64-unknown-linux-musl'
-        run: cargo build --release
+        run: cargo build
 
       - name: Build linux-musl
         if: matrix.target == 'x86_64-unknown-linux-musl'
         run: |
-          cargo build --release --target ${{ matrix.target }}
-
-      - name: Build macOS universal2
-        if: matrix.target == 'x86_64-apple-darwin'
-        env:
-          DEVELOPER_DIR: /Applications/Xcode.app/Contents/Developer
-          MACOSX_DEPLOYMENT_TARGET: '10.9'
-        run: |
-          # set SDKROOT for C dependencies like ring and bzip2
-          export SDKROOT=$(xcrun --sdk macosx --show-sdk-path)
-          rustup target add aarch64-apple-darwin
-          cargo build --release --target aarch64-apple-darwin
-
+          cargo build --target ${{ matrix.target }}
 

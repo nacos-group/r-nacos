@@ -218,7 +218,7 @@ fn add_service() {
     index.remove_config(&key3);
     index.remove_config(&key3);
     assert!(index.size == 0);
-    assert!(index.tenant_group.len() == 0);
+    assert!(index.tenant_group.is_empty());
 }
 
 #[test]
@@ -258,5 +258,5 @@ fn query_service() {
     param.limit = 2;
     let (size, list) = index.query_config_page(&param);
     assert!(size == 0);
-    assert!(list.len() == 0);
+    assert!(list.is_empty());
 }

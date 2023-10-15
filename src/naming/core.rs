@@ -522,7 +522,7 @@ impl NamingActor {
         }
         if !update_list.is_empty() {
             self.time_check_sync_update_info_to_cluster(key.clone(), update_list);
-            self.do_notify(&UpdateInstanceType::UpdateValue, key.clone(), None);
+            self.do_notify(&UpdateInstanceType::UpdateValue, key, None);
         }
     }
 
@@ -708,7 +708,7 @@ impl NamingActor {
                 client_id: client_id.clone(),
             };
             node_manage.do_send(NodeManageRequest::SendToOtherNodes(req));
-            node_manage.do_send(NodeManageRequest::RemoveClientId(client_id.clone()));
+            node_manage.do_send(NodeManageRequest::RemoveClientId(client_id));
         }
     }
 }
@@ -952,10 +952,10 @@ async fn query_healthy_instances() {
 
     println!("-------------");
     let items = naming.get_instance_list(&key, "", true);
-    assert!(items.len() > 0);
+    assert!(!items.is_empty());
     println!("DEFUALT list:{}", serde_json::to_string(&items).unwrap());
     let items = naming.get_instance_list(&key, "", true);
-    assert!(items.len() > 0);
+    assert!(!items.is_empty());
     println!(
         "empty cluster list:{}",
         serde_json::to_string(&items).unwrap()
@@ -964,7 +964,7 @@ async fn query_healthy_instances() {
     naming.time_check();
     println!("-------------");
     let items = naming.get_instance_list(&key, "", false);
-    assert!(items.len() > 0);
+    assert!(!items.is_empty());
     println!(
         "empty cluster list:{}",
         serde_json::to_string(&items).unwrap()
@@ -973,7 +973,7 @@ async fn query_healthy_instances() {
     naming.time_check();
     println!("-------------");
     let items = naming.get_instance_list(&key, "", false);
-    assert!(items.len() == 0);
+    assert!(items.is_empty());
     println!(
         "empty cluster list:{}",
         serde_json::to_string(&items).unwrap()

@@ -238,7 +238,7 @@ fn add_service() {
     index.remove_service(&key3);
     index.remove_service(&key3);
     assert!(index.service_size == 0);
-    assert!(index.namespace_group.len() == 0);
+    assert!(index.namespace_group.is_empty());
 }
 
 #[test]
@@ -278,5 +278,5 @@ fn query_service() {
     param.limit = 2;
     let (size, list) = index.query_service_page(&param);
     assert!(size == 0);
-    assert!(list.len() == 0);
+    assert!(list.is_empty());
 }
