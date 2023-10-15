@@ -1,4 +1,5 @@
 use super::core::{ConfigActor, ConfigCmd, ConfigKey, ConfigResult, ListenerItem, ListenerResult};
+use super::utils;
 use crate::common::appdata::AppShareData;
 use crate::common::web_utils::get_req_body;
 use crate::raft::cluster::model::{DelConfigReq, SetConfigReq};
@@ -13,6 +14,7 @@ use actix_web::{web, HttpRequest, HttpResponse, Responder};
 use actix::prelude::Addr;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use utils::ParamUtils;
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -85,7 +87,15 @@ async fn add_config(
             return HttpResponse::InternalServerError().body(err.to_string());
         }
     };
-    let param = a.select_option(&b).to_confirmed_param();
+    let selected_param=a.select_option(&b);
+    match ParamUtils::check_tenant(&selected_param.tenant) {
+        Ok(v) => v,
+        Err(err) => {
+            return HttpResponse::InternalServerError().body(err.to_string());
+        }
+    }
+
+    let param = selected_param.to_confirmed_param();
     match param {
         Ok(p) => {
             let req = SetConfigReq::new(
