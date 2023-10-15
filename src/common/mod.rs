@@ -46,6 +46,7 @@ impl NamingSysConfig {
 pub struct AppSysConfig {
     pub config_db_file: String,
     pub config_db_dir: String,
+    pub config_max_content: usize,
     pub http_port: u16,
     pub http_workers: Option<usize>,
     pub grpc_port: u16,
@@ -59,6 +60,10 @@ impl AppSysConfig {
     pub fn init_from_env() -> Self {
         let config_db_file =
             std::env::var("RNACOS_CONFIG_DB_FILE").unwrap_or("config.db".to_owned());
+        let config_max_content = std::env::var("RNACOS_CONFIG_MAX_CONTENT")
+            .unwrap_or("10485760".to_owned())
+            .parse()
+            .unwrap_or(10 * 1024 * 1024);
         let http_port = std::env::var("RNACOS_HTTP_PORT")
             .unwrap_or("8848".to_owned())
             .parse()
@@ -86,6 +91,7 @@ impl AppSysConfig {
         Self {
             config_db_dir,
             config_db_file,
+            config_max_content,
             http_port,
             grpc_port,
             http_workers,
