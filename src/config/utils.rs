@@ -3,11 +3,11 @@ const VALID_CHARS: [char; 4] = ['_', '-', '.', ':'];
 const TENANT_MAX_LEN: usize = 128;
 
 impl ParamUtils {
-    pub fn check_tenant( tenant:&Option<String>) -> anyhow::Result<()>{
-        if let Some(t) = tenant  {
-                if !t.is_empty() {
-                if !Self::is_valid(&t.trim()) {
-                return Err(anyhow::anyhow!("invalid tenant"));
+    pub fn check_tenant(tenant: &Option<String>) -> anyhow::Result<()> {
+        if let Some(t) = tenant {
+            if !t.is_empty() {
+                if !Self::is_valid(t.trim()) {
+                    return Err(anyhow::anyhow!("invalid tenant"));
                 }
                 if t.len() > TENANT_MAX_LEN {
                     return Err(anyhow::anyhow!("Too long tenant, over 128"));
@@ -32,5 +32,4 @@ impl ParamUtils {
         }
         true
     }
-    
 }

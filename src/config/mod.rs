@@ -1,4 +1,3 @@
-pub mod utils;
 pub mod api;
 pub mod config_db;
 pub mod config_index;
@@ -7,6 +6,7 @@ pub mod config_subscribe;
 pub mod core;
 pub mod dal;
 pub mod model;
+pub mod utils;
 
 pub struct ConfigUtils;
 

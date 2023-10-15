@@ -87,7 +87,7 @@ async fn add_config(
             return HttpResponse::InternalServerError().body(err.to_string());
         }
     };
-    let selected_param=a.select_option(&b);
+    let selected_param = a.select_option(&b);
     match ParamUtils::check_tenant(&selected_param.tenant) {
         Ok(v) => v,
         Err(err) => {
