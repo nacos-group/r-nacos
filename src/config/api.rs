@@ -14,7 +14,7 @@ use actix_web::{web, HttpRequest, HttpResponse, Responder};
 use actix::prelude::Addr;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use utils::ParamUtils;
+use utils::param_utils;
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -87,8 +87,20 @@ async fn add_config(
             return HttpResponse::InternalServerError().body(err.to_string());
         }
     };
-    let selected_param=a.select_option(&b);
-    match ParamUtils::check_tenant(&selected_param.tenant) {
+    let selected_param = a.select_option(&b);
+    match param_utils::check_tenant(&selected_param.tenant) {
+        Ok(v) => v,
+        Err(err) => {
+            return HttpResponse::InternalServerError().body(err.to_string());
+        }
+    }
+
+    match param_utils::check_param(
+        &selected_param.data_id,
+        &selected_param.group,
+        &Some(String::from("datumId")),
+        &selected_param.content,
+    ) {
         Ok(v) => v,
         Err(err) => {
             return HttpResponse::InternalServerError().body(err.to_string());
