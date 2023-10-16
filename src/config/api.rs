@@ -142,7 +142,28 @@ async fn del_config(
             return HttpResponse::InternalServerError().body(err.to_string());
         }
     };
-    let param = a.select_option(&b).to_confirmed_param();
+
+    let selected_param = a.select_option(&b);
+    match param_utils::check_tenant(&selected_param.tenant) {
+        Ok(v) => v,
+        Err(err) => {
+            return HttpResponse::InternalServerError().body(err.to_string());
+        }
+    }
+
+    match param_utils::check_param(
+        &selected_param.data_id,
+        &selected_param.group,
+        &Some(String::from("datumId")),
+        &Some(String::from("rm")),
+    ) {
+        Ok(v) => v,
+        Err(err) => {
+            return HttpResponse::InternalServerError().body(err.to_string());
+        }
+    }
+
+    let param = selected_param.to_confirmed_param();
     match param {
         Ok(p) => {
             let req = DelConfigReq::new(ConfigKey::new(&p.data_id, &p.group, &p.tenant));
