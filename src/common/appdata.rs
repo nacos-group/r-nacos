@@ -5,6 +5,7 @@ use crate::naming::cluster::node_manage::{InnerNodeManage, NodeManage};
 use crate::naming::cluster::route::NamingRoute;
 use crate::naming::core::NamingActor;
 use crate::raft::cluster::route::ConfigRoute;
+use crate::raft::db::table::TableManage;
 use crate::raft::network::factory::RaftClusterRequestSender;
 use crate::raft::store::core::RaftStore;
 use crate::raft::NacosRaft;
@@ -24,5 +25,6 @@ pub struct AppShareData {
     pub naming_route: Arc<NamingRoute>,
     pub naming_inner_node_manage: Addr<InnerNodeManage>,
     pub naming_node_manage: Arc<NodeManage>,
+    pub raft_table_manage: Addr<TableManage>,
     pub factory_data: FactoryData,
 }

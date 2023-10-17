@@ -1,10 +1,12 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, sync::{Arc, Weak}};
 
+use async_raft_ext::raft::ClientWriteRequest;
+use bean_factory::{bean, Inject};
 use serde::{Deserialize, Serialize};
 
 use actix::prelude::*;
 
-use crate::{common::sled_utils::TableSequence, raft::cluster::model::RouterRequest};
+use crate::{common::sled_utils::TableSequence, raft::{cluster::model::RouterRequest, NacosRaft, store::ClientRequest}};
 
 #[derive(Clone, prost::Message, Serialize, Deserialize)]
 pub struct TableDefinition {
@@ -54,9 +56,11 @@ impl TableInfo {
     }
 }
 
+#[bean(inject)]
 pub struct TableManage {
     pub db: Arc<sled::Db>,
     pub table_map: HashMap<Arc<String>, TableInfo>,
+    raft: Option<Weak<NacosRaft>>,
 }
 
 impl TableManage {
@@ -64,6 +68,7 @@ impl TableManage {
         let mut s = Self {
             db,
             table_map: Default::default(),
+            raft: None,
         };
         s.load_tables();
         s
@@ -167,10 +172,35 @@ impl TableManage {
             None
         }
     }
+
+    async fn send_raft_request(
+        raft: &Option<Weak<NacosRaft>>,
+        req: ClientRequest,
+    ) -> anyhow::Result<()> {
+        if let Some(weak_raft) = raft {
+            if let Some(raft) = weak_raft.upgrade() {
+                raft.client_write(ClientWriteRequest::new(req)).await?;
+            }
+        }
+        Ok(())
+    }
 }
 
 impl Actor for TableManage {
     type Context = Context<Self>;
+    
+    fn started(&mut self, ctx: &mut Self::Context) {
+        log::info!("TableManage actor started")
+    }
+}
+
+impl Inject for TableManage {
+    type Context = Context<Self>;
+
+    fn inject(&mut self, factory_data: bean_factory::FactoryData, _factory: bean_factory::BeanFactory, _ctx: &mut Self::Context) {
+        let raft: Option<Arc<NacosRaft>> = factory_data.get_bean();
+        self.raft = raft.map(|e| Arc::downgrade(&e));
+    }
 }
 
 #[derive(Message)]
@@ -185,6 +215,10 @@ pub enum TableManageCmd {
         key: Vec<u8>,
         value: Vec<u8>,
         last_seq_id: Option<u64>,
+    },
+    SetUseAutoId {
+        table_name: Arc<String>,
+        value: Vec<u8>,
     },
     Remove {
         table_name: Arc<String>,
@@ -216,8 +250,18 @@ pub enum TableManageResult {
 impl Handler<TableManageAsyncCmd> for TableManage {
     type Result = ResponseActFuture<Self, anyhow::Result<TableManageResult>>;
 
-    fn handle(&mut self, msg: TableManageAsyncCmd, ctx: &mut Self::Context) -> Self::Result {
-        todo!()
+    fn handle(&mut self, msg: TableManageAsyncCmd, _ctx: &mut Self::Context) -> Self::Result {
+        let cmd = msg.0;
+        let raft = self.raft.clone();
+
+        let fut = async move {
+            let _ = Self::send_raft_request(&raft,ClientRequest::TableCmd(cmd)).await;
+            Ok(TableManageResult::None)
+        }
+        .into_actor(self)
+        .map(|r, _act, _ctx| r);
+        Box::pin(fut)
+
     }
 }
 
@@ -257,6 +301,9 @@ impl Handler<TableManageCmd> for TableManage {
                 self.set_last_seq_id(table_name, last_seq_id);
                 Ok(TableManageResult::None)
             }
+            TableManageCmd::SetUseAutoId { table_name:_, value:_ } => {
+                Err(anyhow::anyhow!("must pretransformation to TableManageCmd::Set"))
+            },
         }
     }
 }

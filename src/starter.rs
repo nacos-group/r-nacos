@@ -26,7 +26,7 @@ use crate::{
                 factory::{RaftClusterRequestSender, RaftConnectionFactory},
             },
             store::{core::RaftStore, ClientRequest},
-        },
+        }, db::table::TableManage,
     },
 };
 use actix::prelude::*;
@@ -58,7 +58,7 @@ pub async fn config_factory(sys_config: Arc<AppSysConfig>) -> anyhow::Result<Fac
     factory.register(BeanDefinition::actor_with_inject_from_obj(
         DelayNotifyActor::new().start(),
     ));
-    let raft_inner_store = InnerStore::create_at_new_system(sys_config.raft_node_id.to_owned(), db);
+    let raft_inner_store = InnerStore::create_at_new_system(sys_config.raft_node_id.to_owned(), db.clone());
     factory.register(BeanDefinition::actor_with_inject_from_obj(
         raft_inner_store.clone(),
     ));
@@ -71,6 +71,8 @@ pub async fn config_factory(sys_config: Arc<AppSysConfig>) -> anyhow::Result<Fac
     factory.register(BeanDefinition::from_obj(cluster_sender.clone()));
     let raft = build_raft(&sys_config, store.clone(), cluster_sender.clone())?;
     factory.register(BeanDefinition::from_obj(raft.clone()));
+    let table_manage = TableManage::new(db).start();
+    factory.register(BeanDefinition::actor_with_inject_from_obj(table_manage));
 
     let raft_addr_router = Arc::new(RaftAddrRouter::new(
         raft.clone(),
@@ -123,6 +125,7 @@ pub fn build_share_data(factory_data: FactoryData) -> anyhow::Result<Arc<AppShar
         naming_route: factory_data.get_bean().unwrap(),
         naming_inner_node_manage: factory_data.get_actor().unwrap(),
         naming_node_manage: factory_data.get_bean().unwrap(),
+        raft_table_manage: factory_data.get_actor().unwrap(),
         factory_data,
     });
     Ok(app_data)

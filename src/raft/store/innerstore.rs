@@ -6,6 +6,7 @@ use crate::common::sled_utils::TABLE_SEQUENCE_TREE_NAME;
 use crate::config::core::ConfigActor;
 use crate::config::model::ConfigRaftCmd;
 use crate::naming::cluster::node_manage::{InnerNodeManage, NodeManageRequest};
+use crate::raft::db::table::{TableManageCmd, TableManage};
 
 use super::{
     ClientRequest, ClientResponse, Membership, SnapshotDataInfo, SnapshotItem, SnapshotMeta,
@@ -33,6 +34,7 @@ pub struct InnerStore {
     db: Arc<sled::Db>,
     config_addr: Option<Addr<ConfigActor>>,
     naming_inner_node_manage: Option<Addr<InnerNodeManage>>,
+    raft_table_manage: Option<Addr<TableManage>>,
     id: NodeId,
     /// The Raft log.
     log: BTreeMap<u64, Entry<ClientRequest>>,
@@ -56,6 +58,7 @@ impl InnerStore {
             state_machine: Default::default(),
             hs: None,
             membership: Default::default(),
+            raft_table_manage: None,
             naming_inner_node_manage: None,
         }
     }
@@ -92,6 +95,12 @@ impl InnerStore {
 
     fn do_send_to_config(&self, cmd: ConfigRaftCmd) {
         if let Some(addr) = &self.config_addr {
+            addr.do_send(cmd);
+        }
+    }
+
+    fn do_send_to_table(&self, cmd: TableManageCmd) {
+        if let Some(addr) = &self.raft_table_manage{
             addr.do_send(cmd);
         }
     }
@@ -398,6 +407,9 @@ impl InnerStore {
                             self.set_membership_(&self.membership)?;
                             self.do_notify_membership(false);
                         }
+                        ClientRequest::TableCmd(table_cmd) => {
+                            self.do_send_to_table(table_cmd);
+                        },
                     }
                 }
                 EntryPayload::ConfigChange(config_change) => {
@@ -650,6 +662,7 @@ impl Inject for InnerStore {
     ) {
         self.config_addr = factory_data.get_actor();
         self.naming_inner_node_manage = factory_data.get_actor();
+        self.raft_table_manage = factory_data.get_actor();
         self.init().ok();
         log::info!("InnerStore inject complete!");
     }
