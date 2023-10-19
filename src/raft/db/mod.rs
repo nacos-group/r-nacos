@@ -1,2 +1,2 @@
-pub mod table;
 pub mod route;
+pub mod table;

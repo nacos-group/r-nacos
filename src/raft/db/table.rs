@@ -1,4 +1,7 @@
-use std::{collections::HashMap, sync::{Arc, Weak}};
+use std::{
+    collections::HashMap,
+    sync::{Arc, Weak},
+};
 
 use async_raft_ext::raft::ClientWriteRequest;
 use bean_factory::{bean, Inject};
@@ -6,7 +9,10 @@ use serde::{Deserialize, Serialize};
 
 use actix::prelude::*;
 
-use crate::{common::sled_utils::TableSequence, raft::{cluster::model::RouterRequest, NacosRaft, store::ClientRequest}};
+use crate::{
+    common::sled_utils::TableSequence,
+    raft::{cluster::model::RouterRequest, store::ClientRequest, NacosRaft},
+};
 
 #[derive(Clone, prost::Message, Serialize, Deserialize)]
 pub struct TableDefinition {
@@ -32,13 +38,13 @@ pub(crate) const TABLE_DEFINITION_TREE_NAME: &str = "tables";
 
 pub struct TableInfo {
     pub name: Arc<String>,
-    pub table_db_name: String,
+    pub table_db_name: Arc<String>,
     pub seq: Option<TableSequence>,
 }
 
 impl TableInfo {
     pub fn new(name: Arc<String>, db: Arc<sled::Db>, sequence_step: u32) -> Self {
-        let table_name = format!("t_{}", &name);
+        let table_name = Arc::new(format!("t_{}", &name));
         let seq = if sequence_step == 0 {
             None
         } else {
@@ -105,7 +111,7 @@ impl TableManage {
             if let Some(seq) = table.seq.as_mut() {
                 seq.set_table_last_id(0).ok();
             }
-            self.db.drop_tree(&table.table_db_name).ok();
+            self.db.drop_tree(table.table_db_name.as_ref()).ok();
         }
     }
 
@@ -147,7 +153,10 @@ impl TableManage {
             if let (Some(seq), Some(last_seq_id)) = (table_info.seq.as_mut(), last_seq_id) {
                 seq.set_table_last_id(last_seq_id).ok();
             }
-            let table = self.db.open_tree(&table_info.table_db_name).unwrap();
+            let table = self
+                .db
+                .open_tree(table_info.table_db_name.as_ref())
+                .unwrap();
             table.insert(key, value).unwrap()
         } else {
             self.init_table(name.clone(), 0);
@@ -155,7 +164,10 @@ impl TableManage {
             if let (Some(seq), Some(last_seq_id)) = (table_info.seq.as_mut(), last_seq_id) {
                 seq.set_table_last_id(last_seq_id).ok();
             }
-            let table = self.db.open_tree(&table_info.table_db_name).unwrap();
+            let table = self
+                .db
+                .open_tree(table_info.table_db_name.as_ref())
+                .unwrap();
             self.table_map.insert(name, table_info);
             table.insert(key, value).unwrap()
         }
@@ -166,7 +178,10 @@ impl TableManage {
         K: AsRef<[u8]>,
     {
         if let Some(table_info) = self.table_map.get(&name) {
-            let table = self.db.open_tree(&table_info.table_db_name).unwrap();
+            let table = self
+                .db
+                .open_tree(table_info.table_db_name.as_ref())
+                .unwrap();
             table.remove(key).unwrap()
         } else {
             None
@@ -184,11 +199,19 @@ impl TableManage {
         }
         Ok(())
     }
+
+    fn get_table_db_names(&self) -> Vec<Arc<String>> {
+        self.table_map
+            .values()
+            .into_iter()
+            .map(|e| e.table_db_name.clone())
+            .collect()
+    }
 }
 
 impl Actor for TableManage {
     type Context = Context<Self>;
-    
+
     fn started(&mut self, ctx: &mut Self::Context) {
         log::info!("TableManage actor started")
     }
@@ -197,7 +220,12 @@ impl Actor for TableManage {
 impl Inject for TableManage {
     type Context = Context<Self>;
 
-    fn inject(&mut self, factory_data: bean_factory::FactoryData, _factory: bean_factory::BeanFactory, _ctx: &mut Self::Context) {
+    fn inject(
+        &mut self,
+        factory_data: bean_factory::FactoryData,
+        _factory: bean_factory::BeanFactory,
+        _ctx: &mut Self::Context,
+    ) {
         let raft: Option<Arc<NacosRaft>> = factory_data.get_bean();
         self.raft = raft.map(|e| Arc::downgrade(&e));
     }
@@ -241,10 +269,17 @@ impl From<TableManageCmd> for RouterRequest {
     }
 }
 
+#[derive(Message, Clone, Debug, Serialize, Deserialize)]
+#[rtype(result = "anyhow::Result<TableManageResult>")]
+pub enum TableManageQueryCmd {
+    QueryTableNames,
+}
+
 pub enum TableManageResult {
     None,
     Value(Vec<u8>),
     NextId(u64),
+    TableNames(Vec<Arc<String>>),
 }
 
 impl Handler<TableManageAsyncCmd> for TableManage {
@@ -255,13 +290,12 @@ impl Handler<TableManageAsyncCmd> for TableManage {
         let raft = self.raft.clone();
 
         let fut = async move {
-            let _ = Self::send_raft_request(&raft,ClientRequest::TableCmd(cmd)).await;
+            let _ = Self::send_raft_request(&raft, ClientRequest::TableCmd(cmd)).await;
             Ok(TableManageResult::None)
         }
         .into_actor(self)
         .map(|r, _act, _ctx| r);
         Box::pin(fut)
-
     }
 }
 
@@ -301,9 +335,25 @@ impl Handler<TableManageCmd> for TableManage {
                 self.set_last_seq_id(table_name, last_seq_id);
                 Ok(TableManageResult::None)
             }
-            TableManageCmd::SetUseAutoId { table_name:_, value:_ } => {
-                Err(anyhow::anyhow!("must pretransformation to TableManageCmd::Set"))
-            },
+            TableManageCmd::SetUseAutoId {
+                table_name: _,
+                value: _,
+            } => Err(anyhow::anyhow!(
+                "must pretransformation to TableManageCmd::Set"
+            )),
+        }
+    }
+}
+
+impl Handler<TableManageQueryCmd> for TableManage {
+    type Result = anyhow::Result<TableManageResult>;
+
+    fn handle(&mut self, msg: TableManageQueryCmd, _ctx: &mut Self::Context) -> Self::Result {
+        match msg {
+            TableManageQueryCmd::QueryTableNames => {
+                let table_names = self.get_table_db_names();
+                Ok(TableManageResult::TableNames(table_names))
+            }
         }
     }
 }

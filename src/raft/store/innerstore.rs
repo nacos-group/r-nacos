@@ -6,7 +6,7 @@ use crate::common::sled_utils::TABLE_SEQUENCE_TREE_NAME;
 use crate::config::core::ConfigActor;
 use crate::config::model::ConfigRaftCmd;
 use crate::naming::cluster::node_manage::{InnerNodeManage, NodeManageRequest};
-use crate::raft::db::table::{TableManageCmd, TableManage};
+use crate::raft::db::table::{TableManage, TableManageCmd};
 
 use super::{
     ClientRequest, ClientResponse, Membership, SnapshotDataInfo, SnapshotItem, SnapshotMeta,
@@ -100,7 +100,7 @@ impl InnerStore {
     }
 
     fn do_send_to_table(&self, cmd: TableManageCmd) {
-        if let Some(addr) = &self.raft_table_manage{
+        if let Some(addr) = &self.raft_table_manage {
             addr.do_send(cmd);
         }
     }
@@ -409,7 +409,7 @@ impl InnerStore {
                         }
                         ClientRequest::TableCmd(table_cmd) => {
                             self.do_send_to_table(table_cmd);
-                        },
+                        }
                     }
                 }
                 EntryPayload::ConfigChange(config_change) => {

@@ -18,6 +18,7 @@ use crate::{
             model::RouterRequest,
             route::{ConfigRoute, RaftAddrRouter},
         },
+        db::table::TableManage,
         store::innerstore::InnerStore,
         NacosRaft,
         {
@@ -26,7 +27,7 @@ use crate::{
                 factory::{RaftClusterRequestSender, RaftConnectionFactory},
             },
             store::{core::RaftStore, ClientRequest},
-        }, db::table::TableManage,
+        },
     },
 };
 use actix::prelude::*;
@@ -58,7 +59,8 @@ pub async fn config_factory(sys_config: Arc<AppSysConfig>) -> anyhow::Result<Fac
     factory.register(BeanDefinition::actor_with_inject_from_obj(
         DelayNotifyActor::new().start(),
     ));
-    let raft_inner_store = InnerStore::create_at_new_system(sys_config.raft_node_id.to_owned(), db.clone());
+    let raft_inner_store =
+        InnerStore::create_at_new_system(sys_config.raft_node_id.to_owned(), db.clone());
     factory.register(BeanDefinition::actor_with_inject_from_obj(
         raft_inner_store.clone(),
     ));

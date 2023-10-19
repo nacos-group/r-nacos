@@ -9,7 +9,7 @@ use crate::{
 
 use self::model::{RouterRequest, RouterResponse};
 
-use super::{join_node, store::ClientRequest, db::table::TableManageAsyncCmd};
+use super::{db::table::TableManageAsyncCmd, join_node, store::ClientRequest};
 
 pub mod model;
 pub mod route;
@@ -53,8 +53,10 @@ pub async fn handle_route(
             join_node(app.raft.as_ref(), app.raft_store.as_ref(), node_id).await?;
         }
         RouterRequest::TableCmd { cmd } => {
-            app.raft_table_manage.send(TableManageAsyncCmd(cmd)).await??;
-        },
+            app.raft_table_manage
+                .send(TableManageAsyncCmd(cmd))
+                .await??;
+        }
     };
     Ok(RouterResponse::None)
 }
