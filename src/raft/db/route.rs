@@ -13,7 +13,7 @@ use crate::{
     },
 };
 
-use super::table::{TableManage, TableManageAsyncCmd, TableManageCmd, TableManageResult};
+use super::table::{TableManage, TableManageAsyncCmd, TableManageCmd};
 
 pub struct TableRoute {
     table_manage: Addr<TableManage>,

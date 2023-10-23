@@ -11,7 +11,14 @@ use actix::prelude::*;
 
 use crate::{
     common::sled_utils::TableSequence,
-    raft::{cluster::model::RouterRequest, store::{ClientRequest, innerstore::{InnerStore, StoreRequest}}, NacosRaft},
+    raft::{
+        cluster::model::RouterRequest,
+        store::{
+            innerstore::{InnerStore, StoreRequest},
+            ClientRequest,
+        },
+        NacosRaft,
+    },
 };
 
 #[derive(Clone, prost::Message, Serialize, Deserialize)]
@@ -94,7 +101,7 @@ impl TableManage {
             }
         }
         if let Some(raft_inner_store) = self.raft_inner_store.as_ref() {
-            for (_,v) in &self.table_map {
+            for (_, v) in &self.table_map {
                 raft_inner_store.do_send(StoreRequest::RaftTableInit(v.table_db_name.clone()));
             }
         }
@@ -131,7 +138,9 @@ impl TableManage {
             self.init_table(name.clone(), seq_step);
             let mut table_info = TableInfo::new(name.clone(), self.db.clone(), 0);
             if let Some(raft_inner_store) = self.raft_inner_store.as_ref() {
-                raft_inner_store.do_send(StoreRequest::RaftTableInit(table_info.table_db_name.clone()));
+                raft_inner_store.do_send(StoreRequest::RaftTableInit(
+                    table_info.table_db_name.clone(),
+                ));
             }
             let r = table_info.seq.as_mut().unwrap().next_id();
             self.table_map.insert(name, table_info);
@@ -170,7 +179,9 @@ impl TableManage {
             self.init_table(name.clone(), 0);
             let mut table_info = TableInfo::new(name.clone(), self.db.clone(), 0);
             if let Some(raft_inner_store) = self.raft_inner_store.as_ref() {
-                raft_inner_store.do_send(StoreRequest::RaftTableInit(table_info.table_db_name.clone()));
+                raft_inner_store.do_send(StoreRequest::RaftTableInit(
+                    table_info.table_db_name.clone(),
+                ));
             }
             if let (Some(seq), Some(last_seq_id)) = (table_info.seq.as_mut(), last_seq_id) {
                 seq.set_table_last_id(last_seq_id).ok();
@@ -359,7 +370,7 @@ impl Handler<TableManageCmd> for TableManage {
             TableManageCmd::ReloadTable => {
                 self.load_tables();
                 Ok(TableManageResult::None)
-            },
+            }
         }
     }
 }
