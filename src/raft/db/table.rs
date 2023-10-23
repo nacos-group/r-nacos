@@ -11,7 +11,7 @@ use actix::prelude::*;
 
 use crate::{
     common::sled_utils::TableSequence,
-    raft::{cluster::model::RouterRequest, store::ClientRequest, NacosRaft},
+    raft::{cluster::model::RouterRequest, store::{ClientRequest, innerstore::{InnerStore, StoreRequest}}, NacosRaft},
 };
 
 #[derive(Clone, prost::Message, Serialize, Deserialize)]
@@ -67,17 +67,17 @@ pub struct TableManage {
     pub db: Arc<sled::Db>,
     pub table_map: HashMap<Arc<String>, TableInfo>,
     raft: Option<Weak<NacosRaft>>,
+    raft_inner_store: Option<Addr<InnerStore>>,
 }
 
 impl TableManage {
     pub fn new(db: Arc<sled::Db>) -> Self {
-        let mut s = Self {
+        Self {
             db,
             table_map: Default::default(),
             raft: None,
-        };
-        s.load_tables();
-        s
+            raft_inner_store: None,
+        }
     }
 
     /// load table info from db
@@ -91,6 +91,11 @@ impl TableManage {
                     name.clone(),
                     TableInfo::new(name, self.db.clone(), definition.sequence_step),
                 );
+            }
+        }
+        if let Some(raft_inner_store) = self.raft_inner_store.as_ref() {
+            for (_,v) in &self.table_map {
+                raft_inner_store.do_send(StoreRequest::RaftTableInit(v.table_db_name.clone()));
             }
         }
     }
@@ -125,6 +130,9 @@ impl TableManage {
         } else {
             self.init_table(name.clone(), seq_step);
             let mut table_info = TableInfo::new(name.clone(), self.db.clone(), 0);
+            if let Some(raft_inner_store) = self.raft_inner_store.as_ref() {
+                raft_inner_store.do_send(StoreRequest::RaftTableInit(table_info.table_db_name.clone()));
+            }
             let r = table_info.seq.as_mut().unwrap().next_id();
             self.table_map.insert(name, table_info);
             r
@@ -161,6 +169,9 @@ impl TableManage {
         } else {
             self.init_table(name.clone(), 0);
             let mut table_info = TableInfo::new(name.clone(), self.db.clone(), 0);
+            if let Some(raft_inner_store) = self.raft_inner_store.as_ref() {
+                raft_inner_store.do_send(StoreRequest::RaftTableInit(table_info.table_db_name.clone()));
+            }
             if let (Some(seq), Some(last_seq_id)) = (table_info.seq.as_mut(), last_seq_id) {
                 seq.set_table_last_id(last_seq_id).ok();
             }
@@ -212,7 +223,7 @@ impl TableManage {
 impl Actor for TableManage {
     type Context = Context<Self>;
 
-    fn started(&mut self, ctx: &mut Self::Context) {
+    fn started(&mut self, _ctx: &mut Self::Context) {
         log::info!("TableManage actor started")
     }
 }
@@ -228,6 +239,9 @@ impl Inject for TableManage {
     ) {
         let raft: Option<Arc<NacosRaft>> = factory_data.get_bean();
         self.raft = raft.map(|e| Arc::downgrade(&e));
+        self.raft_inner_store = factory_data.get_actor();
+
+        self.load_tables();
     }
 }
 
@@ -261,6 +275,7 @@ pub enum TableManageCmd {
         table_name: Arc<String>,
         last_seq_id: u64,
     },
+    ReloadTable,
 }
 
 impl From<TableManageCmd> for RouterRequest {
@@ -341,6 +356,10 @@ impl Handler<TableManageCmd> for TableManage {
             } => Err(anyhow::anyhow!(
                 "must pretransformation to TableManageCmd::Set"
             )),
+            TableManageCmd::ReloadTable => {
+                self.load_tables();
+                Ok(TableManageResult::None)
+            },
         }
     }
 }

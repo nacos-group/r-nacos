@@ -91,6 +91,8 @@ pub struct SnapshotDataInfo {
     pub items: Vec<SnapshotItem>,
     #[prost(string, tag = "2")]
     pub snapshot_meta_json: String,
+    #[prost(map = "uint32, string", tag = "3")]
+    pub table_map: ::std::collections::HashMap<u32, String>,
 }
 
 impl SnapshotDataInfo {

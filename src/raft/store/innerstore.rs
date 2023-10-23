@@ -1,12 +1,12 @@
 #![allow(clippy::boxed_local)]
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 
 use crate::common::byte_utils::{bin_to_id, id_to_bin};
 use crate::common::sled_utils::TABLE_SEQUENCE_TREE_NAME;
 use crate::config::core::ConfigActor;
 use crate::config::model::ConfigRaftCmd;
 use crate::naming::cluster::node_manage::{InnerNodeManage, NodeManageRequest};
-use crate::raft::db::table::{TableManage, TableManageCmd};
+use crate::raft::db::table::{TableManage, TableManageCmd, TABLE_DEFINITION_TREE_NAME};
 
 use super::{
     ClientRequest, ClientResponse, Membership, SnapshotDataInfo, SnapshotItem, SnapshotMeta,
@@ -35,6 +35,8 @@ pub struct InnerStore {
     config_addr: Option<Addr<ConfigActor>>,
     naming_inner_node_manage: Option<Addr<InnerNodeManage>>,
     raft_table_manage: Option<Addr<TableManage>>,
+    raft_table_map: HashMap<Arc<String>,u32>,
+    raft_table_id: u32,
     id: NodeId,
     /// The Raft log.
     log: BTreeMap<u64, Entry<ClientRequest>>,
@@ -60,6 +62,8 @@ impl InnerStore {
             membership: Default::default(),
             raft_table_manage: None,
             naming_inner_node_manage: None,
+            raft_table_map: Default::default(),
+            raft_table_id: 64,
         }
     }
 
@@ -102,6 +106,13 @@ impl InnerStore {
     fn do_send_to_table(&self, cmd: TableManageCmd) {
         if let Some(addr) = &self.raft_table_manage {
             addr.do_send(cmd);
+        }
+    }
+
+    fn init_raft_table_name(&mut self,table_name:Arc<String>) {
+        if !self.raft_table_map.contains_key(&table_name) {
+            self.raft_table_id += 1;
+            self.raft_table_map.insert(table_name , self.raft_table_id.to_owned());
         }
     }
 
@@ -493,11 +504,15 @@ impl InnerStore {
 
     /// load table data
     fn load_table_seq(&self, items: &mut Vec<SnapshotItem>) -> anyhow::Result<()> {
-        let tree = self.db.open_tree(TABLE_SEQUENCE_TREE_NAME)?;
+        self.load_raft_table(items, TABLE_SEQUENCE_TREE_NAME, 3)
+    }
+
+    fn load_raft_table(&self, items: &mut Vec<SnapshotItem>,table_name:&str,r#type:u32) -> anyhow::Result<()> {
+        let tree = self.db.open_tree(table_name)?;
         let mut iter = tree.iter();
         while let Some(Ok((k, v))) = iter.next() {
             let item = SnapshotItem {
-                r#type: 3,
+                r#type,
                 key: k.to_vec(),
                 value: v.to_vec(),
             };
@@ -524,11 +539,18 @@ impl InnerStore {
             self.load_config_history(history_name, &mut items)?;
         }
         self.load_table_seq(&mut items)?;
+        self.load_raft_table(&mut items, TABLE_DEFINITION_TREE_NAME, 4)?;
+        let mut table_map = HashMap::with_capacity(self.raft_table_map.capacity());
+        for (table_name,value) in &self.raft_table_map {
+            table_map.insert(value.to_owned(),table_name.as_ref().to_owned());
+            self.load_raft_table(&mut items,table_name.as_ref(), value.to_owned())?;
+        }
         let snapshot_meta_json = serde_json::to_string(meta)?;
 
         let snapshot_data = SnapshotDataInfo {
             items,
             snapshot_meta_json,
+            table_map,
         };
 
         snapshot_data.to_bytes()
@@ -567,19 +589,21 @@ impl InnerStore {
         //self.log.insert(index, Entry::new_snapshot_pointer(index, term, id, membership_config));
         // Update the state machine.
         self.membership = meta.membership;
-        self.install_snapshot_data(snapshot_data.items).ok();
+        self.install_snapshot_data(snapshot_data.items,snapshot_data.table_map).ok();
         // Update current snapshot.
         self.set_snapshot_(snapshot.get_ref().as_slice())?;
         let cmd = ConfigRaftCmd::ApplySnaphot;
         self.do_send_to_config(cmd);
+        self.do_send_to_table(TableManageCmd::ReloadTable);
         //self.wait_send_config_raft_cmd(cmd,ctx).ok();
 
         Ok(())
     }
 
-    fn install_snapshot_data(&self, items: Vec<SnapshotItem>) -> anyhow::Result<()> {
+    fn install_snapshot_data(&self, items: Vec<SnapshotItem>, type_map:HashMap<u32,String>) -> anyhow::Result<()> {
         let config_tree = self.db.open_tree("config")?;
         let table_seq_tree = self.db.open_tree(TABLE_SEQUENCE_TREE_NAME)?;
+        let table_definition_tree= self.db.open_tree(TABLE_DEFINITION_TREE_NAME)?;
         let mut last_history_tree = None;
         for item in items {
             match item.r#type {
@@ -603,7 +627,17 @@ impl InnerStore {
                     //table seq
                     table_seq_tree.insert(item.key, item.value)?;
                 }
-                _ => {} //ignore
+                4 => {
+                    //table definition
+                    table_definition_tree.insert(item.key, item.value)?;
+                }
+                _ => {
+                    //raft table 
+                    if let Some(table_name ) = type_map.get(&item.r#type) {
+                        let table_tree = self.db.open_tree(table_name)?;
+                        table_tree.insert(item.key, item.value)?;
+                    }
+                }
             }
         }
         Ok(())
@@ -700,6 +734,7 @@ pub enum StoreRequest {
     },
     GetCurrentSnapshot,
     GetTargetAddr(u64),
+    RaftTableInit(Arc<String>),
 }
 
 pub enum StoreResponse {
@@ -796,6 +831,10 @@ impl Handler<StoreRequest> for InnerStore {
                 let v = self.membership.node_addr.get(&id).cloned();
                 Ok(StoreResponse::TargetAddr(v))
             }
+            StoreRequest::RaftTableInit(table_name) => {
+                self.init_raft_table_name(table_name);
+                Ok(StoreResponse::None)
+            },
         }
     }
 }
