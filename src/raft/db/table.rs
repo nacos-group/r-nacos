@@ -210,6 +210,21 @@ impl TableManage {
         }
     }
 
+    pub fn get<K>(&mut self, name: Arc<String>, key: K) -> Option<sled::IVec>
+    where
+        K: AsRef<[u8]>,
+    {
+        if let Some(table_info) = self.table_map.get(&name) {
+            let table = self
+                .db
+                .open_tree(table_info.table_db_name.as_ref())
+                .unwrap();
+            table.get(key).unwrap()
+        } else {
+            None
+        }
+    }
+
     async fn send_raft_request(
         raft: &Option<Weak<NacosRaft>>,
         req: ClientRequest,
@@ -299,6 +314,10 @@ impl From<TableManageCmd> for RouterRequest {
 #[rtype(result = "anyhow::Result<TableManageResult>")]
 pub enum TableManageQueryCmd {
     QueryTableNames,
+    Get {
+        table_name: Arc<String>,
+        key: Vec<u8>,
+    },
 }
 
 pub enum TableManageResult {
@@ -384,6 +403,10 @@ impl Handler<TableManageQueryCmd> for TableManage {
                 let table_names = self.get_table_db_names();
                 Ok(TableManageResult::TableNames(table_names))
             }
+            TableManageQueryCmd::Get { table_name, key } => match self.get(table_name, key) {
+                Some(v) => Ok(TableManageResult::Value(v.to_vec())),
+                None => Ok(TableManageResult::None),
+            },
         }
     }
 }

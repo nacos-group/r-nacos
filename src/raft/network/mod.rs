@@ -2,6 +2,8 @@ use actix_web::web;
 
 use crate::raft::cluster::routeapi;
 
+use super::db::kvapi;
+
 pub mod core;
 pub mod factory;
 pub mod management;
@@ -21,6 +23,8 @@ pub fn raft_config(config: &mut web::ServiceConfig) {
                     .route(web::post().to(management::change_membership)),
             )
             .service(web::resource("/metrics").route(web::get().to(management::metrics)))
-            .service(web::resource("/route").route(web::post().to(routeapi::route_request))),
+            .service(web::resource("/route").route(web::post().to(routeapi::route_request)))
+            .service(web::resource("/table/set").route(web::post().to(kvapi::set)))
+            .service(web::resource("/table/get").route(web::get().to(kvapi::get))),
     );
 }

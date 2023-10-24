@@ -18,7 +18,7 @@ use crate::{
             model::RouterRequest,
             route::{ConfigRoute, RaftAddrRouter},
         },
-        db::table::TableManage,
+        db::{route::TableRoute, table::TableManage},
         store::innerstore::InnerStore,
         NacosRaft,
         {
@@ -74,7 +74,9 @@ pub async fn config_factory(sys_config: Arc<AppSysConfig>) -> anyhow::Result<Fac
     let raft = build_raft(&sys_config, store.clone(), cluster_sender.clone())?;
     factory.register(BeanDefinition::from_obj(raft.clone()));
     let table_manage = TableManage::new(db).start();
-    factory.register(BeanDefinition::actor_with_inject_from_obj(table_manage));
+    factory.register(BeanDefinition::actor_with_inject_from_obj(
+        table_manage.clone(),
+    ));
 
     let raft_addr_router = Arc::new(RaftAddrRouter::new(
         raft.clone(),
@@ -82,6 +84,12 @@ pub async fn config_factory(sys_config: Arc<AppSysConfig>) -> anyhow::Result<Fac
         sys_config.raft_node_id.to_owned(),
     ));
     factory.register(BeanDefinition::from_obj(raft_addr_router.clone()));
+    let table_route = Arc::new(TableRoute::new(
+        table_manage,
+        raft_addr_router.clone(),
+        cluster_sender.clone(),
+    ));
+    factory.register(BeanDefinition::from_obj(table_route));
     let config_route = Arc::new(ConfigRoute::new(
         config_addr.clone(),
         raft_addr_router,
@@ -128,6 +136,7 @@ pub fn build_share_data(factory_data: FactoryData) -> anyhow::Result<Arc<AppShar
         naming_inner_node_manage: factory_data.get_actor().unwrap(),
         naming_node_manage: factory_data.get_bean().unwrap(),
         raft_table_manage: factory_data.get_actor().unwrap(),
+        raft_table_route: factory_data.get_bean().unwrap(),
         factory_data,
     });
     Ok(app_data)
