@@ -6,6 +6,7 @@ pub mod grpc;
 pub mod naming;
 pub mod raft;
 pub mod starter;
+pub mod user;
 pub mod utils;
 pub mod web_config;
 
