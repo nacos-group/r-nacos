@@ -31,7 +31,7 @@ pub enum ClientRequest {
     ConfigRemove {
         key: String,
     },
-    TableCmd(TableManagerReq),
+    TableManagerReq(TableManagerReq),
 }
 
 impl AppData for ClientRequest {}

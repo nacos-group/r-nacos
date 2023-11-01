@@ -305,8 +305,8 @@ pub enum TableManagerReq {
 }
 
 impl From<TableManagerReq> for RouterRequest {
-    fn from(cmd: TableManagerReq) -> Self {
-        Self::TableCmd { cmd }
+    fn from(req: TableManagerReq) -> Self {
+        Self::TableManagerReq { req }
     }
 }
 
@@ -328,6 +328,13 @@ pub enum TableManagerQueryReq {
     },
 }
 
+impl From<TableManagerQueryReq> for RouterRequest {
+    fn from(req: TableManagerQueryReq) -> Self {
+        Self::TableManagerQueryReq { req }
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum TableManagerResult {
     None,
     Value(Vec<u8>),
@@ -339,11 +346,11 @@ impl Handler<TableManagerAsyncReq> for TableManager {
     type Result = ResponseActFuture<Self, anyhow::Result<TableManagerResult>>;
 
     fn handle(&mut self, msg: TableManagerAsyncReq, _ctx: &mut Self::Context) -> Self::Result {
-        let cmd = msg.0;
+        let req = msg.0;
         let raft = self.raft.clone();
 
         let fut = async move {
-            let _ = Self::send_raft_request(&raft, ClientRequest::TableCmd(cmd)).await;
+            let _ = Self::send_raft_request(&raft, ClientRequest::TableManagerReq(req)).await;
             Ok(TableManagerResult::None)
         }
         .into_actor(self)
@@ -392,7 +399,7 @@ impl Handler<TableManagerReq> for TableManager {
                 table_name: _,
                 value: _,
             } => Err(anyhow::anyhow!(
-                "must pretransformation to TableManageCmd::Set"
+                "must pre transform to TableManagerReq::Set"
             )),
             TableManagerReq::ReloadTable => {
                 self.load_tables();

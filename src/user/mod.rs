@@ -125,7 +125,7 @@ impl Handler<UserManagerReq> for UserManager {
                 name,
                 nickname,
                 password,
-            } => {}
+            } => todo!(),
             UserManagerReq::CheckUser { name, password } => todo!(),
             UserManagerReq::Query { name } => todo!(),
         }

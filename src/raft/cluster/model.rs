@@ -2,7 +2,10 @@ use std::{collections::HashMap, sync::Arc};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{config::core::ConfigKey, raft::db::table::TableManagerReq};
+use crate::{
+    config::core::ConfigKey,
+    raft::db::table::{TableManagerQueryReq, TableManagerReq, TableManagerResult},
+};
 
 pub enum RouteAddr {
     Local,
@@ -52,8 +55,11 @@ pub enum RouterRequest {
         node_id: u64,
         node_addr: Arc<String>,
     },
-    TableCmd {
-        cmd: TableManagerReq,
+    TableManagerReq {
+        req: TableManagerReq,
+    },
+    TableManagerQueryReq {
+        req: TableManagerQueryReq,
     },
 }
 
@@ -79,4 +85,5 @@ impl From<DelConfigReq> for RouterRequest {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum RouterResponse {
     None,
+    TableManagerResult { result: TableManagerResult },
 }

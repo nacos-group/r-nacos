@@ -419,7 +419,7 @@ impl InnerStore {
                             self.set_membership_(&self.membership)?;
                             self.do_notify_membership(false);
                         }
-                        ClientRequest::TableCmd(table_cmd) => {
+                        ClientRequest::TableManagerReq(table_cmd) => {
                             self.do_send_to_table(table_cmd);
                         }
                     }

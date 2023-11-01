@@ -52,10 +52,16 @@ pub async fn handle_route(
             app.raft.add_non_voter(node_id).await?;
             join_node(app.raft.as_ref(), app.raft_store.as_ref(), node_id).await?;
         }
-        RouterRequest::TableCmd { cmd } => {
-            app.raft_table_manage
-                .send(TableManagerAsyncReq(cmd))
+        RouterRequest::TableManagerReq { req } => {
+            let result = app
+                .raft_table_manage
+                .send(TableManagerAsyncReq(req))
                 .await??;
+            return Ok(RouterResponse::TableManagerResult { result });
+        }
+        RouterRequest::TableManagerQueryReq { req } => {
+            let result = app.raft_table_manage.send(req).await??;
+            return Ok(RouterResponse::TableManagerResult { result });
         }
     };
     Ok(RouterResponse::None)
