@@ -70,14 +70,14 @@ impl TableInfo {
 }
 
 #[bean(inject)]
-pub struct TableManage {
+pub struct TableManager {
     pub db: Arc<sled::Db>,
     pub table_map: HashMap<Arc<String>, TableInfo>,
     raft: Option<Weak<NacosRaft>>,
     raft_inner_store: Option<Addr<InnerStore>>,
 }
 
-impl TableManage {
+impl TableManager {
     pub fn new(db: Arc<sled::Db>) -> Self {
         Self {
             db,
@@ -246,7 +246,7 @@ impl TableManage {
     }
 }
 
-impl Actor for TableManage {
+impl Actor for TableManager {
     type Context = Context<Self>;
 
     fn started(&mut self, _ctx: &mut Self::Context) {
@@ -254,7 +254,7 @@ impl Actor for TableManage {
     }
 }
 
-impl Inject for TableManage {
+impl Inject for TableManager {
     type Context = Context<Self>;
 
     fn inject(
@@ -272,12 +272,12 @@ impl Inject for TableManage {
 }
 
 #[derive(Message)]
-#[rtype(result = "anyhow::Result<TableManageResult>")]
-pub struct TableManageAsyncCmd(pub TableManageCmd);
+#[rtype(result = "anyhow::Result<TableManagerResult>")]
+pub struct TableManagerAsyncReq(pub TableManagerReq);
 
 #[derive(Message, Clone, Debug, Serialize, Deserialize)]
-#[rtype(result = "anyhow::Result<TableManageResult>")]
-pub enum TableManageCmd {
+#[rtype(result = "anyhow::Result<TableManagerResult>")]
+pub enum TableManagerReq {
     Set {
         table_name: Arc<String>,
         key: Vec<u8>,
@@ -304,39 +304,47 @@ pub enum TableManageCmd {
     ReloadTable,
 }
 
-impl From<TableManageCmd> for RouterRequest {
-    fn from(cmd: TableManageCmd) -> Self {
+impl From<TableManagerReq> for RouterRequest {
+    fn from(cmd: TableManagerReq) -> Self {
         Self::TableCmd { cmd }
     }
 }
 
 #[derive(Message, Clone, Debug, Serialize, Deserialize)]
-#[rtype(result = "anyhow::Result<TableManageResult>")]
-pub enum TableManageQueryCmd {
+#[rtype(result = "anyhow::Result<TableManagerResult>")]
+pub enum TableManagerQueryReq {
     QueryTableNames,
     Get {
+        table_name: Arc<String>,
+        key: String,
+    },
+    GetByArcKey {
+        table_name: Arc<String>,
+        key: Arc<String>,
+    },
+    GetByBytes {
         table_name: Arc<String>,
         key: Vec<u8>,
     },
 }
 
-pub enum TableManageResult {
+pub enum TableManagerResult {
     None,
     Value(Vec<u8>),
     NextId(u64),
     TableNames(Vec<Arc<String>>),
 }
 
-impl Handler<TableManageAsyncCmd> for TableManage {
-    type Result = ResponseActFuture<Self, anyhow::Result<TableManageResult>>;
+impl Handler<TableManagerAsyncReq> for TableManager {
+    type Result = ResponseActFuture<Self, anyhow::Result<TableManagerResult>>;
 
-    fn handle(&mut self, msg: TableManageAsyncCmd, _ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, msg: TableManagerAsyncReq, _ctx: &mut Self::Context) -> Self::Result {
         let cmd = msg.0;
         let raft = self.raft.clone();
 
         let fut = async move {
             let _ = Self::send_raft_request(&raft, ClientRequest::TableCmd(cmd)).await;
-            Ok(TableManageResult::None)
+            Ok(TableManagerResult::None)
         }
         .into_actor(self)
         .map(|r, _act, _ctx| r);
@@ -344,68 +352,81 @@ impl Handler<TableManageAsyncCmd> for TableManage {
     }
 }
 
-impl Handler<TableManageCmd> for TableManage {
-    type Result = anyhow::Result<TableManageResult>;
+impl Handler<TableManagerReq> for TableManager {
+    type Result = anyhow::Result<TableManagerResult>;
 
-    fn handle(&mut self, msg: TableManageCmd, _ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, msg: TableManagerReq, _ctx: &mut Self::Context) -> Self::Result {
         match msg {
-            TableManageCmd::Set {
+            TableManagerReq::Set {
                 table_name,
                 key,
                 value,
                 last_seq_id,
             } => match self.insert(table_name, key, value, last_seq_id) {
-                Some(v) => Ok(TableManageResult::Value(v.to_vec())),
-                None => Ok(TableManageResult::None),
+                Some(v) => Ok(TableManagerResult::Value(v.to_vec())),
+                None => Ok(TableManagerResult::None),
             },
-            TableManageCmd::Remove { table_name, key } => match self.remove(table_name, key) {
-                Some(v) => Ok(TableManageResult::Value(v.to_vec())),
-                None => Ok(TableManageResult::None),
+            TableManagerReq::Remove { table_name, key } => match self.remove(table_name, key) {
+                Some(v) => Ok(TableManagerResult::Value(v.to_vec())),
+                None => Ok(TableManagerResult::None),
             },
-            TableManageCmd::Drop(name) => {
+            TableManagerReq::Drop(name) => {
                 self.drop_table(&name);
-                Ok(TableManageResult::None)
+                Ok(TableManagerResult::None)
             }
-            TableManageCmd::NextId {
+            TableManagerReq::NextId {
                 table_name,
                 seq_step,
             } => match self.next_id(table_name, seq_step.unwrap_or(100)) {
-                Ok(v) => Ok(TableManageResult::NextId(v)),
-                Err(_) => Ok(TableManageResult::None),
+                Ok(v) => Ok(TableManagerResult::NextId(v)),
+                Err(_) => Ok(TableManagerResult::None),
             },
-            TableManageCmd::SetSeqId {
+            TableManagerReq::SetSeqId {
                 table_name,
                 last_seq_id,
             } => {
                 self.set_last_seq_id(table_name, last_seq_id);
-                Ok(TableManageResult::None)
+                Ok(TableManagerResult::None)
             }
-            TableManageCmd::SetUseAutoId {
+            TableManagerReq::SetUseAutoId {
                 table_name: _,
                 value: _,
             } => Err(anyhow::anyhow!(
                 "must pretransformation to TableManageCmd::Set"
             )),
-            TableManageCmd::ReloadTable => {
+            TableManagerReq::ReloadTable => {
                 self.load_tables();
-                Ok(TableManageResult::None)
+                Ok(TableManagerResult::None)
             }
         }
     }
 }
 
-impl Handler<TableManageQueryCmd> for TableManage {
-    type Result = anyhow::Result<TableManageResult>;
+impl Handler<TableManagerQueryReq> for TableManager {
+    type Result = anyhow::Result<TableManagerResult>;
 
-    fn handle(&mut self, msg: TableManageQueryCmd, _ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, msg: TableManagerQueryReq, _ctx: &mut Self::Context) -> Self::Result {
         match msg {
-            TableManageQueryCmd::QueryTableNames => {
+            TableManagerQueryReq::QueryTableNames => {
                 let table_names = self.get_table_db_names();
-                Ok(TableManageResult::TableNames(table_names))
+                Ok(TableManagerResult::TableNames(table_names))
             }
-            TableManageQueryCmd::Get { table_name, key } => match self.get(table_name, key) {
-                Some(v) => Ok(TableManageResult::Value(v.to_vec())),
-                None => Ok(TableManageResult::None),
+            TableManagerQueryReq::Get { table_name, key } => {
+                match self.get(table_name, key.as_bytes()) {
+                    Some(v) => Ok(TableManagerResult::Value(v.to_vec())),
+                    None => Ok(TableManagerResult::None),
+                }
+            }
+            TableManagerQueryReq::GetByArcKey { table_name, key } => {
+                match self.get(table_name, key.as_bytes()) {
+                    Some(v) => Ok(TableManagerResult::Value(v.to_vec())),
+                    None => Ok(TableManagerResult::None),
+                }
+            }
+            TableManagerQueryReq::GetByBytes { table_name, key } => match self.get(table_name, key)
+            {
+                Some(v) => Ok(TableManagerResult::Value(v.to_vec())),
+                None => Ok(TableManagerResult::None),
             },
         }
     }

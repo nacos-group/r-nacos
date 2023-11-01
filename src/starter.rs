@@ -18,7 +18,7 @@ use crate::{
             model::RouterRequest,
             route::{ConfigRoute, RaftAddrRouter},
         },
-        db::{route::TableRoute, table::TableManage},
+        db::{route::TableRoute, table::TableManager},
         store::innerstore::InnerStore,
         NacosRaft,
         {
@@ -73,7 +73,7 @@ pub async fn config_factory(sys_config: Arc<AppSysConfig>) -> anyhow::Result<Fac
     factory.register(BeanDefinition::from_obj(cluster_sender.clone()));
     let raft = build_raft(&sys_config, store.clone(), cluster_sender.clone())?;
     factory.register(BeanDefinition::from_obj(raft.clone()));
-    let table_manage = TableManage::new(db).start();
+    let table_manage = TableManager::new(db).start();
     factory.register(BeanDefinition::actor_with_inject_from_obj(
         table_manage.clone(),
     ));

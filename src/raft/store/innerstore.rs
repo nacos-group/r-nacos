@@ -6,7 +6,7 @@ use crate::common::sled_utils::TABLE_SEQUENCE_TREE_NAME;
 use crate::config::core::ConfigActor;
 use crate::config::model::ConfigRaftCmd;
 use crate::naming::cluster::node_manage::{InnerNodeManage, NodeManageRequest};
-use crate::raft::db::table::{TableManage, TableManageCmd, TABLE_DEFINITION_TREE_NAME};
+use crate::raft::db::table::{TableManager, TableManagerReq, TABLE_DEFINITION_TREE_NAME};
 
 use super::{
     ClientRequest, ClientResponse, Membership, SnapshotDataInfo, SnapshotItem, SnapshotMeta,
@@ -34,7 +34,7 @@ pub struct InnerStore {
     db: Arc<sled::Db>,
     config_addr: Option<Addr<ConfigActor>>,
     naming_inner_node_manage: Option<Addr<InnerNodeManage>>,
-    raft_table_manage: Option<Addr<TableManage>>,
+    raft_table_manage: Option<Addr<TableManager>>,
     raft_table_map: HashMap<Arc<String>, u32>,
     raft_table_id: u32,
     id: NodeId,
@@ -103,7 +103,7 @@ impl InnerStore {
         }
     }
 
-    fn do_send_to_table(&self, cmd: TableManageCmd) {
+    fn do_send_to_table(&self, cmd: TableManagerReq) {
         if let Some(addr) = &self.raft_table_manage {
             addr.do_send(cmd);
         }
@@ -601,7 +601,7 @@ impl InnerStore {
         self.set_snapshot_(snapshot.get_ref().as_slice())?;
         let cmd = ConfigRaftCmd::ApplySnaphot;
         self.do_send_to_config(cmd);
-        self.do_send_to_table(TableManageCmd::ReloadTable);
+        self.do_send_to_table(TableManagerReq::ReloadTable);
         //self.wait_send_config_raft_cmd(cmd,ctx).ok();
 
         Ok(())

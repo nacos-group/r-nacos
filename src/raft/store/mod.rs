@@ -12,7 +12,7 @@ use serde::Deserialize;
 use serde::Serialize;
 use thiserror::Error;
 
-use super::db::table::TableManageCmd;
+use super::db::table::TableManagerReq;
 
 pub type NodeId = u64;
 
@@ -31,7 +31,7 @@ pub enum ClientRequest {
     ConfigRemove {
         key: String,
     },
-    TableCmd(TableManageCmd),
+    TableCmd(TableManagerReq),
 }
 
 impl AppData for ClientRequest {}

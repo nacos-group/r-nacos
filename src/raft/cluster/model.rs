@@ -2,7 +2,7 @@ use std::{collections::HashMap, sync::Arc};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{config::core::ConfigKey, raft::db::table::TableManageCmd};
+use crate::{config::core::ConfigKey, raft::db::table::TableManagerReq};
 
 pub enum RouteAddr {
     Local,
@@ -53,7 +53,7 @@ pub enum RouterRequest {
         node_addr: Arc<String>,
     },
     TableCmd {
-        cmd: TableManageCmd,
+        cmd: TableManagerReq,
     },
 }
 

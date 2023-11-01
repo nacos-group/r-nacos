@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::common::appdata::AppShareData;
 
-use super::table::{TableManageCmd, TableManageQueryCmd, TableManageResult};
+use super::table::{TableManagerQueryReq, TableManagerReq, TableManagerResult};
 
 #[derive(Debug, Deserialize)]
 pub struct KvOpParam {
@@ -28,7 +28,7 @@ pub async fn set(
     web::Form(param): web::Form<KvOpParam>,
 ) -> actix_web::Result<impl Responder> {
     app.raft_table_route
-        .request(TableManageCmd::Set {
+        .request(TableManagerReq::Set {
             table_name: param.table_name,
             key: param.key.as_bytes().to_owned(),
             value: param.value.unwrap_or_default().as_bytes().to_owned(),
@@ -43,17 +43,17 @@ pub async fn get(
     app: Data<Arc<AppShareData>>,
     web::Query(param): web::Query<KvOpParam>,
 ) -> actix_web::Result<impl Responder> {
-    let res: TableManageResult = app
+    let res: TableManagerResult = app
         .raft_table_manage
-        .send(TableManageQueryCmd::Get {
+        .send(TableManagerQueryReq::Get {
             table_name: param.table_name,
-            key: param.key.as_bytes().to_owned(),
+            key: param.key,
         })
         .await
         .unwrap()
         .unwrap();
     match res {
-        TableManageResult::Value(value) => Ok(Json(KvValueResult {
+        TableManagerResult::Value(value) => Ok(Json(KvValueResult {
             value: String::from_utf8(value).unwrap(),
             success: true,
         })),

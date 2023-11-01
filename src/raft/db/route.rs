@@ -13,17 +13,17 @@ use crate::{
     },
 };
 
-use super::table::{TableManage, TableManageAsyncCmd, TableManageCmd};
+use super::table::{TableManager, TableManagerAsyncReq, TableManagerQueryReq, TableManagerReq};
 
 pub struct TableRoute {
-    table_manage: Addr<TableManage>,
+    table_manage: Addr<TableManager>,
     raft_addr_route: Arc<RaftAddrRouter>,
     cluster_sender: Arc<RaftClusterRequestSender>,
 }
 
 impl TableRoute {
     pub fn new(
-        table_manage: Addr<TableManage>,
+        table_manage: Addr<TableManager>,
         raft_addr_route: Arc<RaftAddrRouter>,
         cluster_sender: Arc<RaftClusterRequestSender>,
     ) -> Self {
@@ -38,10 +38,13 @@ impl TableRoute {
         anyhow::anyhow!("unknown the raft leader addr!")
     }
 
-    pub async fn request(&self, cmd: TableManageCmd) -> anyhow::Result<()> {
+    pub async fn request(&self, cmd: TableManagerReq) -> anyhow::Result<()> {
         match self.raft_addr_route.get_route_addr().await? {
             RouteAddr::Local => {
-                self.table_manage.send(TableManageAsyncCmd(cmd)).await?.ok();
+                self.table_manage
+                    .send(TableManagerAsyncReq(cmd))
+                    .await?
+                    .ok();
             }
             RouteAddr::Remote(_, addr) => {
                 let req: RouterRequest = cmd.into();
@@ -53,6 +56,10 @@ impl TableRoute {
                 return Err(self.unknown_err());
             }
         };
+        Ok(())
+    }
+
+    pub async fn get_leader_data(&self, cmd: TableManagerQueryReq) -> anyhow::Result<()> {
         Ok(())
     }
 }
