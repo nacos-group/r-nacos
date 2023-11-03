@@ -8,7 +8,7 @@ use crate::{
     now_millis,
     raft::db::{
         route::TableRoute,
-        table::{TableManager, TableManagerReq},
+        table::{TableManagerQueryReq, TableManagerReq, TableManagerResult},
     },
 };
 
@@ -16,12 +16,14 @@ use self::model::UserDto;
 
 pub mod model;
 
+lazy_static::lazy_static! {
+    static ref USER_TABLE_NAME: Arc<String> =  Arc::new("user".to_string());
+}
 #[bean(inject)]
 pub struct UserManager {
-    cache: MemCache<Arc<String>, UserDto>,
+    cache: MemCache<Arc<String>, Arc<UserDto>>,
     cache_sec: i32,
     raft_table_route: Option<Arc<TableRoute>>,
-    table_name: Arc<String>,
 }
 
 impl UserManager {
@@ -30,8 +32,11 @@ impl UserManager {
             cache: MemCache::new(),
             cache_sec: 1200,
             raft_table_route: Default::default(),
-            table_name: Arc::new("user".to_string()),
         }
+    }
+
+    fn update_timeout(&mut self, key: &Arc<String>) {
+        self.cache.update_time_out(key, self.cache_sec)
     }
 }
 
@@ -79,55 +84,133 @@ pub enum UserManagerReq {
     //分页查询用户列表
 }
 
+pub enum UserManagerInnerCtx {
+    UpdateUser { key: Arc<String>, value: UserDto },
+    CheckUserResult(Arc<String>, bool),
+    QueryUser(Arc<String>),
+}
+
 pub enum UserManagerResult {
     None,
-    User(UserDto),
+    CheckUserResult(bool),
+    QueryUser(Option<Arc<UserDto>>),
 }
 
 impl Handler<UserManagerReq> for UserManager {
-    type Result = anyhow::Result<UserManagerResult>;
+    type Result = ResponseActFuture<Self, anyhow::Result<UserManagerResult>>;
 
-    fn handle(&mut self, msg: UserManagerReq, ctx: &mut Self::Context) -> Self::Result {
-        match msg {
-            UserManagerReq::AddUser {
-                name,
-                nickname,
-                password,
-            } => {
-                let now = (now_millis() / 1000) as u32;
-                let user = UserDto {
-                    password,
+    fn handle(&mut self, msg: UserManagerReq, _ctx: &mut Self::Context) -> Self::Result {
+        let raft_table_route = self.raft_table_route.clone();
+        let fut = async move {
+            match msg {
+                UserManagerReq::AddUser {
+                    name,
                     nickname,
-                    gmt_create: now,
-                    gmt_modified: now,
-                };
-                let user_data = user.to_bytes();
-                let raft_table_route = self.raft_table_route.clone();
-                let cmd = TableManagerReq::Set {
-                    table_name: self.table_name.clone(),
-                    key: name.as_bytes().to_owned(),
-                    value: user_data,
-                    last_seq_id: None,
-                };
-                async move {
+                    password,
+                } => {
+                    let now = (now_millis() / 1000) as u32;
+                    let user = UserDto {
+                        password,
+                        nickname,
+                        gmt_create: now,
+                        gmt_modified: now,
+                    };
+                    let user_data = user.to_bytes();
+                    let req = TableManagerReq::Set {
+                        table_name: USER_TABLE_NAME.clone(),
+                        key: name.as_bytes().to_owned(),
+                        value: user_data,
+                        last_seq_id: None,
+                    };
                     if let Some(raft_table_route) = raft_table_route {
-                        raft_table_route.request(cmd).await.ok();
+                        raft_table_route.request(req).await.ok();
                     }
-                    ()
+                    Ok(UserManagerInnerCtx::UpdateUser {
+                        key: name,
+                        value: user,
+                    })
                 }
-                .into_actor(self)
-                .map(|_r, _act, _ctx| {})
-                .wait(ctx);
-                self.cache.set(name.clone(), user, self.cache_sec);
-                Ok(UserManagerResult::None)
+                UserManagerReq::UpdateUser {
+                    name,
+                    nickname,
+                    password,
+                } => {
+                    let mut last_user = if let Some(raft_table_route) = &raft_table_route {
+                        let query_req = TableManagerQueryReq::GetByArcKey {
+                            table_name: USER_TABLE_NAME.clone(),
+                            key: name.clone(),
+                        };
+                        match raft_table_route.get_leader_data(query_req).await? {
+                            TableManagerResult::Value(old_value) => {
+                                UserDto::from_bytes(&old_value)?
+                            }
+                            _ => return Err(anyhow::anyhow!("not found user {}", &name)),
+                        }
+                    } else {
+                        return Err(anyhow::anyhow!("raft_table_route is none "));
+                    };
+                    if let Some(nickname) = nickname {
+                        last_user.nickname = nickname;
+                    }
+                    if let Some(password) = password {
+                        last_user.password = password;
+                    }
+                    let user_data = last_user.to_bytes();
+                    let req = TableManagerReq::Set {
+                        table_name: USER_TABLE_NAME.clone(),
+                        key: name.as_bytes().to_owned(),
+                        value: user_data,
+                        last_seq_id: None,
+                    };
+                    if let Some(raft_table_route) = raft_table_route {
+                        raft_table_route.request(req).await.ok();
+                    }
+                    Ok(UserManagerInnerCtx::UpdateUser {
+                        key: name,
+                        value: last_user,
+                    })
+                }
+                UserManagerReq::CheckUser { name, password } => {
+                    let last_user = if let Some(raft_table_route) = &raft_table_route {
+                        let query_req = TableManagerQueryReq::GetByArcKey {
+                            table_name: USER_TABLE_NAME.clone(),
+                            key: name.clone(),
+                        };
+                        match raft_table_route.get_leader_data(query_req).await? {
+                            TableManagerResult::Value(old_value) => {
+                                UserDto::from_bytes(&old_value)?
+                            }
+                            _ => return Err(anyhow::anyhow!("not found user {}", &name)),
+                        }
+                    } else {
+                        return Err(anyhow::anyhow!("raft_table_route is none "));
+                    };
+                    Ok(UserManagerInnerCtx::CheckUserResult(
+                        name,
+                        last_user.password == password,
+                    ))
+                }
+                UserManagerReq::Query { name } => Ok(UserManagerInnerCtx::QueryUser(name)),
             }
-            UserManagerReq::UpdateUser {
-                name,
-                nickname,
-                password,
-            } => todo!(),
-            UserManagerReq::CheckUser { name, password } => todo!(),
-            UserManagerReq::Query { name } => todo!(),
         }
+        .into_actor(self)
+        .map(
+            |r: anyhow::Result<UserManagerInnerCtx>, act, _ctx| match r? {
+                UserManagerInnerCtx::UpdateUser { key, value } => {
+                    act.cache.set(key, Arc::new(value), act.cache_sec);
+                    Ok(UserManagerResult::None)
+                }
+                UserManagerInnerCtx::CheckUserResult(key, v) => {
+                    act.update_timeout(&key);
+                    Ok(UserManagerResult::CheckUserResult(v))
+                }
+                UserManagerInnerCtx::QueryUser(key) => {
+                    act.update_timeout(&key);
+                    let r = act.cache.get(&key).ok();
+                    Ok(UserManagerResult::QueryUser(r))
+                }
+            },
+        );
+        Box::pin(fut)
     }
 }
