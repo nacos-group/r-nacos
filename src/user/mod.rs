@@ -1,4 +1,4 @@
-use std::{f32::consts::E, sync::Arc};
+use std::sync::Arc;
 
 use actix::prelude::*;
 use bean_factory::{bean, Inject};
@@ -14,6 +14,7 @@ use crate::{
 
 use self::model::UserDto;
 
+pub mod api;
 pub mod model;
 
 lazy_static::lazy_static! {
@@ -39,6 +40,12 @@ impl UserManager {
 
     fn update_timeout(&mut self, key: &Arc<String>) {
         self.cache.update_time_out(key, self.cache_sec)
+    }
+}
+
+impl Default for UserManager {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -124,6 +131,7 @@ impl Handler<UserManagerReq> for UserManager {
                 } => {
                     let now = (now_millis() / 1000) as u32;
                     let user = UserDto {
+                        username: name.as_ref().to_owned(),
                         password,
                         nickname,
                         gmt_create: now,
@@ -163,6 +171,8 @@ impl Handler<UserManagerReq> for UserManager {
                     } else {
                         return Err(anyhow::anyhow!("raft_table_route is none "));
                     };
+                    let now = (now_millis() / 1000) as u32;
+                    last_user.gmt_modified = now;
                     if let Some(nickname) = nickname {
                         last_user.nickname = nickname;
                     }
@@ -267,7 +277,7 @@ impl Handler<UserManagerReq> for UserManager {
                     Ok(UserManagerResult::CheckUserResult(v))
                 }
                 UserManagerInnerCtx::QueryUser(key, user) => {
-                    if let Some(r) = act.cache.get(&key).ok() {
+                    if let Ok(r) = act.cache.get(&key) {
                         act.update_timeout(&key);
                         Ok(UserManagerResult::QueryUser(Some(r)))
                     } else {

@@ -110,10 +110,10 @@ impl InnerStore {
     }
 
     fn init_raft_table_name(&mut self, table_name: Arc<String>) {
-        if !self.raft_table_map.contains_key(&table_name) {
+        if let std::collections::hash_map::Entry::Vacant(e) = self.raft_table_map.entry(table_name)
+        {
             self.raft_table_id += 1;
-            self.raft_table_map
-                .insert(table_name, self.raft_table_id.to_owned());
+            e.insert(self.raft_table_id.to_owned());
         }
     }
 

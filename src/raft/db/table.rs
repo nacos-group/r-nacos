@@ -21,6 +21,8 @@ use crate::{
     },
 };
 
+type TableKV = (Vec<u8>, Vec<u8>);
+
 #[derive(Clone, prost::Message, Serialize, Deserialize)]
 pub struct TableDefinition {
     #[prost(string, tag = "1")]
@@ -101,7 +103,7 @@ impl TableManager {
             }
         }
         if let Some(raft_inner_store) = self.raft_inner_store.as_ref() {
-            for (_, v) in &self.table_map {
+            for v in self.table_map.values() {
                 raft_inner_store.do_send(StoreRequest::RaftTableInit(v.table_db_name.clone()));
             }
         }
@@ -231,7 +233,7 @@ impl TableManager {
         offset: Option<i64>,
         limit: Option<i64>,
         is_rev: bool,
-    ) -> (usize, Vec<(Vec<u8>, Vec<u8>)>) {
+    ) -> (usize, Vec<TableKV>) {
         if let Some(table_info) = self.table_map.get(&name) {
             let table = self
                 .db
@@ -241,33 +243,31 @@ impl TableManager {
             let mut ret = vec![];
             if is_rev {
                 let iter = table.iter().rev();
-                if let Some(offset) = offset {
-                    let mut n_i = iter.skip(offset as usize);
-                    if let Some(limit) = limit {
-                        let mut t = n_i.take(limit as usize);
-                        while let Some(Ok((k, v))) = t.next() {
-                            ret.push((k.to_vec(), v.to_vec()));
-                        }
-                    } else {
-                        while let Some(Ok((k, v))) = n_i.next() {
-                            ret.push((k.to_vec(), v.to_vec()));
-                        }
+                let offset = offset.unwrap_or_default();
+                let mut n_i = iter.skip(offset as usize);
+                if let Some(limit) = limit {
+                    let mut t = n_i.take(limit as usize);
+                    while let Some(Ok((k, v))) = t.next() {
+                        ret.push((k.to_vec(), v.to_vec()));
+                    }
+                } else {
+                    while let Some(Ok((k, v))) = n_i.next() {
+                        ret.push((k.to_vec(), v.to_vec()));
                     }
                 }
             } else {
                 //正反 iter 类型不同，后继可以考虑使用宏消除下面的重复编码
                 let iter = table.iter().skip(0);
-                if let Some(offset) = offset {
-                    let mut n_i = iter.skip(offset as usize);
-                    if let Some(limit) = limit {
-                        let mut t = n_i.take(limit as usize);
-                        while let Some(Ok((k, v))) = t.next() {
-                            ret.push((k.to_vec(), v.to_vec()));
-                        }
-                    } else {
-                        while let Some(Ok((k, v))) = n_i.next() {
-                            ret.push((k.to_vec(), v.to_vec()));
-                        }
+                let offset = offset.unwrap_or_default();
+                let mut n_i = iter.skip(offset as usize);
+                if let Some(limit) = limit {
+                    let mut t = n_i.take(limit as usize);
+                    while let Some(Ok((k, v))) = t.next() {
+                        ret.push((k.to_vec(), v.to_vec()));
+                    }
+                } else {
+                    while let Some(Ok((k, v))) = n_i.next() {
+                        ret.push((k.to_vec(), v.to_vec()));
                     }
                 }
             }
@@ -293,7 +293,6 @@ impl TableManager {
     fn get_table_db_names(&self) -> Vec<Arc<String>> {
         self.table_map
             .values()
-            .into_iter()
             .map(|e| e.table_db_name.clone())
             .collect()
     }

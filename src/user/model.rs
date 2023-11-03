@@ -3,12 +3,14 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, prost::Message, Serialize, Deserialize)]
 pub struct UserDto {
     #[prost(string, tag = "1")]
-    pub password: String,
+    pub username: String,
     #[prost(string, tag = "2")]
+    pub password: String,
+    #[prost(string, tag = "3")]
     pub nickname: String,
-    #[prost(uint32, tag = "3")]
-    pub gmt_create: u32,
     #[prost(uint32, tag = "4")]
+    pub gmt_create: u32,
+    #[prost(uint32, tag = "5")]
     pub gmt_modified: u32,
 }
 

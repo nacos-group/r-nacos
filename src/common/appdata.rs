@@ -10,6 +10,7 @@ use crate::raft::db::table::TableManager;
 use crate::raft::network::factory::RaftClusterRequestSender;
 use crate::raft::store::core::RaftStore;
 use crate::raft::NacosRaft;
+use crate::user::UserManager;
 use actix::Addr;
 use bean_factory::FactoryData;
 use std::sync::Arc;
@@ -29,4 +30,5 @@ pub struct AppShareData {
     pub raft_table_manage: Addr<TableManager>,
     pub raft_table_route: Arc<TableRoute>,
     pub factory_data: FactoryData,
+    pub user_manager: Addr<UserManager>,
 }

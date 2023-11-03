@@ -29,6 +29,7 @@ use crate::{
             store::{core::RaftStore, ClientRequest},
         },
     },
+    user::UserManager,
 };
 use actix::prelude::*;
 use async_raft_ext::{raft::ClientWriteRequest, Config, Raft, RaftStorage};
@@ -119,6 +120,10 @@ pub async fn config_factory(sys_config: Arc<AppSysConfig>) -> anyhow::Result<Fac
     factory.register(BeanDefinition::actor_with_inject_from_obj(
         bistream_manage_addr.clone(),
     ));
+
+    let user_manager = UserManager::new().start();
+    factory.register(BeanDefinition::actor_with_inject_from_obj(user_manager));
+
     Ok(factory.init().await)
 }
 
@@ -137,6 +142,7 @@ pub fn build_share_data(factory_data: FactoryData) -> anyhow::Result<Arc<AppShar
         naming_node_manage: factory_data.get_bean().unwrap(),
         raft_table_manage: factory_data.get_actor().unwrap(),
         raft_table_route: factory_data.get_bean().unwrap(),
+        user_manager: factory_data.get_actor().unwrap(),
         factory_data,
     });
     Ok(app_data)
