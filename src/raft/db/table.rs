@@ -225,6 +225,59 @@ impl TableManager {
         }
     }
 
+    pub(crate) fn query_page_list(
+        &self,
+        name: Arc<String>,
+        offset: Option<i64>,
+        limit: Option<i64>,
+        is_rev: bool,
+    ) -> (usize, Vec<(Vec<u8>, Vec<u8>)>) {
+        if let Some(table_info) = self.table_map.get(&name) {
+            let table = self
+                .db
+                .open_tree(table_info.table_db_name.as_ref())
+                .unwrap();
+            let total: usize = table.len();
+            let mut ret = vec![];
+            if is_rev {
+                let iter = table.iter().rev();
+                if let Some(offset) = offset {
+                    let mut n_i = iter.skip(offset as usize);
+                    if let Some(limit) = limit {
+                        let mut t = n_i.take(limit as usize);
+                        while let Some(Ok((k, v))) = t.next() {
+                            ret.push((k.to_vec(), v.to_vec()));
+                        }
+                    } else {
+                        while let Some(Ok((k, v))) = n_i.next() {
+                            ret.push((k.to_vec(), v.to_vec()));
+                        }
+                    }
+                }
+            } else {
+                //正反 iter 类型不同，后继可以考虑使用宏消除下面的重复编码
+                let iter = table.iter().skip(0);
+                if let Some(offset) = offset {
+                    let mut n_i = iter.skip(offset as usize);
+                    if let Some(limit) = limit {
+                        let mut t = n_i.take(limit as usize);
+                        while let Some(Ok((k, v))) = t.next() {
+                            ret.push((k.to_vec(), v.to_vec()));
+                        }
+                    } else {
+                        while let Some(Ok((k, v))) = n_i.next() {
+                            ret.push((k.to_vec(), v.to_vec()));
+                        }
+                    }
+                }
+            }
+
+            (total, ret)
+        } else {
+            (0, vec![])
+        }
+    }
+
     async fn send_raft_request(
         raft: &Option<Weak<NacosRaft>>,
         req: ClientRequest,
@@ -326,6 +379,12 @@ pub enum TableManagerQueryReq {
         table_name: Arc<String>,
         key: Vec<u8>,
     },
+    QueryPageList {
+        table_name: Arc<String>,
+        offset: Option<i64>,
+        limit: Option<i64>,
+        is_rev: bool,
+    },
 }
 
 impl From<TableManagerQueryReq> for RouterRequest {
@@ -340,6 +399,7 @@ pub enum TableManagerResult {
     Value(Vec<u8>),
     NextId(u64),
     TableNames(Vec<Arc<String>>),
+    PageListResult(usize, Vec<(Vec<u8>, Vec<u8>)>),
 }
 
 impl Handler<TableManagerAsyncReq> for TableManager {
@@ -435,6 +495,15 @@ impl Handler<TableManagerQueryReq> for TableManager {
                 Some(v) => Ok(TableManagerResult::Value(v.to_vec())),
                 None => Ok(TableManagerResult::None),
             },
+            TableManagerQueryReq::QueryPageList {
+                table_name,
+                offset,
+                limit,
+                is_rev,
+            } => {
+                let (size, list) = self.query_page_list(table_name, offset, limit, is_rev);
+                Ok(TableManagerResult::PageListResult(size, list))
+            }
         }
     }
 }

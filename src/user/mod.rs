@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{f32::consts::E, sync::Arc};
 
 use actix::prelude::*;
 use bean_factory::{bean, Inject};
@@ -8,7 +8,7 @@ use crate::{
     now_millis,
     raft::db::{
         route::TableRoute,
-        table::{TableManagerQueryReq, TableManagerReq, TableManagerResult},
+        table::{TableManager, TableManagerQueryReq, TableManagerReq, TableManagerResult},
     },
 };
 
@@ -24,6 +24,7 @@ pub struct UserManager {
     cache: MemCache<Arc<String>, Arc<UserDto>>,
     cache_sec: i32,
     raft_table_route: Option<Arc<TableRoute>>,
+    table_manager: Option<Addr<TableManager>>,
 }
 
 impl UserManager {
@@ -32,6 +33,7 @@ impl UserManager {
             cache: MemCache::new(),
             cache_sec: 1200,
             raft_table_route: Default::default(),
+            table_manager: Default::default(),
         }
     }
 
@@ -50,6 +52,7 @@ impl Inject for UserManager {
         _ctx: &mut Self::Context,
     ) {
         self.raft_table_route = factory_data.get_bean();
+        self.table_manager = factory_data.get_actor();
     }
 }
 
@@ -81,19 +84,25 @@ pub enum UserManagerReq {
     Query {
         name: Arc<String>,
     },
-    //分页查询用户列表
+    QueryPageList {
+        offset: Option<i64>,
+        limit: Option<i64>,
+        is_rev: bool,
+    },
 }
 
 pub enum UserManagerInnerCtx {
     UpdateUser { key: Arc<String>, value: UserDto },
     CheckUserResult(Arc<String>, bool),
-    QueryUser(Arc<String>),
+    QueryUser(Arc<String>, Option<UserDto>),
+    UserPageResult(usize, Vec<UserDto>),
 }
 
 pub enum UserManagerResult {
     None,
     CheckUserResult(bool),
     QueryUser(Option<Arc<UserDto>>),
+    UserPageResult(usize, Vec<UserDto>),
 }
 
 impl Handler<UserManagerReq> for UserManager {
@@ -101,6 +110,11 @@ impl Handler<UserManagerReq> for UserManager {
 
     fn handle(&mut self, msg: UserManagerReq, _ctx: &mut Self::Context) -> Self::Result {
         let raft_table_route = self.raft_table_route.clone();
+        let table_manager = self.table_manager.clone();
+        let query_info_at_cache = match &msg {
+            UserManagerReq::Query { name } => self.cache.get(name).ok().is_some(),
+            _ => false,
+        };
         let fut = async move {
             match msg {
                 UserManagerReq::AddUser {
@@ -190,24 +204,85 @@ impl Handler<UserManagerReq> for UserManager {
                         last_user.password == password,
                     ))
                 }
-                UserManagerReq::Query { name } => Ok(UserManagerInnerCtx::QueryUser(name)),
+                UserManagerReq::Query { name } => {
+                    if query_info_at_cache {
+                        Ok(UserManagerInnerCtx::QueryUser(name, None))
+                    } else {
+                        let last_user = if let Some(table_manager) = &table_manager {
+                            let query_req = TableManagerQueryReq::GetByArcKey {
+                                table_name: USER_TABLE_NAME.clone(),
+                                key: name.clone(),
+                            };
+                            match table_manager.send(query_req).await?? {
+                                TableManagerResult::Value(old_value) => {
+                                    Some(UserDto::from_bytes(&old_value)?)
+                                }
+                                _ => None,
+                            }
+                        } else {
+                            None
+                        };
+                        Ok(UserManagerInnerCtx::QueryUser(name, last_user))
+                    }
+                }
+                UserManagerReq::QueryPageList {
+                    offset,
+                    limit,
+                    is_rev,
+                } => {
+                    if let Some(table_manager) = &table_manager {
+                        let query_req = TableManagerQueryReq::QueryPageList {
+                            table_name: USER_TABLE_NAME.clone(),
+                            offset,
+                            limit,
+                            is_rev,
+                        };
+                        match table_manager.send(query_req).await?? {
+                            TableManagerResult::PageListResult(size, list) => {
+                                let mut user_list = Vec::with_capacity(list.len());
+                                for (_, v) in list {
+                                    user_list.push(UserDto::from_bytes(&v)?);
+                                }
+                                Ok(UserManagerInnerCtx::UserPageResult(size, user_list))
+                            }
+                            _ => Ok(UserManagerInnerCtx::UserPageResult(0, vec![])),
+                        }
+                    } else {
+                        Ok(UserManagerInnerCtx::UserPageResult(0, vec![]))
+                    }
+                }
             }
         }
         .into_actor(self)
         .map(
-            |r: anyhow::Result<UserManagerInnerCtx>, act, _ctx| match r? {
+            |res: anyhow::Result<UserManagerInnerCtx>, act, _ctx| match res? {
                 UserManagerInnerCtx::UpdateUser { key, value } => {
                     act.cache.set(key, Arc::new(value), act.cache_sec);
                     Ok(UserManagerResult::None)
                 }
                 UserManagerInnerCtx::CheckUserResult(key, v) => {
-                    act.update_timeout(&key);
+                    if v {
+                        act.update_timeout(&key);
+                    }
                     Ok(UserManagerResult::CheckUserResult(v))
                 }
-                UserManagerInnerCtx::QueryUser(key) => {
-                    act.update_timeout(&key);
-                    let r = act.cache.get(&key).ok();
-                    Ok(UserManagerResult::QueryUser(r))
+                UserManagerInnerCtx::QueryUser(key, user) => {
+                    if let Some(r) = act.cache.get(&key).ok() {
+                        act.update_timeout(&key);
+                        Ok(UserManagerResult::QueryUser(Some(r)))
+                    } else {
+                        match user {
+                            Some(user) => {
+                                let user = Arc::new(user);
+                                act.cache.set(key, user.clone(), act.cache_sec);
+                                Ok(UserManagerResult::QueryUser(Some(user)))
+                            }
+                            None => Ok(UserManagerResult::QueryUser(None)),
+                        }
+                    }
+                }
+                UserManagerInnerCtx::UserPageResult(size, list) => {
+                    Ok(UserManagerResult::UserPageResult(size, list))
                 }
             },
         );

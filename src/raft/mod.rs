@@ -3,6 +3,7 @@ use async_raft_ext::{Raft, RaftStorage};
 use self::network::core::RaftRouter;
 use self::store::{core::RaftStore, ClientRequest, ClientResponse};
 
+pub mod cache;
 pub mod cluster;
 pub mod db;
 pub mod network;
