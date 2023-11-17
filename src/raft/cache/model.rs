@@ -43,8 +43,8 @@ impl CacheType {
         match self {
             CacheType::String => 1,
             CacheType::Map => 2,
-            CacheType::UserSession => 10,
-            //CacheType::TokenSession => 11,
+            CacheType::UserSession => 3,
+            //CacheType::TokenSession => 4,
         }
     }
 
@@ -52,8 +52,8 @@ impl CacheType {
         match v {
             1 => Ok(CacheType::String),
             2 => Ok(CacheType::Map),
-            10 => Ok(CacheType::UserSession),
-            //11 => Ok(CacheType::TokenSession),
+            3 => Ok(CacheType::UserSession),
+            //4 => Ok(CacheType::TokenSession),
             _ => Err(anyhow::anyhow!("unknown type from {}", &v)),
         }
     }
@@ -66,8 +66,26 @@ pub struct CacheKey {
 }
 
 impl CacheKey {
+    pub fn new(cache_type: CacheType, key: Arc<String>) -> Self {
+        Self { cache_type, key }
+    }
+
     pub fn to_string(&self) -> String {
-        format!("{}{}", self.cache_type.get_type_data(), &self.key)
+        format!("{}\x00{}", self.cache_type.get_type_data(), &self.key)
+    }
+
+    pub fn from_db_key(db_key: Vec<u8>) -> anyhow::Result<Self> {
+        let mut iter = db_key.split(|v| *v == 0);
+        let t = if let Some(t) = iter.next() {
+            String::from_utf8(t.to_owned())?.parse::<u8>()?
+        } else {
+            return Err(anyhow::anyhow!("db_key split type is error!"));
+        };
+        if let Some(key) = iter.next() {
+            return Self::from_bytes(key.to_owned(), t);
+        } else {
+            return Err(anyhow::anyhow!("db_key split key is error!"));
+        }
     }
 
     pub fn from_bytes(key: Vec<u8>, t: u8) -> anyhow::Result<Self> {

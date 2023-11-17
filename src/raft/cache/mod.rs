@@ -6,15 +6,16 @@ use actix::prelude::*;
 use bean_factory::{bean, Inject};
 use inner_mem_cache::MemCache;
 
-use crate::{now_millis, now_millis_i64};
+use crate::now_millis_i64;
 
 use self::model::{CacheItemDo, CacheKey, CacheValue};
 
 use super::db::{
     route::TableRoute,
-    table::{TableManager, TableManagerQueryReq, TableManagerResult},
+    table::{TableManager, TableManagerQueryReq, TableManagerReq, TableManagerResult},
 };
 
+pub mod api;
 pub mod model;
 
 lazy_static::lazy_static! {
@@ -111,11 +112,11 @@ impl Inject for CacheManager {
         self.raft_table_route = factory_data.get_bean();
         self.table_manager = factory_data.get_actor();
         //init
-        self.load(ctx);
+        self.load(ctx).ok();
     }
 }
 
-#[derive(Message)]
+#[derive(Message, Clone, Debug)]
 #[rtype(result = "anyhow::Result<CacheManagerResult>")]
 pub enum CacheManagerReq {
     Set {
@@ -124,22 +125,109 @@ pub enum CacheManagerReq {
         ttl: i32,
     },
     Get(CacheKey),
-    UpdateTimeOut {
-        key: CacheKey,
-        ttl: i32,
+    Remove(CacheKey),
+    NotifyChange {
+        key: Vec<u8>,
+        value: Vec<u8>,
+    },
+    NotifyRemove {
+        key: Vec<u8>,
     },
 }
 
 pub enum CacheManagerResult {
     None,
+    Value(CacheValue),
 }
 
-pub enum CacheManagerInnerCtx {}
+pub enum CacheManagerInnerCtx {
+    Get(CacheKey),
+    Remove(CacheKey),
+    Set {
+        key: CacheKey,
+        value: CacheValue,
+        ttl: i32,
+    },
+    NotifyChange {
+        key: Vec<u8>,
+        value: Vec<u8>,
+    },
+    NotifyRemove {
+        key: Vec<u8>,
+    },
+}
 
 impl Handler<CacheManagerReq> for CacheManager {
     type Result = ResponseActFuture<Self, anyhow::Result<CacheManagerResult>>;
 
-    fn handle(&mut self, msg: CacheManagerReq, ctx: &mut Self::Context) -> Self::Result {
-        todo!()
+    fn handle(&mut self, msg: CacheManagerReq, _ctx: &mut Self::Context) -> Self::Result {
+        let raft_table_route = self.raft_table_route.clone();
+        let fut = async move {
+            match msg {
+                CacheManagerReq::Set { key, value, ttl } => {
+                    let now = now_millis_i64() as i32;
+                    if let Some(raft_table_route) = &raft_table_route {
+                        let mut cache_do: CacheItemDo = value.clone().into();
+                        cache_do.timeout = now + ttl;
+                        let req = TableManagerReq::Set {
+                            table_name: CACHE_TABLE_NAME.clone(),
+                            key: key.to_string().into_bytes(),
+                            value: cache_do.to_bytes(),
+                            last_seq_id: None,
+                        };
+                        raft_table_route.request(req).await?;
+                    } else {
+                        return Err(anyhow::anyhow!("raft_table_route is none "));
+                    };
+                    Ok(CacheManagerInnerCtx::Set { key, value, ttl })
+                }
+                CacheManagerReq::Remove(key) => {
+                    if let Some(raft_table_route) = &raft_table_route {
+                        let req = TableManagerReq::Remove {
+                            table_name: CACHE_TABLE_NAME.clone(),
+                            key: key.to_string().into_bytes(),
+                        };
+                        raft_table_route.request(req).await?;
+                    } else {
+                        return Err(anyhow::anyhow!("raft_table_route is none "));
+                    };
+                    Ok(CacheManagerInnerCtx::Remove(key))
+                }
+                CacheManagerReq::Get(key) => Ok(CacheManagerInnerCtx::Get(key)),
+                CacheManagerReq::NotifyChange { key, value } => {
+                    Ok(CacheManagerInnerCtx::NotifyChange { key, value })
+                }
+                CacheManagerReq::NotifyRemove { key } => {
+                    Ok(CacheManagerInnerCtx::NotifyRemove { key })
+                }
+            }
+        }
+        .into_actor(self)
+        .map(
+            |inner_ctx: anyhow::Result<CacheManagerInnerCtx>, act, _| match inner_ctx? {
+                CacheManagerInnerCtx::Get(key) => match act.cache.get(&key) {
+                    Ok(v) => Ok(CacheManagerResult::Value(v)),
+                    Err(_) => Ok(CacheManagerResult::None),
+                },
+                CacheManagerInnerCtx::Remove(key) => {
+                    act.cache.remove(&key);
+                    Ok(CacheManagerResult::None)
+                }
+                CacheManagerInnerCtx::Set { key, value, ttl } => {
+                    act.cache.set(key, value, ttl);
+                    Ok(CacheManagerResult::None)
+                }
+                CacheManagerInnerCtx::NotifyChange { key, value } => {
+                    act.do_load(Ok(Some(vec![(key, value)]))).ok();
+                    Ok(CacheManagerResult::None)
+                }
+                CacheManagerInnerCtx::NotifyRemove { key } => {
+                    let key = CacheKey::from_db_key(key)?;
+                    act.cache.remove(&key);
+                    Ok(CacheManagerResult::None)
+                }
+            },
+        );
+        Box::pin(fut)
     }
 }

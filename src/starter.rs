@@ -14,6 +14,7 @@ use crate::{
         naming_delay_nofity::DelayNotifyActor,
     },
     raft::{
+        cache::CacheManager,
         cluster::{
             model::RouterRequest,
             route::{ConfigRoute, RaftAddrRouter},
@@ -123,6 +124,8 @@ pub async fn config_factory(sys_config: Arc<AppSysConfig>) -> anyhow::Result<Fac
 
     let user_manager = UserManager::new().start();
     factory.register(BeanDefinition::actor_with_inject_from_obj(user_manager));
+    let cache_manager = CacheManager::new().start();
+    factory.register(BeanDefinition::actor_with_inject_from_obj(cache_manager));
 
     Ok(factory.init().await)
 }
@@ -143,6 +146,7 @@ pub fn build_share_data(factory_data: FactoryData) -> anyhow::Result<Arc<AppShar
         raft_table_manage: factory_data.get_actor().unwrap(),
         raft_table_route: factory_data.get_bean().unwrap(),
         user_manager: factory_data.get_actor().unwrap(),
+        cache_manager: factory_data.get_actor().unwrap(),
         factory_data,
     });
     Ok(app_data)

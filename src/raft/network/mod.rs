@@ -2,7 +2,7 @@ use actix_web::web;
 
 use crate::{raft::cluster::routeapi, user};
 
-use super::db::kvapi;
+use super::{cache, db::kvapi};
 
 pub mod core;
 pub mod factory;
@@ -33,6 +33,9 @@ pub fn raft_config(config: &mut web::ServiceConfig) {
             .service(
                 web::resource("/user/querypage")
                     .route(web::get().to(user::api::get_user_page_list)),
-            ),
+            )
+            .service(web::resource("/cache/set").route(web::post().to(cache::api::set_cache)))
+            .service(web::resource("/cache/remove").route(web::post().to(cache::api::remove_cache)))
+            .service(web::resource("/cache/get").route(web::get().to(cache::api::get_cache))),
     );
 }

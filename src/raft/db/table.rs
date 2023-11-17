@@ -12,6 +12,7 @@ use actix::prelude::*;
 use crate::{
     common::sled_utils::TableSequence,
     raft::{
+        cache::{CacheManager, CacheManagerReq},
         cluster::model::RouterRequest,
         store::{
             innerstore::{InnerStore, StoreRequest},
@@ -77,6 +78,7 @@ pub struct TableManager {
     pub table_map: HashMap<Arc<String>, TableInfo>,
     raft: Option<Weak<NacosRaft>>,
     raft_inner_store: Option<Addr<InnerStore>>,
+    cache_manager: Option<Addr<CacheManager>>,
 }
 
 impl TableManager {
@@ -86,6 +88,7 @@ impl TableManager {
             table_map: Default::default(),
             raft: None,
             raft_inner_store: None,
+            cache_manager: None,
         }
     }
 
@@ -318,6 +321,7 @@ impl Inject for TableManager {
         let raft: Option<Arc<NacosRaft>> = factory_data.get_bean();
         self.raft = raft.map(|e| Arc::downgrade(&e));
         self.raft_inner_store = factory_data.get_actor();
+        self.cache_manager = factory_data.get_actor();
 
         self.load_tables();
     }
@@ -428,14 +432,33 @@ impl Handler<TableManagerReq> for TableManager {
                 key,
                 value,
                 last_seq_id,
-            } => match self.insert(table_name, key, value, last_seq_id) {
-                Some(v) => Ok(TableManagerResult::Value(v.to_vec())),
-                None => Ok(TableManagerResult::None),
-            },
-            TableManagerReq::Remove { table_name, key } => match self.remove(table_name, key) {
-                Some(v) => Ok(TableManagerResult::Value(v.to_vec())),
-                None => Ok(TableManagerResult::None),
-            },
+            } => {
+                if table_name.as_str() == "cache" {
+                    if let Some(cache_manager) = &self.cache_manager {
+                        let req = CacheManagerReq::NotifyChange {
+                            key: key.clone(),
+                            value: value.clone(),
+                        };
+                        cache_manager.do_send(req);
+                    }
+                }
+                match self.insert(table_name, key, value, last_seq_id) {
+                    Some(v) => Ok(TableManagerResult::Value(v.to_vec())),
+                    None => Ok(TableManagerResult::None),
+                }
+            }
+            TableManagerReq::Remove { table_name, key } => {
+                if table_name.as_str() == "cache" {
+                    if let Some(cache_manager) = &self.cache_manager {
+                        let req = CacheManagerReq::NotifyRemove { key: key.clone() };
+                        cache_manager.do_send(req);
+                    }
+                }
+                match self.remove(table_name, key) {
+                    Some(v) => Ok(TableManagerResult::Value(v.to_vec())),
+                    None => Ok(TableManagerResult::None),
+                }
+            }
             TableManagerReq::Drop(name) => {
                 self.drop_table(&name);
                 Ok(TableManagerResult::None)
