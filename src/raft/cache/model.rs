@@ -65,13 +65,15 @@ pub struct CacheKey {
     pub key: Arc<String>,
 }
 
+impl ToString for CacheKey {
+    fn to_string(&self) -> String {
+        format!("{}\x00{}", self.cache_type.get_type_data(), &self.key)
+    }
+}
+
 impl CacheKey {
     pub fn new(cache_type: CacheType, key: Arc<String>) -> Self {
         Self { cache_type, key }
-    }
-
-    pub fn to_string(&self) -> String {
-        format!("{}\x00{}", self.cache_type.get_type_data(), &self.key)
     }
 
     pub fn from_db_key(db_key: Vec<u8>) -> anyhow::Result<Self> {
@@ -82,9 +84,9 @@ impl CacheKey {
             return Err(anyhow::anyhow!("db_key split type is error!"));
         };
         if let Some(key) = iter.next() {
-            return Self::from_bytes(key.to_owned(), t);
+            Self::from_bytes(key.to_owned(), t)
         } else {
-            return Err(anyhow::anyhow!("db_key split key is error!"));
+            Err(anyhow::anyhow!("db_key split key is error!"))
         }
     }
 

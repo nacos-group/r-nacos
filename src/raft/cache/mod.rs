@@ -6,7 +6,7 @@ use actix::prelude::*;
 use bean_factory::{bean, Inject};
 use inner_mem_cache::MemCache;
 
-use crate::{now_second_i32};
+use crate::now_second_i32;
 
 use self::model::{CacheItemDo, CacheKey, CacheValue};
 
@@ -29,6 +29,14 @@ pub struct CacheManager {
     raft_table_route: Option<Arc<TableRoute>>,
     table_manager: Option<Addr<TableManager>>,
 }
+
+impl Default for CacheManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+type KvPair = (Vec<u8>, Vec<u8>);
 
 impl CacheManager {
     pub fn new() -> Self {
@@ -60,9 +68,7 @@ impl CacheManager {
         }
         .into_actor(self)
         .map(
-            |result: anyhow::Result<Option<Vec<(Vec<u8>, Vec<u8>)>>>, act, _ctx| match act
-                .do_load(result)
-            {
+            |result: anyhow::Result<Option<Vec<KvPair>>>, act, _ctx| match act.do_load(result) {
                 Ok(_) => {}
                 Err(e) => log::error!("load cache info error,{}", e.to_string()),
             },
@@ -71,10 +77,7 @@ impl CacheManager {
         Ok(())
     }
 
-    fn do_load(
-        &mut self,
-        result: anyhow::Result<Option<Vec<(Vec<u8>, Vec<u8>)>>>,
-    ) -> anyhow::Result<()> {
+    fn do_load(&mut self, result: anyhow::Result<Option<Vec<KvPair>>>) -> anyhow::Result<()> {
         let now = now_second_i32();
         if let Ok(Some(list)) = result {
             for (k, v) in list {
@@ -218,9 +221,9 @@ impl Handler<CacheManagerReq> for CacheManager {
                     Ok(CacheManagerResult::None)
                 }
                 CacheManagerInnerCtx::NotifyChange { key, value } => {
-                    match act.do_load(Ok(Some(vec![(key, value)]))){
-                        Ok(_) => {},
-                        Err(err) => log::error!("do_load error :{}",err.to_string()),
+                    match act.do_load(Ok(Some(vec![(key, value)]))) {
+                        Ok(_) => {}
+                        Err(err) => log::error!("do_load error :{}", err.to_string()),
                     };
                     Ok(CacheManagerResult::None)
                 }
