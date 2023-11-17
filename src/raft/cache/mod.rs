@@ -6,7 +6,7 @@ use actix::prelude::*;
 use bean_factory::{bean, Inject};
 use inner_mem_cache::MemCache;
 
-use crate::now_millis_i64;
+use crate::{now_second_i32};
 
 use self::model::{CacheItemDo, CacheKey, CacheValue};
 
@@ -75,7 +75,7 @@ impl CacheManager {
         &mut self,
         result: anyhow::Result<Option<Vec<(Vec<u8>, Vec<u8>)>>>,
     ) -> anyhow::Result<()> {
-        let now = now_millis_i64() as i32;
+        let now = now_second_i32();
         if let Ok(Some(list)) = result {
             for (k, v) in list {
                 let cache_item = CacheItemDo::from_bytes(&v)?;
@@ -84,7 +84,7 @@ impl CacheManager {
                     continue;
                 }
                 let value: CacheValue = cache_item.try_into()?;
-                let key = CacheKey::from_bytes(k, value.get_cache_type() as u8)?;
+                let key = CacheKey::from_db_key(k)?;
                 self.cache.set(key, value, ttl);
             }
         }
@@ -165,7 +165,7 @@ impl Handler<CacheManagerReq> for CacheManager {
         let fut = async move {
             match msg {
                 CacheManagerReq::Set { key, value, ttl } => {
-                    let now = now_millis_i64() as i32;
+                    let now = now_second_i32();
                     if let Some(raft_table_route) = &raft_table_route {
                         let mut cache_do: CacheItemDo = value.clone().into();
                         cache_do.timeout = now + ttl;
@@ -218,7 +218,10 @@ impl Handler<CacheManagerReq> for CacheManager {
                     Ok(CacheManagerResult::None)
                 }
                 CacheManagerInnerCtx::NotifyChange { key, value } => {
-                    act.do_load(Ok(Some(vec![(key, value)]))).ok();
+                    match act.do_load(Ok(Some(vec![(key, value)]))){
+                        Ok(_) => {},
+                        Err(err) => log::error!("do_load error :{}",err.to_string()),
+                    };
                     Ok(CacheManagerResult::None)
                 }
                 CacheManagerInnerCtx::NotifyRemove { key } => {

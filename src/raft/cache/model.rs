@@ -88,12 +88,12 @@ impl CacheKey {
         }
     }
 
-    pub fn from_bytes(key: Vec<u8>, t: u8) -> anyhow::Result<Self> {
+    fn from_bytes(key: Vec<u8>, t: u8) -> anyhow::Result<Self> {
         let key = String::from_utf8(key)?;
         Self::from_string(key, t)
     }
 
-    pub fn from_string(key: String, t: u8) -> anyhow::Result<Self> {
+    fn from_string(key: String, t: u8) -> anyhow::Result<Self> {
         let cache_type = CacheType::from_data(t)?;
         Ok(Self {
             cache_type,
