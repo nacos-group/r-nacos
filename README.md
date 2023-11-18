@@ -1,17 +1,17 @@
 
-# rnacos
+# r-nacos
 
 ## 简介
 
-rnacos是一个用rust实现的nacos服务。
+r-nacos是一个用rust实现的nacos服务。
 
-rnacos是一个轻量、 快速、稳定、高性能的服务；包含注册中心、配置中心、web管理控制台功能，支持单机、集群部署。
+r-nacos是一个轻量、 快速、稳定、高性能的服务；包含注册中心、配置中心、web管理控制台功能，支持单机、集群部署。
 
-rnacos设计上完全兼容最新版本nacos面向client sdk 的协议（包含1.x的http OpenApi，和2.x的grpc协议）, 支持使用nacos服务的应用平迁到 rnacos。
+r-nacos设计上完全兼容最新版本nacos面向client sdk 的协议（包含1.x的http OpenApi，和2.x的grpc协议）, 支持使用nacos服务的应用平迁到 r-nacos。
 
-rnacos相较于java nacos来说，是一个提供相同功能，启动更快、占用系统资源更小、性能更高、运行更稳定的服务。
+r-nacos相较于java nacos来说，是一个提供相同功能，启动更快、占用系统资源更小、性能更高、运行更稳定的服务。
 
-详细说明可以看 [rnacos book](https://heqingpan.github.io/rnacos/index.html)
+详细说明可以看 [r-nacos book](https://heqingpan.github.io/rnacos/index.html)
 
 ## 开发原由
 
@@ -23,17 +23,15 @@ rnacos相较于java nacos来说，是一个提供相同功能，启动更快、�
 
 自己写完后用下来整体体验很顺畅，就想开源出来给有需要的人使用。
 
-最开始只兼容v1.x sdk协议，没有配置控制台，后面补上v2.x协议和控制台发才放出来。
-
 ## 适用场景
 
-1. 开发测试环境使用nacos，nacos服务可以换成rnacos。启动更快，秒启动。
-2. 个人资源云服务部署的 nacos，可以考虑换成rnacos。资源占用率低: 包10M 出头，不依赖 JDK；运行时 cpu 小于0.5% ，小于5M（具体和实例有关）。
-3. 使用非订制nacos服务 ，希望能提升服务性能与稳定性，可以考虑迁移到 rnacos。
+1. 开发测试环境使用nacos，nacos服务可以换成r-nacos。启动更快，秒启动。
+2. 个人资源云服务部署的 nacos，可以考虑换成r-nacos。资源占用率低: 包10M 出头，不依赖 JDK；运行时 cpu 小于0.5% ，小于5M（具体和实例有关）。
+3. 使用非订制nacos服务 ，希望能提升服务性能与稳定性，可以考虑迁移到 r-nacos。
 
 ## 快速开始
 
-### 一、 安装运行 rnacos
+### 一、 安装运行 r-nacos
 
 【单机部署】
 
@@ -103,8 +101,8 @@ cargo run
 
 | 参数KEY|内容描述|默认值|示例|开始支持的版本|
 |--|--|--|--|--|
-|RNACOS_HTTP_PORT|rnacos监听http端口|8848|8848|0.1.x|
-|RNACOS_GRPC_PORT|rnacos监听grpc端口|默认是 HTTP端口+1000|9848|0.1.x|
+|RNACOS_HTTP_PORT|r-nacos监听http端口|8848|8848|0.1.x|
+|RNACOS_GRPC_PORT|r-nacos监听grpc端口|默认是 HTTP端口+1000|9848|0.1.x|
 |RNACOS_HTTP_WORKERS|http工作线程数|cpu核数|8|0.1.x|
 |RNACOS_CONFIG_DB_FILE|配置中心的本地数据库文件地址【0.2.x后不在使用】|config.db|config.db|0.1.x|
 |RNACOS_CONFIG_DB_DIR|配置中心的本地数据库sled文件夹, 会在系统运行时自动创建|nacos_db|nacos_db|0.2.x|
@@ -181,7 +179,7 @@ curl "http://127.0.0.1:8848/nacos/v1/ns/instance/list?&namespaceId=public&servic
 
 ### 三、控制台管理
 
-启动服务后可以在浏览器通过 `http://127.0.0.1:8848/` 访问rnacos控制台。
+启动服务后可以在浏览器通过 `http://127.0.0.1:8848/` 访问r-nacos控制台。
 
 主要包含命名空间管理、配置管理、服务管理、服务实例管理。
 
@@ -285,30 +283,6 @@ curl "http://127.0.0.1:8848/nacos/v1/ns/instance/list?&namespaceId=public&servic
 详细信息可以参考
 [性能与容量说明](https://heqingpan.github.io/rnacos/performance.html)
 
-
-## 后继计划
-
-### 一、 对单机功能补全
-
-1. 配置中心
-	1.  [x] 控制台支持导出
-	2.  [x] 查询配置历史变更记录
-	3.  [x] 支持历史记录回滚。
-	4.  [x] 回滚时支持配置内容比较。
-	5.  [ ] 支持灰度发布与tag配置隔离 (优先级暂定晚于支持集群部署功能)
-	7.  [ ] 支持查询服务监听列表
-2. 注册中心
-	8.  [ ] 支持服务路由类型的设置(这部分涉及插件,暂定不支持)
-	9.  [ ] 支持查询服务监听列表
-
-### 二、支持集群部署
-
-1. [x] 配置中心数据支持sled + raft存储
-2. [x] 注册中心支持集群
-3. [ ] 支持开启请求认证
-   1. [ ] 集群用户信息同步
-   2. [ ] 集群认证token同步
-   3. [ ] 请求token校验
 
 ## rnacos架构图
 

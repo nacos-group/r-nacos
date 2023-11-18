@@ -1,7 +1,7 @@
 # 快速开始
 
 
-## 一、 安装运行 rnacos
+## 一、 安装运行 r-nacos
 
 【单机部署】
 
@@ -94,9 +94,9 @@ curl "http://127.0.0.1:8848/nacos/v1/ns/instance/list?&namespaceId=public&servic
 [open-api](https://nacos.io/zh-cn/docs/open-api.html)
 
 
-## 三、使用rnacos控制台
+## 三、使用r-nacos控制台
 
-启动服务后可以在浏览器通过 `http://127.0.0.1:8848/` 访问rnacos控制台。
+启动服务后可以在浏览器通过 `http://127.0.0.1:8848/` 访问r-nacos控制台。
 
 主要包含命名空间管理、配置管理、服务管理、服务实例管理。
 

@@ -1,7 +1,7 @@
 # 架构
 
 
-## rnacos架构图
+## r-nacos架构图
 
 ![](https://github.com/heqingpan/rnacos/raw/master/doc/assets/imgs/rnacos_L2_0.1.4.svg)
 

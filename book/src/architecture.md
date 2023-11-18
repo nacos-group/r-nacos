@@ -1,13 +1,13 @@
 # 架构
 
 
-## rnacos架构图
+## r-nacos架构图
 
 单实例：
 
 ![](https://github.com/heqingpan/rnacos/raw/master/doc/assets/imgs/rnacos_L2_0.1.4.svg)
 
-前端应用因依赖nodejs,所以单独放到另一个项目 [rnacos-console-web](https://github.com/heqingpan/rnacos-console-web) ,再通过cargo 把打包好的前端资源引入到本项目,避免开发rust时还要依赖nodejs。
+前端应用因依赖nodejs,所以单独放到另一个项目 [r-nacos-console-web](https://github.com/heqingpan/rnacos-console-web) ,再通过cargo 把打包好的前端资源引入到本项目,避免开发rust时还要依赖nodejs。
 
 多实例的raft和distro分布式协议说明待补充
 
@@ -32,12 +32,12 @@ raft协议的主要逻辑：
 
 具体协议可以参考 [raft协议论文](https://docs.qq.com/doc/DY0VxSkVGWHFYSlZJ)
 
-rnacos 接入 raft的主要逻辑：
+r-nacos 接入 raft的主要逻辑：
 
-1.  基于 async-raft 库实现raft协议，主要实现网络层和存储层。在 rnacos中存储层的状态机就是配置中心。
+1.  基于 async-raft 库实现raft协议，主要实现网络层和存储层。在 r-nacos中存储层的状态机就是配置中心。
 2.  配置中心接入raft 协议的状态机，由 raft 状态机驱动更新配置中心的内容。
 
-rnacos一个三节点的配置中心请求处理示例：
+r-nacos一个三节点的配置中心请求处理示例：
 
 
 ![](https://github.com/heqingpan/rnacos/raw/master/doc/assets/imgs/20230917182416.png)
@@ -67,10 +67,10 @@ rnacos一个三节点的配置中心请求处理示例：
 4. 一个节点更新服务实例信息后再同步给其它节点。
 
 具体协议可以参考java nacos 的distro协议实现 。
-rnacos 和 java版主体逻辑相同，但实现的细节有些区别。
+r-nacos 和 java版主体逻辑相同，但实现的细节有些区别。
 
 
-rnacos一个三节点的注册中心请求处理示例：
+r-nacos一个三节点的注册中心请求处理示例：
 
 ![](https://github.com/heqingpan/rnacos/raw/master/doc/assets/imgs/20230917182622.png)
 
