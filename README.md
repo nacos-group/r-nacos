@@ -284,21 +284,21 @@ curl "http://127.0.0.1:8848/nacos/v1/ns/instance/list?&namespaceId=public&servic
 [性能与容量说明](https://heqingpan.github.io/rnacos/performance.html)
 
 
-## rnacos架构图
+## r-nacos架构图
 
 单实例：
 
 ![](https://github.com/heqingpan/rnacos/raw/master/doc/assets/imgs/rnacos_L2_0.1.4.svg)
 
-前端应用因依赖nodejs,所以单独放到另一个项目 [rnacos-console-web](https://github.com/heqingpan/rnacos-console-web) ,再通过cargo 把打包好的前端资源引入到本项目,避免开发rust时还要依赖nodejs。
+前端应用因依赖nodejs,所以单独放到另一个项目 [r-nacos-console-web](https://github.com/heqingpan/rnacos-console-web) ,再通过cargo 把打包好的前端资源引入到本项目,避免开发rust时还要依赖nodejs。
 
 
-rnacos架构设计参考： [架构](https://heqingpan.github.io/rnacos/architecture.html)
+r-nacos架构设计参考： [架构](https://heqingpan.github.io/rnacos/architecture.html)
 
 
 ## 联系方式
 
-> R-NACOS微信沟通群：先加微信(添加好友请备注'rnacos')，再拉进群。
+> R-NACOS微信沟通群：先加微信(添加好友请备注'r-nacos')，再拉进群。
 
 <img style="width: 200px;" width="200" src="https://github.com/heqingpan/rnacos/raw/master/doc/assets/imgs/wechat.jpg" alt="qingpan2014" />
 
