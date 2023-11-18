@@ -296,6 +296,10 @@ curl "http://127.0.0.1:8848/nacos/v1/ns/instance/list?&namespaceId=public&servic
 r-nacos架构设计参考： [架构](https://heqingpan.github.io/rnacos/architecture.html)
 
 
+## 使用登记
+
+使用r-nacos的同学，欢迎在[登记地址](https://github.com/heqingpan/rnacos/issues/32) 登记，登记只是为了方便产品推广。
+
 ## 联系方式
 
 > R-NACOS微信沟通群：先加微信(添加好友请备注'r-nacos')，再拉进群。
