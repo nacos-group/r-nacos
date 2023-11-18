@@ -187,7 +187,7 @@
 如果使用v1.0x http协议，支持的实例在5万个左右。
 如果使用v2.0x grpc协议，理论上基本没有瓶颈。</p>
 <hr />
-<h2 id="rnacos与java-nacos性能压测对比-单机模式"><a class="header" href="#rnacos与java-nacos性能压测对比-单机模式">rnacos与java nacos性能压测对比 （单机模式）</a></h2>
+<h2 id="r-nacos与java-nacos性能压测对比-单机模式"><a class="header" href="#r-nacos与java-nacos性能压测对比-单机模式">r-nacos与java nacos性能压测对比 （单机模式）</a></h2>
 <p>旧版本的单机压测记录，有和java 版本nacos的比较.</p>
 <h3 id="压测环境与工具"><a class="header" href="#压测环境与工具">压测环境与工具</a></h3>
 <p>压测环境:macos i7四核 /16G  ， 施压、受压机器是同一台机器（会拉低压测结果）。
@@ -195,12 +195,12 @@
 * wrk ,qps: 24450左右
 * goose, qps 17000左右 （单进程加限流施压比 wrk低） 
 * 单进程施压请求wrk比goose 输出高</p>
-<p>rnacos server版本：v0.1.1 
+<p>r-nacos server版本：v0.1.1 
 java nacos server版本: 2.1.0</p>
 <p><strong>因wrk,goose暂时不支持grpc协议，暂时只压测http协议接口</strong></p>
 <h3 id="配置中心-1"><a class="header" href="#配置中心-1">配置中心</a></h3>
 <p>配置中心，不会频繁更新，写入不做压测。</p>
-<h4 id="rust-rnacos-server"><a class="header" href="#rust-rnacos-server">rust rnacos server：</a></h4>
+<h4 id="rust-r-nacos-server"><a class="header" href="#rust-r-nacos-server">rust r-nacos server：</a></h4>
 <ol>
 <li>配置中心单机查询 wrk 压测 qps 在2.4万左右.</li>
 </ol>
@@ -209,7 +209,7 @@ java nacos server版本: 2.1.0</p>
 <li>配置中心单机查询 wrk 压测, qps 在7700左右</li>
 </ol>
 <h3 id="注册中心-1"><a class="header" href="#注册中心-1">注册中心</a></h3>
-<h4 id="rust-rnacos-server-1"><a class="header" href="#rust-rnacos-server-1">rust rnacos server：</a></h4>
+<h4 id="rust-r-nacos-server-1"><a class="header" href="#rust-r-nacos-server-1">rust r-nacos server：</a></h4>
 <ol start="2">
 <li>naming 注册1000 x 1个实例，每秒200qps，单核cpu: 4.5% 左右</li>
 <li>naming 单查询1.5万 QPS 左右
@@ -259,19 +259,19 @@ java nacos server版本: 2.1.0</p>
 <h3 id="性能压测总结"><a class="header" href="#性能压测总结">性能压测总结</a></h3>
 <ol>
 <li>
-<p>rnacos,除了服务服务注册不能稳定在1万以上，其它的接口qps都能稳定在1万以上。</p>
+<p>r-nacos,除了服务服务注册不能稳定在1万以上，其它的接口qps都能稳定在1万以上。</p>
 </li>
 <li>
 <p>java 的查询接口基本能压到1万以上，但不平稳，后继浮动比较大。如果降低压测流程，qps 可以相对平稳。</p>
 </li>
 <li>
-<p>在多服务查询叠加上多服务注册场景，rnacos  qps能稳定在1.3万左右, java nacos qps 下降明显在0.6万左右。</p>
+<p>在多服务查询叠加上多服务注册场景，r-nacos  qps能稳定在1.3万左右, java nacos qps 下降明显在0.6万左右。</p>
 </li>
 <li>
-<p>rnacos 综合 qps是 java版的2倍以上，因 java 有 GC，qps水位稳定性上 java较差（相同施压流量，qps 能从峰值1万能降到1百以下）。</p>
+<p>r-nacos 综合 qps是 java版的2倍以上，因 java 有 GC，qps水位稳定性上 java较差（相同施压流量，qps 能从峰值1万能降到1百以下）。</p>
 </li>
 <li>
-<p>rnacos 服务,线程数稳定在7，cpu 用例率最大200%左右（相当用个2核），内存在50M 以下</p>
+<p>r-nacos 服务,线程数稳定在7，cpu 用例率最大200%左右（相当用个2核），内存在50M 以下</p>
 </li>
 <li>
 <p>java nacos 服务，线程数最大300左右， cpu 用例率最大500%左右，内存600M到900M。</p>
