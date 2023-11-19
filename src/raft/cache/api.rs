@@ -24,7 +24,7 @@ pub struct StringCacheDto {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct ValueResult {
     pub success: bool,
-    pub value: String,
+    pub value: Arc<String>,
 }
 
 pub async fn set_cache(
@@ -33,7 +33,7 @@ pub async fn set_cache(
 ) -> actix_web::Result<impl Responder> {
     let req = CacheManagerReq::Set {
         key: CacheKey::new(CacheType::String, param.key),
-        value: CacheValue::String(param.value.unwrap_or_default()),
+        value: CacheValue::String(Arc::new(param.value.unwrap_or_default())),
         ttl: param.ttl.unwrap_or(1200),
     };
     app.cache_manager.send(req).await.ok();
@@ -58,8 +58,10 @@ pub async fn get_cache(
         super::CacheManagerResult::Value(v) => {
             let vstr = match v {
                 CacheValue::String(v) => v,
-                CacheValue::Map(m) => serde_json::to_string(&m).unwrap_or_default(),
-                CacheValue::UserSession(m) => serde_json::to_string(&m).unwrap_or_default(),
+                CacheValue::Map(m) => Arc::new(serde_json::to_string(&m).unwrap_or_default()),
+                CacheValue::UserSession(m) => {
+                    Arc::new(serde_json::to_string(&m).unwrap_or_default())
+                }
             };
             Ok(Json(ValueResult {
                 value: vstr,
@@ -67,7 +69,7 @@ pub async fn get_cache(
             }))
         }
         _ => Ok(Json(ValueResult {
-            value: "not found key value".to_owned(),
+            value: Arc::new("not found key value".to_owned()),
             success: false,
         })),
     }

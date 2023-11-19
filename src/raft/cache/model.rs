@@ -108,10 +108,10 @@ impl CacheKey {
 
 #[derive(Debug, Clone)]
 pub enum CacheValue {
-    String(String),
-    Map(HashMap<String, String>),
+    String(Arc<String>),
+    Map(Arc<HashMap<String, String>>),
     //后面UserSession换成定义好的对象
-    UserSession(UserSession),
+    UserSession(Arc<UserSession>),
     //TokenSession(HashMap<String,String>),
 }
 
@@ -141,9 +141,11 @@ impl CacheValue {
 
     pub fn from_bytes(data: Vec<u8>, cache_type: CacheType) -> anyhow::Result<Self> {
         match cache_type {
-            CacheType::String => Ok(CacheValue::String(String::from_utf8(data)?)),
-            CacheType::Map => Ok(CacheValue::Map(serde_json::from_slice(&data)?)),
-            CacheType::UserSession => Ok(CacheValue::UserSession(serde_json::from_slice(&data)?)),
+            CacheType::String => Ok(CacheValue::String(Arc::new(String::from_utf8(data)?))),
+            CacheType::Map => Ok(CacheValue::Map(Arc::new(serde_json::from_slice(&data)?))),
+            CacheType::UserSession => Ok(CacheValue::UserSession(Arc::new(
+                serde_json::from_slice(&data)?,
+            ))),
             //CacheType::TokenSession => Ok(CacheValue::TokenSession(serde_json::from_slice(&data)?)),
         }
     }
