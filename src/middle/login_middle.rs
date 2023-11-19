@@ -17,7 +17,7 @@ use crate::raft::cache::model::{CacheKey, CacheType, CacheValue};
 use crate::raft::cache::{CacheManager, CacheManagerReq, CacheManagerResult};
 
 lazy_static::lazy_static! {
-    pub static ref IGNORE_CHECK_LOGIN: Vec<&'static str> = vec!["/p/login", "/api/login/login","/404"];
+    pub static ref IGNORE_CHECK_LOGIN: Vec<&'static str> = vec!["/p/login", "/nacos/v1/console/login/login","/404"];
     pub static ref STATIC_FILE_PATH: Regex= Regex::new(r"(?i).*\.(js|css|png|jpg|jpeg|bmp|svg)").unwrap();
 }
 
@@ -122,9 +122,9 @@ where
                         .finish()
                         .map_into_right_body()
                 } else {
-                    let mut res = ApiResult::<bool>::default();
-                    res.code = Some("NO_LOGIN".to_owned());
-                    HttpResponse::Ok().json(res).map_into_right_body()
+                    HttpResponse::Ok()
+                        .json(ApiResult::<()>::error("NO_LOGIN".to_owned(), None))
+                        .map_into_right_body()
                 };
                 let (http_request, _pl) = request.into_parts();
                 let res = ServiceResponse::new(http_request, response);

@@ -56,6 +56,7 @@ pub struct AppSysConfig {
     pub raft_node_addr: String,
     pub raft_auto_init: bool,
     pub raft_join_addr: String,
+    pub console_login_timeout: i32,
 }
 
 impl AppSysConfig {
@@ -94,6 +95,10 @@ impl AppSysConfig {
             .parse()
             .unwrap_or(raft_node_id == 1);
         let raft_join_addr = std::env::var("RNACOS_RAFT_JOIN_ADDR").unwrap_or_default();
+        let console_login_timeout = std::env::var("RNACOS_CONSOLE_LOGIN_TIMEOUT")
+            .unwrap_or("1200".to_owned())
+            .parse()
+            .unwrap_or(1200);
         Self {
             config_db_dir,
             config_db_file,
@@ -106,6 +111,7 @@ impl AppSysConfig {
             raft_node_addr,
             raft_auto_init,
             raft_join_addr,
+            console_login_timeout,
         }
     }
 

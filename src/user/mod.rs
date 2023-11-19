@@ -100,14 +100,14 @@ pub enum UserManagerReq {
 
 pub enum UserManagerInnerCtx {
     UpdateUser { key: Arc<String>, value: UserDto },
-    CheckUserResult(Arc<String>, bool),
+    CheckUserResult(Arc<String>, bool, UserDto),
     QueryUser(Arc<String>, Option<UserDto>),
     UserPageResult(usize, Vec<UserDto>),
 }
 
 pub enum UserManagerResult {
     None,
-    CheckUserResult(bool),
+    CheckUserResult(bool, UserDto),
     QueryUser(Option<Arc<UserDto>>),
     UserPageResult(usize, Vec<UserDto>),
 }
@@ -212,6 +212,7 @@ impl Handler<UserManagerReq> for UserManager {
                     Ok(UserManagerInnerCtx::CheckUserResult(
                         name,
                         last_user.password == password,
+                        last_user,
                     ))
                 }
                 UserManagerReq::Query { name } => {
@@ -270,11 +271,11 @@ impl Handler<UserManagerReq> for UserManager {
                     act.cache.set(key, Arc::new(value), act.cache_sec);
                     Ok(UserManagerResult::None)
                 }
-                UserManagerInnerCtx::CheckUserResult(key, v) => {
+                UserManagerInnerCtx::CheckUserResult(key, v, user) => {
                     if v {
                         act.update_timeout(&key);
                     }
-                    Ok(UserManagerResult::CheckUserResult(v))
+                    Ok(UserManagerResult::CheckUserResult(v, user))
                 }
                 UserManagerInnerCtx::QueryUser(key, user) => {
                     if let Ok(r) = act.cache.get(&key) {

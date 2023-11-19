@@ -2,6 +2,7 @@ pub mod api;
 pub mod cluster_api;
 pub mod config_api;
 pub mod connection_api;
+pub mod login_api;
 pub mod model;
 pub mod naming_api;
 

@@ -1,5 +1,6 @@
 pub mod cluster_model;
 pub mod config_model;
+pub mod login_model;
 pub mod naming_model;
 pub mod raft_model;
 

@@ -9,6 +9,7 @@ use crate::config::core::ConfigActor;
 
 use super::cluster_api::query_cluster_info;
 use super::config_api::query_config_list;
+use super::login_api;
 use super::{
     config_api::{download_config, import_config, query_history_config_page},
     connection_api::query_grpc_connection,
@@ -118,6 +119,7 @@ pub fn app_config(config: &mut web::ServiceConfig) {
                 web::resource("/cluster/cluster_node_list")
                     .route(web::get().to(query_cluster_info)),
             )
-            .service(web::resource("/connections").route(web::get().to(query_grpc_connection))),
+            .service(web::resource("/connections").route(web::get().to(query_grpc_connection)))
+            .service(web::resource("/login/login").route(web::post().to(login_api::login))),
     );
 }

@@ -83,7 +83,7 @@ pub async fn check_user(
         password: param.password.unwrap(),
     };
     match app.user_manager.send(msg).await.unwrap().unwrap() {
-        super::UserManagerResult::CheckUserResult(v) => Ok(Json(UserResult {
+        super::UserManagerResult::CheckUserResult(v, _) => Ok(Json(UserResult {
             success: true,
             msg: None,
             data: Some(v),
