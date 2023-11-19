@@ -79,6 +79,17 @@ async fn main() -> Result<(), Box<dyn Error>> {
     });
 
     let app_data = Data::new(app_data);
+    let app_console_data = app_data.clone();
+
+    std::thread::spawn(move || {
+        actix_rt::System::with_tokio_rt(|| {
+            tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .unwrap()
+        })
+        .block_on(run_console_web(app_console_data));
+    });
 
     let mut server = HttpServer::new(move || {
         let config_addr = app_data.config_addr.clone();
@@ -110,4 +121,27 @@ fn init_env() {
     } else {
         dotenv::from_path(env_path).ok();
     }
+}
+
+async fn run_console_web(app_data: Data<Arc<AppShareData>>) {
+    let http_console_addr = app_data.sys_config.get_http_console_addr();
+    HttpServer::new(move || {
+        let config_addr = app_data.config_addr.clone();
+        let naming_addr = app_data.naming_addr.clone();
+        let bistream_manage_http_addr = app_data.bi_stream_manage.clone();
+        let app_data = app_data.clone();
+        App::new()
+            .app_data(app_data)
+            .app_data(Data::new(config_addr))
+            .app_data(Data::new(naming_addr))
+            .app_data(Data::new(bistream_manage_http_addr))
+            .wrap(middleware::Logger::default())
+            .configure(app_config)
+    })
+    .workers(2)
+    .bind(http_console_addr)
+    .unwrap()
+    .run()
+    .await
+    .ok();
 }

@@ -48,6 +48,7 @@ pub struct AppSysConfig {
     pub config_db_dir: String,
     pub config_max_content: usize,
     pub http_port: u16,
+    pub http_console_port: u16,
     pub http_workers: Option<usize>,
     pub grpc_port: u16,
     pub raft_node_id: u64,
@@ -76,6 +77,10 @@ impl AppSysConfig {
             .unwrap_or("".to_owned())
             .parse()
             .unwrap_or(http_port + 1000);
+        let http_console_port = std::env::var("RNACOS_HTTP_CONSOLE_PORT")
+            .unwrap_or("".to_owned())
+            .parse()
+            .unwrap_or(http_port + 2000);
         let config_db_dir = std::env::var("RNACOS_CONFIG_DB_DIR").unwrap_or("nacos_db".to_owned());
         let raft_node_id = std::env::var("RNACOS_RAFT_NODE_ID")
             .unwrap_or("1".to_owned())
@@ -93,6 +98,7 @@ impl AppSysConfig {
             config_db_file,
             config_max_content,
             http_port,
+            http_console_port,
             grpc_port,
             http_workers,
             raft_node_id,
@@ -108,6 +114,10 @@ impl AppSysConfig {
 
     pub fn get_http_addr(&self) -> String {
         format!("0.0.0.0:{}", &self.http_port)
+    }
+
+    pub fn get_http_console_addr(&self) -> String {
+        format!("0.0.0.0:{}", &self.http_console_port)
     }
 }
 
