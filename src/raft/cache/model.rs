@@ -2,6 +2,8 @@ use std::{collections::HashMap, convert::TryFrom, sync::Arc};
 
 use serde::{Deserialize, Serialize};
 
+use crate::common::model::UserSession;
+
 #[derive(Clone, prost::Message, Serialize, Deserialize)]
 pub struct CacheItemDo {
     #[prost(uint32, tag = "1")]
@@ -104,12 +106,12 @@ impl CacheKey {
     }
 }
 
-#[derive(Debug, Eq, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub enum CacheValue {
     String(String),
     Map(HashMap<String, String>),
     //后面UserSession换成定义好的对象
-    UserSession(HashMap<String, String>),
+    UserSession(UserSession),
     //TokenSession(HashMap<String,String>),
 }
 

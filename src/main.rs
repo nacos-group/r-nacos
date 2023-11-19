@@ -12,6 +12,7 @@ use rnacos::grpc::nacos_proto::bi_request_stream_server::BiRequestStreamServer;
 use rnacos::grpc::nacos_proto::request_server::RequestServer;
 use rnacos::grpc::server::BiRequestStreamServerImpl;
 use rnacos::grpc::PayloadUtils;
+use rnacos::middle::login_middle::CheckLogin;
 use rnacos::naming::core::{NamingCmd, NamingResult};
 use rnacos::raft::cluster::model::RouterRequest;
 use rnacos::raft::cluster::route::{ConfigRoute, RaftAddrRouter};
@@ -78,8 +79,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
             .unwrap();
     });
 
-    let app_data = Data::new(app_data);
     let app_console_data = app_data.clone();
+    let app_data = Data::new(app_data);
 
     std::thread::spawn(move || {
         actix_rt::System::with_tokio_rt(|| {
@@ -123,9 +124,11 @@ fn init_env() {
     }
 }
 
-async fn run_console_web(app_data: Data<Arc<AppShareData>>) {
-    let http_console_addr = app_data.sys_config.get_http_console_addr();
+async fn run_console_web(source_app_data: Arc<AppShareData>) {
+    let http_console_addr = source_app_data.sys_config.get_http_console_addr();
+    let app_data = Data::new(source_app_data.clone());
     HttpServer::new(move || {
+        let source_app_data = source_app_data.clone();
         let config_addr = app_data.config_addr.clone();
         let naming_addr = app_data.naming_addr.clone();
         let bistream_manage_http_addr = app_data.bi_stream_manage.clone();
@@ -136,6 +139,7 @@ async fn run_console_web(app_data: Data<Arc<AppShareData>>) {
             .app_data(Data::new(naming_addr))
             .app_data(Data::new(bistream_manage_http_addr))
             .wrap(middleware::Logger::default())
+            .wrap(CheckLogin::new(source_app_data))
             .configure(app_config)
     })
     .workers(2)

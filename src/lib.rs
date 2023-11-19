@@ -3,6 +3,7 @@ pub mod common;
 pub mod config;
 pub mod console;
 pub mod grpc;
+pub mod middle;
 pub mod naming;
 pub mod raft;
 pub mod starter;
