@@ -92,7 +92,7 @@ where
 
         let service = self.service.clone();
         Box::pin(async move {
-            let mut is_login = false;
+            let mut is_login = true;
             if is_check_path {
                 is_login = if token.is_empty() {
                     false
