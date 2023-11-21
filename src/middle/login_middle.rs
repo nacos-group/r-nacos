@@ -19,6 +19,7 @@ use crate::raft::cache::{CacheManager, CacheManagerReq, CacheManagerResult};
 lazy_static::lazy_static! {
     pub static ref IGNORE_CHECK_LOGIN: Vec<&'static str> = vec!["/p/login", "/nacos/v1/console/login/login","/404"];
     pub static ref STATIC_FILE_PATH: Regex= Regex::new(r"(?i).*\.(js|css|png|jpg|jpeg|bmp|svg)").unwrap();
+    pub static ref API_PATH: Regex = Regex::new(r"(?i)/(api|nacos)/.*").unwrap();
 }
 
 #[derive(Clone)]
@@ -72,8 +73,8 @@ where
 
     fn call(&self, request: ServiceRequest) -> Self::Future {
         let path = request.path();
-        let is_page = true;
         let is_check_path = !IGNORE_CHECK_LOGIN.contains(&path) && !STATIC_FILE_PATH.is_match(path);
+        let is_page = !API_PATH.is_match(path);
         let token = if let Some(ck) = request.cookie("token") {
             ck.value().to_owned()
         } else {
