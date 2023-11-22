@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::future::{ready, Ready};
 use std::sync::Arc;
 
@@ -100,7 +101,7 @@ where
                 } else {
                     if let Ok(Some(session)) = get_user_session(
                         &cache_manager,
-                        CacheManagerReq::Get(CacheKey::new(CacheType::UserSession, token)),
+                        CacheManagerReq::Get(CacheKey::new(CacheType::UserSession, token.clone())),
                     )
                     .await
                     {
@@ -111,15 +112,28 @@ where
                     }
                 };
             }
+            //log::info!("token: {}|{}|{}|{}|{}|{}",&token,is_page,is_check_path,is_login,request.path(),request.query_string());
             if is_login {
                 let res = service.call(request);
                 // forwarded responses map to "left" body
                 res.await.map(ServiceResponse::map_into_left_body)
             } else {
                 let response = if is_page {
+                    let move_url = if !request.query_string().is_empty() {
+                        let mut redirect_param = HashMap::new();
+                        redirect_param.insert(
+                            "redirect_url",
+                            format!("{}?{}", request.path(), request.query_string()),
+                        );
+                        let redirect_param =
+                            serde_urlencoded::to_string(&redirect_param).unwrap_or_default();
+                        format!("/p/login?{}", redirect_param)
+                    } else {
+                        request.path().to_owned()
+                    };
                     HttpResponse::Ok()
-                        .insert_header(("Location", "/p/login"))
-                        .status(StatusCode::MOVED_PERMANENTLY)
+                        .insert_header(("Location", move_url))
+                        .status(StatusCode::FOUND)
                         .finish()
                         .map_into_right_body()
                 } else {
