@@ -54,7 +54,7 @@ mime_guess = { version = "2" }
 # db
 rusqlite = { version = "0.25", features = ["bundled"] }
 rsql_builder = "0.1.5"
-inner-mem-cache = "0.1.4"
+inner-mem-cache = "0.1.6"
 rnacos-web-dist-wrap = "0.2.2"
 nacos_rust_client = "0.2"
 zip = "0.6"

@@ -84,6 +84,7 @@ impl CacheManager {
                 let cache_item = CacheItemDo::from_bytes(&v)?;
                 let ttl = cache_item.timeout - now;
                 if ttl <= 0 {
+                    Self::remove_key(&self.table_manager, k);
                     continue;
                 }
                 let value: CacheValue = cache_item.try_into()?;
@@ -92,6 +93,16 @@ impl CacheManager {
             }
         }
         Ok(())
+    }
+
+    fn remove_key(table_manager: &Option<Addr<TableManager>>, key: Vec<u8>) {
+        if let Some(table_manager) = table_manager.as_ref() {
+            let req = TableManagerReq::Remove {
+                table_name: CACHE_TABLE_NAME.clone(),
+                key,
+            };
+            table_manager.do_send(req);
+        }
     }
 }
 
@@ -114,6 +125,10 @@ impl Inject for CacheManager {
     ) {
         self.raft_table_route = factory_data.get_bean();
         self.table_manager = factory_data.get_actor();
+        let table_manager = self.table_manager.clone();
+        self.cache.time_out_fn = Some(Arc::new(move |key, _value| {
+            CacheManager::remove_key(&table_manager, key.to_string().as_bytes().to_vec());
+        }));
         //init
         self.load(ctx).ok();
     }
