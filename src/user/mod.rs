@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 
 use actix::prelude::*;
 use bean_factory::{bean, Inject};
@@ -6,9 +6,12 @@ use bean_factory::{bean, Inject};
 
 use crate::{
     now_millis,
-    raft::db::{
-        route::TableRoute,
-        table::{TableManager, TableManagerQueryReq, TableManagerReq, TableManagerResult},
+    raft::{
+        cluster::{model::RouteAddr, route::RaftAddrRouter},
+        db::{
+            route::TableRoute,
+            table::{TableManager, TableManagerQueryReq, TableManagerReq, TableManagerResult},
+        },
     },
 };
 
@@ -41,6 +44,34 @@ impl UserManager {
     //fn update_timeout(&mut self, key: &Arc<String>) {
     //    self.cache.update_time_out(key, self.cache_sec)
     //}
+
+    async fn init_manager_user(
+        table_manager: Option<Addr<TableManager>>,
+        self_addr: Addr<UserManager>,
+    ) -> anyhow::Result<()> {
+        if let Some(table_manager) = table_manager {
+            let req = TableManagerQueryReq::QueryPageList {
+                table_name: USER_TABLE_NAME.clone(),
+                limit: Some(1),
+                offset: None,
+                is_rev: false,
+            };
+            match table_manager.send(req).await?? {
+                TableManagerResult::PageListResult(count, _) => {
+                    if count == 0 {
+                        let user_manager_req = UserManagerReq::AddUser {
+                            name: Arc::new("admin".to_owned()),
+                            nickname: "admin".to_owned(),
+                            password: "admin".to_owned(),
+                        };
+                        self_addr.do_send(user_manager_req);
+                    }
+                }
+                _ => {}
+            }
+        }
+        Ok(())
+    }
 }
 
 impl Default for UserManager {
@@ -56,10 +87,40 @@ impl Inject for UserManager {
         &mut self,
         factory_data: bean_factory::FactoryData,
         _factory: bean_factory::BeanFactory,
-        _ctx: &mut Self::Context,
+        ctx: &mut Self::Context,
     ) {
         self.raft_table_route = factory_data.get_bean();
         self.table_manager = factory_data.get_actor();
+        let raft_addr_route: Option<Arc<RaftAddrRouter>> = factory_data.get_bean();
+        ctx.run_later(Duration::from_millis(500), |act, ctx| {
+            let self_addr = ctx.address();
+            let table_manager = act.table_manager.clone();
+            async move {
+                if let Some(raft_addr_route) = raft_addr_route {
+                    if let Ok(route_res) = raft_addr_route.get_route_addr().await {
+                        match route_res {
+                            RouteAddr::Local => {
+                                //当节点启动后在此处触发
+                                Self::init_manager_user(table_manager, self_addr).await.ok();
+                            }
+                            RouteAddr::Remote(_, _) => {}
+                            RouteAddr::Unknown => {
+                                // 等待选主节点后尝试触发
+                                tokio::time::sleep(Duration::from_secs(10)).await;
+                                if let Ok(RouteAddr::Local) = raft_addr_route.get_route_addr().await
+                                {
+                                    Self::init_manager_user(table_manager, self_addr).await.ok();
+                                }
+                            }
+                        }
+                    }
+                };
+                ()
+            }
+            .into_actor(act)
+            .map(|_, _, _| {})
+            .spawn(ctx);
+        });
     }
 }
 
