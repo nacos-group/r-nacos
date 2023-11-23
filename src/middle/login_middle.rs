@@ -138,6 +138,7 @@ where
                         .map_into_right_body()
                 } else {
                     HttpResponse::Ok()
+                        .insert_header(("No-Login", "1"))
                         .json(ApiResult::<()>::error("NO_LOGIN".to_owned(), None))
                         .map_into_right_body()
                 };
