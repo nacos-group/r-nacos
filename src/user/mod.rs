@@ -56,18 +56,15 @@ impl UserManager {
                 offset: None,
                 is_rev: false,
             };
-            match table_manager.send(req).await?? {
-                TableManagerResult::PageListResult(count, _) => {
-                    if count == 0 {
-                        let user_manager_req = UserManagerReq::AddUser {
-                            name: Arc::new("admin".to_owned()),
-                            nickname: "admin".to_owned(),
-                            password: "admin".to_owned(),
-                        };
-                        self_addr.do_send(user_manager_req);
-                    }
+            if let TableManagerResult::PageListResult(count, _) = table_manager.send(req).await?? {
+                if count == 0 {
+                    let user_manager_req = UserManagerReq::AddUser {
+                        name: Arc::new("admin".to_owned()),
+                        nickname: "admin".to_owned(),
+                        password: "admin".to_owned(),
+                    };
+                    self_addr.do_send(user_manager_req);
                 }
-                _ => {}
             }
         }
         Ok(())
@@ -115,7 +112,6 @@ impl Inject for UserManager {
                         }
                     }
                 };
-                ()
             }
             .into_actor(act)
             .map(|_, _, _| {})

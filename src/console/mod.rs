@@ -5,6 +5,7 @@ pub mod connection_api;
 pub mod login_api;
 pub mod model;
 pub mod naming_api;
+pub mod user_api;
 
 use std::sync::Arc;
 

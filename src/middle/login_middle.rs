@@ -78,12 +78,10 @@ where
         let is_page = !API_PATH.is_match(path);
         let token = if let Some(ck) = request.cookie("token") {
             ck.value().to_owned()
+        } else if let Some(v) = request.headers().get("Token") {
+            v.to_str().unwrap_or_default().to_owned()
         } else {
-            if let Some(v) = request.headers().get("Token") {
-                v.to_str().unwrap_or_default().to_owned()
-            } else {
-                "".to_owned()
-            }
+            "".to_owned()
         };
         let token = Arc::new(token);
         let cache_manager = self.app_share_data.cache_manager.clone();
@@ -98,18 +96,16 @@ where
             if is_check_path {
                 is_login = if token.is_empty() {
                     false
+                } else if let Ok(Some(session)) = get_user_session(
+                    &cache_manager,
+                    CacheManagerReq::Get(CacheKey::new(CacheType::UserSession, token.clone())),
+                )
+                .await
+                {
+                    request.extensions_mut().insert(session);
+                    true
                 } else {
-                    if let Ok(Some(session)) = get_user_session(
-                        &cache_manager,
-                        CacheManagerReq::Get(CacheKey::new(CacheType::UserSession, token.clone())),
-                    )
-                    .await
-                    {
-                        request.extensions_mut().insert(session);
-                        true
-                    } else {
-                        false
-                    }
+                    false
                 };
             }
             //log::info!("token: {}|{}|{}|{}|{}|{}",&token,is_page,is_check_path,is_login,request.path(),request.query_string());

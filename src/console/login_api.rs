@@ -3,7 +3,7 @@ use std::sync::Arc;
 use actix_web::{
     cookie::Cookie,
     web::{self, Data},
-    HttpResponse, Responder,
+    HttpRequest, HttpResponse, Responder,
 };
 
 use crate::{
@@ -28,38 +28,59 @@ pub async fn login(
         name: param.username,
         password: param.password,
     };
-    if let Ok(Ok(v)) = app.user_manager.send(msg).await {
-        match v {
-            UserManagerResult::CheckUserResult(valid, user) => {
-                if valid {
-                    //增加长度避免遍历
-                    let token = Arc::new(
-                        uuid::Uuid::new_v4().to_string().replace("-", "")
-                            + &uuid::Uuid::new_v4().to_string().replace("-", ""),
-                    );
-                    let session = Arc::new(UserSession {
-                        username: user.username,
-                        nickname: user.nickname,
-                        ..Default::default()
-                    });
-                    let cache_req = CacheManagerReq::Set {
-                        key: CacheKey::new(CacheType::UserSession, token.clone()),
-                        value: CacheValue::UserSession(session),
-                        ttl: app.sys_config.console_login_timeout,
-                    };
-                    app.cache_manager.do_send(cache_req);
-                    return Ok(HttpResponse::Ok()
-                        .cookie(
-                            Cookie::build("token", token.as_str())
-                                .path("/")
-                                .http_only(true)
-                                .finish(),
-                        )
-                        .json(ApiResult::success(Some(valid))));
-                }
-            }
-            _ => {}
-        };
+    if let Ok(Ok(UserManagerResult::CheckUserResult(valid, user))) =
+        app.user_manager.send(msg).await
+    {
+        if valid {
+            //增加长度避免遍历
+            let token = Arc::new(
+                uuid::Uuid::new_v4().to_string().replace('-', "")
+                    + &uuid::Uuid::new_v4().to_string().replace('-', ""),
+            );
+            let session = Arc::new(UserSession {
+                username: user.username,
+                nickname: user.nickname,
+                ..Default::default()
+            });
+            let cache_req = CacheManagerReq::Set {
+                key: CacheKey::new(CacheType::UserSession, token.clone()),
+                value: CacheValue::UserSession(session),
+                ttl: app.sys_config.console_login_timeout,
+            };
+            app.cache_manager.do_send(cache_req);
+            return Ok(HttpResponse::Ok()
+                .cookie(
+                    Cookie::build("token", token.as_str())
+                        .path("/")
+                        .http_only(true)
+                        .finish(),
+                )
+                .json(ApiResult::success(Some(valid))));
+        }
     }
     Ok(HttpResponse::Ok().json(ApiResult::<()>::error("SYSTEM_ERROR".to_owned(), None)))
+}
+
+pub async fn logout(
+    request: HttpRequest,
+    app: Data<Arc<AppShareData>>,
+) -> actix_web::Result<impl Responder> {
+    let token = if let Some(ck) = request.cookie("token") {
+        ck.value().to_owned()
+    } else if let Some(v) = request.headers().get("Token") {
+        v.to_str().unwrap_or_default().to_owned()
+    } else {
+        "".to_owned()
+    };
+    let token = Arc::new(token);
+    let cache_req = CacheManagerReq::Remove(CacheKey::new(CacheType::UserSession, token));
+    app.cache_manager.do_send(cache_req);
+    return Ok(HttpResponse::Ok()
+        .cookie(
+            Cookie::build("token", "")
+                .path("/")
+                .http_only(true)
+                .finish(),
+        )
+        .json(ApiResult::success(Some(true))));
 }

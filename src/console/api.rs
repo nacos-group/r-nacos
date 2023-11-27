@@ -9,7 +9,6 @@ use crate::config::core::ConfigActor;
 
 use super::cluster_api::query_cluster_info;
 use super::config_api::query_config_list;
-use super::login_api;
 use super::{
     config_api::{download_config, import_config, query_history_config_page},
     connection_api::query_grpc_connection,
@@ -17,6 +16,7 @@ use super::{
     naming_api::{query_grpc_client_instance_count, query_ops_instances_list},
     NamespaceUtils,
 };
+use super::{login_api, user_api};
 
 pub async fn query_namespace_list(config_addr: web::Data<Addr<ConfigActor>>) -> impl Responder {
     //HttpResponse::InternalServerError().body("system error")
@@ -120,6 +120,12 @@ pub fn app_config(config: &mut web::ServiceConfig) {
                     .route(web::get().to(query_cluster_info)),
             )
             .service(web::resource("/connections").route(web::get().to(query_grpc_connection)))
-            .service(web::resource("/login/login").route(web::post().to(login_api::login))),
+            .service(web::resource("/login/login").route(web::post().to(login_api::login)))
+            .service(web::resource("/login/logout").route(web::post().to(login_api::logout)))
+            .service(web::resource("/user/info").route(web::get().to(user_api::get_user_info)))
+            .service(
+                web::resource("/user/reset_password")
+                    .route(web::post().to(user_api::reset_password)),
+            ),
     );
 }
