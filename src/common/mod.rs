@@ -96,9 +96,9 @@ impl AppSysConfig {
             .unwrap_or(raft_node_id == 1);
         let raft_join_addr = std::env::var("RNACOS_RAFT_JOIN_ADDR").unwrap_or_default();
         let console_login_timeout = std::env::var("RNACOS_CONSOLE_LOGIN_TIMEOUT")
-            .unwrap_or("1200".to_owned())
+            .unwrap_or("3600".to_owned())
             .parse()
-            .unwrap_or(1200);
+            .unwrap_or(3600);
         Self {
             config_db_dir,
             config_db_file,
