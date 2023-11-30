@@ -5,6 +5,7 @@ use actix_web::{
     web::{self, Data},
     HttpRequest, HttpResponse, Responder,
 };
+use captcha::{gen, Difficulty};
 
 use crate::{
     common::{
@@ -59,6 +60,32 @@ pub async fn login(
         }
     }
     Ok(HttpResponse::Ok().json(ApiResult::<()>::error("SYSTEM_ERROR".to_owned(), None)))
+}
+
+pub async fn gen_captcha(app: Data<Arc<AppShareData>>) -> actix_web::Result<impl Responder> {
+    let obj = gen(Difficulty::Easy);
+    let mut code = "".to_owned();
+    for c in obj.chars(){
+        code.push(c);
+    }
+    let code = Arc::new(code.to_ascii_uppercase());
+
+    let img = obj.as_base64().unwrap_or_default();
+    let token = Arc::new(uuid::Uuid::new_v4().to_string().replace('-', ""));
+    let cache_req = CacheManagerReq::Set {
+        key: CacheKey::new(CacheType::String, token.clone()),
+        value: CacheValue::String(code),
+        ttl: 300,
+    };
+    app.cache_manager.send(cache_req).await.ok();
+    Ok(HttpResponse::Ok()
+                .cookie(
+                    Cookie::build("captcha_token", token.as_str())
+                        .path("/")
+                        .http_only(true)
+                        .finish(),
+                )
+                .json(ApiResult::success(Some(img))))
 }
 
 pub async fn logout(

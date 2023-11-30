@@ -80,8 +80,10 @@ clap = { version = "4.3", features = ["derive"] }
 
 #inject
 bean_factory = "0.1.4"
+
 futures-util = "0.3.29"
 regex = "1"
+captcha = "0.0.9"
 
 [dependencies.uuid]
 version = "1.2.1"

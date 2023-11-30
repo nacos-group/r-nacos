@@ -16,6 +16,7 @@ use crate::{
 };
 
 #[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ResetPasswordParam {
     pub old_password: String,
     pub new_password: String,
