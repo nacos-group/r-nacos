@@ -110,7 +110,7 @@ pub async fn gen_captcha(app: Data<Arc<AppShareData>>) -> actix_web::Result<impl
 
     let img = obj.as_base64().unwrap_or_default();
     let token = Arc::new(uuid::Uuid::new_v4().to_string().replace('-', ""));
-    log::info!("gen_captcha code:{}", &code);
+    //log::info!("gen_captcha code:{}", &code);
     let cache_req = CacheManagerReq::Set {
         key: CacheKey::new(CacheType::String, token.clone()),
         value: CacheValue::String(code),
