@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::common::appdata::AppShareData;
 
-use super::{model::UserDto, UserManagerReq};
+use super::{model::UserDo, UserManagerReq};
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct UserVo {
@@ -32,8 +32,8 @@ pub struct PageResult<T> {
     list: Vec<T>,
 }
 
-impl From<UserDto> for UserVo {
-    fn from(value: UserDto) -> Self {
+impl From<UserDo> for UserVo {
+    fn from(value: UserDo) -> Self {
         Self {
             username: Arc::new(value.username),
             password: Some(value.password),

@@ -1,4 +1,4 @@
-use std::{sync::Arc, time::Duration};
+use std::{collections::HashMap, sync::Arc, time::Duration};
 
 use actix::prelude::*;
 use bean_factory::{bean, Inject};
@@ -15,7 +15,7 @@ use crate::{
     },
 };
 
-use self::model::UserDto;
+use self::model::UserDo;
 
 pub mod api;
 pub mod model;
@@ -158,17 +158,17 @@ pub enum UserManagerReq {
 }
 
 pub enum UserManagerInnerCtx {
-    UpdateUser { key: Arc<String>, value: UserDto },
-    CheckUserResult(Arc<String>, bool, UserDto),
-    QueryUser(Arc<String>, Option<UserDto>),
-    UserPageResult(usize, Vec<UserDto>),
+    UpdateUser { key: Arc<String>, value: UserDo },
+    CheckUserResult(Arc<String>, bool, UserDo),
+    QueryUser(Arc<String>, Option<UserDo>),
+    UserPageResult(usize, Vec<UserDo>),
 }
 
 pub enum UserManagerResult {
     None,
-    CheckUserResult(bool, UserDto),
-    QueryUser(Option<Arc<UserDto>>),
-    UserPageResult(usize, Vec<UserDto>),
+    CheckUserResult(bool, UserDo),
+    QueryUser(Option<Arc<UserDo>>),
+    UserPageResult(usize, Vec<UserDo>),
 }
 
 impl Handler<UserManagerReq> for UserManager {
@@ -190,12 +190,15 @@ impl Handler<UserManagerReq> for UserManager {
                     password,
                 } => {
                     let now = (now_millis() / 1000) as u32;
-                    let user = UserDto {
+                    let user = UserDo {
                         username: name.as_ref().to_owned(),
                         password,
                         nickname,
                         gmt_create: now,
                         gmt_modified: now,
+                        roles: vec![],
+                        enable: true,
+                        extend_info: HashMap::new(),
                     };
                     let user_data = user.to_bytes();
                     let req = TableManagerReq::Set {
@@ -223,9 +226,7 @@ impl Handler<UserManagerReq> for UserManager {
                             key: name.clone(),
                         };
                         match raft_table_route.get_leader_data(query_req).await? {
-                            TableManagerResult::Value(old_value) => {
-                                UserDto::from_bytes(&old_value)?
-                            }
+                            TableManagerResult::Value(old_value) => UserDo::from_bytes(&old_value)?,
                             _ => return Err(anyhow::anyhow!("not found user {}", &name)),
                         }
                     } else {
@@ -261,9 +262,7 @@ impl Handler<UserManagerReq> for UserManager {
                             key: name.clone(),
                         };
                         match raft_table_route.get_leader_data(query_req).await? {
-                            TableManagerResult::Value(old_value) => {
-                                UserDto::from_bytes(&old_value)?
-                            }
+                            TableManagerResult::Value(old_value) => UserDo::from_bytes(&old_value)?,
                             _ => return Err(anyhow::anyhow!("not found user {}", &name)),
                         }
                     } else {
@@ -286,7 +285,7 @@ impl Handler<UserManagerReq> for UserManager {
                             };
                             match table_manager.send(query_req).await?? {
                                 TableManagerResult::Value(old_value) => {
-                                    Some(UserDto::from_bytes(&old_value)?)
+                                    Some(UserDo::from_bytes(&old_value)?)
                                 }
                                 _ => None,
                             }
@@ -314,7 +313,7 @@ impl Handler<UserManagerReq> for UserManager {
                             TableManagerResult::PageListResult(size, list) => {
                                 let mut user_list = Vec::with_capacity(list.len());
                                 for (_, v) in list {
-                                    user_list.push(UserDto::from_bytes(&v)?);
+                                    user_list.push(UserDo::from_bytes(&v)?);
                                 }
                                 Ok(UserManagerInnerCtx::UserPageResult(size, user_list))
                             }
