@@ -52,6 +52,7 @@ impl UserManager {
         if let Some(table_manager) = table_manager {
             let req = TableManagerQueryReq::QueryPageList {
                 table_name: USER_TABLE_NAME.clone(),
+                like_key: None,
                 limit: Some(1),
                 offset: None,
                 is_rev: false,
@@ -149,6 +150,7 @@ pub enum UserManagerReq {
         name: Arc<String>,
     },
     QueryPageList {
+        like_username: Option<String>,
         offset: Option<i64>,
         limit: Option<i64>,
         is_rev: bool,
@@ -296,12 +298,14 @@ impl Handler<UserManagerReq> for UserManager {
                 }
                 UserManagerReq::QueryPageList {
                     offset,
+                    like_username,
                     limit,
                     is_rev,
                 } => {
                     if let Some(table_manager) = &table_manager {
                         let query_req = TableManagerQueryReq::QueryPageList {
                             table_name: USER_TABLE_NAME.clone(),
+                            like_key: like_username,
                             offset,
                             limit,
                             is_rev,

@@ -54,6 +54,7 @@ impl CacheManager {
             if let Some(table_manager) = &table_manager {
                 let query_req = TableManagerQueryReq::QueryPageList {
                     table_name: CACHE_TABLE_NAME.clone(),
+                    like_key: None,
                     offset: None,
                     limit: None,
                     is_rev: false,

@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use actix::prelude::*;
 
 use crate::{
-    common::sled_utils::TableSequence,
+    common::{sled_utils::TableSequence, string_utils::StringUtils},
     raft::{
         cache::{CacheManager, CacheManagerReq},
         cluster::model::RouterRequest,
@@ -233,6 +233,7 @@ impl TableManager {
     pub(crate) fn query_page_list(
         &self,
         name: Arc<String>,
+        like_key: Option<String>,
         offset: Option<i64>,
         limit: Option<i64>,
         is_rev: bool,
@@ -251,11 +252,11 @@ impl TableManager {
                 if let Some(limit) = limit {
                     let mut t = n_i.take(limit as usize);
                     while let Some(Ok((k, v))) = t.next() {
-                        ret.push((k.to_vec(), v.to_vec()));
+                        Self::push_match_condition_item(k, v, &like_key, &mut ret);
                     }
                 } else {
                     while let Some(Ok((k, v))) = n_i.next() {
-                        ret.push((k.to_vec(), v.to_vec()));
+                        Self::push_match_condition_item(k, v, &like_key, &mut ret);
                     }
                 }
             } else {
@@ -266,15 +267,14 @@ impl TableManager {
                 if let Some(limit) = limit {
                     let mut t = n_i.take(limit as usize);
                     while let Some(Ok((k, v))) = t.next() {
-                        ret.push((k.to_vec(), v.to_vec()));
+                        Self::push_match_condition_item(k, v, &like_key, &mut ret);
                     }
                 } else {
                     while let Some(Ok((k, v))) = n_i.next() {
-                        ret.push((k.to_vec(), v.to_vec()));
+                        Self::push_match_condition_item(k, v, &like_key, &mut ret);
                     }
                 }
             }
-
             (total, ret)
         } else {
             (0, vec![])
@@ -291,6 +291,22 @@ impl TableManager {
             }
         }
         Ok(())
+    }
+
+    fn push_match_condition_item(
+        k: sled::IVec,
+        v: sled::IVec,
+        like_key: &Option<String>,
+        ret: &mut Vec<(Vec<u8>, Vec<u8>)>,
+    ) {
+        let key = k.to_vec();
+        if let Some(like_key) = like_key.as_ref() {
+            let key_str = String::from_utf8_lossy(&key);
+            if StringUtils::like(&key_str, like_key.as_str()).is_none() {
+                return;
+            }
+        }
+        ret.push((key, v.to_vec()));
     }
 
     fn get_table_db_names(&self) -> Vec<Arc<String>> {
@@ -384,6 +400,7 @@ pub enum TableManagerQueryReq {
     },
     QueryPageList {
         table_name: Arc<String>,
+        like_key: Option<String>,
         offset: Option<i64>,
         limit: Option<i64>,
         is_rev: bool,
@@ -519,11 +536,13 @@ impl Handler<TableManagerQueryReq> for TableManager {
             },
             TableManagerQueryReq::QueryPageList {
                 table_name,
+                like_key,
                 offset,
                 limit,
                 is_rev,
             } => {
-                let (size, list) = self.query_page_list(table_name, offset, limit, is_rev);
+                let (size, list) =
+                    self.query_page_list(table_name, like_key, offset, limit, is_rev);
                 Ok(TableManagerResult::PageListResult(size, list))
             }
         }

@@ -20,6 +20,7 @@ pub struct UserVo {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct PageParams {
+    like_username: Option<String>,
     offset: Option<i64>,
     limit: Option<i64>,
     is_rev: Option<bool>,
@@ -125,6 +126,7 @@ pub async fn get_user_page_list(
     web::Query(param): web::Query<PageParams>,
 ) -> actix_web::Result<impl Responder> {
     let msg = UserManagerReq::QueryPageList {
+        like_username: param.like_username,
         offset: param.offset,
         limit: param.limit,
         is_rev: param.is_rev.unwrap_or_default(),
