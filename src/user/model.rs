@@ -1,4 +1,8 @@
+use std::{collections::HashMap, sync::Arc};
+
 use serde::{Deserialize, Serialize};
+
+use super::UserRoleHelper;
 
 #[derive(Clone, prost::Message, Serialize, Deserialize)]
 pub struct UserDo {
@@ -33,11 +37,34 @@ impl UserDo {
     }
 }
 
-/*
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
 pub struct UserDto {
-    pub username: Option<String>,
+    pub username: Arc<String>,
     pub nickname: Option<String>,
-    pub passowrd: Option<String>,
+    pub password: Option<String>,
+    pub gmt_create: Option<i64>,
+    pub gmt_modified: Option<i64>,
+    pub enable: Option<bool>,
+    pub roles: Option<Vec<Arc<String>>>,
+    pub extend_info: Option<HashMap<String, String>>,
 }
-*/
+
+impl From<UserDo> for UserDto {
+    fn from(value: UserDo) -> Self {
+        let mut roles = vec![];
+        for role in &value.roles {
+            roles.push(UserRoleHelper::get_role(role));
+        }
+        Self {
+            username: Arc::new(value.username),
+            nickname: Some(value.nickname),
+            password: Some(value.password),
+            gmt_create: Some(value.gmt_create as i64 * 1000),
+            gmt_modified: Some(value.gmt_modified as i64 * 1000),
+            enable: Some(value.enable),
+            roles: Some(roles),
+            extend_info: Some(value.extend_info),
+        }
+    }
+}

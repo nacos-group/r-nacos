@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use serde::{Deserialize, Serialize};
 
@@ -44,8 +44,8 @@ pub struct PageResult<T> {
 
 #[derive(Debug, Default, Clone, Deserialize, Serialize)]
 pub struct UserSession {
-    pub username: String,
+    pub username: Arc<String>,
     pub nickname: String,
-    pub roles: Vec<String>,
+    pub roles: Vec<Arc<String>>,
     pub extend_infos: HashMap<String, String>,
 }

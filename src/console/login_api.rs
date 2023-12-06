@@ -72,7 +72,7 @@ pub async fn login(
             );
             let session = Arc::new(UserSession {
                 username: user.username,
-                nickname: user.nickname,
+                nickname: user.nickname.unwrap_or_default(),
                 ..Default::default()
             });
             let cache_req = CacheManagerReq::Set {

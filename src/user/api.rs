@@ -9,7 +9,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::common::appdata::AppShareData;
 
-use super::{model::UserDo, UserManagerReq};
+use super::{
+    model::{UserDo, UserDto},
+    UserManagerReq,
+};
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct UserVo {
@@ -54,9 +57,12 @@ pub async fn add_user(
     web::Form(param): web::Form<UserVo>,
 ) -> actix_web::Result<impl Responder> {
     let msg = UserManagerReq::AddUser {
-        name: param.username,
-        nickname: param.nickname.unwrap(),
-        password: param.password.unwrap(),
+        user: UserDto {
+            username: param.username,
+            nickname: Some(param.nickname.unwrap()),
+            password: Some(param.password.unwrap()),
+            ..Default::default()
+        },
     };
     app.user_manager.send(msg).await.ok();
     Ok("{\"ok\":1}")
@@ -67,9 +73,12 @@ pub async fn update_user(
     web::Form(param): web::Form<UserVo>,
 ) -> actix_web::Result<impl Responder> {
     let msg = UserManagerReq::UpdateUser {
-        name: param.username,
-        nickname: param.nickname,
-        password: param.password,
+        user: UserDto {
+            username: param.username,
+            nickname: Some(param.nickname.unwrap()),
+            password: Some(param.password.unwrap()),
+            ..Default::default()
+        },
     };
     app.user_manager.send(msg).await.ok();
     Ok("{\"ok\":1}")
@@ -105,14 +114,11 @@ pub async fn get_user(
         name: param.username,
     };
     match app.user_manager.send(msg).await.unwrap().unwrap() {
-        super::UserManagerResult::QueryUser(user) => {
-            let user: Option<UserVo> = user.map(|e| e.as_ref().to_owned().into());
-            Ok(Json(UserResult::<UserVo> {
-                success: true,
-                msg: None,
-                data: user,
-            }))
-        }
+        super::UserManagerResult::QueryUser(user) => Ok(Json(UserResult::<UserDto> {
+            success: true,
+            msg: None,
+            data: user,
+        })),
         _ => Ok(Json(UserResult {
             success: false,
             msg: Some("result type is error".to_owned()),
@@ -132,14 +138,11 @@ pub async fn get_user_page_list(
         is_rev: param.is_rev.unwrap_or_default(),
     };
     match app.user_manager.send(msg).await.unwrap().unwrap() {
-        super::UserManagerResult::UserPageResult(size, list) => {
-            let list: Vec<UserVo> = list.into_iter().map(|e| e.into()).collect();
-            Ok(Json(UserResult {
-                success: true,
-                msg: None,
-                data: Some(PageResult { size, list }),
-            }))
-        }
+        super::UserManagerResult::UserPageResult(size, list) => Ok(Json(UserResult {
+            success: true,
+            msg: None,
+            data: Some(PageResult { size, list }),
+        })),
         _ => Ok(Json(UserResult {
             success: false,
             msg: Some("result type is error".to_owned()),

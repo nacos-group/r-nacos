@@ -12,7 +12,7 @@ use crate::{
         appdata::AppShareData,
         model::{ApiResult, UserSession},
     },
-    user::{UserManagerReq, UserManagerResult},
+    user::{model::UserDto, UserManagerReq, UserManagerResult},
 };
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -49,9 +49,11 @@ pub async fn reset_password(
                 UserManagerResult::CheckUserResult(valid, _user) => {
                     if valid {
                         let msg = UserManagerReq::UpdateUser {
-                            name: username,
-                            nickname: None,
-                            password: Some(param.new_password),
+                            user: UserDto {
+                                username: username,
+                                password: Some(param.new_password),
+                                ..Default::default()
+                            },
                         };
                         if let Ok(Ok(_r)) = app.user_manager.send(msg).await {
                             return Ok(HttpResponse::Ok().json(ApiResult::success(Some(true))));
