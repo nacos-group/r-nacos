@@ -167,6 +167,9 @@ pub enum UserManagerReq {
         name: Arc<String>,
         password: String,
     },
+    Remove {
+        username: Arc<String>,
+    },
     Query {
         name: Arc<String>,
     },
@@ -179,6 +182,7 @@ pub enum UserManagerReq {
 }
 
 pub enum UserManagerInnerCtx {
+    None,
     UpdateUser { key: Arc<String>, value: UserDo },
     CheckUserResult(Arc<String>, bool, UserDo),
     QueryUser(Arc<String>, Option<UserDo>),
@@ -303,6 +307,16 @@ impl Handler<UserManagerReq> for UserManager {
                         last_user,
                     ))
                 }
+                UserManagerReq::Remove { username } => {
+                    let req = TableManagerReq::Remove {
+                        table_name: USER_TABLE_NAME.clone(),
+                        key: username.as_bytes().to_owned(),
+                    };
+                    if let Some(raft_table_route) = raft_table_route {
+                        raft_table_route.request(req).await.ok();
+                    }
+                    Ok(UserManagerInnerCtx::None)
+                }
                 UserManagerReq::Query { name } => {
                     if query_info_at_cache {
                         Ok(UserManagerInnerCtx::QueryUser(name, None))
@@ -357,6 +371,7 @@ impl Handler<UserManagerReq> for UserManager {
         .into_actor(self)
         .map(
             |res: anyhow::Result<UserManagerInnerCtx>, _act, _ctx| match res? {
+                UserManagerInnerCtx::None => Ok(UserManagerResult::None),
                 UserManagerInnerCtx::UpdateUser { key: _, value: _ } => {
                     //act.cache.set(key, Arc::new(value), act.cache_sec);
                     Ok(UserManagerResult::None)

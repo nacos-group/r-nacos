@@ -10,10 +10,12 @@ use serde::{Deserialize, Serialize};
 use crate::{
     common::{
         appdata::AppShareData,
-        model::{ApiResult, UserSession},
+        model::{ApiResult, PageResult, UserSession},
     },
     user::{model::UserDto, UserManagerReq, UserManagerResult},
 };
+
+use super::model::user_model::PageParams;
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -75,4 +77,68 @@ pub async fn reset_password(
             None,
         )))
     }
+}
+
+pub async fn get_user_page_list(
+    app: Data<Arc<AppShareData>>,
+    web::Query(param): web::Query<PageParams>,
+) -> actix_web::Result<impl Responder> {
+    let msg = UserManagerReq::QueryPageList {
+        like_username: param.like_username,
+        offset: param.offset,
+        limit: param.limit,
+        is_rev: param.is_rev.unwrap_or_default(),
+    };
+    match app.user_manager.send(msg).await.unwrap().unwrap() {
+        UserManagerResult::UserPageResult(size, list) => {
+            Ok(HttpResponse::Ok().json(ApiResult::success(Some(PageResult { size, list }))))
+        }
+        _ => Ok(HttpResponse::Ok().json(ApiResult::<()>::error(
+            "NOT_FOUND_USER_SESSION".to_owned(),
+            Some("result type is error".to_owned()),
+        ))),
+    }
+}
+
+pub async fn add_user(
+    app: Data<Arc<AppShareData>>,
+    web::Form(user): web::Form<UserDto>,
+) -> actix_web::Result<impl Responder> {
+    let msg = UserManagerReq::AddUser {
+        user: UserDto {
+            username: user.username,
+            password: Some(user.password.unwrap()),
+            gmt_create: None,
+            gmt_modified: None,
+            ..user
+        },
+    };
+    app.user_manager.send(msg).await.ok();
+    Ok(HttpResponse::Ok().json(ApiResult::success(Some(true))))
+}
+
+pub async fn update_user(
+    app: Data<Arc<AppShareData>>,
+    web::Form(user): web::Form<UserDto>,
+) -> actix_web::Result<impl Responder> {
+    let msg = UserManagerReq::UpdateUser {
+        user: UserDto {
+            username: user.username,
+            gmt_create: None,
+            ..user
+        },
+    };
+    app.user_manager.send(msg).await.ok();
+    Ok(HttpResponse::Ok().json(ApiResult::success(Some(true))))
+}
+
+pub async fn remove_user(
+    app: Data<Arc<AppShareData>>,
+    web::Form(user): web::Form<UserDto>,
+) -> actix_web::Result<impl Responder> {
+    let msg = UserManagerReq::Remove {
+        username: user.username,
+    };
+    app.user_manager.send(msg).await.ok();
+    Ok(HttpResponse::Ok().json(ApiResult::success(Some(true))))
 }

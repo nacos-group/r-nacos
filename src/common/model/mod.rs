@@ -38,8 +38,8 @@ where
 
 #[derive(Debug, Default, Deserialize, Serialize)]
 pub struct PageResult<T> {
-    size: usize,
-    list: Vec<T>,
+    pub size: usize,
+    pub list: Vec<T>,
 }
 
 #[derive(Debug, Default, Clone, Deserialize, Serialize)]
