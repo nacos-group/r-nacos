@@ -59,7 +59,9 @@ impl From<UserDo> for UserDto {
         Self {
             username: Arc::new(value.username),
             nickname: Some(value.nickname),
-            password: Some(value.password),
+            //password: Some(value.password),
+            //不直接返回密码
+            password: None,
             gmt_create: Some(value.gmt_create as i64 * 1000),
             gmt_modified: Some(value.gmt_modified as i64 * 1000),
             enable: Some(value.enable),

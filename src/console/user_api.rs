@@ -15,7 +15,7 @@ use crate::{
     user::{model::UserDto, UserManagerReq, UserManagerResult},
 };
 
-use super::model::user_model::PageParams;
+use super::model::user_model::UserPageParams;
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -81,12 +81,13 @@ pub async fn reset_password(
 
 pub async fn get_user_page_list(
     app: Data<Arc<AppShareData>>,
-    web::Query(param): web::Query<PageParams>,
+    web::Query(param): web::Query<UserPageParams>,
 ) -> actix_web::Result<impl Responder> {
+    let (limit, offset) = param.get_limit_info();
     let msg = UserManagerReq::QueryPageList {
         like_username: param.like_username,
-        offset: param.offset,
-        limit: param.limit,
+        offset: Some(offset as i64),
+        limit: Some(limit as i64),
         is_rev: param.is_rev.unwrap_or_default(),
     };
     match app.user_manager.send(msg).await.unwrap().unwrap() {
