@@ -115,17 +115,21 @@ where
                 res.await.map(ServiceResponse::map_into_left_body)
             } else {
                 let response = if is_page {
-                    let move_url = if !request.query_string().is_empty() {
+                    let move_url = if request.path() == "/p/login" {
+                        format!("{}?{}", request.path(), request.query_string())
+                    } else {
                         let mut redirect_param = HashMap::new();
-                        redirect_param.insert(
-                            "redirect_url",
-                            format!("{}?{}", request.path(), request.query_string()),
-                        );
+                        if !request.query_string().is_empty() {
+                            redirect_param.insert(
+                                "redirect_url",
+                                format!("{}?{}", request.path(), request.query_string()),
+                            );
+                        } else {
+                            redirect_param.insert("redirect_url", request.path().to_owned());
+                        };
                         let redirect_param =
                             serde_urlencoded::to_string(&redirect_param).unwrap_or_default();
                         format!("/p/login?{}", redirect_param)
-                    } else {
-                        request.path().to_owned()
                     };
                     HttpResponse::Ok()
                         .insert_header(("Location", move_url))

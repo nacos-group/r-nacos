@@ -126,6 +126,7 @@ fn init_env() {
 
 async fn run_console_web(source_app_data: Arc<AppShareData>) {
     let http_console_addr = source_app_data.sys_config.get_http_console_addr();
+    log::info!("new console server http addr:{}", &http_console_addr);
     let app_data = Data::new(source_app_data.clone());
     HttpServer::new(move || {
         let source_app_data = source_app_data.clone();
