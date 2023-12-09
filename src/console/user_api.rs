@@ -15,7 +15,7 @@ use crate::{
     user::{model::UserDto, UserManagerReq, UserManagerResult},
 };
 
-use super::model::user_model::UserPageParams;
+use super::model::user_model::{UpdateUserInfoParam, UserInfo, UserPageParams};
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -26,7 +26,11 @@ pub struct ResetPasswordParam {
 
 pub async fn get_user_info(req: HttpRequest) -> actix_web::Result<impl Responder> {
     if let Some(session) = req.extensions().get::<Arc<UserSession>>() {
-        Ok(HttpResponse::Ok().json(ApiResult::success(Some(session.clone()))))
+        let userinfo = UserInfo {
+            username: Some(session.username.clone()),
+            nickname: Some(session.nickname.clone()),
+        };
+        Ok(HttpResponse::Ok().json(ApiResult::success(Some(userinfo))))
     } else {
         Ok(HttpResponse::Ok().json(ApiResult::<()>::error(
             "NOT_FOUND_USER_SESSION".to_owned(),
@@ -103,12 +107,13 @@ pub async fn get_user_page_list(
 
 pub async fn add_user(
     app: Data<Arc<AppShareData>>,
-    web::Form(user): web::Form<UserDto>,
+    web::Form(user_param): web::Form<UpdateUserInfoParam>,
 ) -> actix_web::Result<impl Responder> {
+    let user: UserDto = user_param.into();
     let msg = UserManagerReq::AddUser {
         user: UserDto {
             username: user.username,
-            password: Some(user.password.unwrap()),
+            password: Some(user.password.unwrap_or_default()),
             gmt_create: None,
             gmt_modified: None,
             ..user
@@ -120,8 +125,9 @@ pub async fn add_user(
 
 pub async fn update_user(
     app: Data<Arc<AppShareData>>,
-    web::Form(user): web::Form<UserDto>,
+    web::Form(user_param): web::Form<UpdateUserInfoParam>,
 ) -> actix_web::Result<impl Responder> {
+    let user: UserDto = user_param.into();
     let msg = UserManagerReq::UpdateUser {
         user: UserDto {
             username: user.username,
@@ -135,7 +141,7 @@ pub async fn update_user(
 
 pub async fn remove_user(
     app: Data<Arc<AppShareData>>,
-    web::Form(user): web::Form<UserDto>,
+    web::Form(user): web::Form<UpdateUserInfoParam>,
 ) -> actix_web::Result<impl Responder> {
     let msg = UserManagerReq::Remove {
         username: user.username,

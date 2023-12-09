@@ -257,20 +257,28 @@ impl Handler<UserManagerReq> for UserManager {
                     let now = (now_millis() / 1000) as u32;
                     last_user.gmt_modified = now;
                     if let Some(nickname) = user.nickname {
-                        last_user.nickname = nickname;
+                        if !nickname.is_empty() {
+                            last_user.nickname = nickname;
+                        }
                     }
                     if let Some(password) = user.password {
-                        last_user.password = password;
+                        if !password.is_empty() {
+                            last_user.password = password;
+                        }
                     }
                     if let Some(enable) = user.enable {
                         last_user.enable = enable;
                     }
                     if let Some(extend_info) = user.extend_info {
-                        last_user.extend_info = extend_info;
+                        if !extend_info.is_empty() {
+                            last_user.extend_info = extend_info;
+                        }
                     }
                     if let Some(roles) = user.roles {
-                        last_user.roles =
-                            roles.into_iter().map(|e| e.as_ref().to_owned()).collect();
+                        if !roles.is_empty() {
+                            last_user.roles =
+                                roles.into_iter().map(|e| e.as_ref().to_owned()).collect();
+                        }
                     }
                     last_user.gmt_modified = now;
                     let user_data = last_user.to_bytes();
@@ -289,6 +297,9 @@ impl Handler<UserManagerReq> for UserManager {
                     })
                 }
                 UserManagerReq::CheckUser { name, password } => {
+                    if name.is_empty() || password.is_empty() {
+                        return Err(anyhow::anyhow!("args is empty"));
+                    }
                     let last_user = if let Some(raft_table_route) = &raft_table_route {
                         let query_req = TableManagerQueryReq::GetByArcKey {
                             table_name: USER_TABLE_NAME.clone(),

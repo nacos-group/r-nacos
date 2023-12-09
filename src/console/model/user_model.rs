@@ -2,11 +2,55 @@ use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 
+use crate::user::{model::UserDto, UserRoleHelper};
+
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct UserInfo {
     pub username: Option<Arc<String>>,
     pub nickname: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateUserInfoParam {
+    pub username: Arc<String>,
+    pub nickname: Option<String>,
+    pub password: Option<String>,
+    pub enable: Option<bool>,
+    pub roles: Option<String>,
+}
+
+impl UpdateUserInfoParam {
+    pub fn get_role_vec(&self) -> Option<Vec<Arc<String>>> {
+        if let Some(roles) = self.roles.as_ref() {
+            if roles.is_empty() {
+                return None;
+            }
+            Some(
+                roles
+                    .split(',')
+                    .map(|e| UserRoleHelper::get_role(e))
+                    .collect(),
+            )
+        } else {
+            None
+        }
+    }
+}
+
+impl From<UpdateUserInfoParam> for UserDto {
+    fn from(value: UpdateUserInfoParam) -> Self {
+        let roles = value.get_role_vec();
+        Self {
+            username: value.username,
+            nickname: value.nickname,
+            password: value.password,
+            enable: value.enable,
+            roles: roles,
+            ..Default::default()
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize)]
