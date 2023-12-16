@@ -15,34 +15,14 @@ use crate::{
     },
 };
 
-use self::model::{UserDo, UserDto};
+use self::{model::{UserDo, UserDto}, permission::USER_ROLE_MANAGER};
 
 pub mod api;
 pub mod model;
+pub mod permission;
 
 lazy_static::lazy_static! {
     static ref USER_TABLE_NAME: Arc<String> =  Arc::new("user".to_string());
-    static ref USER_ROLE_MANAGER: Arc<String> =  Arc::new("0".to_string());
-    static ref USER_ROLE_DEVELOPER: Arc<String> =  Arc::new("1".to_string());
-    static ref USER_ROLE_VISITOR: Arc<String> =  Arc::new("2".to_string());
-    static ref ALL_ROLES: Vec<Arc<String>> = vec![USER_ROLE_MANAGER.clone(),USER_ROLE_DEVELOPER.clone(),USER_ROLE_VISITOR.clone()];
-}
-
-pub struct UserRoleHelper;
-
-impl UserRoleHelper {
-    pub fn get_all_roles() -> Vec<Arc<String>> {
-        ALL_ROLES.clone()
-    }
-
-    pub fn get_role(role_value: &str) -> Arc<String> {
-        for item in ALL_ROLES.iter() {
-            if role_value == item.as_str() {
-                return item.clone();
-            }
-        }
-        Arc::new(role_value.to_owned())
-    }
 }
 
 #[bean(inject)]

@@ -2,7 +2,7 @@ use std::{collections::HashMap, sync::Arc};
 
 use serde::{Deserialize, Serialize};
 
-use super::UserRoleHelper;
+use crate::user::permission::UserRoleHelper;
 
 #[derive(Clone, prost::Message, Serialize, Deserialize)]
 pub struct UserDo {
