@@ -10,12 +10,13 @@ use serde::{Deserialize, Serialize};
 use crate::{
     common::{
         appdata::AppShareData,
+        constant::EMPTY_STR,
         model::{ApiResult, PageResult, UserSession},
     },
-    user::{model::UserDto, UserManagerReq, UserManagerResult},
+    user::{model::UserDto, permission::UserRole, UserManagerReq, UserManagerResult},
 };
 
-use super::model::user_model::{UpdateUserInfoParam, UserInfo, UserPageParams};
+use super::model::user_model::{UpdateUserInfoParam, UserInfo, UserPageParams, UserPermissions};
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -36,6 +37,29 @@ pub async fn get_user_info(req: HttpRequest) -> actix_web::Result<impl Responder
             "NOT_FOUND_USER_SESSION".to_owned(),
             None,
         )))
+    }
+}
+
+///
+/// 获取用户权限资源列表
+/// 这里把取不到UserSession当成旧控制台，后继可以考虑单独实现一个接口
+pub async fn get_user_web_resources(req: HttpRequest) -> actix_web::Result<impl Responder> {
+    if let Some(session) = req.extensions().get::<Arc<UserSession>>() {
+        let resources = UserRole::get_web_resources_by_roles(
+            session.roles.iter().map(|e| e.as_str()).collect(),
+        );
+        let data = UserPermissions {
+            resources,
+            from: EMPTY_STR,
+        };
+        Ok(HttpResponse::Ok().json(ApiResult::success(Some(data))))
+    } else {
+        let resources = UserRole::OldConsole.get_web_resources();
+        let data = UserPermissions {
+            resources,
+            from: "OLD_CONSOLE",
+        };
+        Ok(HttpResponse::Ok().json(ApiResult::success(Some(data))))
     }
 }
 

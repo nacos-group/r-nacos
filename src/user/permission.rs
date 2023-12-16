@@ -123,6 +123,7 @@ lazy_static::lazy_static! {
         R::Path("/nacos/v1/console/login/captcha",HTTP_METHOD_ALL),
         R::Path("/nacos/v1/console/namespaces",HTTP_METHOD_GET),
         R::Path("/nacos/v1/console/user/info",HTTP_METHOD_GET),
+        R::Path("/nacos/v1/console/user/web_resources",HTTP_METHOD_GET),
     ]);
 
     static ref M_CLUSTER_VISITOR: ModuleResource = ModuleResource::new(vec![
@@ -249,10 +250,12 @@ lazy_static::lazy_static! {
 
 }
 
+#[derive(Debug)]
 pub enum UserRole {
     Visitor,
     Developer,
     Manager,
+    OldConsole,
     None,
 }
 
@@ -271,6 +274,8 @@ impl UserRole {
             UserRole::Visitor => vec![R_VISITOR.as_ref()],
             UserRole::Developer => vec![R_DEVELOPER.as_ref()],
             UserRole::Manager => vec![R_MANAGER.as_ref()],
+            //旧控制台使用开发者权限
+            UserRole::OldConsole => vec![R_DEVELOPER.as_ref()],
             UserRole::None => vec![],
         }
     }
@@ -285,6 +290,7 @@ impl UserRole {
     }
 
     pub fn get_web_resources(&self) -> Vec<&'static str> {
+        log::info!("get_web_resources {:?}", &self);
         let resources = self.get_resources();
         if resources.len() == 1 {
             return resources
@@ -299,6 +305,23 @@ impl UserRole {
         for resource in resources {
             for item in &resource.web_resources {
                 set.insert(*item);
+            }
+        }
+        set.into_iter().map(|e| e).collect()
+    }
+
+    pub fn get_web_resources_by_roles(role_values: Vec<&str>) -> Vec<&'static str> {
+        log::info!("get_web_resources_by_roles {:?}", &role_values);
+        let roles: Vec<Self> = role_values.into_iter().map(|e| Self::new(e)).collect();
+        if roles.len() == 1 {
+            return roles.first().unwrap().get_web_resources();
+        }
+        let mut set = HashSet::new();
+        for role in roles {
+            for resource in role.get_resources() {
+                for item in &resource.web_resources {
+                    set.insert(*item);
+                }
             }
         }
         set.into_iter().map(|e| e).collect()

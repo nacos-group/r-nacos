@@ -11,6 +11,13 @@ pub struct UserInfo {
     pub nickname: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct UserPermissions {
+    pub resources: Vec<&'static str>,
+    pub from: &'static str,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateUserInfoParam {
