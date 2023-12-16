@@ -15,7 +15,10 @@ use crate::{
     },
 };
 
-use self::{model::{UserDo, UserDto}, permission::USER_ROLE_MANAGER};
+use self::{
+    model::{UserDo, UserDto},
+    permission::USER_ROLE_MANAGER,
+};
 
 pub mod api;
 pub mod model;
