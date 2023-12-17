@@ -1,4 +1,4 @@
-pub const APP_VERSION: &'static str = "0.4.0-beta.1";
+pub const APP_VERSION: &'static str = "0.4.0-beta.2";
 
 pub const EMPTY_STR: &'static str = "";
 
