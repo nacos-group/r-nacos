@@ -16,6 +16,8 @@ pub struct UserInfo {
 pub struct UserPermissions {
     pub resources: Vec<&'static str>,
     pub from: &'static str,
+    pub version: &'static str,
+    pub username: Option<Arc<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]

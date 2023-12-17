@@ -114,11 +114,15 @@ lazy_static::lazy_static! {
         //WebResource
         R::WebResource("/"),
         R::WebResource("/404"),
+        R::WebResource("/nopermission"),
         R::WebResource("/p/login"),
+        R::WebResource("/manage/about"),
         //path
         R::Path("/",HTTP_METHOD_GET),
         R::Path("/404",HTTP_METHOD_GET),
+        R::Path("/nopermission",HTTP_METHOD_GET),
         R::Path("/p/login",HTTP_METHOD_GET),
+        R::Path("/manage/about",HTTP_METHOD_GET),
         R::Path("/nacos/v1/console/login/login",HTTP_METHOD_ALL),
         R::Path("/nacos/v1/console/login/captcha",HTTP_METHOD_ALL),
         R::Path("/nacos/v1/console/namespaces",HTTP_METHOD_GET),
@@ -213,6 +217,7 @@ lazy_static::lazy_static! {
         //WebResource
         R::WebResource("/manage/service"),
         R::WebResource("/manage/service/instance"),
+        R::WebResource("SERVICE_UPDATE"),
         //path
         R::Path("/manage/service",HTTP_METHOD_GET),
         R::Path("/nacos/v1/ns/catalog/services",HTTP_METHOD_GET),
@@ -225,8 +230,8 @@ lazy_static::lazy_static! {
 
     static ref R_VISITOR: Arc<GroupResource> = Arc::new(GroupResource::new(vec![
         &M_BASE,
-        &M_CLUSTER_VISITOR,
-        &M_NAMESPACE_VISITOR,
+        //&M_CLUSTER_VISITOR,
+        //&M_NAMESPACE_VISITOR,
         &M_CONFIG_VISITOR,
         &M_NAMING_VISITOR,
     ]));

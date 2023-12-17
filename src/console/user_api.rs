@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     common::{
         appdata::AppShareData,
-        constant::EMPTY_STR,
+        constant::{APP_VERSION, EMPTY_STR},
         model::{ApiResult, PageResult, UserSession},
     },
     user::{model::UserDto, permission::UserRole, UserManagerReq, UserManagerResult},
@@ -51,6 +51,8 @@ pub async fn get_user_web_resources(req: HttpRequest) -> actix_web::Result<impl 
         let data = UserPermissions {
             resources,
             from: EMPTY_STR,
+            version: APP_VERSION,
+            username: Some(session.username.clone()),
         };
         Ok(HttpResponse::Ok().json(ApiResult::success(Some(data))))
     } else {
@@ -58,6 +60,8 @@ pub async fn get_user_web_resources(req: HttpRequest) -> actix_web::Result<impl 
         let data = UserPermissions {
             resources,
             from: "OLD_CONSOLE",
+            version: APP_VERSION,
+            username: None,
         };
         Ok(HttpResponse::Ok().json(ApiResult::success(Some(data))))
     }

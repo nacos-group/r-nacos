@@ -1,3 +1,5 @@
+pub const APP_VERSION: &'static str = "0.4.0-beta.1";
+
 pub const EMPTY_STR: &'static str = "";
 
 pub const HTTP_METHOD_GET: &'static str = "GET";
