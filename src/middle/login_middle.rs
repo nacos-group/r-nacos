@@ -16,6 +16,7 @@ use crate::common::appdata::AppShareData;
 use crate::common::model::{ApiResult, UserSession};
 use crate::raft::cache::model::{CacheKey, CacheType, CacheValue};
 use crate::raft::cache::{CacheManager, CacheManagerReq, CacheManagerResult};
+use crate::user::permission::UserRole;
 
 lazy_static::lazy_static! {
     pub static ref IGNORE_CHECK_LOGIN: Vec<&'static str> = vec!["/p/login", "/nacos/v1/console/login/login", "/nacos/v1/console/login/captcha","/404"];
@@ -93,6 +94,9 @@ where
         let service = self.service.clone();
         Box::pin(async move {
             let mut is_login = true;
+            let mut user_has_permission = true;
+            let path = request.path();
+            let method = request.method().as_str();
             if is_check_path {
                 is_login = if token.is_empty() {
                     false
@@ -102,6 +106,8 @@ where
                 )
                 .await
                 {
+                    user_has_permission =
+                        UserRole::match_url_by_roles(&session.roles, path, method);
                     request.extensions_mut().insert(session);
                     true
                 } else {
@@ -110,10 +116,31 @@ where
             }
             //log::info!("token: {}|{}|{}|{}|{}|{}",&token,is_page,is_check_path,is_login,request.path(),request.query_string());
             if is_login {
-                let res = service.call(request);
-                // forwarded responses map to "left" body
-                res.await.map(ServiceResponse::map_into_left_body)
+                if user_has_permission {
+                    let res = service.call(request);
+                    // forwarded responses map to "left" body
+                    res.await.map(ServiceResponse::map_into_left_body)
+                } else {
+                    //已登录没有权限
+                    let response = if is_page {
+                        let move_url = format!("/nopermission?path={}", request.path());
+                        HttpResponse::Ok()
+                            .insert_header(("Location", move_url))
+                            .status(StatusCode::FOUND)
+                            .finish()
+                            .map_into_right_body()
+                    } else {
+                        HttpResponse::Ok()
+                            .insert_header(("No-Permission", "1"))
+                            .json(ApiResult::<()>::error("NO_PERMISSION".to_owned(), None))
+                            .map_into_right_body()
+                    };
+                    let (http_request, _pl) = request.into_parts();
+                    let res = ServiceResponse::new(http_request, response);
+                    Ok(res)
+                }
             } else {
+                //没有登录
                 let response = if is_page {
                     let move_url = if request.path() == "/p/login" {
                         format!("{}?{}", request.path(), request.query_string())

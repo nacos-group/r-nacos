@@ -294,8 +294,17 @@ impl UserRole {
         false
     }
 
+    pub fn match_url_by_roles(role_values: &Vec<Arc<String>>, path: &str, method: &str) -> bool {
+        for item in role_values {
+            if Self::new(item.as_str()).match_url(path, method) {
+                return true;
+            }
+        }
+        false
+    }
+
     pub fn get_web_resources(&self) -> Vec<&'static str> {
-        log::info!("get_web_resources {:?}", &self);
+        //log::info!("get_web_resources {:?}", &self);
         let resources = self.get_resources();
         if resources.len() == 1 {
             return resources
@@ -316,7 +325,7 @@ impl UserRole {
     }
 
     pub fn get_web_resources_by_roles(role_values: Vec<&str>) -> Vec<&'static str> {
-        log::info!("get_web_resources_by_roles {:?}", &role_values);
+        //log::info!("get_web_resources_by_roles {:?}", &role_values);
         let roles: Vec<Self> = role_values.into_iter().map(|e| Self::new(e)).collect();
         if roles.len() == 1 {
             return roles.first().unwrap().get_web_resources();

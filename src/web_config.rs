@@ -60,6 +60,7 @@ pub fn console_web_config(config: &mut web::ServiceConfig) {
         .service(assets)
         .service(web::resource("/index.html").route(web::get().to(index)))
         .service(web::resource("/404").route(web::get().to(index)))
+        .service(web::resource("/nopermission").route(web::get().to(index)))
         .service(web::resource("/manage/{_:.*}").route(web::get().to(index)))
         .service(web::resource("/p/{_:.*}").route(web::get().to(index)));
 }
