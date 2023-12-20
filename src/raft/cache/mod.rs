@@ -315,8 +315,11 @@ impl Handler<CacheLimiterReq> for CacheManager {
 
             let limiter_data: LimiterData = limiter.into();
             let cache_value = CacheValue::String(Arc::new(limiter_data.to_string()));
-            self.cache
-                .set(key.clone(), cache_value.clone(), rate_to_ms_conversion/1000);
+            self.cache.set(
+                key.clone(),
+                cache_value.clone(),
+                rate_to_ms_conversion / 1000,
+            );
 
             let mut cache_do: CacheItemDo = cache_value.into();
             cache_do.timeout = ((now + rate_to_ms_conversion as i64) / 1000) as i32;

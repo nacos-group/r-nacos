@@ -60,7 +60,7 @@ pub async fn login(
     let limit_key = Arc::new(format!("USER_L#{}", &param.username));
     let limit_req = CacheLimiterReq::Hour {
         key: limit_key.clone(),
-        limit: 5,
+        limit: app.sys_config.console_login_one_hour_limit as i32,
     };
     //登录前先判断是否登陆准入
     if let Ok(CacheManagerResult::Limiter(acquire_result)) =
