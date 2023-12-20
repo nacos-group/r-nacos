@@ -106,7 +106,7 @@ impl CacheKey {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum CacheValue {
     String(Arc<String>),
     Map(Arc<HashMap<String, String>>),

@@ -5,8 +5,10 @@ use std::{convert::TryInto, sync::Arc};
 use actix::prelude::*;
 use bean_factory::{bean, Inject};
 use inner_mem_cache::MemCache;
+use ratelimiter_rs::RateLimiter;
+use serde::{Serialize, Deserialize};
 
-use crate::now_second_i32;
+use crate::{now_second_i32, common::limiter_utils::LimiterData};
 
 use self::model::{CacheItemDo, CacheKey, CacheValue};
 
@@ -17,6 +19,7 @@ use super::db::{
 
 pub mod api;
 pub mod model;
+pub mod route;
 
 lazy_static::lazy_static! {
     static ref CACHE_TABLE_NAME: Arc<String> =  Arc::new("cache".to_string());
@@ -154,9 +157,37 @@ pub enum CacheManagerReq {
     },
 }
 
+#[derive(Message, Clone, Debug, Serialize, Deserialize)]
+#[rtype(result = "anyhow::Result<CacheManagerResult>")]
+pub enum CacheLimiterReq {
+    Second{ 
+        key: Arc<String>,
+        limit: i32
+    },
+    Minutes{ 
+        key: Arc<String>,
+        limit: i32
+    },
+    Hour{ 
+        key: Arc<String>,
+        limit: i32
+    },
+    Day{ 
+        key: Arc<String>,
+        limit: i32
+    },
+    OtherMills{
+        key: Arc<String>,
+        limit: i32,
+        rate_to_ms_conversion: i32,
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum CacheManagerResult {
     None,
     Value(CacheValue),
+    Limiter(bool),
 }
 
 pub enum CacheManagerInnerCtx {
@@ -251,5 +282,31 @@ impl Handler<CacheManagerReq> for CacheManager {
             },
         );
         Box::pin(fut)
+    }
+}
+
+impl Handler<CacheLimiterReq> for CacheManager {
+    type Result = anyhow::Result<CacheManagerResult>;
+
+    fn handle(&mut self, msg: CacheLimiterReq, _ctx: &mut Self::Context) -> Self::Result {
+        let raft_table_route = self.raft_table_route.clone();
+        let (rate_to_ms_conversion,key,limit) = match msg {
+            CacheLimiterReq::Second { key, limit } => (1000,key,limit),
+            CacheLimiterReq::Minutes { key, limit } => (60_1000,key,limit),
+            CacheLimiterReq::Hour { key, limit } => (60*60*1000,key,limit),
+            CacheLimiterReq::Day { key, limit } => (24*60*60*1000,key,limit),
+            CacheLimiterReq::OtherMills { key, limit, rate_to_ms_conversion } => (rate_to_ms_conversion,key,limit),
+        };
+        let key = CacheKey::new(model::CacheType::String,key);
+        if let Ok(CacheValue::String(v)) =  self.cache.get(&key){
+            let limiter_data: LimiterData = v.as_str().try_into()?;
+            let mut limiter = RateLimiter::load(limiter_data.0, limiter_data.1, limiter_data.2);
+            let r = limiter.acquire(limit, limit as i64);
+            //todo save
+        }
+        else{
+            //todo new init limiter
+        }
+        todo!()
     }
 }

@@ -75,10 +75,10 @@ impl TableRoute {
                 let body_vec = resp_payload.body.unwrap_or_default().value;
                 let resp: RouterResponse = serde_json::from_slice(&body_vec)?;
                 match resp {
-                    RouterResponse::None => Err(anyhow::anyhow!(
+                    RouterResponse::TableManagerResult { result } => Ok(result),
+                    _ => Err(anyhow::anyhow!(
                         "TableManagerQueryReq response type is error!"
                     )),
-                    RouterResponse::TableManagerResult { result } => Ok(result),
                 }
             }
             RouteAddr::Unknown => Err(self.unknown_err()),

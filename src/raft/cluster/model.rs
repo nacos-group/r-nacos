@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     config::core::ConfigKey,
-    raft::db::table::{TableManagerQueryReq, TableManagerReq, TableManagerResult},
+    raft::{db::table::{TableManagerQueryReq, TableManagerReq, TableManagerResult}, cache::{CacheLimiterReq, CacheManagerResult}},
 };
 
 pub enum RouteAddr {
@@ -61,6 +61,9 @@ pub enum RouterRequest {
     TableManagerQueryReq {
         req: TableManagerQueryReq,
     },
+    CacheLimiterReq {
+        req: CacheLimiterReq,
+    }
 }
 
 impl From<SetConfigReq> for RouterRequest {
@@ -82,8 +85,15 @@ impl From<DelConfigReq> for RouterRequest {
     }
 }
 
+impl From<CacheLimiterReq> for RouterRequest {
+    fn from(req: CacheLimiterReq) -> Self {
+        Self::CacheLimiterReq { req }
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum RouterResponse {
     None,
     TableManagerResult { result: TableManagerResult },
+    CacheManagerResult { result: CacheManagerResult },
 }

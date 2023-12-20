@@ -13,6 +13,7 @@ pub mod rusqlite_utils;
 pub mod sled_utils;
 pub mod string_utils;
 pub mod web_utils;
+pub mod limiter_utils;
 
 lazy_static! {
     // Global app sys config

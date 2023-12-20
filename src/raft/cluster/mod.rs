@@ -63,6 +63,10 @@ pub async fn handle_route(
             let result = app.raft_table_manage.send(req).await??;
             return Ok(RouterResponse::TableManagerResult { result });
         }
+        RouterRequest::CacheLimiterReq { req } => {
+            let result = app.cache_manager.send(req).await??;
+            return Ok(RouterResponse::CacheManagerResult { result });
+        }
     };
     Ok(RouterResponse::None)
 }
