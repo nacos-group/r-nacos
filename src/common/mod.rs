@@ -8,12 +8,12 @@ pub mod constant;
 pub mod cycle_queue;
 pub mod delay_notify;
 pub mod hash_utils;
+pub mod limiter_utils;
 pub mod model;
 pub mod rusqlite_utils;
 pub mod sled_utils;
 pub mod string_utils;
 pub mod web_utils;
-pub mod limiter_utils;
 
 lazy_static! {
     // Global app sys config
@@ -59,6 +59,7 @@ pub struct AppSysConfig {
     pub raft_auto_init: bool,
     pub raft_join_addr: String,
     pub console_login_timeout: i32,
+    pub console_login_one_hour_limit: u32,
 }
 
 impl AppSysConfig {
@@ -101,6 +102,10 @@ impl AppSysConfig {
             .unwrap_or("3600".to_owned())
             .parse()
             .unwrap_or(3600);
+        let console_login_one_hour_limit = std::env::var("RNACOS_CONSOLE_LOGIN_ONE_HOUR_LIMIT")
+            .unwrap_or("5".to_owned())
+            .parse()
+            .unwrap_or(8848);
         Self {
             config_db_dir,
             config_db_file,
@@ -114,6 +119,7 @@ impl AppSysConfig {
             raft_auto_init,
             raft_join_addr,
             console_login_timeout,
+            console_login_one_hour_limit,
         }
     }
 

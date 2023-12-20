@@ -4,6 +4,7 @@ use crate::grpc::bistream_manage::BiStreamManage;
 use crate::naming::cluster::node_manage::{InnerNodeManage, NodeManage};
 use crate::naming::cluster::route::NamingRoute;
 use crate::naming::core::NamingActor;
+use crate::raft::cache::route::CacheRoute;
 use crate::raft::cache::CacheManager;
 use crate::raft::cluster::route::ConfigRoute;
 use crate::raft::db::route::TableRoute;
@@ -30,6 +31,7 @@ pub struct AppShareData {
     pub naming_node_manage: Arc<NodeManage>,
     pub raft_table_manage: Addr<TableManager>,
     pub raft_table_route: Arc<TableRoute>,
+    pub raft_cache_route: Arc<CacheRoute>,
     pub factory_data: FactoryData,
     pub user_manager: Addr<UserManager>,
     pub cache_manager: Addr<CacheManager>,

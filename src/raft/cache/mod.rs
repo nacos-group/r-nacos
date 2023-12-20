@@ -6,9 +6,9 @@ use actix::prelude::*;
 use bean_factory::{bean, Inject};
 use inner_mem_cache::MemCache;
 use ratelimiter_rs::RateLimiter;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
-use crate::{now_second_i32, common::limiter_utils::LimiterData};
+use crate::{common::limiter_utils::LimiterData, now_millis_i64, now_second_i32};
 
 use self::model::{CacheItemDo, CacheKey, CacheValue};
 
@@ -157,30 +157,31 @@ pub enum CacheManagerReq {
     },
 }
 
+///只能在主节点执行，才能保证限流的准确性
 #[derive(Message, Clone, Debug, Serialize, Deserialize)]
 #[rtype(result = "anyhow::Result<CacheManagerResult>")]
 pub enum CacheLimiterReq {
-    Second{ 
+    Second {
         key: Arc<String>,
-        limit: i32
+        limit: i32,
     },
-    Minutes{ 
+    Minutes {
         key: Arc<String>,
-        limit: i32
+        limit: i32,
     },
-    Hour{ 
+    Hour {
         key: Arc<String>,
-        limit: i32
+        limit: i32,
     },
-    Day{ 
+    Day {
         key: Arc<String>,
-        limit: i32
+        limit: i32,
     },
-    OtherMills{
+    OtherMills {
         key: Arc<String>,
         limit: i32,
         rate_to_ms_conversion: i32,
-    }
+    },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -289,24 +290,46 @@ impl Handler<CacheLimiterReq> for CacheManager {
     type Result = anyhow::Result<CacheManagerResult>;
 
     fn handle(&mut self, msg: CacheLimiterReq, _ctx: &mut Self::Context) -> Self::Result {
-        let raft_table_route = self.raft_table_route.clone();
-        let (rate_to_ms_conversion,key,limit) = match msg {
-            CacheLimiterReq::Second { key, limit } => (1000,key,limit),
-            CacheLimiterReq::Minutes { key, limit } => (60_1000,key,limit),
-            CacheLimiterReq::Hour { key, limit } => (60*60*1000,key,limit),
-            CacheLimiterReq::Day { key, limit } => (24*60*60*1000,key,limit),
-            CacheLimiterReq::OtherMills { key, limit, rate_to_ms_conversion } => (rate_to_ms_conversion,key,limit),
+        let (rate_to_ms_conversion, key, limit) = match msg {
+            CacheLimiterReq::Second { key, limit } => (1000, key, limit),
+            CacheLimiterReq::Minutes { key, limit } => (60_1000, key, limit),
+            CacheLimiterReq::Hour { key, limit } => (60 * 60 * 1000, key, limit),
+            CacheLimiterReq::Day { key, limit } => (24 * 60 * 60 * 1000, key, limit),
+            CacheLimiterReq::OtherMills {
+                key,
+                limit,
+                rate_to_ms_conversion,
+            } => (rate_to_ms_conversion, key, limit),
         };
-        let key = CacheKey::new(model::CacheType::String,key);
-        if let Ok(CacheValue::String(v)) =  self.cache.get(&key){
+        let key = CacheKey::new(model::CacheType::String, key);
+        let now = now_millis_i64();
+        let mut limiter = if let Ok(CacheValue::String(v)) = self.cache.get(&key) {
             let limiter_data: LimiterData = v.as_str().try_into()?;
-            let mut limiter = RateLimiter::load(limiter_data.0, limiter_data.1, limiter_data.2);
-            let r = limiter.acquire(limit, limit as i64);
-            //todo save
+            limiter_data.to_rate_limiter()
+        } else {
+            RateLimiter::load(rate_to_ms_conversion, 0, now)
+        };
+        let r = limiter.acquire(limit, limit as i64);
+        if r {
+            //只有准入才需要计数，才需要保存
+
+            let limiter_data: LimiterData = limiter.into();
+            let cache_value = CacheValue::String(Arc::new(limiter_data.to_string()));
+            self.cache
+                .set(key.clone(), cache_value.clone(), rate_to_ms_conversion/1000);
+
+            let mut cache_do: CacheItemDo = cache_value.into();
+            cache_do.timeout = ((now + rate_to_ms_conversion as i64) / 1000) as i32;
+            if let Some(table_manager) = self.table_manager.as_ref() {
+                let req: TableManagerReq = TableManagerReq::Set {
+                    table_name: CACHE_TABLE_NAME.clone(),
+                    key: key.to_string().into_bytes(),
+                    value: cache_do.to_bytes(),
+                    last_seq_id: None,
+                };
+                table_manager.do_send(req);
+            }
         }
-        else{
-            //todo new init limiter
-        }
-        todo!()
+        Ok(CacheManagerResult::Limiter(r))
     }
 }

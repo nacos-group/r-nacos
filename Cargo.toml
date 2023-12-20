@@ -85,7 +85,7 @@ futures-util = "0.3.29"
 regex = "1"
 captcha = "0.0.9"
 ratelimiter-rs = "0.1.5"
-base64 = "0.21.5"
+# base64 = "0.21.5"
 
 [dependencies.uuid]
 version = "1.2.1"

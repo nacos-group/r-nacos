@@ -14,7 +14,7 @@ use crate::{
     },
     raft::cache::{
         model::{CacheKey, CacheType, CacheValue},
-        CacheManagerReq, CacheManagerResult,
+        CacheLimiterReq, CacheManagerReq, CacheManagerResult,
     },
     user::{UserManagerReq, UserManagerResult},
 };
@@ -57,6 +57,24 @@ pub async fn login(
                 Some("CAPTCHA_CHECK_ERROR".to_owned()),
             )));
     }
+    let limit_key = Arc::new(format!("USER_L#{}", &param.username));
+    let limit_req = CacheLimiterReq::Hour {
+        key: limit_key.clone(),
+        limit: 5,
+    };
+    //登录前先判断是否登陆准入
+    if let Ok(CacheManagerResult::Limiter(acquire_result)) =
+        app.raft_cache_route.request_limiter(limit_req).await
+    {
+        if !acquire_result {
+            return Ok(HttpResponse::Ok().json(ApiResult::<()>::error(
+                "LOGIN_LIMITE_ERROR".to_owned(),
+                Some("Frequent login, please try again later".to_owned()),
+            )));
+        }
+    } else {
+        return Ok(HttpResponse::Ok().json(ApiResult::<()>::error("SYSTEM_ERROR".to_owned(), None)));
+    }
     let msg = UserManagerReq::CheckUser {
         name: param.username,
         password: param.password,
@@ -82,6 +100,10 @@ pub async fn login(
                 ttl: app.sys_config.console_login_timeout,
             };
             app.cache_manager.do_send(cache_req);
+            //登录成功后清除登陆限流计数
+            let clear_limit_req =
+                CacheManagerReq::Remove(CacheKey::new(CacheType::String, limit_key));
+            app.cache_manager.do_send(clear_limit_req);
             return Ok(HttpResponse::Ok()
                 .cookie(
                     Cookie::build("token", token.as_str())

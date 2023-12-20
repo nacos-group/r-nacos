@@ -14,7 +14,7 @@ use crate::{
         naming_delay_nofity::DelayNotifyActor,
     },
     raft::{
-        cache::CacheManager,
+        cache::{route::CacheRoute, CacheManager},
         cluster::{
             model::RouterRequest,
             route::{ConfigRoute, RaftAddrRouter},
@@ -94,7 +94,7 @@ pub async fn config_factory(sys_config: Arc<AppSysConfig>) -> anyhow::Result<Fac
     factory.register(BeanDefinition::from_obj(table_route));
     let config_route = Arc::new(ConfigRoute::new(
         config_addr.clone(),
-        raft_addr_router,
+        raft_addr_router.clone(),
         cluster_sender.clone(),
     ));
     factory.register(BeanDefinition::from_obj(config_route.clone()));
@@ -125,7 +125,15 @@ pub async fn config_factory(sys_config: Arc<AppSysConfig>) -> anyhow::Result<Fac
     let user_manager = UserManager::new().start();
     factory.register(BeanDefinition::actor_with_inject_from_obj(user_manager));
     let cache_manager = CacheManager::new().start();
-    factory.register(BeanDefinition::actor_with_inject_from_obj(cache_manager));
+    factory.register(BeanDefinition::actor_with_inject_from_obj(
+        cache_manager.clone(),
+    ));
+    let cache_route = Arc::new(CacheRoute::new(
+        cache_manager,
+        raft_addr_router.clone(),
+        cluster_sender.clone(),
+    ));
+    factory.register(BeanDefinition::from_obj(cache_route));
 
     Ok(factory.init().await)
 }
@@ -145,6 +153,7 @@ pub fn build_share_data(factory_data: FactoryData) -> anyhow::Result<Arc<AppShar
         naming_node_manage: factory_data.get_bean().unwrap(),
         raft_table_manage: factory_data.get_actor().unwrap(),
         raft_table_route: factory_data.get_bean().unwrap(),
+        raft_cache_route: factory_data.get_bean().unwrap(),
         user_manager: factory_data.get_actor().unwrap(),
         cache_manager: factory_data.get_actor().unwrap(),
         factory_data,
