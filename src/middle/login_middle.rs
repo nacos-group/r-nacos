@@ -182,10 +182,7 @@ async fn get_user_session(
     req: CacheManagerReq,
 ) -> anyhow::Result<Option<Arc<UserSession>>> {
     match cache_manager.send(req).await?? {
-        CacheManagerResult::Value(v) => match v {
-            CacheValue::UserSession(session) => Ok(Some(session)),
-            _ => Ok(None),
-        },
+        CacheManagerResult::Value(CacheValue::UserSession(session)) => Ok(Some(session)),
         _ => Ok(None),
     }
 }

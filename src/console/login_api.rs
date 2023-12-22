@@ -40,7 +40,7 @@ pub async fn login(
     let captcha_check_result = if let Ok(Ok(CacheManagerResult::Value(CacheValue::String(v)))) =
         app.cache_manager.send(cache_req).await
     {
-        v.as_str() == &captcha_code
+        &captcha_code == v.as_ref()
     } else {
         false
     };

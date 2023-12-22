@@ -312,7 +312,7 @@ impl UserRole {
                 .unwrap()
                 .web_resources
                 .iter()
-                .map(|e| *e)
+                .copied()
                 .collect();
         }
         let mut set = HashSet::new();
@@ -321,12 +321,12 @@ impl UserRole {
                 set.insert(*item);
             }
         }
-        set.into_iter().map(|e| e).collect()
+        set.into_iter().collect()
     }
 
     pub fn get_web_resources_by_roles(role_values: Vec<&str>) -> Vec<&'static str> {
         //log::info!("get_web_resources_by_roles {:?}", &role_values);
-        let roles: Vec<Self> = role_values.into_iter().map(|e| Self::new(e)).collect();
+        let roles: Vec<Self> = role_values.into_iter().map(Self::new).collect();
         if roles.len() == 1 {
             return roles.first().unwrap().get_web_resources();
         }
@@ -338,7 +338,7 @@ impl UserRole {
                 }
             }
         }
-        set.into_iter().map(|e| e).collect()
+        set.into_iter().collect()
     }
 }
 

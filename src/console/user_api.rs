@@ -72,43 +72,46 @@ pub async fn reset_password(
     app: Data<Arc<AppShareData>>,
     web::Form(param): web::Form<ResetPasswordParam>,
 ) -> actix_web::Result<impl Responder> {
-    if let Some(session) = req.extensions().get::<Arc<UserSession>>() {
+    let (msg, username) = if let Some(session) = req.extensions().get::<Arc<UserSession>>() {
         let username = Arc::new(session.username.to_string());
-        let msg = UserManagerReq::CheckUser {
-            name: username.clone(),
-            password: param.old_password,
-        };
-        if let Ok(Ok(v)) = app.user_manager.send(msg).await {
-            match v {
-                UserManagerResult::CheckUserResult(valid, _user) => {
-                    if valid {
-                        let msg = UserManagerReq::UpdateUser {
-                            user: UserDto {
-                                username: username,
-                                password: Some(param.new_password),
-                                ..Default::default()
-                            },
-                        };
-                        if let Ok(Ok(_r)) = app.user_manager.send(msg).await {
-                            return Ok(HttpResponse::Ok().json(ApiResult::success(Some(true))));
-                        }
-                    }
-                }
-                _ => {
-                    return Ok(HttpResponse::Ok().json(ApiResult::<()>::error(
-                        "OLD_PASSWORD_INVALID".to_owned(),
-                        None,
-                    )))
-                }
-            }
-        }
-        Ok(HttpResponse::Ok().json(ApiResult::<()>::error("SYSTEM_ERROR".to_owned(), None)))
+        (
+            UserManagerReq::CheckUser {
+                name: username.clone(),
+                password: param.old_password,
+            },
+            username,
+        )
     } else {
-        Ok(HttpResponse::Ok().json(ApiResult::<()>::error(
+        return Ok(HttpResponse::Ok().json(ApiResult::<()>::error(
             "NOT_FOUND_USER_SESSION".to_owned(),
             None,
-        )))
+        )));
+    };
+    if let Ok(Ok(v)) = app.user_manager.send(msg).await {
+        match v {
+            UserManagerResult::CheckUserResult(valid, _user) => {
+                if valid {
+                    let msg = UserManagerReq::UpdateUser {
+                        user: UserDto {
+                            username,
+                            password: Some(param.new_password),
+                            ..Default::default()
+                        },
+                    };
+                    if let Ok(Ok(_r)) = app.user_manager.send(msg).await {
+                        return Ok(HttpResponse::Ok().json(ApiResult::success(Some(true))));
+                    }
+                }
+            }
+            _ => {
+                return Ok(HttpResponse::Ok().json(ApiResult::<()>::error(
+                    "OLD_PASSWORD_INVALID".to_owned(),
+                    None,
+                )))
+            }
+        }
     }
+    Ok(HttpResponse::Ok().json(ApiResult::<()>::error("SYSTEM_ERROR".to_owned(), None)))
 }
 
 pub async fn get_user_page_list(

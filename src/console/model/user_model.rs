@@ -36,12 +36,7 @@ impl UpdateUserInfoParam {
             if roles.is_empty() {
                 return None;
             }
-            Some(
-                roles
-                    .split(',')
-                    .map(|e| UserRoleHelper::get_role(e))
-                    .collect(),
-            )
+            Some(roles.split(',').map(UserRoleHelper::get_role).collect())
         } else {
             None
         }
@@ -56,7 +51,7 @@ impl From<UpdateUserInfoParam> for UserDto {
             nickname: value.nickname,
             password: value.password,
             enable: value.enable,
-            roles: roles,
+            roles,
             ..Default::default()
         }
     }
