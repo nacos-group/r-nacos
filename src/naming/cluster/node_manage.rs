@@ -80,6 +80,8 @@ pub struct InnerNodeManage {
     cluster_sender: Option<Arc<RaftClusterRequestSender>>,
     naming_actor: Option<Addr<NamingActor>>,
     first_query_snapshot: bool,
+    current_range: ProcessRange,
+    history_ranges: Vec<(ProcessRange, u64)>,
 }
 
 impl InnerNodeManage {
@@ -90,6 +92,8 @@ impl InnerNodeManage {
             all_nodes: Default::default(),
             naming_actor: None,
             first_query_snapshot: false,
+            current_range: ProcessRange { index: 0, len: 1 },
+            history_ranges: Vec::new(),
         }
     }
 
@@ -143,10 +147,11 @@ impl InnerNodeManage {
         let local_node = self.get_this_node();
         self.all_nodes.entry(self.local_id).or_insert(local_node);
         self.update_nodes_index();
+        self.update_process_range();
         //第一次需要触发从其它实例加载snapshot
         if !self.first_query_snapshot {
             self.first_query_snapshot = true;
-            ctx.run_later(Duration::from_millis(500), |act, _ctx| {
+            ctx.run_later(Duration::from_millis(1000), |act, _ctx| {
                 act.load_snapshot_from_node();
             });
         }
@@ -178,30 +183,48 @@ impl InnerNodeManage {
         }
     }
 
-    fn get_last_valid_range(&self) -> Option<ProcessRange> {
-        //TODO 获取上一个有效的负责区域
-        None
+    fn update_process_range(&mut self) {
+        let new_range = self.get_current_process_range();
+        if new_range == self.current_range {
+            return;
+        }
+        self.clear_timeout_process_range();
+        self.history_ranges
+            .push((self.current_range.clone(), now_millis()));
+        self.current_range = new_range;
     }
 
-    fn get_cluster_process_range(&self, input: ProcessRange) -> Vec<ProcessRange> {
-        let current = if self.all_nodes.is_empty() {
+    fn clear_timeout_process_range(&mut self) {
+        let timeout = now_millis() - 60_000_000;
+        let mut new_list = vec![];
+        for (range, t) in &self.history_ranges {
+            if timeout < *t {
+                new_list.push((range.to_owned(), *t))
+            }
+        }
+        self.history_ranges = new_list;
+    }
+
+    fn get_current_process_range(&self) -> ProcessRange {
+        if self.all_nodes.is_empty() {
             ProcessRange::new(0, 1)
         } else {
             ProcessRange::new(
                 self.get_this_node().index as usize,
                 self.all_nodes.iter().filter(|(_, v)| v.is_valid()).count(),
             )
-        };
+        }
+    }
+
+    fn get_cluster_process_range(&mut self, _input: ProcessRange) -> Vec<ProcessRange> {
         let mut list = vec![];
-        if let Some(v) = self.get_last_valid_range() {
-            if v != current && v != input {
-                list.push(v);
+        list.push(self.current_range.clone());
+        self.clear_timeout_process_range();
+        for (r, _) in &self.history_ranges {
+            if *r != self.current_range {
+                list.push(r.to_owned());
             }
         }
-        if input != current {
-            list.push(input);
-        }
-        list.push(current);
         list
     }
 
@@ -266,6 +289,7 @@ impl InnerNodeManage {
                 Self::client_unvalid_instance(naming_actor, node);
             }
         }
+        self.update_process_range();
     }
 
     fn client_unvalid_instance(
