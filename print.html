@@ -217,7 +217,7 @@ tar -xvf rnacos-x86_64-apple-darwin.tar.gz
 </code></pre>
 <p>windows 解压后直接运行 rnacos.exe 即可。</p>
 <p>方式2:  通过docker 运行</p>
-<pre><code>#stable是最新正式版本号，也可以指定镜像版本号，如： qingpan/rnacos:v0.3.0
+<pre><code>#stable是最新正式版本号，也可以指定镜像版本号，如： qingpan/rnacos:v0.4.0
 docker pull qingpan/rnacos:stable  
 docker run --name mynacos -p 8848:8848 -p 9848:9848 -d qingpan/rnacos:stable
 </code></pre>
@@ -265,18 +265,35 @@ curl &quot;http://127.0.0.1:8848/nacos/v1/ns/instance/list?&amp;namespaceId=publ
 <p><a href="https://nacos.io/zh-cn/docs/other-language.html">其它语言</a></p>
 <p><a href="https://nacos.io/zh-cn/docs/open-api.html">open-api</a></p>
 <h2 id="三使用r-nacos控制台"><a class="header" href="#三使用r-nacos控制台">三、使用r-nacos控制台</a></h2>
-<p>启动服务后可以在浏览器通过 <code>http://127.0.0.1:8848/</code> 访问r-nacos控制台。</p>
-<p>主要包含命名空间管理、配置管理、服务管理、服务实例管理。</p>
-<p>1、配置管理</p>
+<p>从0.4.0版本开始，支持独立端口号的新控制台。新控制台有完备的用户管理、登陆校验、权限控制，支持对外网暴露。</p>
+<p>启动服务后可以在浏览器通过 <code>http://127.0.0.1:10848/</code> 访问r-nacos新控制台。 
+老控制台<code>http://127.0.0.1:8848/</code> 也仍然可用，不过后继会考虑废弃。老控制台不需要登陆、不支持用户管理。</p>
+<p>主要包含用户管理、命名空间管理、配置管理、服务管理、服务实例管理。</p>
+<p>1、用户登陆</p>
+<p>在新控制台打开一个地址，如果检测到没有登陆，会自动跳转到登陆页面。
+一个用户连续登陆失败5次，会被锁定1个小时。这个次数可以通过启动参数配置。</p>
+<img style="width: 400px;" width="400" src="https://github.com/heqingpan/rnacos/raw/master/doc/assets/imgs/20231223220425.png" />
+<p>2、用户管理</p>
+<p><img src="https://github.com/heqingpan/rnacos/raw/master/doc/assets/imgs/20231223222325.png" alt="" /></p>
+<p>系统会默认创建一个名为<code>admin</code>的用户，密码为<code>admin</code>。 </p>
+<p>进去控制台后可按需管理用户。 </p>
+<p>用户角色权限说明：</p>
+<ol>
+<li>管理员: 所有控制台权限</li>
+<li>开发者：除了用户管理的所有控制台权限</li>
+<li>访客：只能查询配置中心与注册中心的数据，没有编辑权限。</li>
+</ol>
+<p><strong>注意：</strong> 对外暴露的nacos控制台端口前，建议增加一个自定义管理员，把admin用户删除或禁用。</p>
+<p>3、配置管理</p>
 <p>配置列表管理</p>
 <p><img src="https://github.com/heqingpan/rnacos/raw/master/doc/assets/imgs/20230506155441.png" alt="" /></p>
 <p>新建、编辑配置</p>
 <p><img src="https://github.com/heqingpan/rnacos/raw/master/doc/assets/imgs/20230506155545.png" alt="" /></p>
-<p>2、服务列表管理</p>
+<p>4、服务列表管理</p>
 <p><img src="https://github.com/heqingpan/rnacos/raw/master/doc/assets/imgs/20230506155133.png" alt="" /></p>
-<p>3、服务实例管理</p>
+<p>5、服务实例管理</p>
 <p><img src="https://github.com/heqingpan/rnacos/raw/master/doc/assets/imgs/20230506155158.png" alt="" /></p>
-<p>4、命名空间管理</p>
+<p>6、命名空间管理</p>
 <p><img src="https://user-images.githubusercontent.com/1174480/268299574-4947b9f8-79e1-48e2-97fe-e9767e26ddc0.png" alt="" /></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="集群部署"><a class="header" href="#集群部署">集群部署</a></h1>
 <p>r-nacos 在v0.3.0版本后支持集群部署。</p>
@@ -471,6 +488,8 @@ KEY3=VALUE3
 <table><thead><tr><th>参数KEY</th><th>内容描述</th><th>默认值</th><th>示例</th><th>开始支持的版本</th></tr></thead><tbody>
 <tr><td>RNACOS_HTTP_PORT</td><td>rnacos监听http端口</td><td>8848</td><td>8848</td><td>0.1.x</td></tr>
 <tr><td>RNACOS_GRPC_PORT</td><td>rnacos监听grpc端口</td><td>默认是 HTTP端口+1000</td><td>9848</td><td>0.1.x</td></tr>
+<tr><td>RNACOS_HTTP_CONSOLE_PORT</td><td>r-nacos独立控制台端口</td><td>默认是 HTTP端口+2000;设置为0可不开启独立控制台</td><td>10848</td><td>0.4.x</td></tr>
+<tr><td>RNACOS_CONSOLE_LOGIN_ONE_HOUR_LIMIT</td><td>r-nacos控制台登录1小时失败次数限制</td><td>默认是5,一个用户连续登陆失败5次，会被锁定1个小时</td><td>5</td><td>0.4.x</td></tr>
 <tr><td>RNACOS_HTTP_WORKERS</td><td>http工作线程数</td><td>cpu核数</td><td>8</td><td>0.1.x</td></tr>
 <tr><td>RNACOS_CONFIG_DB_FILE</td><td>配置中心的本地数据库文件地址【0.2.x后不在使用】</td><td>config.db</td><td>config.db</td><td>0.1.x</td></tr>
 <tr><td>RNACOS_CONFIG_DB_DIR</td><td>配置中心的本地数据库sled文件夹, 会在系统运行时自动创建</td><td>nacos_db</td><td>nacos_db</td><td>0.2.x</td></tr>

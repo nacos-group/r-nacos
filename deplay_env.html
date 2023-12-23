@@ -168,6 +168,8 @@ KEY3=VALUE3
 <table><thead><tr><th>参数KEY</th><th>内容描述</th><th>默认值</th><th>示例</th><th>开始支持的版本</th></tr></thead><tbody>
 <tr><td>RNACOS_HTTP_PORT</td><td>rnacos监听http端口</td><td>8848</td><td>8848</td><td>0.1.x</td></tr>
 <tr><td>RNACOS_GRPC_PORT</td><td>rnacos监听grpc端口</td><td>默认是 HTTP端口+1000</td><td>9848</td><td>0.1.x</td></tr>
+<tr><td>RNACOS_HTTP_CONSOLE_PORT</td><td>r-nacos独立控制台端口</td><td>默认是 HTTP端口+2000;设置为0可不开启独立控制台</td><td>10848</td><td>0.4.x</td></tr>
+<tr><td>RNACOS_CONSOLE_LOGIN_ONE_HOUR_LIMIT</td><td>r-nacos控制台登录1小时失败次数限制</td><td>默认是5,一个用户连续登陆失败5次，会被锁定1个小时</td><td>5</td><td>0.4.x</td></tr>
 <tr><td>RNACOS_HTTP_WORKERS</td><td>http工作线程数</td><td>cpu核数</td><td>8</td><td>0.1.x</td></tr>
 <tr><td>RNACOS_CONFIG_DB_FILE</td><td>配置中心的本地数据库文件地址【0.2.x后不在使用】</td><td>config.db</td><td>config.db</td><td>0.1.x</td></tr>
 <tr><td>RNACOS_CONFIG_DB_DIR</td><td>配置中心的本地数据库sled文件夹, 会在系统运行时自动创建</td><td>nacos_db</td><td>nacos_db</td><td>0.2.x</td></tr>
