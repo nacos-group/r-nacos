@@ -47,6 +47,8 @@ rnacos 运行时支持的环境变量，如果不设置则按默认配置运行�
 |--|--|--|--|--|
 |RNACOS_HTTP_PORT|rnacos监听http端口|8848|8848|0.1.x|
 |RNACOS_GRPC_PORT|rnacos监听grpc端口|默认是 HTTP端口+1000|9848|0.1.x|
+|RNACOS_HTTP_CONSOLE_PORT|r-nacos独立控制台端口|默认是 HTTP端口+2000;设置为0可不开启独立控制台|10848|0.4.x|
+|RNACOS_CONSOLE_LOGIN_ONE_HOUR_LIMIT|r-nacos控制台登录1小时失败次数限制|默认是5,一个用户连续登陆失败5次，会被锁定1个小时|5|0.4.x|
 |RNACOS_HTTP_WORKERS|http工作线程数|cpu核数|8|0.1.x|
 |RNACOS_CONFIG_DB_FILE|配置中心的本地数据库文件地址【0.2.x后不在使用】|config.db|config.db|0.1.x|
 |RNACOS_CONFIG_DB_DIR|配置中心的本地数据库sled文件夹, 会在系统运行时自动创建|nacos_db|nacos_db|0.2.x|

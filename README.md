@@ -194,11 +194,11 @@ curl "http://127.0.0.1:8848/nacos/v1/ns/instance/list?&namespaceId=public&servic
 在新控制台打开一个地址，如果检测到没有登陆，会自动跳转到登陆页面。
 一个用户连续登陆失败5次，会被锁定1个小时。这个次数可以通过启动参数配置。
 
-![](https://github.com/heqingpan/rnacos/raw/master/doc/assets/imgs/20231223222325.png)
+<img style="width: 400px;" width="400" src="https://github.com/heqingpan/rnacos/raw/master/doc/assets/imgs/20231223220425.png" />
 
 2、用户管理
 
-![](https://github.com/heqingpan/rnacos/raw/master/doc/assets/imgs/20231223220425.png)
+![](https://github.com/heqingpan/rnacos/raw/master/doc/assets/imgs/20231223222325.png)
 
 系统会默认创建一个名为`admin`的用户，密码为`admin`。 
 

@@ -21,7 +21,7 @@ windows 解压后直接运行 rnacos.exe 即可。
 方式2:  通过docker 运行
 
 ```
-#stable是最新正式版本号，也可以指定镜像版本号，如： qingpan/rnacos:v0.3.0
+#stable是最新正式版本号，也可以指定镜像版本号，如： qingpan/rnacos:v0.4.0
 docker pull qingpan/rnacos:stable  
 docker run --name mynacos -p 8848:8848 -p 9848:9848 -d qingpan/rnacos:stable
 ```
@@ -96,11 +96,40 @@ curl "http://127.0.0.1:8848/nacos/v1/ns/instance/list?&namespaceId=public&servic
 
 ## 三、使用r-nacos控制台
 
-启动服务后可以在浏览器通过 `http://127.0.0.1:8848/` 访问r-nacos控制台。
+从0.4.0版本开始，支持独立端口号的新控制台。新控制台有完备的用户管理、登陆校验、权限控制，支持对外网暴露。
 
-主要包含命名空间管理、配置管理、服务管理、服务实例管理。
+启动服务后可以在浏览器通过 `http://127.0.0.1:10848/` 访问r-nacos新控制台。 
+老控制台`http://127.0.0.1:8848/` 也仍然可用，不过后继会考虑废弃。老控制台不需要登陆、不支持用户管理。
 
-1、配置管理
+
+主要包含用户管理、命名空间管理、配置管理、服务管理、服务实例管理。
+
+1、用户登陆
+
+在新控制台打开一个地址，如果检测到没有登陆，会自动跳转到登陆页面。
+一个用户连续登陆失败5次，会被锁定1个小时。这个次数可以通过启动参数配置。
+
+<img style="width: 400px;" width="400" src="https://github.com/heqingpan/rnacos/raw/master/doc/assets/imgs/20231223220425.png" />
+
+2、用户管理
+
+![](https://github.com/heqingpan/rnacos/raw/master/doc/assets/imgs/20231223222325.png)
+
+系统会默认创建一个名为`admin`的用户，密码为`admin`。 
+
+进去控制台后可按需管理用户。 
+
+用户角色权限说明：
+
+1. 管理员: 所有控制台权限
+2. 开发者：除了用户管理的所有控制台权限
+3. 访客：只能查询配置中心与注册中心的数据，没有编辑权限。
+
+
+**注意：** 对外暴露的nacos控制台端口前，建议增加一个自定义管理员，把admin用户删除或禁用。
+
+
+3、配置管理
 
 配置列表管理
 
@@ -110,16 +139,15 @@ curl "http://127.0.0.1:8848/nacos/v1/ns/instance/list?&namespaceId=public&servic
 
 ![](https://github.com/heqingpan/rnacos/raw/master/doc/assets/imgs/20230506155545.png)
 
-2、服务列表管理
+4、服务列表管理
 
 ![](https://github.com/heqingpan/rnacos/raw/master/doc/assets/imgs/20230506155133.png)
 
-3、服务实例管理
+5、服务实例管理
 
 ![](https://github.com/heqingpan/rnacos/raw/master/doc/assets/imgs/20230506155158.png)
 
-
-4、命名空间管理
+6、命名空间管理
 
 ![](https://user-images.githubusercontent.com/1174480/268299574-4947b9f8-79e1-48e2-97fe-e9767e26ddc0.png)
 
