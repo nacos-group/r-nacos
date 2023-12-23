@@ -5,6 +5,7 @@ use uuid::Uuid;
 pub mod appdata;
 pub mod byte_utils;
 pub mod constant;
+pub mod crypto_utils;
 pub mod cycle_queue;
 pub mod delay_notify;
 pub mod hash_utils;
