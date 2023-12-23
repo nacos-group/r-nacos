@@ -132,9 +132,9 @@ pub async fn login(
                         .finish(),
                 )
                 .json(ApiResult::success(Some(valid))));
-        }
-        else{
-            return Ok(HttpResponse::Ok().json(ApiResult::<()>::error("USER_CHECK_ERROR".to_owned(), None)))
+        } else {
+            return Ok(HttpResponse::Ok()
+                .json(ApiResult::<()>::error("USER_CHECK_ERROR".to_owned(), None)));
         }
     }
     Ok(HttpResponse::Ok().json(ApiResult::<()>::error("SYSTEM_ERROR".to_owned(), None)))

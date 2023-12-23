@@ -82,15 +82,17 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let app_console_data = app_data.clone();
     let app_data = Data::new(app_data);
 
-    std::thread::spawn(move || {
-        actix_rt::System::with_tokio_rt(|| {
-            tokio::runtime::Builder::new_current_thread()
-                .enable_all()
-                .build()
-                .unwrap()
-        })
-        .block_on(run_console_web(app_console_data));
-    });
+    if sys_config.http_console_port > 0 {
+        std::thread::spawn(move || {
+            actix_rt::System::with_tokio_rt(|| {
+                tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                    .unwrap()
+            })
+            .block_on(run_console_web(app_console_data));
+        });
+    }
 
     let mut server = HttpServer::new(move || {
         let config_addr = app_data.config_addr.clone();

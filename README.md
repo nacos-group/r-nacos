@@ -66,8 +66,8 @@ docker 的容器运行目录是 /io，会从这个目录读写配置文件
 
 |docker包类型|tag 格式| 示例 |说明 |
 |--|--|--|--|
-|gnu debian包|$version| qingpan/rnacos:v0.3.7 | docker包基于debian-slim,体积比较大(压缩包36M,解压后102M),运行性能相对较高|
-|musl alpine包|$version-alpine| qingpan/rnacos:v0.3.7-alpine | docker包基于alpine,体积比较小(压缩包11M,解压后34M),运行性能相对较低|
+|gnu debian包|$version| qingpan/rnacos:v0.4.0 | docker包基于debian-slim,体积比较大(压缩包36M,解压后102M),运行性能相对较高|
+|musl alpine包|$version-alpine| qingpan/rnacos:v0.4.0-alpine | docker包基于alpine,体积比较小(压缩包11M,解压后34M),运行性能相对较低|
 
 
 如果不观注版本，可以使用最新正式版本tag: 
@@ -103,6 +103,8 @@ cargo run
 |--|--|--|--|--|
 |RNACOS_HTTP_PORT|r-nacos监听http端口|8848|8848|0.1.x|
 |RNACOS_GRPC_PORT|r-nacos监听grpc端口|默认是 HTTP端口+1000|9848|0.1.x|
+|RNACOS_HTTP_CONSOLE_PORT|r-nacos独立控制台端口|默认是 HTTP端口+2000;设置为0可不开启独立控制台|10848|0.4.x|
+|RNACOS_CONSOLE_LOGIN_ONE_HOUR_LIMIT|r-nacos控制台登录1小时失败次数限制|默认是5,一个用户连续登陆失败5次，会被锁定1个小时|5|0.4.x|
 |RNACOS_HTTP_WORKERS|http工作线程数|cpu核数|8|0.1.x|
 |RNACOS_CONFIG_DB_FILE|配置中心的本地数据库文件地址【0.2.x后不在使用】|config.db|config.db|0.1.x|
 |RNACOS_CONFIG_DB_DIR|配置中心的本地数据库sled文件夹, 会在系统运行时自动创建|nacos_db|nacos_db|0.2.x|
@@ -179,11 +181,40 @@ curl "http://127.0.0.1:8848/nacos/v1/ns/instance/list?&namespaceId=public&servic
 
 ### 三、控制台管理
 
-启动服务后可以在浏览器通过 `http://127.0.0.1:8848/` 访问r-nacos控制台。
+从0.4.0版本开始，支持独立端口号的新控制台。新控制台有完备的用户管理、登陆校验、权限控制，支持对外网暴露。
 
-主要包含命名空间管理、配置管理、服务管理、服务实例管理。
+启动服务后可以在浏览器通过 `http://127.0.0.1:10848/` 访问r-nacos新控制台。 
+老控制台`http://127.0.0.1:8848/` 也仍然可用，不过后继会考虑废弃。老控制台不需要登陆、不支持用户管理。
 
-1、配置管理
+
+主要包含用户管理、命名空间管理、配置管理、服务管理、服务实例管理。
+
+1、用户登陆
+
+在新控制台打开一个地址，如果检测到没有登陆，会自动跳转到登陆页面。
+一个用户连续登陆失败5次，会被锁定1个小时。这个次数可以通过启动参数配置。
+
+![](https://github.com/heqingpan/rnacos/raw/master/doc/assets/imgs/20231223222325.png)
+
+2、用户管理
+
+![](https://github.com/heqingpan/rnacos/raw/master/doc/assets/imgs/20231223220425.png)
+
+系统会默认创建一个名为`admin`的用户，密码为`admin`。 
+
+进去控制台后可按需管理用户。 
+
+用户角色权限说明：
+
+1. 管理员: 所有控制台权限
+2. 开发者：除了用户管理的所有控制台权限
+3. 访客：只能查询配置中心与注册中心的数据，没有编辑权限。
+
+
+**注意：** 对外暴露的nacos控制台端口前，建议增加一个自定义管理员，把admin用户删除或禁用。
+
+
+3、配置管理
 
 配置列表管理
 
@@ -193,15 +224,15 @@ curl "http://127.0.0.1:8848/nacos/v1/ns/instance/list?&namespaceId=public&servic
 
 ![](https://github.com/heqingpan/rnacos/raw/master/doc/assets/imgs/20230506155545.png)
 
-2、服务列表管理
+4、服务列表管理
 
 ![](https://github.com/heqingpan/rnacos/raw/master/doc/assets/imgs/20230506155133.png)
 
-3、服务实例管理
+5、服务实例管理
 
 ![](https://github.com/heqingpan/rnacos/raw/master/doc/assets/imgs/20230506155158.png)
 
-4、命名空间管理
+6、命名空间管理
 
 ![](https://user-images.githubusercontent.com/1174480/268299574-4947b9f8-79e1-48e2-97fe-e9767e26ddc0.png)
 
@@ -235,10 +266,16 @@ curl "http://127.0.0.1:8848/nacos/v1/ns/instance/list?&namespaceId=public&servic
 2. 兼容配置中心的SDK协议
 3. 暂不支持1.x的 udp 实例变更实时通知，只支持 2.x 版本grpc实例变更实时通知 。最开始的版本也有支持过udp实例变更 通知，后面因支持 grpc 的两者不统一，就暂时去掉，后继可以考虑加回去。
 
-### 二、面向控制台的功能
+### 二、面向开发、管理员的控制台的功能
 
-访问认证：
-暂时不开启认证
+控制台：
+1. 支持使用独立的控制台端口提供对外网服务。
+
+用户管理：
+
+1. 支持管理用户列表
+2. 支持用户角色权限管理
+3. 支持用户密码重置
 
 命名空间：
 
