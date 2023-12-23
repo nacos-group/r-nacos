@@ -10,6 +10,7 @@ use captcha::{gen, Difficulty};
 use crate::{
     common::{
         appdata::AppShareData,
+        crypto_utils,
         model::{ApiResult, UserSession},
     },
     raft::cache::{
@@ -28,7 +29,7 @@ pub async fn login(
 ) -> actix_web::Result<impl Responder> {
     //校验验证码
     let captcha_token = if let Some(ck) = request.cookie("captcha_token") {
-        Arc::new(ck.value().to_owned())
+        ck.value().to_owned()
     } else {
         return Ok(HttpResponse::Ok().json(ApiResult::<()>::error(
             "CAPTCHA_CHECK_ERROR".to_owned(),
@@ -36,7 +37,10 @@ pub async fn login(
         )));
     };
     let captcha_code = param.captcha.to_uppercase();
-    let cache_req = CacheManagerReq::Get(CacheKey::new(CacheType::String, captcha_token));
+    let cache_req = CacheManagerReq::Get(CacheKey::new(
+        CacheType::String,
+        Arc::new(format!("Captcha_{}", &captcha_token)),
+    ));
     let captcha_check_result = if let Ok(Ok(CacheManagerResult::Value(CacheValue::String(v)))) =
         app.cache_manager.send(cache_req).await
     {
@@ -75,9 +79,19 @@ pub async fn login(
     } else {
         return Ok(HttpResponse::Ok().json(ApiResult::<()>::error("SYSTEM_ERROR".to_owned(), None)));
     }
+    let password = match decode_password(&param.password, &captcha_token) {
+        Ok(v) => v,
+        Err(e) => {
+            log::error!("decode_password error:{}", e);
+            return Ok(HttpResponse::Ok().json(ApiResult::<()>::error(
+                "SYSTEM_ERROR".to_owned(),
+                Some("decode_password error".to_owned()),
+            )));
+        }
+    };
     let msg = UserManagerReq::CheckUser {
         name: param.username,
-        password: param.password,
+        password,
     };
     if let Ok(Ok(UserManagerResult::CheckUserResult(valid, user))) =
         app.user_manager.send(msg).await
@@ -119,8 +133,21 @@ pub async fn login(
                 )
                 .json(ApiResult::success(Some(valid))));
         }
+        else{
+            return Ok(HttpResponse::Ok().json(ApiResult::<()>::error("USER_CHECK_ERROR".to_owned(), None)))
+        }
     }
     Ok(HttpResponse::Ok().json(ApiResult::<()>::error("SYSTEM_ERROR".to_owned(), None)))
+}
+
+fn decode_password(password: &str, captcha_token: &str) -> anyhow::Result<String> {
+    let password_data = crypto_utils::decode_base64(password)?;
+    let password = String::from_utf8(crypto_utils::decrypt_aes128(
+        &captcha_token[0..16],
+        &captcha_token[16..32],
+        &password_data,
+    )?)?;
+    Ok(password)
 }
 
 pub async fn gen_captcha(app: Data<Arc<AppShareData>>) -> actix_web::Result<impl Responder> {
@@ -132,10 +159,10 @@ pub async fn gen_captcha(app: Data<Arc<AppShareData>>) -> actix_web::Result<impl
     let code = Arc::new(code.to_ascii_uppercase());
 
     let img = obj.as_base64().unwrap_or_default();
-    let token = Arc::new(uuid::Uuid::new_v4().to_string().replace('-', ""));
+    let token = uuid::Uuid::new_v4().to_string().replace('-', "");
     //log::info!("gen_captcha code:{}", &code);
     let cache_req = CacheManagerReq::Set {
-        key: CacheKey::new(CacheType::String, token.clone()),
+        key: CacheKey::new(CacheType::String, Arc::new(format!("Captcha_{}", &token))),
         value: CacheValue::String(code),
         ttl: 300,
     };
@@ -147,6 +174,7 @@ pub async fn gen_captcha(app: Data<Arc<AppShareData>>) -> actix_web::Result<impl
                 .http_only(true)
                 .finish(),
         )
+        .insert_header(("Captcha-Token", token.as_str()))
         .json(ApiResult::success(Some(img))))
 }
 
