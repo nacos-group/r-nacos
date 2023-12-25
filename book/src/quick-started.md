@@ -23,7 +23,7 @@ windows 解压后直接运行 rnacos.exe 即可。
 ```
 #stable是最新正式版本号，也可以指定镜像版本号，如： qingpan/rnacos:v0.4.0
 docker pull qingpan/rnacos:stable  
-docker run --name mynacos -p 8848:8848 -p 9848:9848 -d qingpan/rnacos:stable
+docker run --name mynacos -p 8848:8848 -p 9848:9848 -p 10848:10848 -d qingpan/rnacos:stable
 ```
 
 docker 的容器运行目录是 /io，会从这个目录读写配置文件
