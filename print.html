@@ -219,7 +219,7 @@ tar -xvf rnacos-x86_64-apple-darwin.tar.gz
 <p>方式2:  通过docker 运行</p>
 <pre><code>#stable是最新正式版本号，也可以指定镜像版本号，如： qingpan/rnacos:v0.4.0
 docker pull qingpan/rnacos:stable  
-docker run --name mynacos -p 8848:8848 -p 9848:9848 -d qingpan/rnacos:stable
+docker run --name mynacos -p 8848:8848 -p 9848:9848 -p 10848:10848 -d qingpan/rnacos:stable
 </code></pre>
 <p>docker 的容器运行目录是 /io，会从这个目录读写配置文件</p>
 <p>方式3：通过 cargo 编译安装</p>
