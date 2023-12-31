@@ -8,6 +8,7 @@ pub mod cluster;
 pub mod db;
 pub mod network;
 pub mod store;
+pub mod filestore;
 
 pub type NacosRaft = Raft<ClientRequest, ClientResponse, RaftRouter, RaftStore>;
 
