@@ -2,6 +2,8 @@
 // pb-rs log-pb.proto
 
 syntax = "proto3";
+
+
 package log;
 
 message LogRecord {
@@ -36,10 +38,15 @@ message LogRange {
     bool mark_remove=5;
 }
 
+message SnapshotRange{
+    uint64 id=1;
+    uint64 end_index=2;
+}
+
 message RaftIndex {
     repeated LogRange logs=1;
     uint64 current_log=2;
-    repeated uint64 snapshots=3;
+    repeated SnapshotRange snapshots=3;
     uint64 last_snapshot=4;
     uint64 last_snapshot_index=5;
     uint64 last_snapshot_term=6;

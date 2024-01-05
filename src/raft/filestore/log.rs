@@ -208,10 +208,46 @@ impl MessageWrite for LogRange {
 
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Debug, Default, PartialEq, Clone)]
+pub struct SnapshotRange {
+    pub id: u64,
+    pub end_index: u64,
+}
+
+impl<'a> MessageRead<'a> for SnapshotRange {
+    fn from_reader(r: &mut BytesReader, bytes: &'a [u8]) -> Result<Self> {
+        let mut msg = Self::default();
+        while !r.is_eof() {
+            match r.next_tag(bytes) {
+                Ok(8) => msg.id = r.read_uint64(bytes)?,
+                Ok(16) => msg.end_index = r.read_uint64(bytes)?,
+                Ok(t) => { r.read_unknown(bytes, t)?; }
+                Err(e) => return Err(e),
+            }
+        }
+        Ok(msg)
+    }
+}
+
+impl MessageWrite for SnapshotRange {
+    fn get_size(&self) -> usize {
+        0
+        + if self.id == 0u64 { 0 } else { 1 + sizeof_varint(*(&self.id) as u64) }
+        + if self.end_index == 0u64 { 0 } else { 1 + sizeof_varint(*(&self.end_index) as u64) }
+    }
+
+    fn write_message<W: WriterBackend>(&self, w: &mut Writer<W>) -> Result<()> {
+        if self.id != 0u64 { w.write_with_tag(8, |w| w.write_uint64(*&self.id))?; }
+        if self.end_index != 0u64 { w.write_with_tag(16, |w| w.write_uint64(*&self.end_index))?; }
+        Ok(())
+    }
+}
+
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Debug, Default, PartialEq, Clone)]
 pub struct RaftIndex {
     pub logs: Vec<log::LogRange>,
     pub current_log: u64,
-    pub snapshots: Vec<u64>,
+    pub snapshots: Vec<log::SnapshotRange>,
     pub last_snapshot: u64,
     pub last_snapshot_index: u64,
     pub last_snapshot_term: u64,
@@ -224,7 +260,7 @@ impl<'a> MessageRead<'a> for RaftIndex {
             match r.next_tag(bytes) {
                 Ok(10) => msg.logs.push(r.read_message::<log::LogRange>(bytes)?),
                 Ok(16) => msg.current_log = r.read_uint64(bytes)?,
-                Ok(26) => msg.snapshots = r.read_packed(bytes, |r, bytes| Ok(r.read_uint64(bytes)?))?,
+                Ok(26) => msg.snapshots.push(r.read_message::<log::SnapshotRange>(bytes)?),
                 Ok(32) => msg.last_snapshot = r.read_uint64(bytes)?,
                 Ok(40) => msg.last_snapshot_index = r.read_uint64(bytes)?,
                 Ok(48) => msg.last_snapshot_term = r.read_uint64(bytes)?,
@@ -241,7 +277,7 @@ impl MessageWrite for RaftIndex {
         0
         + self.logs.iter().map(|s| 1 + sizeof_len((s).get_size())).sum::<usize>()
         + if self.current_log == 0u64 { 0 } else { 1 + sizeof_varint(*(&self.current_log) as u64) }
-        + if self.snapshots.is_empty() { 0 } else { 1 + sizeof_len(self.snapshots.iter().map(|s| sizeof_varint(*(s) as u64)).sum::<usize>()) }
+        + self.snapshots.iter().map(|s| 1 + sizeof_len((s).get_size())).sum::<usize>()
         + if self.last_snapshot == 0u64 { 0 } else { 1 + sizeof_varint(*(&self.last_snapshot) as u64) }
         + if self.last_snapshot_index == 0u64 { 0 } else { 1 + sizeof_varint(*(&self.last_snapshot_index) as u64) }
         + if self.last_snapshot_term == 0u64 { 0 } else { 1 + sizeof_varint(*(&self.last_snapshot_term) as u64) }
@@ -250,7 +286,7 @@ impl MessageWrite for RaftIndex {
     fn write_message<W: WriterBackend>(&self, w: &mut Writer<W>) -> Result<()> {
         for s in &self.logs { w.write_with_tag(10, |w| w.write_message(s))?; }
         if self.current_log != 0u64 { w.write_with_tag(16, |w| w.write_uint64(*&self.current_log))?; }
-        w.write_packed_with_tag(26, &self.snapshots, |w, m| w.write_uint64(*m), &|m| sizeof_varint(*(m) as u64))?;
+        for s in &self.snapshots { w.write_with_tag(26, |w| w.write_message(s))?; }
         if self.last_snapshot != 0u64 { w.write_with_tag(32, |w| w.write_uint64(*&self.last_snapshot))?; }
         if self.last_snapshot_index != 0u64 { w.write_with_tag(40, |w| w.write_uint64(*&self.last_snapshot_index))?; }
         if self.last_snapshot_term != 0u64 { w.write_with_tag(48, |w| w.write_uint64(*&self.last_snapshot_term))?; }
