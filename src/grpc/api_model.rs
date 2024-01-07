@@ -60,7 +60,7 @@ pub struct ServerCheckResponse {
 pub struct ClientDetectionRequest {
     pub module: Option<String>,
     pub request_id: Option<String>,
-    pub headers: HashMap<String, String>,
+    pub headers: Option<HashMap<String, String>>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Default)]
@@ -68,7 +68,7 @@ pub struct ClientDetectionRequest {
 pub struct ConnectResetRequest {
     pub module: Option<String>,
     pub request_id: Option<String>,
-    pub headers: HashMap<String, String>,
+    pub headers: Option<HashMap<String, String>>,
 
     pub server_ip: Option<String>,
     pub server_port: Option<String>,
@@ -81,13 +81,13 @@ pub struct ConnectResetRequest {
 pub struct ConfigPublishRequest {
     pub module: Option<String>,
     pub request_id: Option<String>,
-    pub headers: HashMap<String, String>,
+    pub headers: Option<HashMap<String, String>>,
     pub data_id: String,
     pub group: String,
     pub tenant: String,
     pub content: Arc<String>,
     pub cas_md5: Option<String>,
-    pub addition_map: HashMap<String, String>,
+    pub addition_map: Option<HashMap<String, String>>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Default)]
@@ -95,7 +95,7 @@ pub struct ConfigPublishRequest {
 pub struct ConfigQueryRequest {
     pub module: Option<String>,
     pub request_id: Option<String>,
-    pub headers: HashMap<String, String>,
+    pub headers: Option<HashMap<String, String>>,
     pub data_id: String,
     pub group: String,
     pub tenant: String,
@@ -124,7 +124,7 @@ pub struct ConfigQueryResponse {
 pub struct ConfigRemoveRequest {
     pub module: Option<String>,
     pub request_id: Option<String>,
-    pub headers: HashMap<String, String>,
+    pub headers: Option<HashMap<String, String>>,
 
     pub data_id: String,
     pub group: String,
@@ -147,7 +147,7 @@ pub struct ConfigListenContext {
 pub struct ConfigBatchListenRequest {
     pub module: Option<String>,
     pub request_id: Option<String>,
-    pub headers: HashMap<String, String>,
+    pub headers: Option<HashMap<String, String>>,
 
     pub listen: bool,
     pub config_listen_contexts: Vec<ConfigListenContext>,
@@ -177,7 +177,7 @@ pub struct ConfigChangeBatchListenResponse {
 pub struct ConfigChangeNotifyRequest {
     pub module: Option<String>,
     pub request_id: Option<String>,
-    pub headers: HashMap<String, String>,
+    pub headers: Option<HashMap<String, String>>,
 
     pub data_id: Arc<String>,
     pub group: Arc<String>,
@@ -210,7 +210,7 @@ pub struct Instance {
 pub struct InstanceRequest {
     pub module: Option<String>,
     pub request_id: Option<String>,
-    pub headers: HashMap<String, String>,
+    pub headers: Option<HashMap<String, String>>,
 
     pub namespace: Option<String>,
     pub service_name: Option<String>,
@@ -236,7 +236,7 @@ pub struct InstanceResponse {
 pub struct SubscribeServiceRequest {
     pub module: Option<String>,
     pub request_id: Option<String>,
-    pub headers: HashMap<String, String>,
+    pub headers: Option<HashMap<String, String>>,
 
     pub namespace: Option<String>,
     pub service_name: Option<String>,
@@ -277,7 +277,7 @@ pub struct SubscribeServiceResponse {
 pub struct BatchInstanceRequest {
     pub module: Option<String>,
     pub request_id: Option<String>,
-    pub headers: HashMap<String, String>,
+    pub headers: Option<HashMap<String, String>>,
 
     pub namespace: Option<String>,
     pub service_name: Option<String>,
@@ -303,7 +303,7 @@ pub struct BatchInstanceResponse {
 pub struct ServiceQueryRequest {
     pub module: Option<String>,
     pub request_id: Option<String>,
-    pub headers: HashMap<String, String>,
+    pub headers: Option<HashMap<String, String>>,
 
     pub namespace: Option<String>,
     pub service_name: Option<String>,
@@ -329,7 +329,7 @@ pub struct ServiceQueryResponse {
 pub struct NotifySubscriberRequest {
     pub module: Option<String>,
     pub request_id: Option<String>,
-    pub headers: HashMap<String, String>,
+    pub headers: Option<HashMap<String, String>>,
 
     pub namespace: Option<Arc<String>>,
     pub service_name: Option<Arc<String>>,
@@ -343,7 +343,7 @@ pub struct NotifySubscriberRequest {
 pub struct ServiceListRequest {
     pub module: Option<String>,
     pub request_id: Option<String>,
-    pub headers: HashMap<String, String>,
+    pub headers: Option<HashMap<String, String>>,
 
     pub namespace: Option<String>,
     pub service_name: Option<String>,
