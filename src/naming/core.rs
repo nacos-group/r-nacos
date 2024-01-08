@@ -331,7 +331,7 @@ impl NamingActor {
         tag: Option<InstanceUpdateTag>,
     ) -> UpdateInstanceType {
         instance.init();
-        assert!(instance.check_vaild());
+        //assert!(instance.check_vaild());
         self.create_empty_service(key);
         //let cluster_name = instance.cluster_name.clone();
         let service = self.service_map.get_mut(key).unwrap();

@@ -48,7 +48,7 @@ impl ModelConverter {
             ephemeral: instance.ephemeral,
             cluster_name: Some(instance.cluster_name),
             service_name: Some(service_name),
-            metadata: instance.metadata,
+            metadata: Some(instance.metadata),
             ..Default::default()
         }
     }

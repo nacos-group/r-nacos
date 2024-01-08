@@ -198,7 +198,7 @@ pub struct Instance {
     pub ephemeral: bool,
     pub cluster_name: Option<String>,
     pub service_name: Option<Arc<String>>,
-    pub metadata: Arc<HashMap<String, String>>,
+    pub metadata: Option<Arc<HashMap<String, String>>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(default)]
     pub instance_heart_beat_interval: Option<i64>,

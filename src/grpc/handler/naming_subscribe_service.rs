@@ -83,7 +83,7 @@ impl PayloadHandler for SubscribeServiceRequestHandler {
         );
         let key = ServiceKey::new(
             &namespace,
-            &request.group_name.unwrap_or_default(),
+            &NamingUtils::default_group(request.group_name.unwrap_or_default()),
             &request.service_name.unwrap_or_default(),
         );
         let subscribe_cmd = self.build_subscribe_cmd(

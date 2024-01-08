@@ -46,7 +46,7 @@ impl BatchInstanceRequestHandler {
         let group_name = Arc::new(NamingUtils::default_group(
             request.group_name.unwrap_or_default(),
         ));
-        let service_name = request.service_name.unwrap_or_default();
+        let service_name = Arc::new(request.service_name.unwrap_or_default());
 
         let namesapce_id = Arc::new(NamingUtils::default_group(
             request.namespace.unwrap_or_default(),
@@ -55,10 +55,15 @@ impl BatchInstanceRequestHandler {
         if let Some(instances) = input {
             let last_modified_millis = now_millis_i64();
             for input in instances {
-                let service_name = if let Some(v) = input.service_name {
-                    v
+                let instance_service_is_empty = input
+                    .service_name
+                    .as_ref()
+                    .map(|e| e.is_empty())
+                    .unwrap_or(true);
+                let service_name = if !instance_service_is_empty {
+                    input.service_name.unwrap()
                 } else if !service_name.is_empty() {
-                    Arc::new(service_name.to_owned())
+                    service_name.clone()
                 } else {
                     return Err(anyhow::format_err!("serivceName is unvaild!"));
                 };
@@ -77,7 +82,7 @@ impl BatchInstanceRequestHandler {
                     service_name,
                     group_name: group_name.to_owned(),
                     group_service: Default::default(),
-                    metadata: input.metadata,
+                    metadata: input.metadata.unwrap_or_default(),
                     last_modified_millis: last_modified_millis.to_owned(),
                     namespace_id: namesapce_id.clone(),
                     app_name: "".to_owned(),

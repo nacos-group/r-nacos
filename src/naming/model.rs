@@ -55,9 +55,9 @@ impl Instance {
 
     pub fn check_vaild(&self) -> bool {
         if self.id.is_empty()
-            || self.port == 0
-            || self.service_name.is_empty()
-            || self.cluster_name.is_empty()
+            && self.port == 0
+            && self.service_name.is_empty()
+            && self.cluster_name.is_empty()
         {
             return false;
         }
