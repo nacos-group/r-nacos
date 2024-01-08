@@ -22,7 +22,7 @@ pub fn encrypt_aes128(key: &str, iv: &str, plain: &[u8]) -> anyhow::Result<Vec<u
         (48 - pt_len % 48) + pt_len
     };
     let mut buf = vec![0u8; buf_len];
-    (&mut buf[..pt_len]).copy_from_slice(plain);
+    (buf[..pt_len]).copy_from_slice(plain);
     match Aes128CbcEnc::new(key.as_bytes().into(), iv.as_bytes().into())
         .encrypt_padded_b2b_mut::<Pkcs7>(plain, &mut buf)
     {
@@ -41,7 +41,7 @@ pub fn decrypt_aes128(key: &str, iv: &str, cipher: &[u8]) -> anyhow::Result<Vec<
         (48 - cipher_len % 48) + cipher_len
     };
     let mut buf = vec![0u8; buf_len];
-    (&mut buf[..cipher_len]).copy_from_slice(cipher);
+    (buf[..cipher_len]).copy_from_slice(cipher);
 
     match Aes128CbcDec::new(key.as_bytes().into(), iv.as_bytes().into())
         .decrypt_padded_b2b_mut::<Pkcs7>(cipher, &mut buf)
