@@ -55,7 +55,15 @@ impl PayloadHandler for ConfigQueryRequestHandler {
                         //v.to_owned()
                         response.result_code = SUCCESS_CODE;
                         response.content = content;
-                        response.tag = request.tag;
+                        response.content_type = Some("text".to_owned());
+                        //response.encrypted_data_key = Some("".to_owned());
+                        //java nacos中定义tag类型是String;
+                        //nacos-sdk-go中定义tag类型为bool, nacos-sdk-go中直接设置 response.tag = request.tag会报错
+                        if let Some(tag)=request.tag {
+                            if !tag.is_empty() {
+                                response.tag = Some(tag);
+                            }
+                        }
                         response.md5 = Some(md5);
                     }
                     _ => {

@@ -177,7 +177,7 @@ pub struct ConfigChangeBatchListenResponse {
 pub struct ConfigChangeNotifyRequest {
     pub module: Option<String>,
     pub request_id: Option<String>,
-    pub headers: Option<HashMap<String, String>>,
+    pub headers: HashMap<String, String>,
 
     pub data_id: Arc<String>,
     pub group: Arc<String>,
@@ -199,9 +199,17 @@ pub struct Instance {
     pub cluster_name: Option<String>,
     pub service_name: Option<Arc<String>>,
     pub metadata: Arc<HashMap<String, String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub instance_heart_beat_interval: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub instance_heart_beat_time_out: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub ip_delete_timeout: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub instance_id_generator: Option<String>,
 }
 
@@ -329,7 +337,7 @@ pub struct ServiceQueryResponse {
 pub struct NotifySubscriberRequest {
     pub module: Option<String>,
     pub request_id: Option<String>,
-    pub headers: Option<HashMap<String, String>>,
+    pub headers: HashMap<String, String>,
 
     pub namespace: Option<Arc<String>>,
     pub service_name: Option<Arc<String>>,

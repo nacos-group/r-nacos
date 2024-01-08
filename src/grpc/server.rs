@@ -42,7 +42,7 @@ impl request_server::Request for RequestServerImpl {
         };
         let payload = request.into_inner();
         //debug
-        //log::info!("client request: {}",PayloadUtils::get_payload_string(&payload));
+        log::info!("client request: {}",PayloadUtils::get_payload_string(&payload));
         let request_type = PayloadUtils::get_payload_type(&payload).unwrap();
         let request_log_info = format!(
             "|grpc|client_request|{}|{}",
