@@ -3,4 +3,4 @@ authors = ["heqingpan@126.com"]
 language = "cn"
 multilingual = false
 src = "src"
-title = "rnacos文档"
+title = "r-nacos文档"
