@@ -222,6 +222,19 @@ docker pull qingpan/rnacos:stable
 docker run --name mynacos -p 8848:8848 -p 9848:9848 -p 10848:10848 -d qingpan/rnacos:stable
 </code></pre>
 <p>docker 的容器运行目录是 /io，会从这个目录读写配置文件</p>
+<h4 id="docker-版本说明"><a class="header" href="#docker-版本说明">docker 版本说明</a></h4>
+<p>应用每次打包都会同时打对应版本的docker包 ，qingpan/rnacos:$tag 。</p>
+<p>每个版本会打两类docker包</p>
+<table><thead><tr><th>docker包类型</th><th>tag 格式</th><th>示例</th><th>说明</th></tr></thead><tbody>
+<tr><td>gnu debian包</td><td>$version</td><td>qingpan/rnacos:v0.4.0</td><td>docker包基于debian-slim,体积比较大(压缩包36M,解压后102M),运行性能相对较高;</td></tr>
+<tr><td>musl alpine包</td><td>$version-alpine</td><td>qingpan/rnacos:v0.4.0-alpine</td><td>docker包基于alpine,体积比较小(压缩包11M,解压后34M),运行性能相对较低;</td></tr>
+</tbody></table>
+<p>如果不观注版本，可以使用最新正式版本tag: </p>
+<ul>
+<li>最新的gnu正式版本: <code>qingpan/rnacos:stable</code></li>
+<li>最新的alpine正式版本: <code>qingpan/rnacos:stable-alpine</code></li>
+</ul>
+<p><strong>MacOS arm系统补充说明</strong> ：目前MacOS arm系统运行<code>stable</code>镜像失败，可以先换成<code>stable-alpine</code>镜像。等后面解决arm <code>stable</code>镜像问题后再把这个注意事项去掉。</p>
 <p>方式3：通过 cargo 编译安装</p>
 <pre><code># 安装
 cargo install rnacos
@@ -641,20 +654,21 @@ java nacos server版本: 2.1.0</p>
 <tr><td>v0.2.3 (不再推荐,新版bugfix暂定不再同步)</td><td>支持2.x新最版nacos面向sdk的协议</td><td>单机部署版本,配置中心数据库使用sled, 初始内存多占用25M左右,配置中心单机写入tps在1.5万以上</td><td>对配置中心有高频写入需求的应用可以考虑使用</td></tr>
 <tr><td>v0.1.10 (不再推荐,新版bugfix暂定不再同步)</td><td>支持1.x服务接口;除了查询服务中心服务列表外，支持2.x大部分接口</td><td>单机部署版本,配置中心数据库使用sqlite，内存占用比较低，但配置写入tps不高，7百左右</td><td>不使用2.x的注册中心服务，对内存占用敏感的小应用可以考虑使用</td></tr>
 </tbody></table>
-<h3 id="docker-版本说明"><a class="header" href="#docker-版本说明">docker 版本说明</a></h3>
+<h3 id="docker-版本说明-1"><a class="header" href="#docker-版本说明-1">docker 版本说明</a></h3>
 <p>应用每次打包都会同时打对应版本的docker包 ，qingpan/rnacos:$tag 。</p>
 <p>每个版本会打两类docker包</p>
 <table><thead><tr><th>docker包类型</th><th>tag 格式</th><th>示例</th><th>说明</th></tr></thead><tbody>
-<tr><td>gnu debian包</td><td>$version</td><td>qingpan/rnacos:v0.3.7</td><td>docker包基于debian-slim,体积比较大(压缩包36M,解压后102M),运行性能相对较高</td></tr>
-<tr><td>musl alpine包</td><td>$version-alpine</td><td>qingpan/rnacos:v0.3.7-alpine</td><td>docker包基于alpine,体积比较小(压缩包11M,解压后34M),运行性能相对较低</td></tr>
+<tr><td>gnu debian包</td><td>$version</td><td>qingpan/rnacos:v0.4.2</td><td>docker包基于debian-slim,体积比较大(压缩包36M,解压后102M),运行性能相对较高</td></tr>
+<tr><td>musl alpine包</td><td>$version-alpine</td><td>qingpan/rnacos:v0.4.2-alpine</td><td>docker包基于alpine,体积比较小(压缩包11M,解压后34M),运行性能相对较低</td></tr>
 </tbody></table>
 <p>如果不观注版本，可以使用最新正式版本tag。</p>
 <ul>
 <li>最新的gnu正式版本: <code>qingpan/rnacos:stable</code></li>
 <li>最新的alpine正式版本: <code>qingpan/rnacos:stable-alpine</code></li>
 </ul>
+<p><strong>MacOS arm系统补充说明</strong> ：目前MacOS arm系统运行<code>stable</code>镜像失败，可以先换成<code>stable-alpine</code>镜像。等后面解决arm <code>stable</code>镜像问题后再把这个注意事项去掉。</p>
 <h2 id="nacos-client-sdk"><a class="header" href="#nacos-client-sdk">nacos client sdk</a></h2>
-<h3 id="java-nacos-client-sdk"><a class="header" href="#java-nacos-client-sdk">java nacos client sdk</a></h3>
+<h3 id="java-nacos-sdk"><a class="header" href="#java-nacos-sdk">java nacos sdk</a></h3>
 <p><strong>nacos-client</strong></p>
 <pre><code class="language-xml">&lt;dependency&gt;
     &lt;groupId&gt;com.alibaba.nacos&lt;/groupId&gt;
@@ -665,6 +679,27 @@ java nacos server版本: 2.1.0</p>
 <table><thead><tr><th>协议</th><th>验证过版本</th><th>推荐版本</th></tr></thead><tbody>
 <tr><td>grpc协议(2.x)</td><td>2.1.0</td><td>&gt;2.1.x</td></tr>
 <tr><td>http协议(1.x)</td><td>1.4.1</td><td>&gt;1.4.x</td></tr>
+</tbody></table>
+<h3 id="go-nacos-sdk"><a class="header" href="#go-nacos-sdk">go nacos sdk</a></h3>
+<p><strong>nacos-sdk-go</strong></p>
+<pre><code>nacos-sdk-go/v2 v2.2.5
+</code></pre>
+<table><thead><tr><th>协议</th><th>验证过版本</th><th>推荐版本</th></tr></thead><tbody>
+<tr><td>grpc协议(2.x)</td><td>2.2.5</td><td>&gt;=2.2.5</td></tr>
+</tbody></table>
+<h3 id="rust-nacos-sdk"><a class="header" href="#rust-nacos-sdk">rust nacos sdk</a></h3>
+<p><strong>nacos-sdk-rust</strong></p>
+<pre><code>nacos-sdk = &quot;0.3.3&quot;
+</code></pre>
+<table><thead><tr><th>协议</th><th>验证过版本</th><th>推荐版本</th></tr></thead><tbody>
+<tr><td>grpc协议</td><td>0.3.3</td><td>&gt;=0.3.3</td></tr>
+</tbody></table>
+<p><strong>nacos_rust_client</strong></p>
+<pre><code>nacos_rust_client = &quot;0.3.0&quot;
+</code></pre>
+<table><thead><tr><th>协议</th><th>验证过版本</th><th>推荐版本</th></tr></thead><tbody>
+<tr><td>同时支持http协议与grpc协议</td><td>0.3.0</td><td>&gt;=0.3.0</td></tr>
+<tr><td>http协议</td><td>0.2.2</td><td>&gt;=0.2.2</td></tr>
 </tbody></table>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="常见问题"><a class="header" href="#常见问题">常见问题</a></h1>
 <h2 id="控制台查询不到信息"><a class="header" href="#控制台查询不到信息">控制台查询不到信息</a></h2>
