@@ -16,8 +16,8 @@
 
 |docker包类型|tag 格式| 示例 |说明 |
 |--|--|--|--|
-|gnu debian包|$version| qingpan/rnacos:v0.3.7 | docker包基于debian-slim,体积比较大(压缩包36M,解压后102M),运行性能相对较高|
-|musl alpine包|$version-alpine| qingpan/rnacos:v0.3.7-alpine | docker包基于alpine,体积比较小(压缩包11M,解压后34M),运行性能相对较低|
+|gnu debian包|$version| qingpan/rnacos:v0.4.2 | docker包基于debian-slim,体积比较大(压缩包36M,解压后102M),运行性能相对较高|
+|musl alpine包|$version-alpine| qingpan/rnacos:v0.4.2-alpine | docker包基于alpine,体积比较小(压缩包11M,解压后34M),运行性能相对较低|
 
 
 如果不观注版本，可以使用最新正式版本tag。
@@ -25,10 +25,12 @@
 + 最新的gnu正式版本: `qingpan/rnacos:stable`
 + 最新的alpine正式版本: `qingpan/rnacos:stable-alpine`
 
+**MacOS arm系统补充说明** ：目前MacOS arm系统运行`stable`镜像失败，可以先换成`stable-alpine`镜像。等后面解决arm `stable`镜像问题后再把这个注意事项去掉。
+
 
 ## nacos client sdk
 
-### java nacos client sdk
+### java nacos sdk
 
 **nacos-client**
 
@@ -44,3 +46,41 @@
 |--|--|--|
 |grpc协议(2.x)|2.1.0|>2.1.x|
 |http协议(1.x)|1.4.1|>1.4.x|
+
+
+### go nacos sdk
+
+**nacos-sdk-go**
+
+```
+nacos-sdk-go/v2 v2.2.5
+```
+
+|协议|验证过版本|推荐版本|
+|--|--|--|
+|grpc协议(2.x)|2.2.5|>=2.2.5|
+
+### rust nacos sdk
+
+**nacos-sdk-rust**
+
+```
+nacos-sdk = "0.3.3"
+```
+
+|协议|验证过版本|推荐版本|
+|--|--|--|
+|grpc协议|0.3.3|>=0.3.3|
+
+
+**nacos_rust_client**
+
+```
+nacos_rust_client = "0.3.0"
+```
+
+|协议|验证过版本|推荐版本|
+|--|--|--|
+|同时支持http协议与grpc协议|0.3.0|>=0.3.0|
+|http协议|0.2.2|>=0.2.2|
+

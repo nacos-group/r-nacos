@@ -28,6 +28,26 @@ docker run --name mynacos -p 8848:8848 -p 9848:9848 -p 10848:10848 -d qingpan/rn
 
 docker 的容器运行目录是 /io，会从这个目录读写配置文件
 
+#### docker 版本说明
+
+应用每次打包都会同时打对应版本的docker包 ，qingpan/rnacos:$tag 。
+
+每个版本会打两类docker包
+
+|docker包类型|tag 格式| 示例 |说明 |
+|--|--|--|--|
+|gnu debian包|$version| qingpan/rnacos:v0.4.0 | docker包基于debian-slim,体积比较大(压缩包36M,解压后102M),运行性能相对较高;|
+|musl alpine包|$version-alpine| qingpan/rnacos:v0.4.0-alpine | docker包基于alpine,体积比较小(压缩包11M,解压后34M),运行性能相对较低;|
+
+
+如果不观注版本，可以使用最新正式版本tag: 
+
++ 最新的gnu正式版本: `qingpan/rnacos:stable`
++ 最新的alpine正式版本: `qingpan/rnacos:stable-alpine`
+
+**MacOS arm系统补充说明** ：目前MacOS arm系统运行`stable`镜像失败，可以先换成`stable-alpine`镜像。等后面解决arm `stable`镜像问题后再把这个注意事项去掉。
+
+
 方式3：通过 cargo 编译安装
 
 ```
