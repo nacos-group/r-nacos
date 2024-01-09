@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>rnacos文档</title>
+        <title>r-nacos文档</title>
                 <meta name="robots" content="noindex" />
                 
 
@@ -112,7 +112,7 @@
                         </button>
                                             </div>
 
-                    <h1 class="menu-title">rnacos文档</h1>
+                    <h1 class="menu-title">r-nacos文档</h1>
 
                     <div class="right-buttons">
                                                 <a href="print.html" title="Print this book" aria-label="Print this book">
@@ -313,14 +313,14 @@ curl &quot;http://127.0.0.1:8848/nacos/v1/ns/instance/list?&amp;namespaceId=publ
 <h2 id="集群功能机制简介"><a class="header" href="#集群功能机制简介">集群功能机制简介</a></h2>
 <p>集群部署的目标是通过多实例部署的方式，支持服务的水平扩容，支持部分节点异常后继续提供服务，提升稳定性。</p>
 <h3 id="配置中心"><a class="header" href="#配置中心">配置中心</a></h3>
-<p>配置中心使用raft集群协议+本地存储，持久化数据，不需求再依赖 mysql 存储配置。其持久化机制类似<code>etcd</code>。</p>
+<p>配置中心使用raft集群协议+本地存储，持久化数据，不需要再依赖 mysql 存储配置。其持久化机制类似<code>etcd</code>。</p>
 <table><thead><tr><th>请求方式</th><th>说明</th><th>性能</th></tr></thead><tbody>
 <tr><td>写入</td><td>只有主节点能写入，其它节点收到写入请求后转发到主节点写入</td><td>集群2千tps左右，有优化空间</td></tr>
 <tr><td>读取</td><td>每个节点都能读取全量数据</td><td>单节点8万qps左右,集群总容量为n*8万</td></tr>
 </tbody></table>
 <h3 id="注册中心"><a class="header" href="#注册中心">注册中心</a></h3>
 <p>注册中心使用类distor协议，同步集群间的数据。</p>
-<p>注册中心复用配置中心节点列表信息，两者协议的实例是单独实例的。</p>
+<p>注册中心复用配置中心节点列表信息，两者协议是分别单独实现的。</p>
 <table><thead><tr><th>请求方式</th><th>说明</th><th>性能</th></tr></thead><tbody>
 <tr><td>写入</td><td>注册中心每个节点平等，按hash划分每个节点负责的内容；节点对负责的服务可写，否则转发到对应负责的节点处理。</td><td>集群1万tps左右</td></tr>
 <tr><td>读取</td><td>每个节点都能读取全量数据</td><td>单节点3万qps左右,集群总容量为n*3万</td></tr>
@@ -476,6 +476,8 @@ echo &quot;\n&quot;
 </code></pre>
 <p>如果通过手动方式增加节点，需要调用本接口更新集群节点列表。</p>
 <p>此接口可以用于对集群缩容，下线指定节点。</p>
+<h2 id="附录介绍"><a class="header" href="#附录介绍">附录介绍</a></h2>
+<p><a href="https://www.cnblogs.com/shizioo/p/17710328.html">rnacos实现raft和类distro协议，支持集群部署</a></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="部署参数说明"><a class="header" href="#部署参数说明">部署参数说明</a></h1>
 <p>同一个应用包需要支持不同场景，就需要支持设置自定义参数。</p>
 <p>r-nacos 运行参数支持通过环境变量，或指定配置文件方式设置。 如果不设置则按默认参数运行。</p>
