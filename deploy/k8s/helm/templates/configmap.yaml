@@ -12,6 +12,8 @@ data:
     export RNACOS_RAFT_JOIN_ADDR={{ include "rnacos.fullname" . }}-0.{{ include "rnacos.fullname" . }}-headless:9848
     # export RNACOS_RAFT_AUTO_INIT=true
     export RUST_LOG={{ .config.rust_log }}
+    export RNACOS_HTTP_WORKERS={{ .config.http_workers }}
+    export RNACOS_CONSOLE_LOGIN_ONE_HOUR_LIMIT={{ .config.console_login_one_hour_limit }}
     echo $RNACOS_RAFT_NODE_ADDR
     echo $RNACOS_RAFT_NODE_ID
     echo $RNACOS_RAFT_JOIN_ADDR

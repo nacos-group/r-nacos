@@ -16,6 +16,8 @@ fullnameOverride: ""
 
 config:
   rust_log: info
+  http_workers: 8
+  console_login_one_hour_limit: 5
 
 serviceAccount:
   # Specifies whether a service account should be created
