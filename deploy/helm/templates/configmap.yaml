@@ -11,7 +11,7 @@ data:
     export RNACOS_RAFT_NODE_ID=$(expr 1 + $(echo $MY_POD_NAME | grep -o '[0-9]\+$'))
     export RNACOS_RAFT_JOIN_ADDR={{ include "rnacos.fullname" . }}-0.{{ include "rnacos.fullname" . }}-headless:9848
     # export RNACOS_RAFT_AUTO_INIT=true
-    export RUST_LOG=debug
+    export RUST_LOG={{ .config.rust_log }}
     echo $RNACOS_RAFT_NODE_ADDR
     echo $RNACOS_RAFT_NODE_ID
     echo $RNACOS_RAFT_JOIN_ADDR
