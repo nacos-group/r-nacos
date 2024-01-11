@@ -19,6 +19,10 @@ rancosConfig:
   httpWorkers: 8
   consoleLoginOneHourLimit: 5
 
+persistence:
+  size: 20Gi
+  storageClass: default
+  accessModes: ["ReadWriteOnce"]
 serviceAccount:
   # Specifies whether a service account should be created
   create: true

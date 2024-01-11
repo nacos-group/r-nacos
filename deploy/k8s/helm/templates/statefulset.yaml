@@ -75,10 +75,14 @@ spec:
   - metadata:
       name: {{ include "rnacos.fullname" . }}-pvc
     spec:
-      accessModes: [ "ReadWriteOnce" ]
+      {{- with .Values.persistence.accessModes }}
+      accessModes:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      storageClassName: {{ .Values.persistence.storageClassName }}
       resources:
         requests:
-          storage: 1Gi
+          storage: {{ .Values.persistence.size }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
