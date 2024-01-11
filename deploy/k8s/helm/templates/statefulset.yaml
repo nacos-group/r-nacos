@@ -1,0 +1,97 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "rnacos.fullname" . }}
+spec:
+  serviceName: {{ include "rnacos.fullname" . }}-headless
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "rnacos.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "rnacos.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "rnacos.serviceAccountName" . }}
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: 10848
+              protocol: TCP
+              name: admin
+            - containerPort: 9848
+              protocol: TCP
+              name: grpc
+          command:
+            - /bin/sh
+            - /io/entrypoint.sh
+          readinessProbe:
+            tcpSocket:
+              port: 9848
+              service: ""
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 9848
+              service: ""
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          env:
+            - name: MY_POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: MY_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+          volumeMounts:
+            - name: podinfo
+              mountPath: /etc/podinfo
+            - mountPath: /io/entrypoint.sh
+              name: {{ include "rnacos.fullname" . }}
+              subPath: entrypoint.sh
+            - name: {{ include "rnacos.fullname" . }}-pvc
+              mountPath: /io/nacos_db
+      volumes:
+        - name: podinfo
+          emptyDir: {}
+        - name: {{ include "rnacos.fullname" . }}
+          configMap:
+            name: {{ include "rnacos.fullname" . }}
+  volumeClaimTemplates:
+  - metadata:
+      name: {{ include "rnacos.fullname" . }}-pvc
+    spec:
+      {{- with .Values.persistence.accessModes }}
+      accessModes:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      storageClassName: {{ .Values.persistence.storageClassName }}
+      resources:
+        requests:
+          storage: {{ .Values.persistence.size }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
