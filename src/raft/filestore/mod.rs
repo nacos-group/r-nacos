@@ -8,6 +8,8 @@ pub mod log;
 pub mod model;
 pub mod raftindex;
 pub mod raftlog;
+pub mod raftsnapshot;
+pub mod raftapply;
 
 pub struct StoreUtils;
 

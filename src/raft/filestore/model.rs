@@ -1,6 +1,8 @@
 use std::{borrow::Cow, collections::HashMap, sync::Arc};
 
+use async_raft_ext::raft::InstallSnapshotRequest;
 use binrw::prelude::*;
+use prost::Message;
 
 use crate::raft::store::ClientRequest;
 
@@ -249,21 +251,92 @@ pub struct LogIndexInfo {
     pub term: u64,
 }
 
-#[derive(Debug, Clone)]
-pub struct ApplyRequestDto {
-    pub request: ClientRequest,
-    pub index: u64,
-}
-
-impl ApplyRequestDto {
-    pub fn new(index: u64, request: ClientRequest) -> Self {
-        Self { index, request }
-    }
-}
-
 #[derive(Debug, Clone, Default)]
 pub struct MemberShip {
     pub member: Vec<u64>,
     pub member_after_consensus: Vec<u64>,
     pub node_addrs: HashMap<u64, Arc<String>>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ApplyRequestDto {
+    pub index: u64,
+    pub request: ClientRequest,
+}
+
+impl ApplyRequestDto {
+    pub fn new(index: u64,request: ClientRequest,) -> Self {
+        Self {
+            index,
+            request,
+        }
+    }
+}
+
+#[derive(Clone, PartialEq, Eq, Message)]
+pub struct InstallSnapshotRequestDto {
+    /// The leader's current term.
+    #[prost(uint64, tag = "1")]
+    pub term: u64,
+    /// The leader's ID. Useful in redirecting clients.
+    #[prost(uint64, tag = "2")]
+    pub leader_id: u64,
+    /// The snapshot replaces all log entries up through and including this index.
+    #[prost(uint64, tag = "3")]
+    pub last_included_index: u64,
+    /// The term of the `last_included_index`.
+    #[prost(uint64, tag = "4")]
+    pub last_included_term: u64,
+    /// The byte offset where this chunk of data is positioned in the snapshot file.
+    #[prost(uint64, tag = "5")]
+    pub offset: u64,
+    /// The raw bytes of the snapshot chunk, starting at `offset`.
+    #[prost(bytes, tag = "6")]
+    pub data: Vec<u8>,
+    /// Will be `true` if this is the last chunk in the snapshot.
+    #[prost(bool, tag = "7")]
+    pub done: bool,
+}
+
+impl From<InstallSnapshotRequest> for InstallSnapshotRequestDto {
+    fn from(value: InstallSnapshotRequest) -> Self {
+        Self {
+            term: value.term,
+            leader_id: value.leader_id,
+            last_included_index: value.last_included_index,
+            last_included_term: value.last_included_term,
+            offset: value.offset,
+            data: value.data,
+            done: value.done,
+        }
+    }
+}
+
+impl From<InstallSnapshotRequestDto> for InstallSnapshotRequest {
+    fn from(value: InstallSnapshotRequestDto) -> Self {
+        Self {
+            term: value.term,
+            leader_id: value.leader_id,
+            last_included_index: value.last_included_index,
+            last_included_term: value.last_included_term,
+            offset: value.offset,
+            data: value.data,
+            done: value.done,
+        }
+    }
+}
+
+impl InstallSnapshotRequestDto {
+    pub fn to_bytes(&self) -> anyhow::Result<Vec<u8>> {
+        use prost::Message;
+        let mut data_bytes: Vec<u8> = Vec::new();
+        self.encode(&mut data_bytes)?;
+        Ok(data_bytes)
+    }
+
+    pub fn from_bytes(buf: &[u8]) -> anyhow::Result<Self> {
+        use prost::Message;
+        let s = InstallSnapshotRequestDto::decode(buf)?;
+        Ok(s)
+    }
 }

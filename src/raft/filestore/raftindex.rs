@@ -21,6 +21,7 @@ pub struct RaftIndexInnerManager {
     file: tokio::fs::File,
     pub(crate) raft_index: RaftIndexDto,
     pub(crate) last_applied_log: u64,
+    pub(crate) applied_flush: bool,
 }
 
 impl RaftIndexInnerManager {
@@ -33,17 +34,18 @@ impl RaftIndexInnerManager {
             .await?;
         let meta = file.metadata().await?;
         let (last_applied_log, raft_index) = if meta.len() == 0 {
-            log::info!("RaftIndexInnerManager init index file");
             //init write
-            let mut index = RaftIndex::default();
+            let index = RaftIndex::default();
+            /*
             index.logs.push(LogRange {
                 id: 0,
-                start_index: 0,
+                start_index: 1,
                 pre_term: 0,
                 record_count: 0,
                 is_close: false,
                 mark_remove: false,
             });
+            */
             let mut buf = Vec::new();
             let mut writer = Writer::new(&mut buf);
             writer.write_message(&index)?;
@@ -54,7 +56,6 @@ impl RaftIndexInnerManager {
             let raft_index: RaftIndexDto = index.try_into()?;
             (0, raft_index)
         } else {
-            log::info!("RaftIndexInnerManager load index file");
             //read
             let mut header_buf = vec![0u8; 8];
             file.read(&mut header_buf).await?;
@@ -66,11 +67,11 @@ impl RaftIndexInnerManager {
             let raft_index: RaftIndexDto = index.try_into()?;
             (last_applied_log, raft_index)
         };
-        log::info!("load_raft_index,logs len:{}", raft_index.logs.len());
         Ok(Self {
             file,
             raft_index,
             last_applied_log,
+            applied_flush: true,
         })
     }
 
@@ -78,6 +79,7 @@ impl RaftIndexInnerManager {
         self.last_applied_log = last_applied_log;
         self.file.seek(std::io::SeekFrom::Start(0)).await?;
         self.file.write(&id_to_bin(last_applied_log)).await?;
+        self.applied_flush=false;
         Ok(())
     }
 
@@ -90,6 +92,13 @@ impl RaftIndexInnerManager {
         writer.write_message(&index_do)?;
         self.file.write(&buf).await?;
         self.file.flush().await?;
+        self.applied_flush=true;
+        Ok(())
+    }
+    pub async fn flush(&mut self) -> anyhow::Result<()> {
+        if !self.applied_flush {
+            self.file.flush().await?;
+        }
         Ok(())
     }
 }
@@ -226,12 +235,14 @@ impl RaftIndexManager {
         &mut self,
         ctx: &mut Context<Self>,
         member: Vec<u64>,
-        member_after_consensus: Vec<u64>,
+        member_after_consensus: Option<Vec<u64>>,
         node_addr: Option<HashMap<u64, Arc<String>>>,
     ) -> anyhow::Result<RaftIndexResponse> {
         if let Some(inner) = self.inner.as_mut() {
             inner.raft_index.member = member;
-            inner.raft_index.member_after_consensus = member_after_consensus;
+            if let Some(member_after_consensus)=member_after_consensus {
+                inner.raft_index.member_after_consensus = member_after_consensus;
+            }
             if let Some(node_addr) = node_addr {
                 inner.raft_index.node_addrs = node_addr;
             }
@@ -301,7 +312,7 @@ impl Actor for RaftIndexManager {
 #[rtype(result = "anyhow::Result<RaftIndexResponse>")]
 pub enum RaftIndexRequest {
     LoadIndexInfo,
-    LoadHardState,
+    //LoadHardState,
     LoadMember,
     GetTargetAddr(u64),
     SaveLogs(Vec<LogRange>),
@@ -309,10 +320,10 @@ pub enum RaftIndexRequest {
     SaveLastAppliedLog(u64),
     SaveMember {
         member: Vec<u64>,
-        member_after_consensus: Vec<u64>,
+        member_after_consensus: Option<Vec<u64>>,
         node_addr: Option<HashMap<u64, Arc<String>>>,
     },
-    SaveNodeAddr(HashMap<u64, Arc<String>>),
+    //SaveNodeAddr(HashMap<u64, Arc<String>>),
     AddNodeAddr(u64, Arc<String>),
     SaveHardState {
         current_term: u64,
@@ -342,6 +353,7 @@ impl Handler<RaftIndexRequest> for RaftIndexManager {
     type Result = anyhow::Result<RaftIndexResponse>;
 
     fn handle(&mut self, msg: RaftIndexRequest, ctx: &mut Self::Context) -> Self::Result {
+        //log::info!("RaftIndexRequest:{:?}",&msg);
         match msg {
             RaftIndexRequest::LoadIndexInfo => self.load_index_info(),
             RaftIndexRequest::SaveSnapshots(snapshots) => self.write_snapshots(ctx, snapshots),
@@ -354,12 +366,13 @@ impl Handler<RaftIndexRequest> for RaftIndexManager {
                 member_after_consensus,
                 node_addr,
             } => self.write_member(ctx, member, member_after_consensus, node_addr),
-            RaftIndexRequest::SaveNodeAddr(node_addr) => self.write_node_addr(ctx, node_addr),
+            //RaftIndexRequest::SaveNodeAddr(node_addr) => self.write_node_addr(ctx, node_addr),
             RaftIndexRequest::AddNodeAddr(id, node_addr) => self.add_node_addr(ctx, id, node_addr),
             RaftIndexRequest::SaveHardState {
                 current_term,
                 voted_for,
             } => self.write_hard_state(ctx, current_term, voted_for),
+            /*
             RaftIndexRequest::LoadHardState => {
                 if let Some(inner) = &self.inner {
                     Ok(RaftIndexResponse::HardState {
@@ -370,6 +383,7 @@ impl Handler<RaftIndexRequest> for RaftIndexManager {
                     Ok(RaftIndexResponse::None)
                 }
             }
+             */
             RaftIndexRequest::LoadMember => {
                 if let Some(inner) = &self.inner {
                     Ok(RaftIndexResponse::MemberShip {
