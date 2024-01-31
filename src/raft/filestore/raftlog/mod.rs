@@ -2,6 +2,7 @@
 use std::{io::{Cursor, SeekFrom}, sync::Arc, path::Path, time::Duration};
 
 use actix::prelude::*;
+use async_raft_ext::raft::Entry;
 use bean_factory::{bean, Inject};
 use binrw::{BinWriterExt, BinReaderExt};
 use quick_protobuf::{Writer, BytesReader};
@@ -51,6 +52,7 @@ pub struct LogInnerManager {
     last_term: u64,
     current_index_count: u16,
     need_seek_at_write: bool,
+    pub(crate) split_off_index:u64,
 }
 
 impl ToString for LogInnerManager {
@@ -72,6 +74,7 @@ impl LogInnerManager {
         log_path: String,
         start_index: u64,
         pre_term: u64,
+        split_off_index: u64,
     ) -> anyhow::Result<LogInnerManager> {
         let index_file = OpenOptions::new()
             .read(true)
@@ -131,11 +134,15 @@ impl LogInnerManager {
         let (data_cursor, msg_count) =
             Self::move_to_end(&mut data_file, indexs.last().unwrap(), start_index).await?;
         data_file.seek(SeekFrom::Start(data_cursor)).await?;
-        println!(
-            "data_cursor:{},{},{}",
+        log::info!(
+            "data_cursor:{},{},{}|index:{},{},{}|pre_term:{}",
             data_cursor,
             data_meta.len(),
-            data_cursor == data_meta.len()
+            data_cursor == data_meta.len(),
+            start_index,
+            header.first_index,
+            msg_count,
+            pre_term
         );
         let current_index_count = (msg_count % (header.index_interval as u64)) as u16;
         let mut this = LogInnerManager {
@@ -152,6 +159,7 @@ impl LogInnerManager {
             msg_count,
             current_index_count,
             need_seek_at_write: false,
+            split_off_index:std::cmp::max(split_off_index,start_index),
         };
         if msg_count > 0 {
             let end_index = this.get_end_index();
@@ -279,6 +287,10 @@ impl LogInnerManager {
         self.current_index_count += 1;
         self.last_term = record.term;
         if self.current_index_count == self.header.index_interval {
+            let end_index = self.get_end_index()-1;
+            if end_index !=record.index {
+                log::warn!("logfile index != record.index,{},{}",end_index,record.index);
+            }
             self.current_index_count = 0;
             let index_data =
                 write_varint64(self.data_cursor - self.indexs.last().unwrap().file_index);
@@ -330,7 +342,7 @@ impl LogInnerManager {
             self.start_index,
             current_index_count,
         )
-        .await?;
+            .await?;
         self.data_cursor = data_cursor;
         self.msg_count = msg_count;
         self.current_index_count = current_index_count as u16;
@@ -372,7 +384,8 @@ impl LogInnerManager {
     ) -> anyhow::Result<Vec<LogRecordDto>> {
         let end_index = self.get_end_index();
         let mut rlist = vec![];
-        let start = std::cmp::max(start, self.start_index);
+        //let start = std::cmp::max(start, self.start_index);
+        let start = std::cmp::max(start,self.split_off_index);
         let end = std::cmp::min(end, end_index);
         if start >= end {
             //error args
@@ -440,12 +453,11 @@ impl LogInnerManager {
         end: u64,
         loader: &Arc<dyn LogRecordLoader + Sync + Send + 'static>,
     ) -> anyhow::Result<()> {
-        let end_index = self.start_index + self.msg_count;
-        if start >= end || start >= end_index {
-            //error args
-            return Ok(());
-        }
-        if start < self.start_index || end > end_index {
+        let end_index = self.get_end_index();
+        //let start = std::cmp::max(start, self.start_index);
+        let start = std::cmp::max(start,self.split_off_index);
+        let end = std::cmp::min(end, end_index);
+        if start >= end {
             //error args
             return Ok(());
         }
@@ -566,6 +578,10 @@ impl LogInnerManager {
                 let index_info = self.get_last_index_info();
                 Ok(RaftLogResponse::LastLogIndex(index_info))
             }
+            RaftLogRequest::SplitOff(split_off_index) => {
+                self.split_off_index = std::cmp::max(split_off_index,self.start_index);
+                Ok(RaftLogResponse::None)
+            }
         }
     }
 }
@@ -575,15 +591,17 @@ pub struct RaftLogActor {
     path: String,
     start_index: u64,
     pre_term: u64,
+    split_off_index: u64,
     sender: Option<LogRequestSenderType>,
 }
 
 impl RaftLogActor {
-    pub fn new(path: String, start_index: u64, pre_term: u64) -> Self {
+    pub fn new(path: String, start_index: u64, pre_term: u64,split_off_index:u64) -> Self {
         Self {
             path,
             start_index,
             pre_term,
+            split_off_index,
             sender: None,
         }
     }
@@ -596,10 +614,11 @@ impl RaftLogActor {
         let log_path = self.path.clone();
         let start_index = self.start_index.to_owned();
         let pre_term = self.pre_term.to_owned();
+        let split_off_index= self.split_off_index.to_owned();
         let (tx, mut rx) = tokio::sync::mpsc::channel(10);
         self.sender = Some(tx);
         async move {
-            let mut inner = LogInnerManager::init(log_path, start_index, pre_term).await?;
+            let mut inner = LogInnerManager::init(log_path, start_index, pre_term,split_off_index).await?;
             while let Some(Some(req)) = rx.recv().await {
                 if req
                     .sender
@@ -613,11 +632,11 @@ impl RaftLogActor {
             log::info!("RaftLogActor receive close");
             Ok(())
         }
-        .into_actor(self)
-        .map(|_r: anyhow::Result<()>, _act, ctx| {
-            ctx.stop();
-        })
-        .spawn(ctx);
+            .into_actor(self)
+            .map(|_r: anyhow::Result<()>, _act, ctx| {
+                ctx.stop();
+            })
+            .spawn(ctx);
     }
 }
 
@@ -645,6 +664,7 @@ pub enum RaftLogRequest {
     Write(LogRecordDto),
     WriteBatch(Vec<LogRecordDto>, usize),
     StripLogToIndex(u64),
+    SplitOff(u64),
     GetLastLogIndex,
 }
 
@@ -657,6 +677,7 @@ pub enum RaftLogCmd {
 pub enum RaftLogResponse {
     None,
     QueryResult(Vec<LogRecordDto>),
+    //QueryEntryResult(Vec<Entry<crate::raft::store::ClientRequest>>),
     WriteResult(LogWriteResult),
     LastLogIndex(LogIndexInfo),
 }
@@ -687,8 +708,8 @@ impl Handler<RaftLogRequest> for RaftLogActor {
                 Err(anyhow::anyhow!("RaftLogActor sender is empty"))
             }
         }
-        .into_actor(self)
-        .map(|r, _act, _ctx| r);
+            .into_actor(self)
+            .map(|r, _act, _ctx| r);
         Box::pin(fut)
     }
 }
@@ -706,8 +727,8 @@ impl Handler<RaftLogCmd> for RaftLogActor {
                 Err(anyhow::anyhow!("RaftLogActor sender is empty"))
             }
         }
-        .into_actor(self)
-        .map(|r, _act, _ctx| r);
+            .into_actor(self)
+            .map(|r, _act, _ctx| r);
         Box::pin(fut)
     }
 
@@ -751,8 +772,8 @@ pub struct RaftLogManager {
     index_manager: Option<Addr<RaftIndexManager>>,
     //log_cache: BTreeMap<u64, Entry<ClientRequest>>,
     last_ready_to_load_time:u64,
-    last_ready_to_load_index:u64,
-    last_split_index:u64,
+    pre_ready_snapshot_pointer: Option<LogRecordDto>,
+    last_ready_snapshot_pointer: Option<LogRecordDto>,
 }
 
 impl RaftLogManager {
@@ -766,8 +787,8 @@ impl RaftLogManager {
             index_manager: None,
             //log_cache: BTreeMap::default(),
             last_ready_to_load_time: 0,
-            last_split_index: 1,
-            last_ready_to_load_index: u64::MAX,
+            pre_ready_snapshot_pointer: None,
+            last_ready_snapshot_pointer: None,
         }
     }
     fn init(&mut self, ctx: &mut Context<Self>) {
@@ -788,21 +809,21 @@ impl RaftLogManager {
                 ))
             }
         }
-        .into_actor(self)
-        .map(|v, act, ctx| {
-            if let Ok(RaftIndexResponse::RaftIndexInfo {
-                raft_index,
-                last_applied_log,
-            }) = v
-            {
-                act.index_info = Some(raft_index);
-                act.last_applied_log = last_applied_log;
-                act.build_log_actor(ctx);
-            } else {
-                log::error!("load_index_info is error");
-            }
-        })
-        .wait(ctx);
+            .into_actor(self)
+            .map(|v, act, ctx| {
+                if let Ok(RaftIndexResponse::RaftIndexInfo {
+                              raft_index,
+                              last_applied_log,
+                          }) = v
+                {
+                    act.index_info = Some(raft_index);
+                    act.last_applied_log = last_applied_log;
+                    act.build_log_actor(ctx);
+                } else {
+                    log::error!("load_index_info is error");
+                }
+            })
+            .wait(ctx);
     }
 
     fn build_log_actor(&mut self, ctx: &mut Context<Self>) {
@@ -913,13 +934,14 @@ impl RaftLogManager {
                 last_log.log_range.record_count = next_index - last_log.log_range.start_index;
                 last_log.log_range.id + 1
             } else {
-                0
+                1
             }
         };
         let new_log_range = LogRange {
             id: next_log_id,
             pre_term: last_term,
             start_index: next_index,
+            split_off_index: next_index,
             record_count: 0,
             is_close: false,
             mark_remove: false,
@@ -948,27 +970,27 @@ impl RaftLogManager {
             let r = log_actor.send(RaftLogRequest::Write(record)).await??;
             Ok((r, can_rewrite))
         }
-        .into_actor(self)
-        .map(|v: anyhow::Result<(RaftLogResponse, bool)>, act, ctx| {
-            if let Ok((v, can_rewrite)) = v {
-                match v {
-                    RaftLogResponse::WriteResult(write_result) => match write_result {
-                        LogWriteResult::SuccessToEnd(next_index, last_term) => {
-                            act.switch_new_log(ctx, next_index, last_term);
-                        }
-                        LogWriteResult::Failure(next_index, last_term, record) => {
-                            act.switch_new_log(ctx, next_index, last_term);
-                            if can_rewrite {
-                                act.write(ctx, record, false);
+            .into_actor(self)
+            .map(|v: anyhow::Result<(RaftLogResponse, bool)>, act, ctx| {
+                if let Ok((v, can_rewrite)) = v {
+                    match v {
+                        RaftLogResponse::WriteResult(write_result) => match write_result {
+                            LogWriteResult::SuccessToEnd(next_index, last_term) => {
+                                act.switch_new_log(ctx, next_index, last_term);
                             }
-                        }
+                            LogWriteResult::Failure(next_index, last_term, record) => {
+                                act.switch_new_log(ctx, next_index, last_term);
+                                if can_rewrite {
+                                    act.write(ctx, record, false);
+                                }
+                            }
+                            _ => {}
+                        },
                         _ => {}
-                    },
-                    _ => {}
+                    }
                 }
-            }
-        })
-        .wait(ctx);
+            })
+            .wait(ctx);
     }
 
     fn write_batch(
@@ -996,33 +1018,34 @@ impl RaftLogManager {
                 .await??;
             Ok(r)
         }
-        .into_actor(self)
-        .map(|v: anyhow::Result<RaftLogResponse>, act, ctx| {
-            if let Ok(v) = v {
-                match v {
-                    RaftLogResponse::WriteResult(write_result) => match write_result {
-                        LogWriteResult::SuccessToEnd(next_index, last_term) => {
-                            act.switch_new_log(ctx, next_index, last_term);
-                        }
-                        LogWriteResult::FailureBatch(
-                            next_index,
-                            last_term,
-                            records,
-                            record_index,
-                        ) => {
-                            act.switch_new_log(ctx, next_index, last_term);
-                            act.write_batch(ctx, records, record_index);
-                        }
+            .into_actor(self)
+            .map(|v: anyhow::Result<RaftLogResponse>, act, ctx| {
+                if let Ok(v) = v {
+                    match v {
+                        RaftLogResponse::WriteResult(write_result) => match write_result {
+                            LogWriteResult::SuccessToEnd(next_index, last_term) => {
+                                act.switch_new_log(ctx, next_index, last_term);
+                            }
+                            LogWriteResult::FailureBatch(
+                                next_index,
+                                last_term,
+                                records,
+                                record_index,
+                            ) => {
+                                act.switch_new_log(ctx, next_index, last_term);
+                                act.write_batch(ctx, records, record_index);
+                            }
+                            _ => {}
+                        },
                         _ => {}
-                    },
-                    _ => {}
+                    }
                 }
-            }
-        })
-        .wait(ctx);
+            })
+            .wait(ctx);
     }
 
     fn strip_log_to_index(&mut self, _ctx: &mut Context<Self>, end_index: u64) {
+        log::info!("strip_log_to_index end_index:{}",end_index);
         let mut pop_count = 0;
         for item in &mut self.logs {
             if end_index < item.get_log_range_end_index() {
@@ -1059,22 +1082,11 @@ impl RaftLogManager {
         }
     }
 
-    fn split_off(&mut self, _ctx: &mut Context<Self>, index: u64) {
-        if !self.after_ready_to_load() {
-            log::info!("split_off break; !after_ready_to_load");
-            return;
-        }
-        let start_index = if self.last_split_index < index {
-            let pre_index = self.last_split_index;
-            self.last_split_index = index;
-            pre_index
-        }
-        else{
-            index
-        };
+    fn split_off(&mut self, _ctx: &mut Context<Self>, split_off_index: u64) {
+        log::info!("split_off index:{}",split_off_index);
         let mut i = 0;
-        for item in &self.logs {
-            if start_index > item.get_log_range_end_index() {
+        for item in &mut self.logs {
+            if split_off_index >= item.get_log_range_end_index() {
                 if let Some(log_actor)= &item.log_actor {
                     log_actor.do_send(RaftLogCmd::Close);
                 }
@@ -1082,7 +1094,11 @@ impl RaftLogManager {
                 let path = Self::get_log_path(&self.base_path, &item.log_range);
                 std::fs::remove_file(path).ok();
                 i += 1;
-            } else {
+            } else if split_off_index > item.log_range.split_off_index {
+                item.log_range.split_off_index = split_off_index;
+                if let Some(log_actor) = &item.log_actor {
+                    log_actor.do_send(RaftLogRequest::SplitOff(split_off_index));
+                }
                 break;
             }
         }
@@ -1094,14 +1110,68 @@ impl RaftLogManager {
         }
     }
 
-    fn ready_to_load(&mut self, ctx: &mut Context<Self>, start_index: u64) {
-        self.last_ready_to_load_index = std::cmp::min(start_index,self.last_ready_to_load_index);
+    fn save_new_snapshot_pointer(&mut self, ctx: &mut Context<Self>, snapshot_pointer: LogRecordDto){
+        log::info!("save_new_snapshot_pointer ,{},{}",snapshot_pointer.index,snapshot_pointer.term);
+        self.split_off(ctx, snapshot_pointer.index+1);
+        if self.logs.is_empty(){
+            self.write(ctx, snapshot_pointer, true);
+        }
+        else{
+            let pre_log_id = {
+                if let Some(first_log) = self.logs.first_mut() {
+                    first_log.log_range.id - 1
+                } else {
+                    0
+                }
+            };
+            let pointer_log_range = LogRange {
+                id: pre_log_id,
+                pre_term: snapshot_pointer.term,
+                start_index: snapshot_pointer.index,
+                split_off_index: snapshot_pointer.index,
+                record_count: 1,
+                is_close: true,
+                mark_remove: false,
+            };
+            let mut save_logs: Vec<LogRange> = self.logs.iter().map(|e| e.log_range.clone()).collect();
+            save_logs.insert(0, pointer_log_range.clone());
+            let index_request = RaftIndexRequest::SaveLogs(save_logs);
+            self.index_manager.as_ref().unwrap().do_send(index_request);
+            let log_actor_addr = Self::create_log_actor(&self.base_path, &pointer_log_range);
+            log_actor_addr.do_send(RaftLogRequest::Write(snapshot_pointer));
+            self.logs.insert(0,LogRangeWrap {
+                log_range: pointer_log_range,
+                log_actor: Some(log_actor_addr),
+            });
+        }
+    }
+
+    ///
+    /// 保险起见先保留最后两个snapshot对应的日志信息;
+    ///
+    fn begin_ready_to_load(&mut self, ctx: &mut Context<Self>, snapshot_pointer: LogRecordDto) {
+        log::info!("begin_ready_to_load ,{},{}",snapshot_pointer.index,snapshot_pointer.term);
+        if let Some(pre_pointer) = self.pre_ready_snapshot_pointer.take() {
+            self.last_ready_snapshot_pointer = Some(pre_pointer);
+            self.pre_ready_snapshot_pointer = Some(snapshot_pointer);
+        }
+        else{
+            self.pre_ready_snapshot_pointer = Some(snapshot_pointer);
+        }
+        if let Some(snapshot_pointer) = self.last_ready_snapshot_pointer.take() {
+            self.save_new_snapshot_pointer(ctx, snapshot_pointer);
+        }
+        /*
+        //延时触发
         self.last_ready_to_load_time = now_millis();
         ctx.run_later( Duration::from_millis(READY_TO_LOAD_TIME_OUT),|act,ctx|{
             if act.after_ready_to_load() {
-                act.split_off(ctx, act.last_ready_to_load_index);
+                if let Some(snapshot_pointer) = act.last_ready_snapshot_pointer.take() {
+                    act.save_new_snapshot_pointer(ctx, snapshot_pointer);
+                }
             }
         });
+         */
     }
 
     fn after_ready_to_load(&self) -> bool {
@@ -1139,7 +1209,7 @@ impl RaftLogManager {
 
     fn create_log_actor(base_path: &str, log_range: &LogRange) -> Addr<RaftLogActor> {
         let log_path = Self::get_log_path(base_path, log_range);
-        RaftLogActor::new(log_path, log_range.start_index, log_range.pre_term).start()
+        RaftLogActor::new(log_path, log_range.start_index, log_range.pre_term,log_range.split_off_index).start()
     }
 }
 
@@ -1164,7 +1234,9 @@ pub enum RaftLogManagerRequest {
     StripLogToIndex(u64),
     SplitOff(u64),
     //加载snapshot后
-    ReadyToLoad(u64),
+    BuildSnapshotPointerLog(LogRecordDto),
+    InstallSnapshotPointerLog(LogRecordDto),
+    //ReadyToLoad(u64),
 }
 
 #[derive(Message)]
@@ -1230,8 +1302,12 @@ impl Handler<RaftLogManagerRequest> for RaftLogManager {
                 self.split_off(ctx, start_index);
                 Ok(RaftLogResponse::None)
             }
-            RaftLogManagerRequest::ReadyToLoad(start_index)=> {
-                self.ready_to_load(ctx,start_index);
+            RaftLogManagerRequest::BuildSnapshotPointerLog(snapshot_pointer)=> {
+                self.begin_ready_to_load(ctx,snapshot_pointer);
+                Ok(RaftLogResponse::None)
+            }
+            RaftLogManagerRequest::InstallSnapshotPointerLog(snapshot_pointer)=> {
+                self.save_new_snapshot_pointer(ctx,snapshot_pointer);
                 Ok(RaftLogResponse::None)
             }
         }
@@ -1300,8 +1376,8 @@ impl Handler<RaftLogManagerAsyncRequest> for RaftLogManager {
                 }
             }
         }
-        .into_actor(self)
-        .map(|r, _act, _ctx| r);
+            .into_actor(self)
+            .map(|r, _act, _ctx| r);
         Box::pin(fut)
     }
 }

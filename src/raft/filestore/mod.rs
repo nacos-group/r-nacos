@@ -10,6 +10,7 @@ pub mod raftindex;
 pub mod raftlog;
 pub mod raftsnapshot;
 pub mod raftapply;
+pub mod core;
 
 pub struct StoreUtils;
 
@@ -29,10 +30,7 @@ impl StoreUtils {
         let record = LogRecordDto {
             index: entry.index,
             term: entry.term,
-            tree: "".to_owned(),
-            key: vec![],
             value,
-            op_type: 0,
         };
         Ok(record)
     }

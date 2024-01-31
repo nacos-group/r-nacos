@@ -19,10 +19,7 @@ use super::*;
 pub struct LogRecord<'a> {
     pub index: u64,
     pub term: u64,
-    pub tree: Cow<'a, str>,
-    pub key: Cow<'a, [u8]>,
     pub value: Cow<'a, [u8]>,
-    pub op_type: u32,
 }
 
 impl<'a> MessageRead<'a> for LogRecord<'a> {
@@ -32,10 +29,7 @@ impl<'a> MessageRead<'a> for LogRecord<'a> {
             match r.next_tag(bytes) {
                 Ok(8) => msg.index = r.read_uint64(bytes)?,
                 Ok(16) => msg.term = r.read_uint64(bytes)?,
-                Ok(26) => msg.tree = r.read_string(bytes).map(Cow::Borrowed)?,
-                Ok(34) => msg.key = r.read_bytes(bytes).map(Cow::Borrowed)?,
                 Ok(42) => msg.value = r.read_bytes(bytes).map(Cow::Borrowed)?,
-                Ok(48) => msg.op_type = r.read_uint32(bytes)?,
                 Ok(t) => { r.read_unknown(bytes, t)?; }
                 Err(e) => return Err(e),
             }
@@ -49,19 +43,13 @@ impl<'a> MessageWrite for LogRecord<'a> {
         0
         + if self.index == 0u64 { 0 } else { 1 + sizeof_varint(*(&self.index) as u64) }
         + if self.term == 0u64 { 0 } else { 1 + sizeof_varint(*(&self.term) as u64) }
-        + if self.tree == "" { 0 } else { 1 + sizeof_len((&self.tree).len()) }
-        + if self.key == Cow::Borrowed(b"") { 0 } else { 1 + sizeof_len((&self.key).len()) }
         + if self.value == Cow::Borrowed(b"") { 0 } else { 1 + sizeof_len((&self.value).len()) }
-        + if self.op_type == 0u32 { 0 } else { 1 + sizeof_varint(*(&self.op_type) as u64) }
     }
 
     fn write_message<W: WriterBackend>(&self, w: &mut Writer<W>) -> Result<()> {
         if self.index != 0u64 { w.write_with_tag(8, |w| w.write_uint64(*&self.index))?; }
         if self.term != 0u64 { w.write_with_tag(16, |w| w.write_uint64(*&self.term))?; }
-        if self.tree != "" { w.write_with_tag(26, |w| w.write_string(&**&self.tree))?; }
-        if self.key != Cow::Borrowed(b"") { w.write_with_tag(34, |w| w.write_bytes(&**&self.key))?; }
         if self.value != Cow::Borrowed(b"") { w.write_with_tag(42, |w| w.write_bytes(&**&self.value))?; }
-        if self.op_type != 0u32 { w.write_with_tag(48, |w| w.write_uint32(*&self.op_type))?; }
         Ok(())
     }
 }
@@ -169,6 +157,7 @@ pub struct LogRange {
     pub pre_term: u64,
     pub start_index: u64,
     pub record_count: u64,
+    pub split_off_index: u64,
     pub is_close: bool,
     pub mark_remove: bool,
 }
@@ -182,8 +171,9 @@ impl<'a> MessageRead<'a> for LogRange {
                 Ok(16) => msg.pre_term = r.read_uint64(bytes)?,
                 Ok(24) => msg.start_index = r.read_uint64(bytes)?,
                 Ok(32) => msg.record_count = r.read_uint64(bytes)?,
-                Ok(40) => msg.is_close = r.read_bool(bytes)?,
-                Ok(48) => msg.mark_remove = r.read_bool(bytes)?,
+                Ok(40) => msg.split_off_index = r.read_uint64(bytes)?,
+                Ok(48) => msg.is_close = r.read_bool(bytes)?,
+                Ok(56) => msg.mark_remove = r.read_bool(bytes)?,
                 Ok(t) => { r.read_unknown(bytes, t)?; }
                 Err(e) => return Err(e),
             }
@@ -199,6 +189,7 @@ impl MessageWrite for LogRange {
         + if self.pre_term == 0u64 { 0 } else { 1 + sizeof_varint(*(&self.pre_term) as u64) }
         + if self.start_index == 0u64 { 0 } else { 1 + sizeof_varint(*(&self.start_index) as u64) }
         + if self.record_count == 0u64 { 0 } else { 1 + sizeof_varint(*(&self.record_count) as u64) }
+        + if self.split_off_index == 0u64 { 0 } else { 1 + sizeof_varint(*(&self.split_off_index) as u64) }
         + if self.is_close == false { 0 } else { 1 + sizeof_varint(*(&self.is_close) as u64) }
         + if self.mark_remove == false { 0 } else { 1 + sizeof_varint(*(&self.mark_remove) as u64) }
     }
@@ -208,8 +199,9 @@ impl MessageWrite for LogRange {
         if self.pre_term != 0u64 { w.write_with_tag(16, |w| w.write_uint64(*&self.pre_term))?; }
         if self.start_index != 0u64 { w.write_with_tag(24, |w| w.write_uint64(*&self.start_index))?; }
         if self.record_count != 0u64 { w.write_with_tag(32, |w| w.write_uint64(*&self.record_count))?; }
-        if self.is_close != false { w.write_with_tag(40, |w| w.write_bool(*&self.is_close))?; }
-        if self.mark_remove != false { w.write_with_tag(48, |w| w.write_bool(*&self.mark_remove))?; }
+        if self.split_off_index != 0u64 { w.write_with_tag(40, |w| w.write_uint64(*&self.split_off_index))?; }
+        if self.is_close != false { w.write_with_tag(48, |w| w.write_bool(*&self.is_close))?; }
+        if self.mark_remove != false { w.write_with_tag(56, |w| w.write_bool(*&self.mark_remove))?; }
         Ok(())
     }
 }

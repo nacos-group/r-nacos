@@ -167,11 +167,11 @@ impl RaftIndexManager {
             }
             inner
         }
-        .into_actor(self)
-        .map(|v, act, _ctx| {
-            act.inner = v;
-        })
-        .wait(ctx);
+            .into_actor(self)
+            .map(|v, act, _ctx| {
+                act.inner = v;
+            })
+            .wait(ctx);
         Ok(RaftIndexResponse::None)
     }
 
@@ -195,11 +195,11 @@ impl RaftIndexManager {
             }
             inner
         }
-        .into_actor(self)
-        .map(|v, act, _ctx| {
-            act.inner = v;
-        })
-        .wait(ctx);
+            .into_actor(self)
+            .map(|v, act, _ctx| {
+                act.inner = v;
+            })
+            .wait(ctx);
         Ok(RaftIndexResponse::None)
     }
 
@@ -392,6 +392,7 @@ impl Handler<RaftIndexRequest> for RaftIndexManager {
                         node_addrs: inner.raft_index.node_addrs.clone(),
                     })
                 } else {
+                    log::warn!("RaftIndexRequest::LoadMember is empty!");
                     Ok(RaftIndexResponse::None)
                 }
             }

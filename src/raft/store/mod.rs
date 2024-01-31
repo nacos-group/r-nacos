@@ -36,7 +36,7 @@ pub enum ClientRequest {
 
 impl AppData for ClientRequest {}
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct ClientResponse {
     pub value: Option<Arc<String>>,
 }

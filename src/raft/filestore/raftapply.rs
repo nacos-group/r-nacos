@@ -196,6 +196,7 @@ impl StateApplyManager {
 
     fn apply_request_to_state_machine(&mut self, request: ApplyRequestDto) -> anyhow::Result<()> {
         self.last_applied_log = request.index;
+        //todo
         match request.request {
             _ => {}
         };
@@ -207,59 +208,13 @@ impl StateApplyManager {
         Ok(())
     }
 
-    /*
-    fn apply_entry_to_state_machine(
-        &mut self,
-        entries: Vec<Entry<ClientRequest>>,
-    ) {
-        if entries.is_empty() || self.index_manager.is_none() {
-            return;
-        }
-        let index_manager = self.index_manager.as_ref().unwrap();
-        self.last_applied_log = entries.last().unwrap().index;
-        for entry in entries {
-            match entry.payload {
-                EntryPayload::Normal(normal) => {
-                    match normal.data {
-                        ClientRequest::Set { key, value } => {
-                            if let Some(data_store) = &self.data_store {
-                                data_store.do_send(RaftDataStoreRequest::Set {
-                                    key,
-                                    value,
-                                });
-                            }
-                        }
-                        ClientRequest::NodeAddr { id, addr } => {
-                            index_manager.do_send(
-                                RaftIndexRequest::AddNodeAddr(id, addr),
-                            );
-                        }
-                    };
-                }
-                EntryPayload::ConfigChange(config_change) => {
-                    index_manager.do_send(RaftIndexRequest::SaveMember {
-                        member: config_change.membership.members.into_iter().collect(),
-                        member_after_consensus: config_change
-                            .membership
-                            .members_after_consensus
-                            .map(|l|l.into_iter().collect()),
-                        node_addr: None,
-                    });
-                }
-                _ => {}
-            }
-        }
-        index_manager.do_send(RaftIndexRequest::SaveLastAppliedLog(self.last_applied_log));
-    }
-    */
-
     async fn do_build_snapshot(
         log_manager: Addr<RaftLogManager>,
         index_manager: Addr<RaftIndexManager>,
         snapshot_manager: Addr<RaftSnapshotManager>,
         //data_store: Addr<RaftDataStore>,
         last_index: u64,
-    ) -> anyhow::Result<(SnapshotHeaderDto, Arc<String>)> {
+    ) -> anyhow::Result<(SnapshotHeaderDto, Arc<String>, u64)> {
         //1. get last applied log
         let last_log = match log_manager
             .send(RaftLogManagerAsyncRequest::Query {
@@ -281,7 +236,7 @@ impl StateApplyManager {
             RaftIndexResponse::MemberShip {
                 member,
                 member_after_consensus,
-                node_addrs 
+                node_addrs
             } => MemberShip {
                 member,
                 member_after_consensus,
@@ -291,7 +246,7 @@ impl StateApplyManager {
         };
         //3. build writer
         let header = SnapshotHeaderDto {
-            last_index: last_log.index,
+            last_index,
             last_term: last_log.term,
             member: member_ship.member,
             member_after_consensus: member_ship.member_after_consensus,
@@ -323,9 +278,8 @@ impl StateApplyManager {
         snapshot_manager
             .send(RaftSnapshotRequest::CompleteSnapshot(snapshot_range))
             .await??;
-        log_manager.do_send(RaftLogManagerRequest::SplitOff(last_index));
-
-        Ok((header, path))
+        //log_manager.do_send(RaftLogManagerRequest::SplitOff(last_index));
+        Ok((header, path, snapshot_id))
     }
 }
 
@@ -373,7 +327,7 @@ pub enum StateApplyAsyncRequest {
 
 pub enum StateApplyResponse {
     None,
-    Snapshot(SnapshotHeaderDto, Arc<String>),
+    Snapshot(SnapshotHeaderDto, Arc<String>,u64),
     LastAppliedLog(u64),
 }
 
@@ -413,7 +367,7 @@ impl Handler<StateApplyAsyncRequest> for StateApplyManager {
         //let data_store = self.data_store.clone().unwrap();
         let last_index = self.last_applied_log;
         let fut = async move {
-            let (header, path) = match msg {
+            let (header, path,snapshot_id) = match msg {
                 StateApplyAsyncRequest::BuildSnapshot => {
                     Self::do_build_snapshot(
                         log_manager,
@@ -425,7 +379,7 @@ impl Handler<StateApplyAsyncRequest> for StateApplyManager {
                     .await?
                 }
             };
-            Ok(StateApplyResponse::Snapshot(header, path))
+            Ok(StateApplyResponse::Snapshot(header, path, snapshot_id))
         }
         .into_actor(self)
         .map(|r, act, ctx| r);

@@ -69,10 +69,10 @@ impl Default for LogIndexHeaderDo {
 pub struct LogRecordDto {
     pub index: u64,
     pub term: u64,
-    pub tree: String,
-    pub key: Vec<u8>,
+    //pub tree: String,
+    //pub key: Vec<u8>,
     pub value: Vec<u8>,
-    pub op_type: u32,
+    //pub op_type: u32,
 }
 
 //unsafe impl Send for LogRecordDto {}
@@ -83,10 +83,10 @@ impl LogRecordDto {
         LogRecord {
             index: self.index,
             term: self.term,
-            tree: Cow::Borrowed(&self.tree),
-            key: Cow::Borrowed(&self.key),
+            //tree: Cow::Borrowed(&self.tree),
+            //key: Cow::Borrowed(&self.key),
             value: Cow::Borrowed(&self.value),
-            op_type: self.op_type,
+            //op_type: self.op_type,
         }
     }
 }
@@ -96,10 +96,10 @@ impl<'a> From<LogRecord<'a>> for LogRecordDto {
         Self {
             index: value.index,
             term: value.term,
-            tree: value.tree.to_string(),
-            key: value.key.to_vec(),
+            //tree: value.tree.to_string(),
+            //key: value.key.to_vec(),
             value: value.value.to_vec(),
-            op_type: value.op_type,
+            //op_type: value.op_type,
         }
     }
 }
