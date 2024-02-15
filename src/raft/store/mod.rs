@@ -22,6 +22,7 @@ pub enum ClientRequest {
         id: u64,
         addr: Arc<String>,
     },
+    Members(Vec<u64>),
     ConfigSet {
         key: String,
         value: Arc<String>,
@@ -36,9 +37,16 @@ pub enum ClientRequest {
 
 impl AppData for ClientRequest {}
 
-#[derive(Serialize, Deserialize, Debug, Clone, Default)]
-pub struct ClientResponse {
-    pub value: Option<Arc<String>>,
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum ClientResponse {
+    Success,
+    Fail,
+}
+
+impl Default for ClientResponse {
+    fn default() -> Self {
+       Self::Success
+    }
 }
 
 impl AppDataResponse for ClientResponse {}

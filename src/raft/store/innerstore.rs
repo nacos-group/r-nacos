@@ -422,6 +422,9 @@ impl InnerStore {
                         ClientRequest::TableManagerReq(table_cmd) => {
                             self.do_send_to_table(table_cmd);
                         }
+                        ClientRequest::Members(member)=> {
+
+                        }
                     }
                 }
                 EntryPayload::ConfigChange(config_change) => {

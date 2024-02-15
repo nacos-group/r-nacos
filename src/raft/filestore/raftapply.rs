@@ -4,6 +4,10 @@ use actix::prelude::*;
 use async_raft_ext as async_raft;
 use async_raft::raft::{EntryPayload};
 use bean_factory::{bean, Inject};
+use crate::config::model::ConfigRaftCmd;
+use crate::naming::cluster::node_manage::{InnerNodeManage, NodeManageRequest};
+use crate::raft::filestore::raftdata::RaftDataWrap;
+use crate::raft::store::{ClientRequest, ClientResponse};
 
 use super::{
     model::{LogRecordLoader, MemberShip, SnapshotHeaderDto, ApplyRequestDto},
@@ -42,6 +46,7 @@ pub struct StateApplyManager {
     snapshot_manager: Option<Addr<RaftSnapshotManager>>,
     log_manager: Option<Addr<RaftLogManager>>,
     //data_store: Option<Addr<RaftDataStore>>,
+    data_wrap: Option<Arc<RaftDataWrap>>,
     snapshot_next_index: u64,
     last_applied_log: u64,
     last_snapshot_path: Option<Arc<String>>,
@@ -55,6 +60,7 @@ impl StateApplyManager {
             snapshot_manager: None,
             log_manager: None,
             //data_store: None,
+            data_wrap: None,
             snapshot_next_index: 1,
             last_applied_log: 0,
             last_snapshot_path: None,
@@ -198,7 +204,43 @@ impl StateApplyManager {
         self.last_applied_log = request.index;
         //todo
         match request.request {
-            _ => {}
+            ClientRequest::NodeAddr { id,addr } => {
+                if let Some(index_manager) = &self.index_manager {
+                    index_manager
+                        .do_send(RaftIndexRequest::AddNodeAddr(id, addr));
+                }
+            }
+            ClientRequest::Members(member) => {
+                if let Some(index_manager) = &self.index_manager {
+                    index_manager
+                        .do_send(RaftIndexRequest::SaveMember { member:member.clone(), member_after_consensus:None, node_addr:None });
+                }
+            }
+            ClientRequest::ConfigSet {  key,
+                value,
+                history_id,
+                history_table_id } => {
+                if let Some(raft_data_wrap) = &self.data_wrap {
+                    let cmd = ConfigRaftCmd::ConfigAdd {
+                        key,
+                        value,
+                        history_id,
+                        history_table_id,
+                    };
+                    raft_data_wrap.config.do_send(cmd);
+                }
+            }
+            ClientRequest::ConfigRemove { key } => {
+                if let Some(raft_data_wrap) = &self.data_wrap {
+                    let cmd = ConfigRaftCmd::ConfigRemove { key };
+                    raft_data_wrap.config.do_send(cmd);
+                }
+            }
+            ClientRequest::TableManagerReq(req) => {
+                if let Some(raft_data_wrap) = &self.data_wrap {
+                    raft_data_wrap.table.do_send(req);
+                }
+            }
         };
         if let Some(index_manager) = &self.index_manager {
             index_manager.do_send(super::raftindex::RaftIndexRequest::SaveLastAppliedLog(
@@ -206,6 +248,46 @@ impl StateApplyManager {
             ));
         }
         Ok(())
+    }
+
+    async fn async_apply_request_to_state_machine(request: ApplyRequestDto,raft_data_wrap: &RaftDataWrap,index_manager:Addr<RaftIndexManager>) -> anyhow::Result<ClientResponse> {
+        let last_applied_log = request.index;
+        let r = match request.request {
+            ClientRequest::NodeAddr{id,addr}  => {
+                index_manager
+                    .do_send(RaftIndexRequest::AddNodeAddr(id, addr));
+                Ok(ClientResponse::Success)
+            },
+            ClientRequest::Members(member) => {
+                index_manager
+                    .do_send(RaftIndexRequest::SaveMember { member:member.clone(), member_after_consensus:None, node_addr:None });
+                Ok(ClientResponse::Success)
+            }
+            ClientRequest::ConfigSet {  key,
+                value,
+                history_id,
+                history_table_id,} => {
+                let cmd = ConfigRaftCmd::ConfigAdd {
+                    key,
+                    value,
+                    history_id,
+                    history_table_id,
+                };
+                raft_data_wrap.config.send(cmd).await??;
+                Ok(ClientResponse::Success)
+            }
+            ClientRequest::ConfigRemove { key } => {
+                let cmd = ConfigRaftCmd::ConfigRemove { key };
+                raft_data_wrap.config.send(cmd).await??;
+                Ok(ClientResponse::Success)
+            }
+            ClientRequest::TableManagerReq(req) => {
+                raft_data_wrap.table.send(req).await??;
+                Ok(ClientResponse::Success)
+            }
+        };
+        index_manager.do_send(RaftIndexRequest::SaveLastAppliedLog(last_applied_log,));
+        r
     }
 
     async fn do_build_snapshot(
@@ -303,6 +385,7 @@ impl Inject for StateApplyManager {
         self.index_manager = factory_data.get_actor();
         self.snapshot_manager = factory_data.get_actor();
         self.log_manager = factory_data.get_actor();
+        self.data_wrap = factory_data.get_bean();
         //self.data_store = factory_data.get_actor();
 
         self.init(ctx);
@@ -314,7 +397,6 @@ impl Inject for StateApplyManager {
 pub enum StateApplyRequest {
     GetLastAppliedLog,
     //ApplyEntries(Vec<Entry<ClientRequest>>),
-    ApplyRequest(ApplyRequestDto),
     ApplyBatchRequest(Vec<ApplyRequestDto>),
     ApplySnapshot { snapshot: Box<tokio::fs::File> },
 }
@@ -323,12 +405,14 @@ pub enum StateApplyRequest {
 #[rtype(result = "anyhow::Result<StateApplyResponse>")]
 pub enum StateApplyAsyncRequest {
     BuildSnapshot,
+    ApplyRequest(ApplyRequestDto),
 }
 
 pub enum StateApplyResponse {
     None,
     Snapshot(SnapshotHeaderDto, Arc<String>,u64),
     LastAppliedLog(u64),
+    RaftResponse(ClientResponse),
 }
 
 impl Handler<StateApplyRequest> for StateApplyManager {
@@ -336,10 +420,12 @@ impl Handler<StateApplyRequest> for StateApplyManager {
 
     fn handle(&mut self, msg: StateApplyRequest, ctx: &mut Self::Context) -> Self::Result {
         match msg {
+            /*
             StateApplyRequest::ApplyRequest(request) => {
                 self.apply_request_to_state_machine(request)?;
                 Ok(StateApplyResponse::None)
             }
+             */
             StateApplyRequest::ApplyBatchRequest(requests) => {
                 for request in requests.into_iter() {
                     self.apply_request_to_state_machine(request)?;
@@ -364,22 +450,27 @@ impl Handler<StateApplyAsyncRequest> for StateApplyManager {
         let log_manager = self.log_manager.clone().unwrap();
         let index_manager = self.index_manager.clone().unwrap();
         let snapshot_manager = self.snapshot_manager.clone().unwrap();
+        let data_wrap = self.data_wrap.clone().unwrap();
         //let data_store = self.data_store.clone().unwrap();
         let last_index = self.last_applied_log;
         let fut = async move {
-            let (header, path,snapshot_id) = match msg {
+            match msg {
                 StateApplyAsyncRequest::BuildSnapshot => {
-                    Self::do_build_snapshot(
+                    let (header, path, snapshot_id) = Self::do_build_snapshot(
                         log_manager,
                         index_manager,
                         snapshot_manager,
                         //data_store,
                         last_index,
                     )
-                    .await?
+                        .await?;
+                    Ok(StateApplyResponse::Snapshot(header, path, snapshot_id))
+                },
+                StateApplyAsyncRequest::ApplyRequest(req) => {
+                    let resp = Self::async_apply_request_to_state_machine(req,&data_wrap,index_manager).await?;
+                    Ok(StateApplyResponse::RaftResponse(resp))
                 }
-            };
-            Ok(StateApplyResponse::Snapshot(header, path, snapshot_id))
+            }
         }
         .into_actor(self)
         .map(|r, act, ctx| r);

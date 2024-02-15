@@ -232,10 +232,16 @@ impl RaftStorage<ClientRequest, ClientResponse> for FileStore {
         index: &u64,
         data: &ClientRequest,
     ) -> anyhow::Result<ClientResponse> {
-        self.apply_manager
-            .send(StateApplyRequest::ApplyRequest(ApplyRequestDto::new(*index,data.clone())))
-            .await??;
-        Ok(ClientResponse::default())
+        match self.apply_manager
+            .send(StateApplyAsyncRequest::ApplyRequest(ApplyRequestDto::new(*index,data.clone())))
+            .await?? {
+            StateApplyResponse::RaftResponse(resp) => {
+                Ok(resp)
+            }
+            _ => {
+                Err(anyhow::anyhow!("apply_entry_to_state_machine response is error"))
+            }
+        }
     }
 
     async fn replicate_to_state_machine(
