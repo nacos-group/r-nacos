@@ -21,8 +21,11 @@ use super::config_sled::{Config, ConfigDB};
 use super::config_subscribe::Subscriber;
 use super::dal::ConfigHistoryParam;
 use crate::config::config_index::{ConfigQueryParam, TenantIndex};
-use crate::config::model::{ConfigRaftCmd, ConfigRaftResult, HistoryItem};
+use crate::config::CONFIG_TREE_NAME;
+use crate::config::model::{ConfigRaftCmd, ConfigRaftResult, ConfigValueDO, HistoryItem};
 use crate::now_millis_i64;
+use crate::raft::filestore::model::SnapshotRecordDto;
+use crate::raft::filestore::raftsnapshot::{SnapshotWriterActor, SnapshotWriterRequest};
 
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]
 pub struct ConfigKey {
@@ -76,6 +79,7 @@ impl From<&str> for ConfigKey {
 //     }
 // }
 
+#[derive(Clone)]
 pub struct ConfigValue {
     pub(crate) content: Arc<String>,
     pub(crate) md5: Arc<String>,
@@ -513,6 +517,23 @@ impl ConfigActor {
         (0,vec![])
     }
 
+    ///
+    /// 将配置中心数据写入 raft snapshot文件中
+    ///
+    fn build_snapshot(&self, writer: Addr<SnapshotWriterActor>) -> anyhow::Result<()> {
+        for (key, value) in &self.cache {
+            let value_db : ConfigValueDO =  value.clone().into();
+            let record = SnapshotRecordDto {
+                tree: CONFIG_TREE_NAME.clone(),
+                key: key.build_key().as_bytes().to_vec(),
+                value: value_db.to_bytes()?,
+                op_type: 0,
+            };
+            writer.do_send(SnapshotWriterRequest::Record(record));
+        }
+        Ok(())
+    }
+
     pub fn hb(&self, ctx: &mut actix::Context<Self>) {
         ctx.run_later(Duration::from_millis(500), |act, ctx| {
             act.listener.timeout();
@@ -527,7 +548,7 @@ pub enum ConfigCmd {
     //ADD(ConfigKey, Arc<String>),
     //DELETE(ConfigKey),
     SetTmpValue(ConfigKey, Arc<String>),
-    InnerSet(ConfigKey,Arc<String>),
+    InnerSet(ConfigKey,ConfigValue),
     GET(ConfigKey),
     QueryPageInfo(Box<ConfigQueryParam>),
     QueryHistoryPageInfo(Box<ConfigHistoryParam>),
@@ -535,6 +556,7 @@ pub enum ConfigCmd {
     Subscribe(Vec<ListenerItem>, Arc<String>),
     RemoveSubscribe(Vec<ListenerItem>, Arc<String>),
     RemoveSubscribeClient(Arc<String>),
+    BuildSnapshot(Addr<SnapshotWriterActor>),
 }
 
 #[derive(Message)]
@@ -576,6 +598,7 @@ impl Handler<ConfigCmd> for ConfigActor {
                 self.set_tmp_config(key, value);
             },
             ConfigCmd::InnerSet(key,value) => {
+                self.cache.insert(key,value);
             }
             ConfigCmd::GET(key) => {
                 if let Some(v) = self.cache.get(&key) {
@@ -630,6 +653,9 @@ impl Handler<ConfigCmd> for ConfigActor {
             ConfigCmd::QueryHistoryPageInfo(query_param) => {
                 let (size, list) = self.get_history_info_page(query_param.as_ref());
                 return Ok(ConfigResult::ConfigHistoryInfoPage(size, list));
+            }
+            ConfigCmd::BuildSnapshot(writer) => {
+                self.build_snapshot(writer).ok();
             }
         }
         Ok(ConfigResult::NULL)

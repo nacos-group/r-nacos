@@ -4,8 +4,9 @@ use actix::prelude::*;
 use async_raft_ext as async_raft;
 use async_raft::raft::{EntryPayload};
 use bean_factory::{bean, Inject};
+use crate::config::CONFIG_TREE_NAME;
 use crate::config::core::{ConfigCmd, ConfigKey};
-use crate::config::model::ConfigRaftCmd;
+use crate::config::model::{ConfigRaftCmd, ConfigValueDO};
 use crate::naming::cluster::node_manage::{InnerNodeManage, NodeManageRequest};
 use crate::raft::filestore::raftdata::RaftDataWrap;
 use crate::raft::store::{ClientRequest, ClientResponse};
@@ -199,10 +200,10 @@ impl StateApplyManager {
         mut reader: SnapshotReader,
     ) -> anyhow::Result<()> {
         while let Ok(Some(record)) = reader.read_record().await {
-            if record.tree.as_str() == "CONFIG" {
+            if record.tree.as_str() == CONFIG_TREE_NAME.as_str() {
                 let config_key =ConfigKey::from(&String::from_utf8(record.key)? as &str);
-                let value = Arc::new(String::from_utf8(record.value)?);
-                data_wrap.config.send(ConfigCmd::InnerSet(config_key,value)).await??;
+                let value_do = ConfigValueDO::from_bytes(&record.value)?;
+                data_wrap.config.send(ConfigCmd::InnerSet(config_key,value_do.into())).await??;
             }
         }
         Ok(())
@@ -330,7 +331,7 @@ impl StateApplyManager {
         log_manager: Addr<RaftLogManager>,
         index_manager: Addr<RaftIndexManager>,
         snapshot_manager: Addr<RaftSnapshotManager>,
-        //data_store: Addr<RaftDataStore>,
+        data_wrap: Arc<RaftDataWrap>,
         last_index: u64,
     ) -> anyhow::Result<(SnapshotHeaderDto, Arc<String>, u64)> {
         //1. get last applied log
@@ -378,11 +379,9 @@ impl StateApplyManager {
             _ => return Err(anyhow::anyhow!("RaftSnapshotResponse is error")),
         };
         //4. write data
-        /*
-        data_store
-            .send(RaftDataStoreRequest::BuildSnapshot(writer.clone()))
+        data_wrap.config
+            .send(ConfigCmd::BuildSnapshot(writer.clone()))
             .await??;
-         */
 
         //5. flush to file
         writer
@@ -487,7 +486,6 @@ impl Handler<StateApplyAsyncRequest> for StateApplyManager {
         let index_manager = self.index_manager.clone().unwrap();
         let snapshot_manager = self.snapshot_manager.clone().unwrap();
         let data_wrap = self.data_wrap.clone().unwrap();
-        //let data_store = self.data_store.clone().unwrap();
         let last_index = self.last_applied_log;
         let fut = async move {
             match msg {
@@ -496,7 +494,7 @@ impl Handler<StateApplyAsyncRequest> for StateApplyManager {
                         log_manager,
                         index_manager,
                         snapshot_manager,
-                        //data_store,
+                        data_wrap,
                         last_index,
                     )
                         .await?;

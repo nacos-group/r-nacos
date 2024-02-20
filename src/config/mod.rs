@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 pub mod api;
 pub mod config_db;
 pub mod config_index;
@@ -11,6 +13,10 @@ pub mod utils;
 pub struct ConfigUtils;
 
 pub const DEFAULT_TENANT: &str = "public";
+
+lazy_static::lazy_static! {
+    pub static ref CONFIG_TREE_NAME: Arc<String> =  Arc::new("CONFIG".to_string());
+}
 
 impl ConfigUtils {
     pub fn default_tenant(val: String) -> String {
