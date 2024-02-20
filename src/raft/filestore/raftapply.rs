@@ -4,6 +4,7 @@ use actix::prelude::*;
 use async_raft_ext as async_raft;
 use async_raft::raft::{EntryPayload};
 use bean_factory::{bean, Inject};
+use crate::config::core::{ConfigCmd, ConfigKey};
 use crate::config::model::ConfigRaftCmd;
 use crate::naming::cluster::node_manage::{InnerNodeManage, NodeManageRequest};
 use crate::raft::filestore::raftdata::RaftDataWrap;
@@ -19,10 +20,17 @@ use super::{
 };
 
 pub struct LogRecordLoaderInstance {
-    //data_store: Addr<RaftDataStore>,
+    pub(crate) data_wrap: Arc<RaftDataWrap>,
+    pub(crate) index_manager: Addr<RaftIndexManager>,
 }
 
 impl LogRecordLoaderInstance {
+    fn new(data_wrap: Arc<RaftDataWrap>,index_manager: Addr<RaftIndexManager>) -> Self {
+        Self {
+            data_wrap,
+            index_manager,
+        }
+    }
 }
 
 impl LogRecordLoader for LogRecordLoaderInstance {
@@ -31,7 +39,32 @@ impl LogRecordLoader for LogRecordLoaderInstance {
         match entry.payload {
             EntryPayload::Normal(req) => {
                 match req.data {
-                    _ => {},
+                    ClientRequest::NodeAddr { id,addr } => {
+                        self.index_manager.do_send(RaftIndexRequest::AddNodeAddr(id,addr));
+                    }
+                    ClientRequest::Members(member) => {
+                        self.index_manager
+                            .do_send(RaftIndexRequest::SaveMember { member:member.clone(), member_after_consensus:None, node_addr:None });
+                    }
+                    ClientRequest::ConfigSet{  key,
+                        value,
+                        history_id,
+                        history_table_id,} => {
+                        let cmd = ConfigRaftCmd::ConfigAdd {
+                            key,
+                            value,
+                            history_id,
+                            history_table_id,
+                        };
+                        self.data_wrap.config.do_send(cmd);
+                    }
+                    ClientRequest::ConfigRemove { key } => {
+                        let cmd = ConfigRaftCmd::ConfigRemove { key };
+                        self.data_wrap.config.do_send(cmd);
+                    }
+                    ClientRequest::TableManagerReq(req) => {
+                        self.data_wrap.table.do_send(req);
+                    }
                 }
             },
             _ => {}
@@ -114,6 +147,7 @@ impl StateApplyManager {
         }
         let snapshot_manager = self.snapshot_manager.clone().unwrap();
         //let data_store = self.data_store.clone().unwrap();
+        let data_wrap = self.data_wrap.clone().unwrap();
         async move {
             if let RaftSnapshotResponse::LastSnapshot(Some(path), _) = snapshot_manager
                 .send(RaftSnapshotRequest::GetLastSnapshot)
@@ -121,7 +155,7 @@ impl StateApplyManager {
             {
                 let reader = SnapshotReader::init(&path).await?;
                 log::info!("load_snapshot header,{:?}",&reader.get_header());
-                //Self::do_load_snapshot(reader).await?;
+                Self::do_load_snapshot(data_wrap,reader).await?;
             }
             Ok(())
         }
@@ -161,14 +195,14 @@ impl StateApplyManager {
     }
 
     async fn do_load_snapshot(
-        //data_store: Addr<RaftDataStore>,
+        data_wrap: Arc<RaftDataWrap>,
         mut reader: SnapshotReader,
     ) -> anyhow::Result<()> {
         while let Ok(Some(record)) = reader.read_record().await {
-            if record.tree.as_str() == "KV" {
-                let key = Arc::new(String::from_utf8(record.key)?);
+            if record.tree.as_str() == "CONFIG" {
+                let config_key =ConfigKey::from(&String::from_utf8(record.key)? as &str);
                 let value = Arc::new(String::from_utf8(record.value)?);
-                //data_store.do_send(super::raftstore::RaftDataStoreRequest::Set { key, value });
+                data_wrap.config.send(ConfigCmd::InnerSet(config_key,value)).await??;
             }
         }
         Ok(())
@@ -176,15 +210,17 @@ impl StateApplyManager {
 
     fn load_log(&mut self, ctx: &mut Context<Self>) {
         if self.last_applied_log == 0 || self.log_manager.is_none() 
-        //|| self.data_store.is_none() 
+        || self.data_wrap.is_none()
         {
             return;
         }
         let start_index = self.snapshot_next_index;
         let end_index = self.last_applied_log + 1;
         let log_manager = self.log_manager.clone().unwrap();
+        let index_manager = self.index_manager.clone().unwrap();
+        let data_wrap = self.data_wrap.clone().unwrap();
         //let data_store = self.data_store.clone().unwrap();
-        let loader = Arc::new(LogRecordLoaderInstance{});
+        let loader = Arc::new(LogRecordLoaderInstance::new(data_wrap,index_manager));
         async move {
             log_manager
                 .send(RaftLogManagerRequest::Load {

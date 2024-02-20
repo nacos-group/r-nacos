@@ -17,11 +17,12 @@ use serde::{Deserialize, Serialize};
 
 use actix::prelude::*;
 
-use super::config_sled::ConfigDB;
+use super::config_sled::{Config, ConfigDB};
 use super::config_subscribe::Subscriber;
 use super::dal::ConfigHistoryParam;
 use crate::config::config_index::{ConfigQueryParam, TenantIndex};
-use crate::config::model::{ConfigRaftCmd, ConfigRaftResult};
+use crate::config::model::{ConfigRaftCmd, ConfigRaftResult, HistoryItem};
+use crate::now_millis_i64;
 
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]
 pub struct ConfigKey {
@@ -79,6 +80,7 @@ pub struct ConfigValue {
     pub(crate) content: Arc<String>,
     pub(crate) md5: Arc<String>,
     pub(crate) tmp: bool,
+    pub(crate) histories: Vec<HistoryItem>,
 }
 
 impl ConfigValue {
@@ -88,7 +90,38 @@ impl ConfigValue {
             content,
             md5: Arc::new(md5),
             tmp: false,
+            histories: vec![],
         }
+    }
+
+    pub fn init(content: Arc<String>,history_id:u64) -> Self {
+        let md5 = get_md5(&content);
+        Self {
+            content: content.clone(),
+            md5: Arc::new(md5),
+            tmp: false,
+            histories: vec![HistoryItem{
+                id: history_id,
+                content,
+                modified_time: now_millis_i64(),
+            }],
+        }
+    }
+
+    pub fn update_value(&mut self,content: Arc<String>,history_id:u64) {
+        let md5 = get_md5(&content);
+        self.md5 = Arc::new(md5);
+        self.content = content.clone();
+        self.tmp = false;
+        let item = HistoryItem{
+            id: history_id,
+            content,
+            modified_time: now_millis_i64(),
+        };
+        if self.histories.len() >= 100 {
+            self.histories.remove(0);
+        }
+        self.histories.push(item);
     }
 }
 
@@ -340,24 +373,29 @@ impl ConfigActor {
         self.cache.insert(key, config_val);
     }
 
+    fn inner_set_config(&mut self, key:ConfigKey,val: Arc<String>) {
+        let config_val = ConfigValue::new(val);
+        self.cache.insert(key,config_val);
+    }
+
     fn set_config(
         &mut self,
         key: ConfigKey,
         val: Arc<String>,
         history_id: u64,
-        history_table_id: Option<u64>,
+        _history_table_id: Option<u64>,
     ) -> anyhow::Result<ConfigResult> {
-        let config_val = ConfigValue::new(val);
-        if let Some(v) = self.cache.get(&key) {
-            if !v.tmp && v.md5 == config_val.md5 {
+        if let Some(v) = self.cache.get_mut(&key) {
+            if !v.tmp && v.md5.as_str() == &get_md5(val.as_str()) {
                 return Ok(ConfigResult::NULL);
             }
+            v.update_value(val,history_id)
         }
-        //self.config_db.update_config(&key, &config_val).ok();
-        self.config_db
-            .update_config_with_history_id(&key, &config_val, history_id, history_table_id)
-            .ok();
-        self.cache.insert(key.clone(), config_val);
+        else{
+            let v = ConfigValue::init(val,history_id);
+            self.cache.insert(key.clone(),v);
+        }
+        //todo update history_table_id
         self.tenant_index.insert_config(key.clone());
         self.listener.notify(key.clone());
         self.subscriber.notify(key);
@@ -424,7 +462,8 @@ impl ConfigActor {
         (size, info_list)
     }
 
-    pub(crate) fn get_history_info_page(
+    /*
+    pub(crate) fn get_history_info_page_old(
         &self,
         param: &ConfigHistoryParam,
     ) -> (usize, Vec<ConfigHistoryInfoDto>) {
@@ -442,6 +481,37 @@ impl ConfigActor {
             .collect();
         (size, info_list)
     }
+     */
+
+    ///
+    /// 从内存列表中直接查询历史记录
+    pub(crate) fn get_history_info_page(
+        &self,
+        param: &ConfigHistoryParam,
+    ) -> (usize, Vec<ConfigHistoryInfoDto>) {
+        if let (Some(t), Some(g), Some(id)) = (&param.tenant, &param.group, &param.data_id) {
+            let key = ConfigKey::new(id,g,t);
+            if let Some(v) = self.cache.get(&key) {
+                let mut ret=vec![];
+                let iter = v.histories.iter().rev();
+                if let Some(offset)= param.offset {
+                    let mut n_i = iter.skip(offset as usize);
+                    if let Some(limit) = param.limit {
+                        let mut t = n_i.take(limit as usize);
+                        while let Some( item) = t.next() {
+                            ret.push(item.to_dto(&key));
+                        }
+                    } else {
+                        while let Some(item) = n_i.next() {
+                            ret.push(item.to_dto(&key));
+                        }
+                    }
+                }
+                return (v.histories.len(),ret);
+            };
+        };
+        (0,vec![])
+    }
 
     pub fn hb(&self, ctx: &mut actix::Context<Self>) {
         ctx.run_later(Duration::from_millis(500), |act, ctx| {
@@ -457,6 +527,7 @@ pub enum ConfigCmd {
     //ADD(ConfigKey, Arc<String>),
     //DELETE(ConfigKey),
     SetTmpValue(ConfigKey, Arc<String>),
+    InnerSet(ConfigKey,Arc<String>),
     GET(ConfigKey),
     QueryPageInfo(Box<ConfigQueryParam>),
     QueryHistoryPageInfo(Box<ConfigHistoryParam>),
@@ -503,6 +574,8 @@ impl Handler<ConfigCmd> for ConfigActor {
         match msg {
             ConfigCmd::SetTmpValue(key, value) => {
                 self.set_tmp_config(key, value);
+            },
+            ConfigCmd::InnerSet(key,value) => {
             }
             ConfigCmd::GET(key) => {
                 if let Some(v) = self.cache.get(&key) {
