@@ -18,10 +18,14 @@ impl SimpleSequence {
     }
 
     pub fn set_last_id(&mut self,last_id:u64){
+        /*
         if (self.last_id + self.cache_size) <= last_id {
             self.last_id = last_id;
             self.cache_size = 0;
         }
+        */
+        self.last_id = last_id;
+        self.cache_size = 0;
     }
 
     pub fn next_id(&mut self) -> u64 {
