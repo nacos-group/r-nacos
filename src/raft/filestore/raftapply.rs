@@ -4,7 +4,8 @@ use actix::prelude::*;
 use async_raft_ext as async_raft;
 use async_raft::raft::{EntryPayload};
 use bean_factory::{bean, Inject};
-use crate::config::CONFIG_TREE_NAME;
+use crate::common::byte_utils::bin_to_id;
+use crate::common::constant::{CONFIG_TREE_NAME, SEQ_KEY_CONFIG, SEQUENCE_TREE_NAME};
 use crate::config::core::{ConfigCmd, ConfigKey};
 use crate::config::model::{ConfigRaftCmd, ConfigValueDO};
 use crate::naming::cluster::node_manage::{InnerNodeManage, NodeManageRequest};
@@ -204,6 +205,16 @@ impl StateApplyManager {
                 let config_key =ConfigKey::from(&String::from_utf8(record.key)? as &str);
                 let value_do = ConfigValueDO::from_bytes(&record.value)?;
                 data_wrap.config.send(ConfigCmd::InnerSet(config_key,value_do.into())).await??;
+            }
+            else if record.tree.as_ref() == SEQUENCE_TREE_NAME.as_str() {
+                let key = String::from_utf8(record.key)?;
+                let last_id = bin_to_id(&record.value);
+                match &key as &str{
+                    SEQ_KEY_CONFIG => {
+                        data_wrap.config.send(ConfigCmd::InnerSetLastId(last_id)).await??;
+                    }
+                    _ => {}
+                };
             }
         }
         Ok(())

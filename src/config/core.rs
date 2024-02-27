@@ -16,12 +16,14 @@ use crate::utils::get_md5;
 use serde::{Deserialize, Serialize};
 
 use actix::prelude::*;
+use crate::common::byte_utils::id_to_bin;
+use crate::common::constant::{CONFIG_TREE_NAME, SEQ_KEY_CONFIG, SEQUENCE_TREE_NAME};
+use crate::common::sequence_utils::SimpleSequence;
 
 use super::config_sled::{Config, ConfigDB};
 use super::config_subscribe::Subscriber;
 use super::dal::ConfigHistoryParam;
 use crate::config::config_index::{ConfigQueryParam, TenantIndex};
-use crate::config::CONFIG_TREE_NAME;
 use crate::config::model::{ConfigRaftCmd, ConfigRaftResult, ConfigValueDO, HistoryItem};
 use crate::now_millis_i64;
 use crate::raft::filestore::model::SnapshotRecordDto;
@@ -329,6 +331,7 @@ pub struct ConfigActor {
     tenant_index: TenantIndex,
     config_db: ConfigDB,
     raft: Option<Weak<NacosRaft>>,
+    sequence: SimpleSequence,
 }
 
 impl Inject for ConfigActor {
@@ -366,6 +369,7 @@ impl ConfigActor {
             tenant_index: TenantIndex::new(),
             config_db: ConfigDB::new(db),
             raft: None,
+            sequence: SimpleSequence::new(0,100),
         };
         s.load_config();
         s
@@ -531,6 +535,13 @@ impl ConfigActor {
             };
             writer.do_send(SnapshotWriterRequest::Record(record));
         }
+        let seq_record = SnapshotRecordDto {
+            tree: SEQUENCE_TREE_NAME.clone(),
+            key: SEQ_KEY_CONFIG.as_bytes().to_vec(),
+            value: id_to_bin(self.sequence.get_end_id()),
+            op_type: 0,
+        };
+        writer.do_send(SnapshotWriterRequest::Record(seq_record));
         Ok(())
     }
 
@@ -549,6 +560,7 @@ pub enum ConfigCmd {
     //DELETE(ConfigKey),
     SetTmpValue(ConfigKey, Arc<String>),
     InnerSet(ConfigKey,ConfigValue),
+    InnerSetLastId(u64),
     GET(ConfigKey),
     QueryPageInfo(Box<ConfigQueryParam>),
     QueryHistoryPageInfo(Box<ConfigHistoryParam>),
@@ -599,6 +611,9 @@ impl Handler<ConfigCmd> for ConfigActor {
             },
             ConfigCmd::InnerSet(key,value) => {
                 self.cache.insert(key,value);
+            }
+            ConfigCmd::InnerSetLastId(last_id) => {
+                self.sequence.set_last_id(last_id);
             }
             ConfigCmd::GET(key) => {
                 if let Some(v) = self.cache.get(&key) {
@@ -668,7 +683,7 @@ impl Handler<ConfigAsyncCmd> for ConfigActor {
     fn handle(&mut self, msg: ConfigAsyncCmd, _ctx: &mut Context<Self>) -> Self::Result {
         let raft = self.raft.clone();
         let history_info = if let ConfigAsyncCmd::Add(_, _) = &msg {
-            match self.config_db.next_history_id_state() {
+            match self.sequence.next_state() {
                 Ok(v) => Some(v),
                 Err(_) => None,
             }
