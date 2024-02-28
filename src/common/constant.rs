@@ -14,8 +14,8 @@ pub const SEQ_KEY_CONFIG:&str = "SEQ_CONFIG";
 
 
 lazy_static::lazy_static! {
-    pub static ref CONFIG_TREE_NAME: Arc<String> =  Arc::new("TB_CONFIG".to_string());
-    pub static ref SEQUENCE_TREE_NAME: Arc<String> =  Arc::new("TB_SEQUENCE".to_string());
-    pub static ref USER_TREE_NAME: Arc<String> =  Arc::new("TB_USER".to_string());
-    pub static ref CACHE_TREE_NAME: Arc<String> =  Arc::new("TB_CACHE".to_string());
+    pub static ref CONFIG_TREE_NAME: Arc<String> =  Arc::new("T_CONFIG".to_string());
+    pub static ref SEQUENCE_TREE_NAME: Arc<String> =  Arc::new("T_SEQUENCE".to_string());
+    pub static ref USER_TREE_NAME: Arc<String> =  Arc::new("T_USER".to_string());
+    pub static ref CACHE_TREE_NAME: Arc<String> =  Arc::new("T_CACHE".to_string());
 }

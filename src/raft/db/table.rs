@@ -22,7 +22,12 @@ use crate::{
         NacosRaft,
     },
 };
+use crate::common::byte_utils::id_to_bin;
+use crate::common::constant::{CACHE_TREE_NAME, CONFIG_TREE_NAME, SEQ_KEY_CONFIG, SEQUENCE_TREE_NAME};
 use crate::common::sequence_utils::SimpleSequence;
+use crate::config::model::ConfigValueDO;
+use crate::raft::filestore::model::SnapshotRecordDto;
+use crate::raft::filestore::raftsnapshot::{SnapshotWriterActor, SnapshotWriterRequest};
 
 type TableKV = (Vec<u8>, Vec<u8>);
 
@@ -51,13 +56,13 @@ pub(crate) const TABLE_DEFINITION_TREE_NAME: &str = "tables";
 pub struct TableInfo {
     pub table_data: BTreeMap<Vec<u8>,Vec<u8>>,
     pub name: Arc<String>,
-    pub table_db_name: Arc<String>,
+    //pub table_db_name: Arc<String>,
     pub seq: Option<SimpleSequence>,
 }
 
 impl TableInfo {
     pub fn new(name: Arc<String>, sequence_step: u32) -> Self {
-        let table_name = Arc::new(format!("t_{}", &name));
+        //let table_name = Arc::new(format!("t_{}", &name));
         let seq = if sequence_step == 0 {
             None
         } else {
@@ -66,7 +71,7 @@ impl TableInfo {
         Self {
             table_data: Default::default(),
             name,
-            table_db_name: table_name,
+            //table_db_name: table_name,
             seq,
         }
     }
@@ -275,11 +280,29 @@ impl TableManager {
         ret.push((k.to_vec(), v.to_vec()));
     }
 
-    fn get_table_db_names(&self) -> Vec<Arc<String>> {
+    fn get_table_names(&self) -> Vec<Arc<String>> {
         self.table_map
             .values()
-            .map(|e| e.table_db_name.clone())
+            .map(|e| e.name.clone())
             .collect()
+    }
+
+    ///
+    /// 将数据写入raft snapshot文件中
+    ///
+    fn build_snapshot(&self, writer: Addr<SnapshotWriterActor>) -> anyhow::Result<()> {
+        for (name, table_info) in &self.table_map {
+            for (key,value ) in &table_info.table_data {
+                let record = SnapshotRecordDto {
+                    tree: table_info.name.clone(),
+                    key: key.to_owned(),
+                    value: value.to_owned(),
+                    op_type: 0,
+                };
+                writer.do_send(SnapshotWriterRequest::Record(record));
+            }
+        }
+        Ok(())
     }
 }
 
@@ -338,6 +361,12 @@ pub enum TableManagerReq {
         last_seq_id: u64,
     },
     ReloadTable,
+}
+
+#[derive(Message)]
+#[rtype(result = "anyhow::Result<TableManagerResult>")]
+pub enum TableManagerInnerReq {
+    BuildSnapshot(Addr<SnapshotWriterActor>),
 }
 
 impl From<TableManagerReq> for RouterRequest {
@@ -414,7 +443,7 @@ impl Handler<TableManagerReq> for TableManager {
                 value,
                 last_seq_id,
             } => {
-                if table_name.as_str() == "cache" {
+                if table_name.as_str() == CACHE_TREE_NAME.as_str() {
                     if let Some(cache_manager) = &self.cache_manager {
                         let req = CacheManagerReq::NotifyChange {
                             key: key.clone(),
@@ -427,7 +456,7 @@ impl Handler<TableManagerReq> for TableManager {
                 Ok(TableManagerResult::None)
             }
             TableManagerReq::Remove { table_name, key } => {
-                if table_name.as_str() == "cache" {
+                if table_name.as_str() == CACHE_TREE_NAME.as_str() {
                     if let Some(cache_manager) = &self.cache_manager {
                         let req = CacheManagerReq::NotifyRemove { key: key.clone() };
                         cache_manager.do_send(req);
@@ -470,13 +499,26 @@ impl Handler<TableManagerReq> for TableManager {
     }
 }
 
+impl Handler<TableManagerInnerReq> for TableManager {
+    type Result = anyhow::Result<TableManagerResult>;
+
+    fn handle(&mut self, msg: TableManagerInnerReq, _ctx: &mut Self::Context) -> Self::Result {
+        match msg {
+            TableManagerInnerReq::BuildSnapshot(writer) => {
+                self.build_snapshot(writer).ok();
+                Ok(TableManagerResult::None)
+            }
+        }
+    }
+}
+
 impl Handler<TableManagerQueryReq> for TableManager {
     type Result = anyhow::Result<TableManagerResult>;
 
     fn handle(&mut self, msg: TableManagerQueryReq, _ctx: &mut Self::Context) -> Self::Result {
         match msg {
             TableManagerQueryReq::QueryTableNames => {
-                let table_names = self.get_table_db_names();
+                let table_names = self.get_table_names();
                 Ok(TableManagerResult::TableNames(table_names))
             }
             TableManagerQueryReq::Get { table_name, key } => {
