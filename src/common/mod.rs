@@ -17,6 +17,7 @@ pub mod sled_utils;
 pub mod string_utils;
 pub mod web_utils;
 pub mod sequence_utils;
+pub mod actor_utils;
 
 lazy_static! {
     // Global app sys config

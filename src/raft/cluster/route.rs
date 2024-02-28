@@ -10,12 +10,13 @@ use crate::{
         {network::factory::RaftClusterRequestSender, store::core::RaftStore},
     },
 };
+use crate::raft::filestore::core::FileStore;
 
 use super::model::{DelConfigReq, RouteAddr, RouterRequest, RouterResponse, SetConfigReq};
 
 #[derive(Clone)]
 pub struct RaftAddrRouter {
-    raft_store: Arc<RaftStore>,
+    raft_store: Arc<FileStore>,
     raft: Arc<NacosRaft>,
     local_node_id: u64,
 }
@@ -27,7 +28,7 @@ impl Debug for RaftAddrRouter {
 }
 
 impl RaftAddrRouter {
-    pub fn new(raft: Arc<NacosRaft>, raft_store: Arc<RaftStore>, local_node_id: u64) -> Self {
+    pub fn new(raft: Arc<NacosRaft>, raft_store: Arc<FileStore>, local_node_id: u64) -> Self {
         Self {
             raft,
             raft_store,

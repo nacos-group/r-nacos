@@ -11,7 +11,7 @@ pub mod raftlog;
 pub mod raftsnapshot;
 pub mod raftapply;
 pub mod core;
-mod raftdata;
+pub mod raftdata;
 
 pub struct StoreUtils;
 

@@ -329,7 +329,7 @@ pub struct ConfigActor {
     listener: ConfigListener,
     subscriber: Subscriber,
     tenant_index: TenantIndex,
-    config_db: ConfigDB,
+    //config_db: ConfigDB,
     raft: Option<Weak<NacosRaft>>,
     sequence: SimpleSequence,
 }
@@ -361,17 +361,17 @@ impl Default for ConfigActor {
 */
 
 impl ConfigActor {
-    pub fn new(db: Arc<sled::Db>) -> Self {
+    pub fn new() -> Self {
         let mut s = Self {
             cache: HashMap::new(),
             subscriber: Subscriber::new(),
             listener: ConfigListener::new(),
             tenant_index: TenantIndex::new(),
-            config_db: ConfigDB::new(db),
+            //config_db: ConfigDB::new(db),
             raft: None,
             sequence: SimpleSequence::new(0,100),
         };
-        s.load_config();
+        //s.load_config();
         s
     }
 
@@ -412,7 +412,7 @@ impl ConfigActor {
 
     fn del_config(&mut self, key: ConfigKey) -> anyhow::Result<()> {
         self.cache.remove(&key);
-        self.config_db.del_config(&key).ok();
+        //self.config_db.del_config(&key).ok();
         self.tenant_index.remove_config(&key);
         self.listener.notify(key.clone());
         self.subscriber.notify(key.clone());
@@ -420,6 +420,7 @@ impl ConfigActor {
         Ok(())
     }
 
+    /*
     fn load_config(&mut self) {
         for item in self.config_db.query_config_list().unwrap() {
             let key = ConfigKey::new(
@@ -433,6 +434,7 @@ impl ConfigActor {
         }
         self.config_db.init_seq();
     }
+     */
 
     async fn send_raft_request(
         raft: &Option<Weak<NacosRaft>>,
@@ -610,7 +612,10 @@ impl Handler<ConfigCmd> for ConfigActor {
                 self.set_tmp_config(key, value);
             },
             ConfigCmd::InnerSet(key,value) => {
+                self.tenant_index.insert_config(key.clone());
                 self.cache.insert(key,value);
+                //self.listener.notify(key.clone());
+                //self.subscriber.notify(key);
             }
             ConfigCmd::InnerSetLastId(last_id) => {
                 self.sequence.set_last_id(last_id);
@@ -738,7 +743,7 @@ impl Handler<ConfigRaftCmd> for ConfigActor {
                 self.del_config(config_key).ok();
             }
             ConfigRaftCmd::ApplySnaphot => {
-                self.load_config();
+                //self.load_config();
             }
         }
         Ok(ConfigRaftResult::None)

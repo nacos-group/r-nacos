@@ -16,13 +16,14 @@ use crate::user::UserManager;
 use actix::Addr;
 use bean_factory::FactoryData;
 use std::sync::Arc;
+use crate::raft::filestore::core::FileStore;
 
 pub struct AppShareData {
     pub config_addr: Addr<ConfigActor>,
     pub naming_addr: Addr<NamingActor>,
     pub bi_stream_manage: Addr<BiStreamManage>,
     pub raft: Arc<NacosRaft>,
-    pub raft_store: Arc<RaftStore>,
+    pub raft_store: Arc<FileStore>,
     pub sys_config: Arc<AppSysConfig>,
     pub config_route: Arc<ConfigRoute>,
     pub cluster_sender: Arc<RaftClusterRequestSender>,
