@@ -99,7 +99,7 @@ pub async fn config_factory(sys_config: Arc<AppSysConfig>) -> anyhow::Result<Fac
     factory.register(BeanDefinition::actor_with_inject_from_obj(
         log_manager.clone(),
     ));
-    factory.register(BeanDefinition::actor_from_obj(index_manager.clone()));
+    factory.register(BeanDefinition::actor_with_inject_from_obj(index_manager.clone()));
     factory.register(BeanDefinition::actor_with_inject_from_obj(
         snapshot_manager.clone(),
     ));

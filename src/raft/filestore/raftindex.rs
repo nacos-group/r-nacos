@@ -1,6 +1,7 @@
 use std::{collections::HashMap, convert::TryInto, path::Path, sync::Arc};
 
 use actix::prelude::*;
+use bean_factory::{bean, Inject};
 use quick_protobuf::{BytesReader, Writer};
 use tokio::{
     fs::OpenOptions,
@@ -11,6 +12,7 @@ use crate::common::{
     byte_utils::{bin_to_id, id_to_bin},
     protobuf_utils::FileMessageReader,
 };
+use crate::naming::cluster::node_manage::{InnerNodeManage, NodeManageRequest};
 
 use super::{
     log::{LogRange, RaftIndex, SnapshotRange},
@@ -103,14 +105,20 @@ impl RaftIndexInnerManager {
     }
 }
 
+#[bean(inject)]
 pub struct RaftIndexManager {
     path: Arc<String>,
     inner: Option<Box<RaftIndexInnerManager>>,
+    naming_inner_node_manage: Option<Addr<InnerNodeManage>>,
 }
 
 impl RaftIndexManager {
     pub fn new(path: Arc<String>) -> Self {
-        Self { path, inner: None }
+        Self {
+            path,
+            inner: None ,
+            naming_inner_node_manage: None,
+        }
     }
 
     pub fn init(&mut self, ctx: &mut Context<Self>) {
@@ -130,6 +138,32 @@ impl RaftIndexManager {
                 }
             })
             .wait(ctx);
+    }
+
+    fn do_notify_membership(&self, is_change_member: bool) {
+        if let (Some(naming_node_manage), Some(inner_manager)) = (
+            &self.naming_inner_node_manage,
+            self.inner.as_ref(),
+        ) {
+            let mut nodes = vec![];
+            if is_change_member {
+                for nid in &inner_manager.raft_index.member {
+                    if let Some(addr) = inner_manager.raft_index.node_addrs.get(nid){
+                        nodes.push((*nid,addr.to_owned()))
+                    }
+                }
+                for nid in &inner_manager.raft_index.member_after_consensus{
+                    if let Some(addr) = inner_manager.raft_index.node_addrs.get(nid){
+                        nodes.push((*nid,addr.to_owned()))
+                    }
+                }
+            } else {
+                for (nid, addr) in &inner_manager.raft_index.node_addrs {
+                    nodes.push((*nid, addr.to_owned()));
+                }
+            }
+            naming_node_manage.do_send(NodeManageRequest::UpdateNodes(nodes));
+        }
     }
 
     fn inner_is_empty_error() -> anyhow::Error {
@@ -179,6 +213,7 @@ impl RaftIndexManager {
         &mut self,
         ctx: &mut Context<Self>,
         index: RaftIndexDto,
+        change_member: bool
     ) -> anyhow::Result<RaftIndexResponse> {
         if self.inner.is_none() {
             return Err(Self::inner_is_empty_error());
@@ -193,11 +228,14 @@ impl RaftIndexManager {
                     }
                 }
             }
-            inner
+            (inner,change_member)
         }
             .into_actor(self)
-            .map(|v, act, _ctx| {
+            .map(|(v,change_member), act, _ctx| {
                 act.inner = v;
+                if change_member {
+                    act.do_notify_membership(true);
+                }
             })
             .wait(ctx);
         Ok(RaftIndexResponse::None)
@@ -211,7 +249,7 @@ impl RaftIndexManager {
         if let Some(inner) = self.inner.as_mut() {
             inner.raft_index.logs = logs;
             let index_info = inner.raft_index.clone();
-            self.write_index(ctx, index_info)
+            self.write_index(ctx, index_info,false)
         } else {
             Err(Self::inner_is_empty_error())
         }
@@ -225,7 +263,7 @@ impl RaftIndexManager {
         if let Some(inner) = self.inner.as_mut() {
             inner.raft_index.snapshots = snapshots;
             let index_info = inner.raft_index.clone();
-            self.write_index(ctx, index_info)
+            self.write_index(ctx, index_info,false)
         } else {
             Err(Self::inner_is_empty_error())
         }
@@ -247,7 +285,7 @@ impl RaftIndexManager {
                 inner.raft_index.node_addrs = node_addr;
             }
             let index_info = inner.raft_index.clone();
-            self.write_index(ctx, index_info)
+            self.write_index(ctx, index_info,true)
         } else {
             Err(Self::inner_is_empty_error())
         }
@@ -261,7 +299,7 @@ impl RaftIndexManager {
         if let Some(inner) = self.inner.as_mut() {
             inner.raft_index.node_addrs = node_addr;
             let index_info = inner.raft_index.clone();
-            self.write_index(ctx, index_info)
+            self.write_index(ctx, index_info,true)
         } else {
             Err(Self::inner_is_empty_error())
         }
@@ -276,7 +314,7 @@ impl RaftIndexManager {
         if let Some(inner) = self.inner.as_mut() {
             inner.raft_index.node_addrs.insert(id, node_addr);
             let index_info = inner.raft_index.clone();
-            self.write_index(ctx, index_info)
+            self.write_index(ctx, index_info,true)
         } else {
             Err(Self::inner_is_empty_error())
         }
@@ -292,7 +330,7 @@ impl RaftIndexManager {
             inner.raft_index.current_term = current_term;
             inner.raft_index.voted_for = voted_for;
             let index_info = inner.raft_index.clone();
-            self.write_index(ctx, index_info)
+            self.write_index(ctx, index_info,false)
         } else {
             Err(Self::inner_is_empty_error())
         }
@@ -306,6 +344,21 @@ impl Actor for RaftIndexManager {
         log::info!("RaftIndexManager started");
         self.init(ctx);
     }
+}
+
+impl Inject for RaftIndexManager {
+    type Context = Context<Self>;
+
+    fn inject(
+        &mut self,
+        factory_data: bean_factory::FactoryData,
+        _factory: bean_factory::BeanFactory,
+        _ctx: &mut Self::Context,
+    ) {
+        self.naming_inner_node_manage = factory_data.get_actor();
+        self.do_notify_membership(false);
+    }
+
 }
 
 #[derive(Message, Debug)]
