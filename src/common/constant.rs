@@ -1,4 +1,4 @@
-pub const APP_VERSION: &str = "0.4.2";
+pub const APP_VERSION: &str = "0.4.3";
 
 pub const EMPTY_STR: &str = "";
 
