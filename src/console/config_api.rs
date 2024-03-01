@@ -11,6 +11,7 @@ use actix_multipart::Multipart;
 use actix_web::{http::header, web, Error, HttpRequest, HttpResponse, Responder};
 use zip::write::FileOptions;
 
+use crate::common::appdata::AppShareData;
 use crate::config::core::{
     ConfigActor, ConfigAsyncCmd, ConfigCmd, ConfigInfoDto, ConfigKey, ConfigResult,
 };
@@ -19,6 +20,7 @@ use crate::console::model::config_model::{
     OpsConfigOptQueryListResponse, OpsConfigQueryListRequest,
 };
 use crate::now_millis;
+use crate::raft::cluster::model::SetConfigReq;
 use actix::prelude::Addr;
 use tokio_stream::StreamExt;
 use uuid::Uuid;
@@ -96,6 +98,7 @@ pub struct UploadForm {
 pub async fn import_config(
     req: HttpRequest,
     MultipartForm(form): MultipartForm<UploadForm>,
+    app: web::Data<Arc<AppShareData>>,
     config_addr: web::Data<Addr<ConfigActor>>,
 ) -> Result<impl Responder, Error> {
     let tenant = Arc::new(ConfigUtils::default_tenant(
@@ -133,7 +136,9 @@ pub async fn import_config(
                             Err(_) => continue,
                         };
                         //println!("update load, {:?}:{}",&config_key,&value);
-                        config_addr.do_send(ConfigAsyncCmd::Add(config_key, Arc::new(value)));
+                        //config_addr.do_send(ConfigAsyncCmd::Add(config_key, Arc::new(value)));
+                        let req = SetConfigReq::new(config_key, Arc::new(value));
+                        app.config_route.set_config(req).await.ok();
                     }
                 }
             }
