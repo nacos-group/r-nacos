@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM rust:1.72 as builder
+FROM --platform=$BUILDPLATFORM rust:latest as builder
 WORKDIR /usr/src/rnacos
 COPY . .
 RUN cargo install --path .
