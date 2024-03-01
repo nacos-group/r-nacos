@@ -5,6 +5,7 @@ on:
 #    branches:
 #      - master 
     tags: [ 'v*', 't*' ]
+  workflow_dispatch:
 
 jobs:
   docker:
