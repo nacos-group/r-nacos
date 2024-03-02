@@ -99,7 +99,6 @@ pub async fn import_config(
     req: HttpRequest,
     MultipartForm(form): MultipartForm<UploadForm>,
     app: web::Data<Arc<AppShareData>>,
-    config_addr: web::Data<Addr<ConfigActor>>,
 ) -> Result<impl Responder, Error> {
     let tenant = Arc::new(ConfigUtils::default_tenant(
         match req.headers().get("tenant") {
