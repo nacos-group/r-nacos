@@ -85,6 +85,8 @@ pub struct StateApplyManager {
     data_wrap: Option<Arc<RaftDataWrap>>,
     snapshot_next_index: u64,
     last_applied_log: u64,
+    last_build_snapshot_applied_log: u64,
+    snapshot_building: bool,
     last_snapshot_path: Option<Arc<String>>,
     swap_snapshot_header: Option<SnapshotHeaderDto>,
 }
@@ -99,6 +101,8 @@ impl StateApplyManager {
             data_wrap: None,
             snapshot_next_index: 1,
             last_applied_log: 0,
+            last_build_snapshot_applied_log: 0,
+            snapshot_building: false,
             last_snapshot_path: None,
             swap_snapshot_header: None,
         }
@@ -272,7 +276,7 @@ impl StateApplyManager {
     }
 
     fn apply_request_to_state_machine(&mut self, request: ApplyRequestDto) -> anyhow::Result<()> {
-        self.last_applied_log = request.index;
+        //self.last_applied_log = request.index;
         //todo
         match request.request {
             ClientRequest::NodeAddr { id,addr } => {
@@ -313,11 +317,6 @@ impl StateApplyManager {
                 }
             }
         };
-        if let Some(index_manager) = &self.index_manager {
-            index_manager.do_send(super::raftindex::RaftIndexRequest::SaveLastAppliedLog(
-                self.last_applied_log,
-            ));
-        }
         Ok(())
     }
 
@@ -498,8 +497,16 @@ impl Handler<StateApplyRequest> for StateApplyManager {
             }
              */
             StateApplyRequest::ApplyBatchRequest(requests) => {
+                if let Some(req) = requests.last(){
+                    self.last_applied_log = req.index;
+                }
                 for request in requests.into_iter() {
                     self.apply_request_to_state_machine(request)?;
+                }
+                if let Some(index_manager) = &self.index_manager {
+                    index_manager.do_send(super::raftindex::RaftIndexRequest::SaveLastAppliedLog(
+                        self.last_applied_log,
+                    ));
                 }
                 Ok(StateApplyResponse::None)
             }
@@ -523,9 +530,35 @@ impl Handler<StateApplyAsyncRequest> for StateApplyManager {
         let snapshot_manager = self.snapshot_manager.clone().unwrap();
         let data_wrap = self.data_wrap.clone().unwrap();
         let last_index = self.last_applied_log;
+        let use_old_snapshot = match &msg {
+            StateApplyAsyncRequest::BuildSnapshot => {
+                if self.snapshot_building || self.last_applied_log-self.last_build_snapshot_applied_log <= 2000 {
+                    //直接返回最近的snapshot
+                    log::info!("BuildSnapshot calculate use_old_snapshot,{},{},{}",self.snapshot_building,self.last_applied_log,self.last_build_snapshot_applied_log);
+                    true
+                }
+                else {
+                    self.snapshot_building = true;
+                    false
+                }
+            }
+            StateApplyAsyncRequest::ApplyRequest(req) => {
+                self.last_applied_log = req.index;
+                false
+            }
+        };
         let fut = async move {
             match msg {
                 StateApplyAsyncRequest::BuildSnapshot => {
+                    if use_old_snapshot {
+                        if let RaftSnapshotResponse::LastSnapshot(Some(path), Some(header)) =
+                            snapshot_manager
+                            .send(RaftSnapshotRequest::GetLastSnapshot)
+                            .await?? {
+                            log::info!("BuildSnapshot use old snapshot {}",&path);
+                            return Ok(StateApplyResponse::Snapshot(header, Arc::new(path), 0))
+                        }
+                    }
                     let (header, path, snapshot_id) = Self::do_build_snapshot(
                         log_manager,
                         index_manager,
@@ -543,7 +576,23 @@ impl Handler<StateApplyAsyncRequest> for StateApplyManager {
             }
         }
         .into_actor(self)
-        .map(|r, act, ctx| r);
+        .map(|r, act, ctx| {
+            match &r {
+                Ok(v) => {
+                    if let StateApplyResponse::Snapshot(_,_,id) = v {
+                        act.snapshot_building=false;
+                        if *id > 0 {
+                            log::info!("BuildSnapshot update log,{},{}",act.last_applied_log,act.last_build_snapshot_applied_log);
+                            act.last_build_snapshot_applied_log = act.last_applied_log;
+                        }
+                    }
+                }
+                Err(e) => {
+                    act.snapshot_building=false;
+                }
+            };
+            r
+        });
         Box::pin(fut)
     }
 }

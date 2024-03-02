@@ -284,6 +284,10 @@ impl RaftStorage<ClientRequest, ClientResponse> for FileStore {
                     membership: membership_config.clone(),
                     snapshot: Box::new(file),
                 };
+                if snapshot_id==0 {
+                    //使用原镜像
+                    return Ok(snapshot);
+                }
                 let entry = Entry::new_snapshot_pointer(header.last_index, header.last_term, snapshot_id.to_string(), membership_config);
                 let record = StoreUtils::entry_to_record(&entry)?;
                 self.log_manager.send(RaftLogManagerRequest::BuildSnapshotPointerLog(record)).await??;
