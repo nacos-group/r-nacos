@@ -57,10 +57,12 @@ pub async fn config_factory(sys_config: Arc<AppSysConfig>) -> anyhow::Result<Fac
     factory.register(BeanDefinition::from_obj(db.clone()));
      */
     std::fs::create_dir_all(sys_config.config_db_dir.as_str())?;
+    let base_path = Arc::new(sys_config.config_db_dir.clone());
     let factory = BeanFactory::new();
     factory.register(BeanDefinition::from_obj(sys_config.clone()));
 
-    let config_addr = ConfigActor::new().start();
+    let index_manager = RaftIndexManager::new(base_path.clone());
+    let (index_manager,config_addr) = create_actor_at_thread2(index_manager,ConfigActor::new());
     factory.register(BeanDefinition::actor_with_inject_from_obj::<ConfigActor>(
         config_addr.clone(),
     ));
@@ -87,15 +89,12 @@ pub async fn config_factory(sys_config: Arc<AppSysConfig>) -> anyhow::Result<Fac
     let cluster_sender = Arc::new(RaftClusterRequestSender::new(conn_factory));
     factory.register(BeanDefinition::from_obj(cluster_sender.clone()));
 
-    let base_path = Arc::new(sys_config.config_db_dir.clone());
     let log_manager = RaftLogManager::new(base_path.clone());
-    let index_manager = RaftIndexManager::new(base_path.clone());
+    let log_manager = create_actor_at_thread(log_manager);
     let snapshot_manager = RaftSnapshotManager::new(base_path.clone());
     let apply_manager = StateApplyManager::new();
-    let log_manager = create_actor_at_thread(log_manager);
     let (snapshot_manager, apply_manager) =
         create_actor_at_thread2(snapshot_manager, apply_manager);
-    let index_manager = create_actor_at_thread(index_manager);
     factory.register(BeanDefinition::actor_with_inject_from_obj(
         log_manager.clone(),
     ));
@@ -217,9 +216,11 @@ fn build_raft(
     cluster_sender: Arc<RaftClusterRequestSender>,
 ) -> anyhow::Result<Arc<NacosRaft>> {
     let config = Config::build("rnacos raft".to_owned())
-        .heartbeat_interval(500)
-        .election_timeout_min(1500)
-        .election_timeout_max(3000)
+        .heartbeat_interval(1000)
+        .election_timeout_min(2500)
+        .election_timeout_max(5000)
+        .snapshot_policy(async_raft_ext::SnapshotPolicy::LogsSinceLast(50000))
+        .snapshot_max_chunk_size(3*1024*1024)
         .validate()
         .unwrap();
     let config = Arc::new(config);
