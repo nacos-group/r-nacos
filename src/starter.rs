@@ -1,5 +1,12 @@
 use std::{collections::HashSet, sync::Arc, time::Duration};
 
+use crate::common::actor_utils::{create_actor_at_thread, create_actor_at_thread2};
+use crate::raft::filestore::core::FileStore;
+use crate::raft::filestore::raftapply::StateApplyManager;
+use crate::raft::filestore::raftdata::RaftDataWrap;
+use crate::raft::filestore::raftindex::RaftIndexManager;
+use crate::raft::filestore::raftlog::RaftLogManager;
+use crate::raft::filestore::raftsnapshot::RaftSnapshotManager;
 use crate::{
     common::{appdata::AppShareData, AppSysConfig},
     config::core::ConfigActor,
@@ -35,13 +42,6 @@ use crate::{
 use actix::prelude::*;
 use async_raft_ext::{raft::ClientWriteRequest, Config, Raft, RaftStorage};
 use bean_factory::{BeanDefinition, BeanFactory, FactoryData};
-use crate::common::actor_utils::{create_actor_at_thread, create_actor_at_thread2};
-use crate::raft::filestore::core::FileStore;
-use crate::raft::filestore::raftapply::StateApplyManager;
-use crate::raft::filestore::raftdata::RaftDataWrap;
-use crate::raft::filestore::raftindex::RaftIndexManager;
-use crate::raft::filestore::raftlog::RaftLogManager;
-use crate::raft::filestore::raftsnapshot::RaftSnapshotManager;
 
 pub async fn config_factory(sys_config: Arc<AppSysConfig>) -> anyhow::Result<FactoryData> {
     /*
@@ -62,7 +62,7 @@ pub async fn config_factory(sys_config: Arc<AppSysConfig>) -> anyhow::Result<Fac
     factory.register(BeanDefinition::from_obj(sys_config.clone()));
 
     let index_manager = RaftIndexManager::new(base_path.clone());
-    let (index_manager,config_addr) = create_actor_at_thread2(index_manager,ConfigActor::new());
+    let (index_manager, config_addr) = create_actor_at_thread2(index_manager, ConfigActor::new());
     factory.register(BeanDefinition::actor_with_inject_from_obj::<ConfigActor>(
         config_addr.clone(),
     ));
@@ -98,14 +98,15 @@ pub async fn config_factory(sys_config: Arc<AppSysConfig>) -> anyhow::Result<Fac
     factory.register(BeanDefinition::actor_with_inject_from_obj(
         log_manager.clone(),
     ));
-    factory.register(BeanDefinition::actor_with_inject_from_obj(index_manager.clone()));
+    factory.register(BeanDefinition::actor_with_inject_from_obj(
+        index_manager.clone(),
+    ));
     factory.register(BeanDefinition::actor_with_inject_from_obj(
         snapshot_manager.clone(),
     ));
     factory.register(BeanDefinition::actor_with_inject_from_obj(
         apply_manager.clone(),
     ));
-
 
     let store = Arc::new(FileStore::new(
         sys_config.raft_node_id.to_owned(),
@@ -177,7 +178,7 @@ pub async fn config_factory(sys_config: Arc<AppSysConfig>) -> anyhow::Result<Fac
         cluster_sender.clone(),
     ));
     factory.register(BeanDefinition::from_obj(cache_route));
-    let raft_data_wrap = Arc::new(RaftDataWrap{
+    let raft_data_wrap = Arc::new(RaftDataWrap {
         config: config_addr.clone(),
         table: table_manage.clone(),
         cache: cache_manager.clone(),
@@ -220,7 +221,7 @@ fn build_raft(
         .election_timeout_min(2500)
         .election_timeout_max(5000)
         .snapshot_policy(async_raft_ext::SnapshotPolicy::LogsSinceLast(50000))
-        .snapshot_max_chunk_size(3*1024*1024)
+        .snapshot_max_chunk_size(3 * 1024 * 1024)
         .validate()
         .unwrap();
     let config = Arc::new(config);
@@ -260,9 +261,9 @@ async fn auto_init_raft(
         }))
         .await
         .ok();
-        raft.client_write(ClientWriteRequest::new(ClientRequest::Members(
-            vec![sys_config.raft_node_id],
-        )))
+        raft.client_write(ClientWriteRequest::new(ClientRequest::Members(vec![
+            sys_config.raft_node_id,
+        ])))
         .await
         .ok();
     } else if state.membership.all_nodes().len() < 2 {

@@ -15,10 +15,10 @@ use crate::raft::NacosRaft;
 use crate::utils::get_md5;
 use serde::{Deserialize, Serialize};
 
-use actix::prelude::*;
 use crate::common::byte_utils::id_to_bin;
-use crate::common::constant::{CONFIG_TREE_NAME, SEQ_KEY_CONFIG, SEQUENCE_TREE_NAME};
+use crate::common::constant::{CONFIG_TREE_NAME, SEQUENCE_TREE_NAME, SEQ_KEY_CONFIG};
 use crate::common::sequence_utils::SimpleSequence;
+use actix::prelude::*;
 
 use super::config_sled::{Config, ConfigDB};
 use super::config_subscribe::Subscriber;
@@ -100,13 +100,13 @@ impl ConfigValue {
         }
     }
 
-    pub fn init(content: Arc<String>,history_id:u64) -> Self {
+    pub fn init(content: Arc<String>, history_id: u64) -> Self {
         let md5 = get_md5(&content);
         Self {
             content: content.clone(),
             md5: Arc::new(md5),
             tmp: false,
-            histories: vec![HistoryItem{
+            histories: vec![HistoryItem {
                 id: history_id,
                 content,
                 modified_time: now_millis_i64(),
@@ -114,12 +114,12 @@ impl ConfigValue {
         }
     }
 
-    pub fn update_value(&mut self,content: Arc<String>,history_id:u64) {
+    pub fn update_value(&mut self, content: Arc<String>, history_id: u64) {
         let md5 = get_md5(&content);
         self.md5 = Arc::new(md5);
         self.content = content.clone();
         self.tmp = false;
-        let item = HistoryItem{
+        let item = HistoryItem {
             id: history_id,
             content,
             modified_time: now_millis_i64(),
@@ -369,7 +369,7 @@ impl ConfigActor {
             tenant_index: TenantIndex::new(),
             //config_db: ConfigDB::new(db),
             raft: None,
-            sequence: SimpleSequence::new(0,100),
+            sequence: SimpleSequence::new(0, 100),
         };
         //s.load_config();
         s
@@ -381,9 +381,9 @@ impl ConfigActor {
         self.cache.insert(key, config_val);
     }
 
-    fn inner_set_config(&mut self, key:ConfigKey,val: Arc<String>) {
+    fn inner_set_config(&mut self, key: ConfigKey, val: Arc<String>) {
         let config_val = ConfigValue::new(val);
-        self.cache.insert(key,config_val);
+        self.cache.insert(key, config_val);
     }
 
     fn set_config(
@@ -397,11 +397,10 @@ impl ConfigActor {
             if !v.tmp && v.md5.as_str() == &get_md5(val.as_str()) {
                 return Ok(ConfigResult::NULL);
             }
-            v.update_value(val,history_id)
-        }
-        else{
-            let v = ConfigValue::init(val,history_id);
-            self.cache.insert(key.clone(),v);
+            v.update_value(val, history_id)
+        } else {
+            let v = ConfigValue::init(val, history_id);
+            self.cache.insert(key.clone(), v);
         }
         //todo update history_table_id
         self.tenant_index.insert_config(key.clone());
@@ -500,15 +499,15 @@ impl ConfigActor {
         param: &ConfigHistoryParam,
     ) -> (usize, Vec<ConfigHistoryInfoDto>) {
         if let (Some(t), Some(g), Some(id)) = (&param.tenant, &param.group, &param.data_id) {
-            let key = ConfigKey::new(id,g,t);
+            let key = ConfigKey::new(id, g, t);
             if let Some(v) = self.cache.get(&key) {
-                let mut ret=vec![];
+                let mut ret = vec![];
                 let iter = v.histories.iter().rev();
-                if let Some(offset)= param.offset {
+                if let Some(offset) = param.offset {
                     let mut n_i = iter.skip(offset as usize);
                     if let Some(limit) = param.limit {
                         let mut t = n_i.take(limit as usize);
-                        while let Some( item) = t.next() {
+                        while let Some(item) = t.next() {
                             ret.push(item.to_dto(&key));
                         }
                     } else {
@@ -517,10 +516,10 @@ impl ConfigActor {
                         }
                     }
                 }
-                return (v.histories.len(),ret);
+                return (v.histories.len(), ret);
             };
         };
-        (0,vec![])
+        (0, vec![])
     }
 
     ///
@@ -528,7 +527,7 @@ impl ConfigActor {
     ///
     fn build_snapshot(&self, writer: Addr<SnapshotWriterActor>) -> anyhow::Result<()> {
         for (key, value) in &self.cache {
-            let value_db : ConfigValueDO =  value.clone().into();
+            let value_db: ConfigValueDO = value.clone().into();
             let record = SnapshotRecordDto {
                 tree: CONFIG_TREE_NAME.clone(),
                 key: key.build_key().as_bytes().to_vec(),
@@ -561,7 +560,7 @@ pub enum ConfigCmd {
     //ADD(ConfigKey, Arc<String>),
     //DELETE(ConfigKey),
     SetTmpValue(ConfigKey, Arc<String>),
-    InnerSet(ConfigKey,ConfigValue),
+    InnerSet(ConfigKey, ConfigValue),
     InnerSetLastId(u64),
     GET(ConfigKey),
     QueryPageInfo(Box<ConfigQueryParam>),
@@ -610,10 +609,10 @@ impl Handler<ConfigCmd> for ConfigActor {
         match msg {
             ConfigCmd::SetTmpValue(key, value) => {
                 self.set_tmp_config(key, value);
-            },
-            ConfigCmd::InnerSet(key,value) => {
+            }
+            ConfigCmd::InnerSet(key, value) => {
                 self.tenant_index.insert_config(key.clone());
-                self.cache.insert(key,value);
+                self.cache.insert(key, value);
                 //self.listener.notify(key.clone());
                 //self.subscriber.notify(key);
             }

@@ -2,6 +2,7 @@ use std::{fmt::Debug, sync::Arc};
 
 use actix::prelude::*;
 
+use crate::raft::filestore::core::FileStore;
 use crate::{
     config::core::{ConfigActor, ConfigAsyncCmd, ConfigCmd},
     grpc::PayloadUtils,
@@ -10,7 +11,6 @@ use crate::{
         {network::factory::RaftClusterRequestSender, store::core::RaftStore},
     },
 };
-use crate::raft::filestore::core::FileStore;
 
 use super::model::{DelConfigReq, RouteAddr, RouterRequest, RouterResponse, SetConfigReq};
 

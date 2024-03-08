@@ -4,14 +4,14 @@ use self::model::LogRecordDto;
 
 use super::store::ClientRequest;
 
+pub mod core;
 pub mod log;
 pub mod model;
+pub mod raftapply;
+pub mod raftdata;
 pub mod raftindex;
 pub mod raftlog;
 pub mod raftsnapshot;
-pub mod raftapply;
-pub mod core;
-pub mod raftdata;
 
 pub struct StoreUtils;
 

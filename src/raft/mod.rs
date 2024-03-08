@@ -1,6 +1,6 @@
-use async_raft_ext::{Raft, RaftStorage};
-use async_raft_ext::raft::ClientWriteRequest;
 use crate::raft::filestore::core::FileStore;
+use async_raft_ext::raft::ClientWriteRequest;
+use async_raft_ext::{Raft, RaftStorage};
 
 use self::network::core::RaftRouter;
 use self::store::{core::RaftStore, ClientRequest, ClientResponse};
@@ -24,11 +24,11 @@ pub async fn join_node(
     if !membership.contains(&node_id) {
         let mut all_node = membership.all_nodes();
         if all_node.contains(&node_id) {
-            return Ok(())
+            return Ok(());
         }
         all_node.insert(node_id);
         let members = all_node.clone().into_iter().collect();
-        log::info!("join_node membership,{:?}",&all_node);
+        log::info!("join_node membership,{:?}", &all_node);
         raft.change_membership(all_node).await.ok();
         raft.client_write(ClientWriteRequest::new(ClientRequest::Members(members)))
             .await

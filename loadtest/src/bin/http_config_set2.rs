@@ -45,7 +45,8 @@ async fn set_config(user: &mut GooseUser) -> TransactionResult {
         let uuid = uuid::Uuid::new_v4();
         let data = format!(
             "dataId={:04}&group=foo&tenant=public&content={}",
-            &get_rng_key(9999), uuid
+            &get_rng_key(9999),
+            uuid
         );
         let mut request_builder = user.get_request_builder(&GooseMethod::Post, path).unwrap();
         request_builder = request_builder
@@ -69,8 +70,7 @@ fn naming_init_session(user: &mut GooseUser) -> TransactionResult {
     Ok(())
 }
 
-
-fn get_rng_key(len:u64) -> u64 {
+fn get_rng_key(len: u64) -> u64 {
     let mut rng: StdRng = StdRng::from_entropy();
     let range_uniform = Uniform::new(0, len);
     range_uniform.sample(&mut rng)
@@ -84,6 +84,6 @@ fn now_millis() -> u64 {
         .as_millis() as u64
 }
 
-fn get_rng_key2(len:u64) -> u64 {
+fn get_rng_key2(len: u64) -> u64 {
     now_millis() % len
 }

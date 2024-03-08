@@ -45,7 +45,7 @@ pub enum ClientResponse {
 
 impl Default for ClientResponse {
     fn default() -> Self {
-       Self::Success
+        Self::Success
     }
 }
 

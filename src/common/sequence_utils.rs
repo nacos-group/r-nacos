@@ -1,7 +1,7 @@
-use std::sync::Arc;
 use actix::Addr;
+use std::sync::Arc;
 
-#[derive(Clone,Debug)]
+#[derive(Clone, Debug)]
 pub struct SimpleSequence {
     cache_size: u64,
     batch_size: u64,
@@ -9,7 +9,7 @@ pub struct SimpleSequence {
 }
 
 impl SimpleSequence {
-    pub fn new(last_id:u64,batch_size:u64) -> Self {
+    pub fn new(last_id: u64, batch_size: u64) -> Self {
         Self {
             last_id,
             batch_size,
@@ -17,7 +17,7 @@ impl SimpleSequence {
         }
     }
 
-    pub fn set_last_id(&mut self,last_id:u64){
+    pub fn set_last_id(&mut self, last_id: u64) {
         /*
         if (self.last_id + self.cache_size) <= last_id {
             self.last_id = last_id;

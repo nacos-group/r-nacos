@@ -1,8 +1,8 @@
+use std::collections::BTreeMap;
 use std::{
     collections::HashMap,
     sync::{Arc, Weak},
 };
-use std::collections::BTreeMap;
 
 use async_raft_ext::raft::ClientWriteRequest;
 use bean_factory::{bean, Inject};
@@ -10,6 +10,14 @@ use serde::{Deserialize, Serialize};
 
 use actix::prelude::*;
 
+use crate::common::byte_utils::id_to_bin;
+use crate::common::constant::{
+    CACHE_TREE_NAME, CONFIG_TREE_NAME, SEQUENCE_TREE_NAME, SEQ_KEY_CONFIG,
+};
+use crate::common::sequence_utils::SimpleSequence;
+use crate::config::model::ConfigValueDO;
+use crate::raft::filestore::model::SnapshotRecordDto;
+use crate::raft::filestore::raftsnapshot::{SnapshotWriterActor, SnapshotWriterRequest};
 use crate::{
     common::{sled_utils::TableSequence, string_utils::StringUtils},
     raft::{
@@ -22,12 +30,6 @@ use crate::{
         NacosRaft,
     },
 };
-use crate::common::byte_utils::id_to_bin;
-use crate::common::constant::{CACHE_TREE_NAME, CONFIG_TREE_NAME, SEQ_KEY_CONFIG, SEQUENCE_TREE_NAME};
-use crate::common::sequence_utils::SimpleSequence;
-use crate::config::model::ConfigValueDO;
-use crate::raft::filestore::model::SnapshotRecordDto;
-use crate::raft::filestore::raftsnapshot::{SnapshotWriterActor, SnapshotWriterRequest};
 
 type TableKV = (Vec<u8>, Vec<u8>);
 
@@ -54,7 +56,7 @@ impl TableDefinition {
 pub(crate) const TABLE_DEFINITION_TREE_NAME: &str = "tables";
 
 pub struct TableInfo {
-    pub table_data: BTreeMap<Vec<u8>,Vec<u8>>,
+    pub table_data: BTreeMap<Vec<u8>, Vec<u8>>,
     pub name: Arc<String>,
     //pub table_db_name: Arc<String>,
     pub seq: Option<SimpleSequence>,
@@ -66,7 +68,7 @@ impl TableInfo {
         let seq = if sequence_step == 0 {
             None
         } else {
-            Some(SimpleSequence::new(0,sequence_step as u64))
+            Some(SimpleSequence::new(0, sequence_step as u64))
         };
         Self {
             table_data: Default::default(),
@@ -169,17 +171,16 @@ impl TableManager {
         key: Vec<u8>,
         value: Vec<u8>,
         last_seq_id: Option<u64>,
-    ) -> Option<Vec<u8>>
-    {
+    ) -> Option<Vec<u8>> {
         if let Some(table_info) = self.table_map.get_mut(&name) {
             if let (Some(seq), Some(last_seq_id)) = (table_info.seq.as_mut(), last_seq_id) {
                 seq.set_last_id(last_seq_id);
             }
-            table_info.table_data.insert(key,value)
+            table_info.table_data.insert(key, value)
         } else {
             self.init_table(name.clone(), 0);
             let mut table_info = TableInfo::new(name.clone(), 1);
-            table_info.table_data.insert(key,value);
+            table_info.table_data.insert(key, value);
             if let (Some(seq), Some(last_seq_id)) = (table_info.seq.as_mut(), last_seq_id) {
                 seq.set_last_id(last_seq_id);
             }
@@ -188,8 +189,7 @@ impl TableManager {
         }
     }
 
-    pub fn remove(&mut self, name: Arc<String>, key: Vec<u8>) -> Option<Vec<u8>>
-    {
+    pub fn remove(&mut self, name: Arc<String>, key: Vec<u8>) -> Option<Vec<u8>> {
         if let Some(table_info) = self.table_map.get_mut(&name) {
             table_info.table_data.remove(&key)
         } else {
@@ -197,8 +197,7 @@ impl TableManager {
         }
     }
 
-    pub fn get(&mut self, name: Arc<String>, key: Vec<u8>) ->  Option<Vec<u8>>
-    {
+    pub fn get(&mut self, name: Arc<String>, key: Vec<u8>) -> Option<Vec<u8>> {
         if let Some(table_info) = self.table_map.get(&name) {
             table_info.table_data.get(&key).cloned()
         } else {
@@ -281,10 +280,7 @@ impl TableManager {
     }
 
     fn get_table_names(&self) -> Vec<Arc<String>> {
-        self.table_map
-            .values()
-            .map(|e| e.name.clone())
-            .collect()
+        self.table_map.values().map(|e| e.name.clone()).collect()
     }
 
     ///
@@ -292,7 +288,7 @@ impl TableManager {
     ///
     fn build_snapshot(&self, writer: Addr<SnapshotWriterActor>) -> anyhow::Result<()> {
         for (name, table_info) in &self.table_map {
-            for (key,value ) in &table_info.table_data {
+            for (key, value) in &table_info.table_data {
                 let record = SnapshotRecordDto {
                     tree: table_info.name.clone(),
                     key: key.to_owned(),

@@ -1,17 +1,23 @@
-use actix::prelude::*;
-use std::collections::HashSet;
-use std::sync::Arc;
-use async_raft_ext::raft::{Entry, MembershipConfig};
-use async_raft_ext::RaftStorage;
-use async_raft_ext::storage::{CurrentSnapshotData, HardState, InitialState};
-use async_trait::async_trait;
 use crate::raft::filestore::model::{ApplyRequestDto, LogIndexInfo};
-use crate::raft::filestore::raftapply::{StateApplyAsyncRequest, StateApplyManager, StateApplyRequest, StateApplyResponse};
+use crate::raft::filestore::raftapply::{
+    StateApplyAsyncRequest, StateApplyManager, StateApplyRequest, StateApplyResponse,
+};
 use crate::raft::filestore::raftindex::{RaftIndexManager, RaftIndexRequest, RaftIndexResponse};
-use crate::raft::filestore::raftlog::{RaftLogManager, RaftLogManagerAsyncRequest, RaftLogManagerRequest, RaftLogResponse};
-use crate::raft::filestore::raftsnapshot::{RaftSnapshotManager, RaftSnapshotRequest, RaftSnapshotResponse};
+use crate::raft::filestore::raftlog::{
+    RaftLogManager, RaftLogManagerAsyncRequest, RaftLogManagerRequest, RaftLogResponse,
+};
+use crate::raft::filestore::raftsnapshot::{
+    RaftSnapshotManager, RaftSnapshotRequest, RaftSnapshotResponse,
+};
 use crate::raft::filestore::StoreUtils;
 use crate::raft::store::{ClientRequest, ClientResponse, ShutdownError};
+use actix::prelude::*;
+use async_raft_ext::raft::{Entry, MembershipConfig};
+use async_raft_ext::storage::{CurrentSnapshotData, HardState, InitialState};
+use async_raft_ext::RaftStorage;
+use async_trait::async_trait;
+use std::collections::HashSet;
+use std::sync::Arc;
 
 pub fn vec_to_set(list: &Vec<u64>) -> HashSet<u64> {
     let mut set = HashSet::new();
@@ -107,13 +113,11 @@ impl RaftStorage<ClientRequest, ClientResponse> for FileStore {
                 member_after_consensus,
                 node_addrs: _node_addrs,
             } => {
-
                 let membership = MembershipConfig {
                     members: vec_to_set(&member),
                     members_after_consensus: if member_after_consensus.is_empty() {
                         None
-                    }
-                    else {
+                    } else {
                         Some(vec_to_set(&member_after_consensus))
                     },
                 };
@@ -122,7 +126,7 @@ impl RaftStorage<ClientRequest, ClientResponse> for FileStore {
             _ => {
                 log::warn!("get_membership_config init");
                 Ok(MembershipConfig::new_initial(self.node_id))
-            },
+            }
         }
     }
 
@@ -146,12 +150,15 @@ impl RaftStorage<ClientRequest, ClientResponse> for FileStore {
                     members: vec_to_set(&raft_index.member),
                     members_after_consensus: if raft_index.member_after_consensus.is_empty() {
                         None
-                    }
-                    else {
+                    } else {
                         Some(vec_to_set(&raft_index.member_after_consensus))
                     },
                 };
-                log::info!("get_initial_state from index_manager,{:?},{:?}",&last_log_index,&membership);
+                log::info!(
+                    "get_initial_state from index_manager,{:?},{:?}",
+                    &last_log_index,
+                    &membership
+                );
                 Ok(InitialState {
                     last_log_index: last_log_index.index,
                     last_log_term: last_log_index.term,
@@ -183,7 +190,7 @@ impl RaftStorage<ClientRequest, ClientResponse> for FileStore {
     ) -> anyhow::Result<Vec<Entry<ClientRequest>>> {
         match self
             .log_manager
-            .send(RaftLogManagerAsyncRequest::Query{ start, end: stop })
+            .send(RaftLogManagerAsyncRequest::Query { start, end: stop })
             .await??
         {
             //RaftLogResponse::QueryEntryResult(records) => Ok(records),
@@ -232,15 +239,18 @@ impl RaftStorage<ClientRequest, ClientResponse> for FileStore {
         index: &u64,
         data: &ClientRequest,
     ) -> anyhow::Result<ClientResponse> {
-        match self.apply_manager
-            .send(StateApplyAsyncRequest::ApplyRequest(ApplyRequestDto::new(*index,data.clone())))
-            .await?? {
-            StateApplyResponse::RaftResponse(resp) => {
-                Ok(resp)
-            }
-            _ => {
-                Err(anyhow::anyhow!("apply_entry_to_state_machine response is error"))
-            }
+        match self
+            .apply_manager
+            .send(StateApplyAsyncRequest::ApplyRequest(ApplyRequestDto::new(
+                *index,
+                data.clone(),
+            )))
+            .await??
+        {
+            StateApplyResponse::RaftResponse(resp) => Ok(resp),
+            _ => Err(anyhow::anyhow!(
+                "apply_entry_to_state_machine response is error"
+            )),
         }
     }
 
@@ -249,8 +259,8 @@ impl RaftStorage<ClientRequest, ClientResponse> for FileStore {
         entries: &[(&u64, &ClientRequest)],
     ) -> anyhow::Result<()> {
         let mut list = Vec::with_capacity(entries.len());
-        for (index,data) in entries {
-            list.push(ApplyRequestDto::new((*index).to_owned(),(*data).clone()))
+        for (index, data) in entries {
+            list.push(ApplyRequestDto::new((*index).to_owned(), (*data).clone()))
         }
         self.apply_manager
             .send(StateApplyRequest::ApplyBatchRequest(list))
@@ -264,13 +274,12 @@ impl RaftStorage<ClientRequest, ClientResponse> for FileStore {
             .send(StateApplyAsyncRequest::BuildSnapshot)
             .await??
         {
-            StateApplyResponse::Snapshot(header, path,snapshot_id) => {
+            StateApplyResponse::Snapshot(header, path, snapshot_id) => {
                 let membership_config = MembershipConfig {
                     members: vec_to_set(&header.member),
                     members_after_consensus: if header.member_after_consensus.is_empty() {
                         None
-                    }
-                    else {
+                    } else {
                         Some(vec_to_set(&header.member_after_consensus))
                     },
                 };
@@ -284,13 +293,20 @@ impl RaftStorage<ClientRequest, ClientResponse> for FileStore {
                     membership: membership_config.clone(),
                     snapshot: Box::new(file),
                 };
-                if snapshot_id==0 {
+                if snapshot_id == 0 {
                     //使用原镜像
                     return Ok(snapshot);
                 }
-                let entry = Entry::new_snapshot_pointer(header.last_index, header.last_term, snapshot_id.to_string(), membership_config);
+                let entry = Entry::new_snapshot_pointer(
+                    header.last_index,
+                    header.last_term,
+                    snapshot_id.to_string(),
+                    membership_config,
+                );
                 let record = StoreUtils::entry_to_record(&entry)?;
-                self.log_manager.send(RaftLogManagerRequest::BuildSnapshotPointerLog(record)).await??;
+                self.log_manager
+                    .send(RaftLogManagerRequest::BuildSnapshotPointerLog(record))
+                    .await??;
                 Ok(snapshot)
             }
             _ => Err(anyhow::anyhow!("StateApplyResponse result is error")),
@@ -348,7 +364,9 @@ impl RaftStorage<ClientRequest, ClientResponse> for FileStore {
         let membership_config = self.get_membership_config().await?;
         let entry = Entry::new_snapshot_pointer(index, term, id, membership_config);
         let record = StoreUtils::entry_to_record(&entry)?;
-        self.log_manager.send(RaftLogManagerRequest::InstallSnapshotPointerLog(record)).await??;
+        self.log_manager
+            .send(RaftLogManagerRequest::InstallSnapshotPointerLog(record))
+            .await??;
         Ok(())
     }
 
@@ -364,8 +382,7 @@ impl RaftStorage<ClientRequest, ClientResponse> for FileStore {
                 members: vec_to_set(&header.member),
                 members_after_consensus: if header.member_after_consensus.is_empty() {
                     None
-                }
-                else {
+                } else {
                     Some(vec_to_set(&header.member_after_consensus))
                 },
             };

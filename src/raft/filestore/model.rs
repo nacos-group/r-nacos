@@ -265,11 +265,8 @@ pub struct ApplyRequestDto {
 }
 
 impl ApplyRequestDto {
-    pub fn new(index: u64,request: ClientRequest,) -> Self {
-        Self {
-            index,
-            request,
-        }
+    pub fn new(index: u64, request: ClientRequest) -> Self {
+        Self { index, request }
     }
 }
 

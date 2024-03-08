@@ -1,8 +1,8 @@
 use crate::config::core::{ConfigHistoryInfoDto, ConfigKey, ConfigValue};
-use actix::prelude::*;
-use std::sync::Arc;
-use serde::{Deserialize, Serialize};
 use crate::utils::get_md5;
+use actix::prelude::*;
+use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 
 #[derive(Message)]
 #[rtype(result = "anyhow::Result<ConfigRaftResult>")]
@@ -28,15 +28,15 @@ pub enum ConfigRaftResult {
 }
 
 #[derive(Clone)]
-pub struct HistoryItem{
+pub struct HistoryItem {
     pub id: u64,
     pub content: Arc<String>,
     pub modified_time: i64,
 }
 
 impl HistoryItem {
-    pub(crate) fn to_dto(&self,key:&ConfigKey) -> ConfigHistoryInfoDto {
-        ConfigHistoryInfoDto{
+    pub(crate) fn to_dto(&self, key: &ConfigKey) -> ConfigHistoryInfoDto {
+        ConfigHistoryInfoDto {
             id: Some(self.id as i64),
             tenant: Some(key.tenant.to_string()),
             group: Some(key.group.to_string()),
@@ -57,13 +57,13 @@ pub struct ConfigHistoryItemDO {
     pub last_time: Option<i64>,
 }
 
-impl From<HistoryItem> for ConfigHistoryItemDO{
+impl From<HistoryItem> for ConfigHistoryItemDO {
     fn from(value: HistoryItem) -> Self {
-       Self {
-           id: Some(value.id),
-           content: Some(value.content.as_ref().to_string()),
-           last_time: Some(value.modified_time),
-       }
+        Self {
+            id: Some(value.id),
+            content: Some(value.content.as_ref().to_string()),
+            last_time: Some(value.modified_time),
+        }
     }
 }
 
@@ -80,7 +80,7 @@ impl From<ConfigHistoryItemDO> for HistoryItem {
 pub struct ConfigValueDO {
     #[prost(string, optional, tag = "1")]
     pub content: Option<String>,
-    #[prost(repeated,message, tag = "2")]
+    #[prost(repeated, message, tag = "2")]
     pub histories: Vec<ConfigHistoryItemDO>,
 }
 
@@ -92,9 +92,9 @@ impl ConfigValueDO {
         Ok(v)
     }
 
-    pub fn from_bytes(data:&[u8]) -> anyhow::Result<Self> {
+    pub fn from_bytes(data: &[u8]) -> anyhow::Result<Self> {
         use prost::Message;
-        let s=Self::decode(data)?;
+        let s = Self::decode(data)?;
         Ok(s)
     }
 }
@@ -103,7 +103,7 @@ impl From<ConfigValue> for ConfigValueDO {
     fn from(value: ConfigValue) -> Self {
         Self {
             content: Some(value.content.as_ref().to_owned()),
-            histories: value.histories.into_iter().map(|e|e.into()).collect(),
+            histories: value.histories.into_iter().map(|e| e.into()).collect(),
         }
     }
 }
@@ -113,10 +113,10 @@ impl From<ConfigValueDO> for ConfigValue {
         let content = value.content.unwrap_or_default();
         let md5 = Arc::new(get_md5(&content));
         Self {
-            content:Arc::new(content) ,
+            content: Arc::new(content),
             md5,
             tmp: false,
-            histories: value.histories.into_iter().map(|e|e.into()).collect(),
+            histories: value.histories.into_iter().map(|e| e.into()).collect(),
         }
     }
 }

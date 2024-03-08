@@ -5,12 +5,16 @@ use bean_factory::{bean, Inject};
 use quick_protobuf::{BytesReader, Writer};
 use tokio::{
     fs::OpenOptions,
-    io::{AsyncReadExt, AsyncWriteExt, AsyncSeekExt},
+    io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt},
 };
 
 use crate::common::protobuf_utils::MessageBufReader;
 
-use super::{model::{SnapshotHeaderDto, SnapshotRecordDto}, log::{SnapshotHeader, LogSnapshotItem, SnapshotRange}, raftindex::{RaftIndexManager, RaftIndexResponse, RaftIndexRequest}};
+use super::{
+    log::{LogSnapshotItem, SnapshotHeader, SnapshotRange},
+    model::{SnapshotHeaderDto, SnapshotRecordDto},
+    raftindex::{RaftIndexManager, RaftIndexRequest, RaftIndexResponse},
+};
 
 #[derive(Debug)]
 pub struct SnapshotWriter {
@@ -78,15 +82,15 @@ impl SnapshotWriterActor {
             let writer = SnapshotWriter::init(&path, header).await?;
             Ok(writer)
         }
-            .into_actor(self)
-            .map(|v: anyhow::Result<SnapshotWriter>, act, ctx| {
-                if let Ok(v) = v {
-                    act.inner_writer = Some(v);
-                } else {
-                    ctx.stop();
-                };
-            })
-            .wait(ctx);
+        .into_actor(self)
+        .map(|v: anyhow::Result<SnapshotWriter>, act, ctx| {
+            if let Ok(v) = v {
+                act.inner_writer = Some(v);
+            } else {
+                ctx.stop();
+            };
+        })
+        .wait(ctx);
     }
 
     fn write(&mut self, ctx: &mut Context<Self>, record: SnapshotRecordDto) {
@@ -95,15 +99,15 @@ impl SnapshotWriterActor {
             writer.write_record(&record).await?;
             Ok(writer)
         }
-            .into_actor(self)
-            .map(|v: anyhow::Result<SnapshotWriter>, act, ctx| {
-                if let Ok(v) = v {
-                    act.inner_writer = Some(v);
-                } else {
-                    ctx.stop()
-                }
-            })
-            .wait(ctx);
+        .into_actor(self)
+        .map(|v: anyhow::Result<SnapshotWriter>, act, ctx| {
+            if let Ok(v) = v {
+                act.inner_writer = Some(v);
+            } else {
+                ctx.stop()
+            }
+        })
+        .wait(ctx);
     }
 
     fn flush(&mut self, ctx: &mut Context<Self>) {
@@ -112,15 +116,15 @@ impl SnapshotWriterActor {
             writer.flush().await?;
             Ok(writer)
         }
-            .into_actor(self)
-            .map(|v: anyhow::Result<SnapshotWriter>, act, ctx| {
-                if let Ok(v) = v {
-                    act.inner_writer = Some(v);
-                } else {
-                    ctx.stop()
-                }
-            })
-            .wait(ctx);
+        .into_actor(self)
+        .map(|v: anyhow::Result<SnapshotWriter>, act, ctx| {
+            if let Ok(v) = v {
+                act.inner_writer = Some(v);
+            } else {
+                ctx.stop()
+            }
+        })
+        .wait(ctx);
     }
 }
 
@@ -274,20 +278,20 @@ impl RaftSnapshotManager {
                 ))
             }
         }
-            .into_actor(self)
-            .map(|v, act, ctx| {
-                if let Ok(RaftIndexResponse::RaftIndexInfo {
-                              raft_index,
-                              last_applied_log: _last_applied_log,
-                          }) = v
-                {
-                    act.snapshots = raft_index.snapshots;
-                    if let Some(last) = act.snapshots.last() {
-                        act.load_snapshot_header(ctx, last.id);
-                    }
+        .into_actor(self)
+        .map(|v, act, ctx| {
+            if let Ok(RaftIndexResponse::RaftIndexInfo {
+                raft_index,
+                last_applied_log: _last_applied_log,
+            }) = v
+            {
+                act.snapshots = raft_index.snapshots;
+                if let Some(last) = act.snapshots.last() {
+                    act.load_snapshot_header(ctx, last.id);
                 }
-            })
-            .wait(ctx);
+            }
+        })
+        .wait(ctx);
     }
 
     fn load_snapshot_header(&mut self, ctx: &mut Context<Self>, snapshot_id: u64) {
@@ -296,13 +300,13 @@ impl RaftSnapshotManager {
             let reader = SnapshotReader::init(&path).await?;
             Ok(reader.header)
         }
-            .into_actor(self)
-            .map(|v: anyhow::Result<SnapshotHeaderDto>, act, _ctx| {
-                if let Ok(v) = v {
-                    act.last_header = Some(v);
-                }
-            })
-            .wait(ctx);
+        .into_actor(self)
+        .map(|v: anyhow::Result<SnapshotHeaderDto>, act, _ctx| {
+            if let Ok(v) = v {
+                act.last_header = Some(v);
+            }
+        })
+        .wait(ctx);
     }
 
     fn get_next_id(&mut self) -> anyhow::Result<u64> {
@@ -387,8 +391,7 @@ impl RaftSnapshotManager {
         if let (Some(header), Some(index_manager)) = (&self.last_header, &self.index_manager) {
             let member_after_consensus = if header.member_after_consensus.is_empty() {
                 None
-            }
-            else {
+            } else {
                 Some(header.member_after_consensus.clone())
             };
             let req = RaftIndexRequest::SaveMember {

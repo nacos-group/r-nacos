@@ -9,6 +9,7 @@ use crate::raft::cache::CacheManager;
 use crate::raft::cluster::route::ConfigRoute;
 use crate::raft::db::route::TableRoute;
 use crate::raft::db::table::TableManager;
+use crate::raft::filestore::core::FileStore;
 use crate::raft::network::factory::RaftClusterRequestSender;
 use crate::raft::store::core::RaftStore;
 use crate::raft::NacosRaft;
@@ -16,7 +17,6 @@ use crate::user::UserManager;
 use actix::Addr;
 use bean_factory::FactoryData;
 use std::sync::Arc;
-use crate::raft::filestore::core::FileStore;
 
 pub struct AppShareData {
     pub config_addr: Addr<ConfigActor>,

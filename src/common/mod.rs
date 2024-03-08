@@ -2,6 +2,7 @@ use lazy_static::lazy_static;
 use std::sync::{Arc, Mutex};
 use uuid::Uuid;
 
+pub mod actor_utils;
 pub mod appdata;
 pub mod byte_utils;
 pub mod constant;
@@ -13,11 +14,10 @@ pub mod limiter_utils;
 pub mod model;
 pub mod protobuf_utils;
 pub mod rusqlite_utils;
+pub mod sequence_utils;
 pub mod sled_utils;
 pub mod string_utils;
 pub mod web_utils;
-pub mod sequence_utils;
-pub mod actor_utils;
 
 lazy_static! {
     // Global app sys config
