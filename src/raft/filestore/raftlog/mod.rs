@@ -997,7 +997,7 @@ impl RaftLogManager {
         }
         .into_actor(self)
         .map(|v: anyhow::Result<(RaftLogResponse, bool)>, act, ctx| {
-            if let Ok(( RaftLogResponse::WriteResult(write_result), can_rewrite)) = v {
+            if let Ok((RaftLogResponse::WriteResult(write_result), can_rewrite)) = v {
                 match write_result {
                     LogWriteResult::SuccessToEnd(next_index, last_term) => {
                         act.switch_new_log(ctx, next_index, last_term);
@@ -1045,12 +1045,7 @@ impl RaftLogManager {
                     LogWriteResult::SuccessToEnd(next_index, last_term) => {
                         act.switch_new_log(ctx, next_index, last_term);
                     }
-                    LogWriteResult::FailureBatch(
-                        next_index,
-                        last_term,
-                        records,
-                        record_index,
-                    ) => {
+                    LogWriteResult::FailureBatch(next_index, last_term, records, record_index) => {
                         act.switch_new_log(ctx, next_index, last_term);
                         act.write_batch(ctx, records, record_index);
                     }

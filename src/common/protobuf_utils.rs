@@ -189,7 +189,7 @@ impl MessageBufReader {
         self.buf.append(&mut v);
     }
 
-    pub fn next_message_vec(& mut self) -> Option<&[u8]> {
+    pub fn next_message_vec(&mut self) -> Option<&[u8]> {
         let mut i = self.start;
         let mut can_read_len = false;
         if self.is_empty() {

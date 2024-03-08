@@ -86,8 +86,7 @@ impl TableManager {
         Self::default()
     }
 
-    fn init_table(&mut self, _name: Arc<String>, _sequence_step: u32) {
-    }
+    fn init_table(&mut self, _name: Arc<String>, _sequence_step: u32) {}
 
     pub fn drop_table(&mut self, name: &Arc<String>) {
         if let Some(mut table) = self.table_map.remove(name) {
@@ -178,11 +177,11 @@ impl TableManager {
                 let n_i = iter.skip(offset as usize);
                 if let Some(limit) = limit {
                     let t = n_i.take(limit as usize);
-                    for (k,v) in t {
+                    for (k, v) in t {
                         Self::push_match_condition_item(k, v, &like_key, &mut ret);
                     }
                 } else {
-                    for (k,v) in n_i {
+                    for (k, v) in n_i {
                         Self::push_match_condition_item(k, v, &like_key, &mut ret);
                     }
                 }
@@ -193,11 +192,11 @@ impl TableManager {
                 let n_i = table_info.table_data.iter().skip(offset as usize);
                 if let Some(limit) = limit {
                     let t = n_i.take(limit as usize);
-                    for (k,v) in t {
+                    for (k, v) in t {
                         Self::push_match_condition_item(k, v, &like_key, &mut ret);
                     }
                 } else {
-                    for (k,v) in n_i {
+                    for (k, v) in n_i {
                         Self::push_match_condition_item(k, v, &like_key, &mut ret);
                     }
                 }
