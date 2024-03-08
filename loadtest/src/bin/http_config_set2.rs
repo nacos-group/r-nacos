@@ -76,6 +76,7 @@ fn get_rng_key(len: u64) -> u64 {
     range_uniform.sample(&mut rng)
 }
 
+/*
 fn now_millis() -> u64 {
     use std::time::SystemTime;
     SystemTime::now()
@@ -87,3 +88,4 @@ fn now_millis() -> u64 {
 fn get_rng_key2(len: u64) -> u64 {
     now_millis() % len
 }
+*/

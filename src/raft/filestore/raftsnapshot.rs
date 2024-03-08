@@ -35,12 +35,12 @@ impl SnapshotWriter {
         let mut writer = Writer::new(&mut buf);
         let record = header.to_record_do();
         writer.write_message(&record)?;
-        file.write(&buf).await?;
+        file.write_all(&buf).await?;
         Ok(Self { file })
     }
 
     pub async fn write(&mut self, buf: &[u8]) -> anyhow::Result<()> {
-        self.file.write(buf).await?;
+        self.file.write_all(buf).await?;
         Ok(())
     }
 
@@ -48,7 +48,7 @@ impl SnapshotWriter {
         let mut buf = Vec::new();
         let mut writer = Writer::new(&mut buf);
         writer.write_message(&record.to_record_do())?;
-        self.file.write(&buf).await?;
+        self.file.write_all(&buf).await?;
         Ok(())
     }
 
@@ -222,7 +222,7 @@ impl SnapshotReader {
             return Ok(None);
         }
         loop {
-            while let Some(v) = self.message_reader.next_message_vec() {
+            if let Some(v) = self.message_reader.next_message_vec() {
                 let mut reader = BytesReader::from_bytes(v);
                 let item: LogSnapshotItem = reader.read_message(v)?;
                 let dto = item.into();
@@ -396,7 +396,7 @@ impl RaftSnapshotManager {
             };
             let req = RaftIndexRequest::SaveMember {
                 member: header.member.clone(),
-                member_after_consensus: member_after_consensus,
+                member_after_consensus,
                 node_addr: Some(header.node_addrs.clone()),
             };
             index_manager.do_send(req);
@@ -408,7 +408,7 @@ impl RaftSnapshotManager {
 impl Actor for RaftSnapshotManager {
     type Context = Context<Self>;
 
-    fn started(&mut self, ctx: &mut Self::Context) {
+    fn started(&mut self, _ctx: &mut Self::Context) {
         log::info!("RaftSnapshotActor started");
     }
 }

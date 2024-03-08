@@ -325,14 +325,12 @@ impl From<InstallSnapshotRequestDto> for InstallSnapshotRequest {
 
 impl InstallSnapshotRequestDto {
     pub fn to_bytes(&self) -> anyhow::Result<Vec<u8>> {
-        use prost::Message;
         let mut data_bytes: Vec<u8> = Vec::new();
         self.encode(&mut data_bytes)?;
         Ok(data_bytes)
     }
 
     pub fn from_bytes(buf: &[u8]) -> anyhow::Result<Self> {
-        use prost::Message;
         let s = InstallSnapshotRequestDto::decode(buf)?;
         Ok(s)
     }

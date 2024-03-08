@@ -132,11 +132,14 @@ fn move_data_to_start(message_buf: &mut Vec<u8>, start: usize) {
     }
 }
 
-fn copy_data(form: &[u8], to: &mut Vec<u8>, start: usize) {
+fn copy_data(form: &[u8], to: &mut [u8], start: usize) {
     let len = form.len();
+    to[start..(len + start)].copy_from_slice(&form[..len]);
+    /*
     for i in 0..len {
         to[start + i] = form[i]
     }
+     */
 }
 
 #[derive(Debug)]
@@ -146,6 +149,12 @@ pub struct MessageBufReader {
     end: usize,
     //enough_next: bool,
     next_len: usize,
+}
+
+impl Default for MessageBufReader {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl MessageBufReader {
@@ -163,7 +172,7 @@ impl MessageBufReader {
         self.buf[self.start] == 0
     }
 
-    pub fn append_next_buf<'a>(&mut self, next_buf: &'a [u8]) {
+    pub fn append_next_buf(&mut self, next_buf: &[u8]) {
         move_data_to_start(&mut self.buf, self.start);
         self.end -= self.start;
         self.start = 0;
@@ -180,7 +189,7 @@ impl MessageBufReader {
         self.buf.append(&mut v);
     }
 
-    pub fn next_message_vec<'a>(&'a mut self) -> Option<&'a [u8]> {
+    pub fn next_message_vec(& mut self) -> Option<&[u8]> {
         let mut i = self.start;
         let mut can_read_len = false;
         if self.is_empty() {
@@ -258,14 +267,14 @@ impl FileMessageReader {
         if data_len < data_buf.len() {
             return Err(anyhow::anyhow!("read data not enough"));
         }
-        self.file.seek(SeekFrom::Start(start as u64)).await?;
+        self.file.seek(SeekFrom::Start(start)).await?;
         Ok(data_buf)
     }
 
     pub async fn read_to_end(&mut self) -> anyhow::Result<(u64, MessagePosition)> {
         let mut count = 0;
         let mut last_position = MessagePosition {
-            position: self.start as u64,
+            position: self.start,
             len: 0,
         };
         while let Ok(msg_position) = self.read_next_position().await {
@@ -278,10 +287,10 @@ impl FileMessageReader {
     pub async fn read_next_position(&mut self) -> anyhow::Result<MessagePosition> {
         let start = self.start;
         let len = self.read_len().await?;
-        self.start += len as u64;
+        self.start += len;
         self.file.seek(SeekFrom::Start(self.start)).await?;
         Ok(MessagePosition {
-            position: start as u64,
+            position: start,
             len,
         })
     }
@@ -303,7 +312,7 @@ impl FileMessageReader {
         if len == 0 {
             return Err(anyhow::anyhow!("read end,position:{}", self.start));
         }
-        self.file.seek(SeekFrom::Start(self.start as u64)).await?;
+        self.file.seek(SeekFrom::Start(self.start)).await?;
         Ok(len + inner_sizeof_varint(len) as u64)
     }
 }

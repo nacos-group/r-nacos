@@ -30,7 +30,6 @@ pub fn vec_to_set(list: &Vec<u64>) -> HashSet<u64> {
 #[derive(Clone)]
 pub struct FileStore {
     node_id: u64,
-    //inner_addr: Addr<InnerStore>,
     index_manager: Addr<RaftIndexManager>,
     snapshot_manager: Addr<RaftSnapshotManager>,
     log_manager: Addr<RaftLogManager>,
@@ -177,7 +176,7 @@ impl RaftStorage<ClientRequest, ClientResponse> for FileStore {
     async fn save_hard_state(&self, hs: &HardState) -> anyhow::Result<()> {
         let req = RaftIndexRequest::SaveHardState {
             current_term: hs.current_term,
-            voted_for: hs.voted_for.clone().unwrap_or_default(),
+            voted_for: hs.voted_for.unwrap_or_default(),
         };
         self.index_manager.send(req).await??;
         Ok(())

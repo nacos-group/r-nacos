@@ -52,16 +52,16 @@ impl RaftIndexInnerManager {
             let mut writer = Writer::new(&mut buf);
             writer.write_message(&index)?;
             let header_buf = id_to_bin(0);
-            file.write(&header_buf).await?;
-            file.write(&buf).await?;
+            file.write_all(&header_buf).await?;
+            file.write_all(&buf).await?;
             file.flush().await?;
             let raft_index: RaftIndexDto = index.try_into()?;
             (0, raft_index)
         } else {
             //read
             let mut header_buf = vec![0u8; 8];
-            file.read(&mut header_buf).await?;
-            let last_applied_log = bin_to_id(&mut header_buf);
+            file.read_exact(&mut header_buf).await?;
+            let last_applied_log = bin_to_id(&header_buf);
             let mut file_reader = FileMessageReader::new(file.try_clone().await?, 8);
             let buf = file_reader.read_next().await?;
             let mut reader = BytesReader::from_bytes(&buf);
@@ -80,7 +80,7 @@ impl RaftIndexInnerManager {
     pub async fn write_last_applied_log(&mut self, last_applied_log: u64) -> anyhow::Result<()> {
         self.last_applied_log = last_applied_log;
         self.file.seek(std::io::SeekFrom::Start(0)).await?;
-        self.file.write(&id_to_bin(last_applied_log)).await?;
+        self.file.write_all(&id_to_bin(last_applied_log)).await?;
         self.applied_flush = false;
         Ok(())
     }
@@ -92,7 +92,7 @@ impl RaftIndexInnerManager {
         let mut writer = Writer::new(&mut buf);
         let index_do = self.raft_index.to_record_do();
         writer.write_message(&index_do)?;
-        self.file.write(&buf).await?;
+        self.file.write_all(&buf).await?;
         self.file.flush().await?;
         self.applied_flush = true;
         Ok(())

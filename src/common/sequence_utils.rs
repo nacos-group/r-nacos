@@ -1,6 +1,3 @@
-use actix::Addr;
-use std::sync::Arc;
-
 #[derive(Clone, Debug)]
 pub struct SimpleSequence {
     cache_size: u64,

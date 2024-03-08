@@ -6,10 +6,7 @@ use crate::raft::filestore::core::FileStore;
 use crate::{
     config::core::{ConfigActor, ConfigAsyncCmd, ConfigCmd},
     grpc::PayloadUtils,
-    raft::{
-        NacosRaft,
-        {network::factory::RaftClusterRequestSender, store::core::RaftStore},
-    },
+    raft::{network::factory::RaftClusterRequestSender, NacosRaft},
 };
 
 use super::model::{DelConfigReq, RouteAddr, RouterRequest, RouterResponse, SetConfigReq};

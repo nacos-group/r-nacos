@@ -10,23 +10,16 @@ use serde::{Deserialize, Serialize};
 
 use actix::prelude::*;
 
-use crate::common::byte_utils::id_to_bin;
-use crate::common::constant::{
-    CACHE_TREE_NAME, CONFIG_TREE_NAME, SEQUENCE_TREE_NAME, SEQ_KEY_CONFIG,
-};
+use crate::common::constant::CACHE_TREE_NAME;
 use crate::common::sequence_utils::SimpleSequence;
-use crate::config::model::ConfigValueDO;
 use crate::raft::filestore::model::SnapshotRecordDto;
 use crate::raft::filestore::raftsnapshot::{SnapshotWriterActor, SnapshotWriterRequest};
 use crate::{
-    common::{sled_utils::TableSequence, string_utils::StringUtils},
+    common::string_utils::StringUtils,
     raft::{
         cache::{CacheManager, CacheManagerReq},
         cluster::model::RouterRequest,
-        store::{
-            innerstore::{InnerStore, StoreRequest},
-            ClientRequest,
-        },
+        store::ClientRequest,
         NacosRaft,
     },
 };
@@ -53,7 +46,7 @@ impl TableDefinition {
     }
 }
 
-pub(crate) const TABLE_DEFINITION_TREE_NAME: &str = "tables";
+//pub(crate) const TABLE_DEFINITION_TREE_NAME: &str = "tables";
 
 pub struct TableInfo {
     pub table_data: BTreeMap<Vec<u8>, Vec<u8>>,
@@ -80,57 +73,20 @@ impl TableInfo {
 }
 
 #[bean(inject)]
+#[derive(Default)]
 pub struct TableManager {
     //pub db: Arc<sled::Db>,
     pub table_map: HashMap<Arc<String>, TableInfo>,
     raft: Option<Weak<NacosRaft>>,
-    raft_inner_store: Option<Addr<InnerStore>>,
     cache_manager: Option<Addr<CacheManager>>,
 }
 
 impl TableManager {
     pub fn new() -> Self {
-        Self {
-            table_map: Default::default(),
-            raft: None,
-            raft_inner_store: None,
-            cache_manager: None,
-        }
+        Self::default()
     }
 
-    /*
-    /// load table info from db
-    fn load_tables(&mut self) {
-        let tables = self.db.open_tree(TABLE_DEFINITION_TREE_NAME).unwrap();
-        let mut iter = tables.iter();
-        while let Some(Ok((_, v))) = iter.next() {
-            if let Ok(definition) = TableDefinition::from_bytes(v.as_ref()) {
-                let name = Arc::new(definition.name.to_owned());
-                self.table_map.insert(
-                    name.clone(),
-                    TableInfo::new(name, self.db.clone(), definition.sequence_step),
-                );
-            }
-        }
-        if let Some(raft_inner_store) = self.raft_inner_store.as_ref() {
-            for v in self.table_map.values() {
-                raft_inner_store.do_send(StoreRequest::RaftTableInit(v.table_db_name.clone()));
-            }
-        }
-    }
-     */
-
-    fn init_table(&mut self, name: Arc<String>, sequence_step: u32) {
-        /*
-        let tables = self.db.open_tree(TABLE_DEFINITION_TREE_NAME).unwrap();
-        let definition = TableDefinition {
-            name: name.as_ref().to_owned(),
-            sequence_step,
-        };
-        tables
-            .insert(name.as_bytes(), definition.to_bytes())
-            .unwrap();
-         */
+    fn init_table(&mut self, _name: Arc<String>, _sequence_step: u32) {
     }
 
     pub fn drop_table(&mut self, name: &Arc<String>) {
@@ -219,14 +175,14 @@ impl TableManager {
             if is_rev {
                 let iter = table_info.table_data.iter().rev();
                 let offset = offset.unwrap_or_default();
-                let mut n_i = iter.skip(offset as usize);
+                let n_i = iter.skip(offset as usize);
                 if let Some(limit) = limit {
-                    let mut t = n_i.take(limit as usize);
-                    while let Some((k, v)) = t.next() {
+                    let t = n_i.take(limit as usize);
+                    for (k,v) in t {
                         Self::push_match_condition_item(k, v, &like_key, &mut ret);
                     }
                 } else {
-                    while let Some((k, v)) = n_i.next() {
+                    for (k,v) in n_i {
                         Self::push_match_condition_item(k, v, &like_key, &mut ret);
                     }
                 }
@@ -234,14 +190,14 @@ impl TableManager {
                 //正反 iter 类型不同，后继可以考虑使用宏消除下面的重复编码
                 let offset = offset.unwrap_or_default();
                 //let iter = &table_info.table_data.iter();
-                let mut n_i = table_info.table_data.iter().skip(offset as usize);
+                let n_i = table_info.table_data.iter().skip(offset as usize);
                 if let Some(limit) = limit {
-                    let mut t = n_i.take(limit as usize);
-                    while let Some((k, v)) = t.next() {
+                    let t = n_i.take(limit as usize);
+                    for (k,v) in t {
                         Self::push_match_condition_item(k, v, &like_key, &mut ret);
                     }
                 } else {
-                    while let Some((k, v)) = n_i.next() {
+                    for (k,v) in n_i {
                         Self::push_match_condition_item(k, v, &like_key, &mut ret);
                     }
                 }
@@ -265,8 +221,8 @@ impl TableManager {
     }
 
     fn push_match_condition_item(
-        k: &Vec<u8>,
-        v: &Vec<u8>,
+        k: &[u8],
+        v: &[u8],
         like_key: &Option<String>,
         ret: &mut Vec<(Vec<u8>, Vec<u8>)>,
     ) {
@@ -287,7 +243,7 @@ impl TableManager {
     /// 将数据写入raft snapshot文件中
     ///
     fn build_snapshot(&self, writer: Addr<SnapshotWriterActor>) -> anyhow::Result<()> {
-        for (name, table_info) in &self.table_map {
+        for table_info in self.table_map.values() {
             for (key, value) in &table_info.table_data {
                 let record = SnapshotRecordDto {
                     tree: table_info.name.clone(),
@@ -321,7 +277,6 @@ impl Inject for TableManager {
     ) {
         let raft: Option<Arc<NacosRaft>> = factory_data.get_bean();
         self.raft = raft.map(|e| Arc::downgrade(&e));
-        self.raft_inner_store = factory_data.get_actor();
         self.cache_manager = factory_data.get_actor();
     }
 }

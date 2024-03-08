@@ -11,7 +11,6 @@ use std::time::Duration;
 
 use crate::raft::store::ClientRequest;
 use crate::raft::NacosRaft;
-//use crate::raft::store::Request;
 use crate::utils::get_md5;
 use serde::{Deserialize, Serialize};
 
@@ -20,7 +19,6 @@ use crate::common::constant::{CONFIG_TREE_NAME, SEQUENCE_TREE_NAME, SEQ_KEY_CONF
 use crate::common::sequence_utils::SimpleSequence;
 use actix::prelude::*;
 
-use super::config_sled::{Config, ConfigDB};
 use super::config_subscribe::Subscriber;
 use super::dal::ConfigHistoryParam;
 use crate::config::config_index::{ConfigQueryParam, TenantIndex};
@@ -329,7 +327,6 @@ pub struct ConfigActor {
     listener: ConfigListener,
     subscriber: Subscriber,
     tenant_index: TenantIndex,
-    //config_db: ConfigDB,
     raft: Option<Weak<NacosRaft>>,
     sequence: SimpleSequence,
 }
@@ -352,27 +349,22 @@ impl Inject for ConfigActor {
     }
 }
 
-/*
 impl Default for ConfigActor {
     fn default() -> Self {
         Self::new()
     }
 }
-*/
 
 impl ConfigActor {
     pub fn new() -> Self {
-        let mut s = Self {
+        Self {
             cache: HashMap::new(),
             subscriber: Subscriber::new(),
             listener: ConfigListener::new(),
             tenant_index: TenantIndex::new(),
-            //config_db: ConfigDB::new(db),
             raft: None,
             sequence: SimpleSequence::new(0, 100),
-        };
-        //s.load_config();
-        s
+        }
     }
 
     fn set_tmp_config(&mut self, key: ConfigKey, val: Arc<String>) {
@@ -381,9 +373,9 @@ impl ConfigActor {
         self.cache.insert(key, config_val);
     }
 
-    fn inner_set_config(&mut self, key: ConfigKey, val: Arc<String>) {
-        let config_val = ConfigValue::new(val);
-        self.cache.insert(key, config_val);
+    fn inner_set_config(&mut self, key: ConfigKey, value: ConfigValue) {
+        self.tenant_index.insert_config(key.clone());
+        self.cache.insert(key, value);
     }
 
     fn set_config(
@@ -394,7 +386,7 @@ impl ConfigActor {
         _history_table_id: Option<u64>,
     ) -> anyhow::Result<ConfigResult> {
         if let Some(v) = self.cache.get_mut(&key) {
-            if !v.tmp && v.md5.as_str() == &get_md5(val.as_str()) {
+            if !v.tmp && v.md5.as_str() == get_md5(val.as_str()) {
                 return Ok(ConfigResult::NULL);
             }
             v.update_value(val, history_id)
@@ -504,14 +496,14 @@ impl ConfigActor {
                 let mut ret = vec![];
                 let iter = v.histories.iter().rev();
                 if let Some(offset) = param.offset {
-                    let mut n_i = iter.skip(offset as usize);
+                    let n_i = iter.skip(offset as usize);
                     if let Some(limit) = param.limit {
-                        let mut t = n_i.take(limit as usize);
-                        while let Some(item) = t.next() {
+                        let t = n_i.take(limit as usize);
+                        for item in t {
                             ret.push(item.to_dto(&key));
                         }
                     } else {
-                        while let Some(item) = n_i.next() {
+                        for item in n_i {
                             ret.push(item.to_dto(&key));
                         }
                     }
@@ -611,10 +603,7 @@ impl Handler<ConfigCmd> for ConfigActor {
                 self.set_tmp_config(key, value);
             }
             ConfigCmd::InnerSet(key, value) => {
-                self.tenant_index.insert_config(key.clone());
-                self.cache.insert(key, value);
-                //self.listener.notify(key.clone());
-                //self.subscriber.notify(key);
+                self.inner_set_config(key, value);
             }
             ConfigCmd::InnerSetLastId(last_id) => {
                 self.sequence.set_last_id(last_id);

@@ -27,14 +27,13 @@ use crate::{
             route::{ConfigRoute, RaftAddrRouter},
         },
         db::{route::TableRoute, table::TableManager},
-        store::innerstore::InnerStore,
         NacosRaft,
         {
             network::{
                 core::RaftRouter,
                 factory::{RaftClusterRequestSender, RaftConnectionFactory},
             },
-            store::{core::RaftStore, ClientRequest},
+            store::ClientRequest,
         },
     },
     user::UserManager,
@@ -75,15 +74,6 @@ pub async fn config_factory(sys_config: Arc<AppSysConfig>) -> anyhow::Result<Fac
     ));
 
     //raft
-    /*
-    let raft_inner_store =
-        InnerStore::create_at_new_system(sys_config.raft_node_id.to_owned(), db.clone());
-    factory.register(BeanDefinition::actor_with_inject_from_obj(
-        raft_inner_store.clone(),
-    ));
-    let store = Arc::new(RaftStore::new(raft_inner_store));
-    factory.register(BeanDefinition::from_obj(store.clone()));
-     */
     let conn_factory = RaftConnectionFactory::new(60).start();
     factory.register(BeanDefinition::actor_from_obj(conn_factory.clone()));
     let cluster_sender = Arc::new(RaftClusterRequestSender::new(conn_factory));
@@ -181,7 +171,7 @@ pub async fn config_factory(sys_config: Arc<AppSysConfig>) -> anyhow::Result<Fac
     let raft_data_wrap = Arc::new(RaftDataWrap {
         config: config_addr.clone(),
         table: table_manage.clone(),
-        cache: cache_manager.clone(),
+        //cache: cache_manager.clone(),
     });
     factory.register(BeanDefinition::from_obj(raft_data_wrap));
 

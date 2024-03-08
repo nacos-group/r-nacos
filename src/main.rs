@@ -18,7 +18,6 @@ use rnacos::raft::cluster::model::RouterRequest;
 use rnacos::raft::cluster::route::{ConfigRoute, RaftAddrRouter};
 use rnacos::raft::network::core::RaftRouter;
 use rnacos::raft::network::factory::{RaftClusterRequestSender, RaftConnectionFactory};
-use rnacos::raft::store::core::RaftStore;
 use rnacos::raft::store::ClientRequest;
 use rnacos::starter::{build_share_data, config_factory};
 use rnacos::{grpc::server::RequestServerImpl, naming::core::NamingActor};

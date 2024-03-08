@@ -1,3 +1,4 @@
+#![allow(clippy::single_match)]
 use std::sync::Arc;
 
 use crate::common::byte_utils::bin_to_id;
@@ -6,7 +7,6 @@ use crate::common::constant::{
 };
 use crate::config::core::{ConfigCmd, ConfigKey};
 use crate::config::model::{ConfigRaftCmd, ConfigValueDO};
-use crate::naming::cluster::node_manage::{InnerNodeManage, NodeManageRequest};
 use crate::raft::db::table::{TableManagerInnerReq, TableManagerReq};
 use crate::raft::filestore::raftdata::RaftDataWrap;
 use crate::raft::store::{ClientRequest, ClientResponse};
@@ -89,12 +89,15 @@ pub struct StateApplyManager {
     index_manager: Option<Addr<RaftIndexManager>>,
     snapshot_manager: Option<Addr<RaftSnapshotManager>>,
     log_manager: Option<Addr<RaftLogManager>>,
-    //data_store: Option<Addr<RaftDataStore>>,
     data_wrap: Option<Arc<RaftDataWrap>>,
     snapshot_next_index: u64,
     last_applied_log: u64,
-    last_snapshot_path: Option<Arc<String>>,
-    swap_snapshot_header: Option<SnapshotHeaderDto>,
+}
+
+impl Default for StateApplyManager {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl StateApplyManager {
@@ -103,12 +106,9 @@ impl StateApplyManager {
             index_manager: None,
             snapshot_manager: None,
             log_manager: None,
-            //data_store: None,
             data_wrap: None,
             snapshot_next_index: 1,
             last_applied_log: 0,
-            last_snapshot_path: None,
-            swap_snapshot_header: None,
         }
     }
 
@@ -135,10 +135,9 @@ impl StateApplyManager {
             }) = r
             {
                 log::info!("load_index,{:?}", &raft_index);
-                raft_index.snapshots.last().map(|e| {
+                if let Some(e) = raft_index.snapshots.last() {
                     act.snapshot_next_index = e.end_index + 1;
-                    //act.last_snapshot_path = Arc::new(Self::pa)
-                });
+                }
                 act.last_applied_log = last_applied_log;
             }
             //加载镜像,镜像转成状态
@@ -221,14 +220,11 @@ impl StateApplyManager {
             } else if record.tree.as_str() == SEQUENCE_TREE_NAME.as_str() {
                 let key = String::from_utf8(record.key)?;
                 let last_id = bin_to_id(&record.value);
-                match &key as &str {
-                    SEQ_KEY_CONFIG => {
-                        data_wrap
-                            .config
-                            .send(ConfigCmd::InnerSetLastId(last_id))
-                            .await??;
-                    }
-                    _ => {}
+                if &key as &str == SEQ_KEY_CONFIG {
+                    data_wrap
+                        .config
+                        .send(ConfigCmd::InnerSetLastId(last_id))
+                        .await??;
                 };
             } else if record.tree.as_str() == USER_TREE_NAME.as_str() {
                 let key = record.key;
@@ -459,7 +455,7 @@ impl StateApplyManager {
 impl Actor for StateApplyManager {
     type Context = Context<Self>;
 
-    fn started(&mut self, ctx: &mut Self::Context) {
+    fn started(&mut self, _ctx: &mut Self::Context) {
         log::info!("StateApplyManager started");
     }
 }
@@ -477,7 +473,6 @@ impl Inject for StateApplyManager {
         self.snapshot_manager = factory_data.get_actor();
         self.log_manager = factory_data.get_actor();
         self.data_wrap = factory_data.get_bean();
-        //self.data_store = factory_data.get_actor();
 
         self.init(ctx);
     }
@@ -545,7 +540,7 @@ impl Handler<StateApplyRequest> for StateApplyManager {
 impl Handler<StateApplyAsyncRequest> for StateApplyManager {
     type Result = ResponseActFuture<Self, anyhow::Result<StateApplyResponse>>;
 
-    fn handle(&mut self, msg: StateApplyAsyncRequest, ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, msg: StateApplyAsyncRequest, _ctx: &mut Self::Context) -> Self::Result {
         let log_manager = self.log_manager.clone().unwrap();
         let index_manager = self.index_manager.clone().unwrap();
         let snapshot_manager = self.snapshot_manager.clone().unwrap();

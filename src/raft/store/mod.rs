@@ -1,13 +1,10 @@
-pub mod core;
-pub mod innerstore;
+//pub mod core;
+//pub mod innerstore;
 
-use std::collections::HashMap;
 use std::sync::Arc;
 
-use async_raft_ext::raft::MembershipConfig;
 use async_raft_ext::AppData;
 use async_raft_ext::AppDataResponse;
-use prost::Message;
 use serde::Deserialize;
 use serde::Serialize;
 use thiserror::Error;
@@ -57,6 +54,7 @@ pub enum ShutdownError {
     UnsafeStorageError,
 }
 
+/*
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
 pub struct StateMachine {
     pub last_applied_log: u64,
@@ -120,3 +118,4 @@ impl SnapshotDataInfo {
         Ok(s)
     }
 }
+ */

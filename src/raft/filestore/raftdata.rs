@@ -7,19 +7,19 @@ use actix::prelude::*;
 pub struct RaftDataWrap {
     pub(crate) config: Addr<ConfigActor>,
     pub(crate) table: Addr<TableManager>,
-    pub(crate) cache: Addr<CacheManager>,
+    //pub(crate) cache: Addr<CacheManager>,
 }
 
 impl RaftDataWrap {
     pub fn new(
         config: Addr<ConfigActor>,
         table: Addr<TableManager>,
-        cache: Addr<CacheManager>,
+        _cache: Addr<CacheManager>,
     ) -> Self {
         Self {
             config,
             table,
-            cache,
+            //cache,
         }
     }
 }

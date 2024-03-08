@@ -3,7 +3,7 @@ use async_raft_ext::raft::ClientWriteRequest;
 use async_raft_ext::{Raft, RaftStorage};
 
 use self::network::core::RaftRouter;
-use self::store::{core::RaftStore, ClientRequest, ClientResponse};
+use self::store::{ClientRequest, ClientResponse};
 
 pub mod cache;
 pub mod cluster;
@@ -12,7 +12,6 @@ pub mod filestore;
 pub mod network;
 pub mod store;
 
-//pub type NacosRaft = Raft<ClientRequest, ClientResponse, RaftRouter, RaftStore>;
 pub type NacosRaft = Raft<ClientRequest, ClientResponse, RaftRouter, FileStore>;
 
 pub async fn join_node(
