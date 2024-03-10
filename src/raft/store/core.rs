@@ -135,7 +135,7 @@ impl RaftStorage<ClientRequest, ClientResponse> for RaftStore {
             .await?
         {
             StoreResponse::Response(v) => Ok(v),
-            StoreResponse::None => Ok(ClientResponse { value: None }),
+            StoreResponse::None => Ok(ClientResponse::Success),
             _ => Err(self.store_response_err()),
         }
     }

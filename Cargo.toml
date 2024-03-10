@@ -1,6 +1,6 @@
 [package]
 name = "rnacos"
-version = "0.4.3"
+version = "0.5.0-beta"
 authors = ["heqingpan <heqingpan@126.com>"]
 edition = "2018"
 license = "MIT/Apache-2.0"
@@ -89,6 +89,10 @@ base64 = "0.21.5"
 aes = "0.8"
 block-modes = "0.8"
 cbc = "0.1.2"
+
+quick-protobuf = "0.8.1"
+binrw = "0.13.3"
+binrw_derive = "0.13.3"
 
 [dependencies.uuid]
 version = "1.2.1"

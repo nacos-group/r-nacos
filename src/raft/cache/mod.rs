@@ -8,6 +8,7 @@ use inner_mem_cache::MemCache;
 use ratelimiter_rs::RateLimiter;
 use serde::{Deserialize, Serialize};
 
+use crate::common::constant::CACHE_TREE_NAME;
 use crate::{common::limiter_utils::LimiterData, now_millis_i64, now_second_i32};
 
 use self::model::{CacheItemDo, CacheKey, CacheValue};
@@ -20,10 +21,6 @@ use super::db::{
 pub mod api;
 pub mod model;
 pub mod route;
-
-lazy_static::lazy_static! {
-    static ref CACHE_TABLE_NAME: Arc<String> =  Arc::new("cache".to_string());
-}
 
 #[bean(inject)]
 pub struct CacheManager {
@@ -56,7 +53,7 @@ impl CacheManager {
         async move {
             if let Some(table_manager) = &table_manager {
                 let query_req = TableManagerQueryReq::QueryPageList {
-                    table_name: CACHE_TABLE_NAME.clone(),
+                    table_name: CACHE_TREE_NAME.clone(),
                     like_key: None,
                     offset: None,
                     limit: None,
@@ -102,7 +99,7 @@ impl CacheManager {
     fn remove_key(table_manager: &Option<Addr<TableManager>>, key: Vec<u8>) {
         if let Some(table_manager) = table_manager.as_ref() {
             let req = TableManagerReq::Remove {
-                table_name: CACHE_TABLE_NAME.clone(),
+                table_name: CACHE_TREE_NAME.clone(),
                 key,
             };
             table_manager.do_send(req);
@@ -221,7 +218,7 @@ impl Handler<CacheManagerReq> for CacheManager {
                         let mut cache_do: CacheItemDo = value.clone().into();
                         cache_do.timeout = now + ttl;
                         let req = TableManagerReq::Set {
-                            table_name: CACHE_TABLE_NAME.clone(),
+                            table_name: CACHE_TREE_NAME.clone(),
                             key: key.to_string().into_bytes(),
                             value: cache_do.to_bytes(),
                             last_seq_id: None,
@@ -235,7 +232,7 @@ impl Handler<CacheManagerReq> for CacheManager {
                 CacheManagerReq::Remove(key) => {
                     if let Some(raft_table_route) = &raft_table_route {
                         let req = TableManagerReq::Remove {
-                            table_name: CACHE_TABLE_NAME.clone(),
+                            table_name: CACHE_TREE_NAME.clone(),
                             key: key.to_string().into_bytes(),
                         };
                         raft_table_route.request(req).await?;
@@ -325,7 +322,7 @@ impl Handler<CacheLimiterReq> for CacheManager {
             cache_do.timeout = ((now + rate_to_ms_conversion as i64) / 1000) as i32;
             if let Some(table_manager) = self.table_manager.as_ref() {
                 let req: TableManagerReq = TableManagerReq::Set {
-                    table_name: CACHE_TABLE_NAME.clone(),
+                    table_name: CACHE_TREE_NAME.clone(),
                     key: key.to_string().into_bytes(),
                     value: cache_do.to_bytes(),
                     last_seq_id: None,

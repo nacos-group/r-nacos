@@ -1,5 +1,12 @@
 use std::{collections::HashSet, sync::Arc, time::Duration};
 
+use crate::common::actor_utils::{create_actor_at_thread, create_actor_at_thread2};
+use crate::raft::filestore::core::FileStore;
+use crate::raft::filestore::raftapply::StateApplyManager;
+use crate::raft::filestore::raftdata::RaftDataWrap;
+use crate::raft::filestore::raftindex::RaftIndexManager;
+use crate::raft::filestore::raftlog::RaftLogManager;
+use crate::raft::filestore::raftsnapshot::RaftSnapshotManager;
 use crate::{
     common::{appdata::AppShareData, AppSysConfig},
     config::core::ConfigActor,
@@ -20,14 +27,13 @@ use crate::{
             route::{ConfigRoute, RaftAddrRouter},
         },
         db::{route::TableRoute, table::TableManager},
-        store::innerstore::InnerStore,
         NacosRaft,
         {
             network::{
                 core::RaftRouter,
                 factory::{RaftClusterRequestSender, RaftConnectionFactory},
             },
-            store::{core::RaftStore, ClientRequest},
+            store::ClientRequest,
         },
     },
     user::UserManager,
@@ -37,6 +43,7 @@ use async_raft_ext::{raft::ClientWriteRequest, Config, Raft, RaftStorage};
 use bean_factory::{BeanDefinition, BeanFactory, FactoryData};
 
 pub async fn config_factory(sys_config: Arc<AppSysConfig>) -> anyhow::Result<FactoryData> {
+    /*
     let db = Arc::new(
         sled::Config::new()
             .path(&sys_config.config_db_dir)
@@ -46,11 +53,15 @@ pub async fn config_factory(sys_config: Arc<AppSysConfig>) -> anyhow::Result<Fac
             .open()
             .unwrap(),
     );
+    factory.register(BeanDefinition::from_obj(db.clone()));
+     */
+    std::fs::create_dir_all(sys_config.config_db_dir.as_str())?;
+    let base_path = Arc::new(sys_config.config_db_dir.clone());
     let factory = BeanFactory::new();
     factory.register(BeanDefinition::from_obj(sys_config.clone()));
-    factory.register(BeanDefinition::from_obj(db.clone()));
 
-    let config_addr = ConfigActor::new(db.clone()).start();
+    let index_manager = RaftIndexManager::new(base_path.clone());
+    let (index_manager, config_addr) = create_actor_at_thread2(index_manager, ConfigActor::new());
     factory.register(BeanDefinition::actor_with_inject_from_obj::<ConfigActor>(
         config_addr.clone(),
     ));
@@ -61,21 +72,44 @@ pub async fn config_factory(sys_config: Arc<AppSysConfig>) -> anyhow::Result<Fac
     factory.register(BeanDefinition::actor_with_inject_from_obj(
         DelayNotifyActor::new().start(),
     ));
-    let raft_inner_store =
-        InnerStore::create_at_new_system(sys_config.raft_node_id.to_owned(), db.clone());
-    factory.register(BeanDefinition::actor_with_inject_from_obj(
-        raft_inner_store.clone(),
-    ));
 
-    let store = Arc::new(RaftStore::new(raft_inner_store));
-    factory.register(BeanDefinition::from_obj(store.clone()));
+    //raft
     let conn_factory = RaftConnectionFactory::new(60).start();
     factory.register(BeanDefinition::actor_from_obj(conn_factory.clone()));
     let cluster_sender = Arc::new(RaftClusterRequestSender::new(conn_factory));
     factory.register(BeanDefinition::from_obj(cluster_sender.clone()));
+
+    let log_manager = RaftLogManager::new(base_path.clone());
+    let log_manager = create_actor_at_thread(log_manager);
+    let snapshot_manager = RaftSnapshotManager::new(base_path.clone());
+    let apply_manager = StateApplyManager::new();
+    let (snapshot_manager, apply_manager) =
+        create_actor_at_thread2(snapshot_manager, apply_manager);
+    factory.register(BeanDefinition::actor_with_inject_from_obj(
+        log_manager.clone(),
+    ));
+    factory.register(BeanDefinition::actor_with_inject_from_obj(
+        index_manager.clone(),
+    ));
+    factory.register(BeanDefinition::actor_with_inject_from_obj(
+        snapshot_manager.clone(),
+    ));
+    factory.register(BeanDefinition::actor_with_inject_from_obj(
+        apply_manager.clone(),
+    ));
+
+    let store = Arc::new(FileStore::new(
+        sys_config.raft_node_id.to_owned(),
+        index_manager,
+        snapshot_manager,
+        log_manager,
+        apply_manager,
+    ));
+    factory.register(BeanDefinition::from_obj(store.clone()));
+
     let raft = build_raft(&sys_config, store.clone(), cluster_sender.clone())?;
     factory.register(BeanDefinition::from_obj(raft.clone()));
-    let table_manage = TableManager::new(db).start();
+    let table_manage = TableManager::new().start();
     factory.register(BeanDefinition::actor_with_inject_from_obj(
         table_manage.clone(),
     ));
@@ -87,7 +121,7 @@ pub async fn config_factory(sys_config: Arc<AppSysConfig>) -> anyhow::Result<Fac
     ));
     factory.register(BeanDefinition::from_obj(raft_addr_router.clone()));
     let table_route = Arc::new(TableRoute::new(
-        table_manage,
+        table_manage.clone(),
         raft_addr_router.clone(),
         cluster_sender.clone(),
     ));
@@ -129,11 +163,17 @@ pub async fn config_factory(sys_config: Arc<AppSysConfig>) -> anyhow::Result<Fac
         cache_manager.clone(),
     ));
     let cache_route = Arc::new(CacheRoute::new(
-        cache_manager,
+        cache_manager.clone(),
         raft_addr_router.clone(),
         cluster_sender.clone(),
     ));
     factory.register(BeanDefinition::from_obj(cache_route));
+    let raft_data_wrap = Arc::new(RaftDataWrap {
+        config: config_addr.clone(),
+        table: table_manage.clone(),
+        //cache: cache_manager.clone(),
+    });
+    factory.register(BeanDefinition::from_obj(raft_data_wrap));
 
     Ok(factory.init().await)
 }
@@ -163,13 +203,15 @@ pub fn build_share_data(factory_data: FactoryData) -> anyhow::Result<Arc<AppShar
 
 fn build_raft(
     sys_config: &Arc<AppSysConfig>,
-    store: Arc<RaftStore>,
+    store: Arc<FileStore>,
     cluster_sender: Arc<RaftClusterRequestSender>,
 ) -> anyhow::Result<Arc<NacosRaft>> {
     let config = Config::build("rnacos raft".to_owned())
-        .heartbeat_interval(500)
-        .election_timeout_min(1500)
-        .election_timeout_max(3000)
+        .heartbeat_interval(1000)
+        .election_timeout_min(2500)
+        .election_timeout_max(5000)
+        .snapshot_policy(async_raft_ext::SnapshotPolicy::LogsSinceLast(50000))
+        .snapshot_max_chunk_size(3 * 1024 * 1024)
         .validate()
         .unwrap();
     let config = Arc::new(config);
@@ -189,12 +231,12 @@ fn build_raft(
 }
 
 async fn auto_init_raft(
-    store: Arc<RaftStore>,
+    store: Arc<FileStore>,
     raft: Arc<NacosRaft>,
     sys_config: Arc<AppSysConfig>,
 ) -> anyhow::Result<()> {
     let state = store.get_initial_state().await?;
-    if state.last_log_term == 0 && state.last_log_index == 0 {
+    if state.last_log_term == 0 {
         log::info!(
             "auto init raft. node_id:{},addr:{}",
             &sys_config.raft_node_id,
@@ -207,6 +249,11 @@ async fn auto_init_raft(
             id: sys_config.raft_node_id,
             addr: Arc::new(sys_config.raft_node_addr.to_owned()),
         }))
+        .await
+        .ok();
+        raft.client_write(ClientWriteRequest::new(ClientRequest::Members(vec![
+            sys_config.raft_node_id,
+        ])))
         .await
         .ok();
     } else if state.membership.all_nodes().len() < 2 {
@@ -227,12 +274,12 @@ async fn auto_init_raft(
 }
 
 async fn auto_join_raft(
-    store: Arc<RaftStore>,
+    store: Arc<FileStore>,
     sys_config: Arc<AppSysConfig>,
     cluster_sender: Arc<RaftClusterRequestSender>,
 ) -> anyhow::Result<()> {
     let state = store.get_initial_state().await?;
-    if state.last_log_term == 0 && state.last_log_index == 0 {
+    if state.last_log_term == 0 {
         //wait for self raft network started
         tokio::time::sleep(Duration::from_millis(500)).await;
         let req = RouterRequest::JoinNode {

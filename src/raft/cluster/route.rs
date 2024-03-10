@@ -2,20 +2,18 @@ use std::{fmt::Debug, sync::Arc};
 
 use actix::prelude::*;
 
+use crate::raft::filestore::core::FileStore;
 use crate::{
     config::core::{ConfigActor, ConfigAsyncCmd, ConfigCmd},
     grpc::PayloadUtils,
-    raft::{
-        NacosRaft,
-        {network::factory::RaftClusterRequestSender, store::core::RaftStore},
-    },
+    raft::{network::factory::RaftClusterRequestSender, NacosRaft},
 };
 
 use super::model::{DelConfigReq, RouteAddr, RouterRequest, RouterResponse, SetConfigReq};
 
 #[derive(Clone)]
 pub struct RaftAddrRouter {
-    raft_store: Arc<RaftStore>,
+    raft_store: Arc<FileStore>,
     raft: Arc<NacosRaft>,
     local_node_id: u64,
 }
@@ -27,7 +25,7 @@ impl Debug for RaftAddrRouter {
 }
 
 impl RaftAddrRouter {
-    pub fn new(raft: Arc<NacosRaft>, raft_store: Arc<RaftStore>, local_node_id: u64) -> Self {
+    pub fn new(raft: Arc<NacosRaft>, raft_store: Arc<FileStore>, local_node_id: u64) -> Self {
         Self {
             raft,
             raft_store,
@@ -79,7 +77,7 @@ impl ConfigRoute {
     pub async fn set_config(&self, req: SetConfigReq) -> anyhow::Result<()> {
         match self.raft_addr_route.get_route_addr().await? {
             RouteAddr::Local => {
-                let cmd = ConfigAsyncCmd::Add(req.config_key, req.value);
+                let cmd = ConfigAsyncCmd::Add(req.config_key, req.value, req.op_user);
                 self.config_addr.send(cmd).await?.ok();
             }
             RouteAddr::Remote(_, addr) => {

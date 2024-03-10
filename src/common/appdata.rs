@@ -9,8 +9,8 @@ use crate::raft::cache::CacheManager;
 use crate::raft::cluster::route::ConfigRoute;
 use crate::raft::db::route::TableRoute;
 use crate::raft::db::table::TableManager;
+use crate::raft::filestore::core::FileStore;
 use crate::raft::network::factory::RaftClusterRequestSender;
-use crate::raft::store::core::RaftStore;
 use crate::raft::NacosRaft;
 use crate::user::UserManager;
 use actix::Addr;
@@ -22,7 +22,7 @@ pub struct AppShareData {
     pub naming_addr: Addr<NamingActor>,
     pub bi_stream_manage: Addr<BiStreamManage>,
     pub raft: Arc<NacosRaft>,
-    pub raft_store: Arc<RaftStore>,
+    pub raft_store: Arc<FileStore>,
     pub sys_config: Arc<AppSysConfig>,
     pub config_route: Arc<ConfigRoute>,
     pub cluster_sender: Arc<RaftClusterRequestSender>,

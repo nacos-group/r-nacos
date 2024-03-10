@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::{
     collections::HashMap,
     sync::{Arc, Weak},
@@ -9,15 +10,16 @@ use serde::{Deserialize, Serialize};
 
 use actix::prelude::*;
 
+use crate::common::constant::CACHE_TREE_NAME;
+use crate::common::sequence_utils::SimpleSequence;
+use crate::raft::filestore::model::SnapshotRecordDto;
+use crate::raft::filestore::raftsnapshot::{SnapshotWriterActor, SnapshotWriterRequest};
 use crate::{
-    common::{sled_utils::TableSequence, string_utils::StringUtils},
+    common::string_utils::StringUtils,
     raft::{
         cache::{CacheManager, CacheManagerReq},
         cluster::model::RouterRequest,
-        store::{
-            innerstore::{InnerStore, StoreRequest},
-            ClientRequest,
-        },
+        store::ClientRequest,
         NacosRaft,
     },
 };
@@ -44,187 +46,115 @@ impl TableDefinition {
     }
 }
 
-pub(crate) const TABLE_DEFINITION_TREE_NAME: &str = "tables";
+//pub(crate) const TABLE_DEFINITION_TREE_NAME: &str = "tables";
 
 pub struct TableInfo {
+    pub table_data: BTreeMap<Vec<u8>, Vec<u8>>,
     pub name: Arc<String>,
-    pub table_db_name: Arc<String>,
-    pub seq: Option<TableSequence>,
+    //pub table_db_name: Arc<String>,
+    pub seq: Option<SimpleSequence>,
 }
 
 impl TableInfo {
-    pub fn new(name: Arc<String>, db: Arc<sled::Db>, sequence_step: u32) -> Self {
-        let table_name = Arc::new(format!("t_{}", &name));
+    pub fn new(name: Arc<String>, sequence_step: u32) -> Self {
+        //let table_name = Arc::new(format!("t_{}", &name));
         let seq = if sequence_step == 0 {
             None
         } else {
-            Some(TableSequence::new(
-                db,
-                format!("seq_{}", &name),
-                sequence_step as u64,
-            ))
+            Some(SimpleSequence::new(0, sequence_step as u64))
         };
         Self {
+            table_data: Default::default(),
             name,
-            table_db_name: table_name,
+            //table_db_name: table_name,
             seq,
         }
     }
 }
 
 #[bean(inject)]
+#[derive(Default)]
 pub struct TableManager {
-    pub db: Arc<sled::Db>,
+    //pub db: Arc<sled::Db>,
     pub table_map: HashMap<Arc<String>, TableInfo>,
     raft: Option<Weak<NacosRaft>>,
-    raft_inner_store: Option<Addr<InnerStore>>,
     cache_manager: Option<Addr<CacheManager>>,
 }
 
 impl TableManager {
-    pub fn new(db: Arc<sled::Db>) -> Self {
-        Self {
-            db,
-            table_map: Default::default(),
-            raft: None,
-            raft_inner_store: None,
-            cache_manager: None,
-        }
+    pub fn new() -> Self {
+        Self::default()
     }
 
-    /// load table info from db
-    fn load_tables(&mut self) {
-        let tables = self.db.open_tree(TABLE_DEFINITION_TREE_NAME).unwrap();
-        let mut iter = tables.iter();
-        while let Some(Ok((_, v))) = iter.next() {
-            if let Ok(definition) = TableDefinition::from_bytes(v.as_ref()) {
-                let name = Arc::new(definition.name.to_owned());
-                self.table_map.insert(
-                    name.clone(),
-                    TableInfo::new(name, self.db.clone(), definition.sequence_step),
-                );
-            }
-        }
-        if let Some(raft_inner_store) = self.raft_inner_store.as_ref() {
-            for v in self.table_map.values() {
-                raft_inner_store.do_send(StoreRequest::RaftTableInit(v.table_db_name.clone()));
-            }
-        }
-    }
-
-    fn init_table(&mut self, name: Arc<String>, sequence_step: u32) {
-        let tables = self.db.open_tree(TABLE_DEFINITION_TREE_NAME).unwrap();
-        let definition = TableDefinition {
-            name: name.as_ref().to_owned(),
-            sequence_step,
-        };
-        tables
-            .insert(name.as_bytes(), definition.to_bytes())
-            .unwrap();
-    }
+    fn init_table(&mut self, _name: Arc<String>, _sequence_step: u32) {}
 
     pub fn drop_table(&mut self, name: &Arc<String>) {
         if let Some(mut table) = self.table_map.remove(name) {
             if let Some(seq) = table.seq.as_mut() {
-                seq.set_table_last_id(0).ok();
+                seq.set_last_id(0);
             }
-            self.db.drop_tree(table.table_db_name.as_ref()).ok();
         }
     }
 
     pub fn next_id(&mut self, name: Arc<String>, seq_step: u32) -> anyhow::Result<u64> {
         if let Some(table_info) = self.table_map.get_mut(&name) {
             if let Some(seq) = table_info.seq.as_mut() {
-                seq.next_id()
+                Ok(seq.next_id())
             } else {
                 Err(anyhow::anyhow!("the table {} seq is none", &name))
             }
         } else {
             self.init_table(name.clone(), seq_step);
-            let mut table_info = TableInfo::new(name.clone(), self.db.clone(), 0);
-            if let Some(raft_inner_store) = self.raft_inner_store.as_ref() {
-                raft_inner_store.do_send(StoreRequest::RaftTableInit(
-                    table_info.table_db_name.clone(),
-                ));
-            }
+            let mut table_info = TableInfo::new(name.clone(), 1);
             let r = table_info.seq.as_mut().unwrap().next_id();
             self.table_map.insert(name, table_info);
-            r
+            Ok(r)
         }
     }
 
     pub fn set_last_seq_id(&mut self, name: Arc<String>, last_seq_id: u64) {
         if let Some(table_info) = self.table_map.get_mut(&name) {
             if let Some(seq) = table_info.seq.as_mut() {
-                seq.set_table_last_id(last_seq_id).ok();
+                seq.set_last_id(last_seq_id);
             }
         }
     }
 
-    pub fn insert<K>(
+    pub fn insert(
         &mut self,
         name: Arc<String>,
-        key: K,
+        key: Vec<u8>,
         value: Vec<u8>,
         last_seq_id: Option<u64>,
-    ) -> Option<sled::IVec>
-    where
-        K: AsRef<[u8]>,
-    {
+    ) -> Option<Vec<u8>> {
         if let Some(table_info) = self.table_map.get_mut(&name) {
             if let (Some(seq), Some(last_seq_id)) = (table_info.seq.as_mut(), last_seq_id) {
-                seq.set_table_last_id(last_seq_id).ok();
+                seq.set_last_id(last_seq_id);
             }
-            let table = self
-                .db
-                .open_tree(table_info.table_db_name.as_ref())
-                .unwrap();
-            table.insert(key, value).unwrap()
+            table_info.table_data.insert(key, value)
         } else {
             self.init_table(name.clone(), 0);
-            let mut table_info = TableInfo::new(name.clone(), self.db.clone(), 0);
-            if let Some(raft_inner_store) = self.raft_inner_store.as_ref() {
-                raft_inner_store.do_send(StoreRequest::RaftTableInit(
-                    table_info.table_db_name.clone(),
-                ));
-            }
+            let mut table_info = TableInfo::new(name.clone(), 1);
+            table_info.table_data.insert(key, value);
             if let (Some(seq), Some(last_seq_id)) = (table_info.seq.as_mut(), last_seq_id) {
-                seq.set_table_last_id(last_seq_id).ok();
+                seq.set_last_id(last_seq_id);
             }
-            let table = self
-                .db
-                .open_tree(table_info.table_db_name.as_ref())
-                .unwrap();
             self.table_map.insert(name, table_info);
-            table.insert(key, value).unwrap()
+            None
         }
     }
 
-    pub fn remove<K>(&mut self, name: Arc<String>, key: K) -> Option<sled::IVec>
-    where
-        K: AsRef<[u8]>,
-    {
-        if let Some(table_info) = self.table_map.get(&name) {
-            let table = self
-                .db
-                .open_tree(table_info.table_db_name.as_ref())
-                .unwrap();
-            table.remove(key).unwrap()
+    pub fn remove(&mut self, name: Arc<String>, key: Vec<u8>) -> Option<Vec<u8>> {
+        if let Some(table_info) = self.table_map.get_mut(&name) {
+            table_info.table_data.remove(&key)
         } else {
             None
         }
     }
 
-    pub fn get<K>(&mut self, name: Arc<String>, key: K) -> Option<sled::IVec>
-    where
-        K: AsRef<[u8]>,
-    {
+    pub fn get(&mut self, name: Arc<String>, key: Vec<u8>) -> Option<Vec<u8>> {
         if let Some(table_info) = self.table_map.get(&name) {
-            let table = self
-                .db
-                .open_tree(table_info.table_db_name.as_ref())
-                .unwrap();
-            table.get(key).unwrap()
+            table_info.table_data.get(&key).cloned()
         } else {
             None
         }
@@ -239,38 +169,34 @@ impl TableManager {
         is_rev: bool,
     ) -> (usize, Vec<TableKV>) {
         if let Some(table_info) = self.table_map.get(&name) {
-            let table = self
-                .db
-                .open_tree(table_info.table_db_name.as_ref())
-                .unwrap();
-            let total: usize = table.len();
+            let total: usize = table_info.table_data.len();
             let mut ret = vec![];
             if is_rev {
-                let iter = table.iter().rev();
+                let iter = table_info.table_data.iter().rev();
                 let offset = offset.unwrap_or_default();
-                let mut n_i = iter.skip(offset as usize);
+                let n_i = iter.skip(offset as usize);
                 if let Some(limit) = limit {
-                    let mut t = n_i.take(limit as usize);
-                    while let Some(Ok((k, v))) = t.next() {
+                    let t = n_i.take(limit as usize);
+                    for (k, v) in t {
                         Self::push_match_condition_item(k, v, &like_key, &mut ret);
                     }
                 } else {
-                    while let Some(Ok((k, v))) = n_i.next() {
+                    for (k, v) in n_i {
                         Self::push_match_condition_item(k, v, &like_key, &mut ret);
                     }
                 }
             } else {
                 //正反 iter 类型不同，后继可以考虑使用宏消除下面的重复编码
-                let iter = table.iter().skip(0);
                 let offset = offset.unwrap_or_default();
-                let mut n_i = iter.skip(offset as usize);
+                //let iter = &table_info.table_data.iter();
+                let n_i = table_info.table_data.iter().skip(offset as usize);
                 if let Some(limit) = limit {
-                    let mut t = n_i.take(limit as usize);
-                    while let Some(Ok((k, v))) = t.next() {
+                    let t = n_i.take(limit as usize);
+                    for (k, v) in t {
                         Self::push_match_condition_item(k, v, &like_key, &mut ret);
                     }
                 } else {
-                    while let Some(Ok((k, v))) = n_i.next() {
+                    for (k, v) in n_i {
                         Self::push_match_condition_item(k, v, &like_key, &mut ret);
                     }
                 }
@@ -294,26 +220,40 @@ impl TableManager {
     }
 
     fn push_match_condition_item(
-        k: sled::IVec,
-        v: sled::IVec,
+        k: &[u8],
+        v: &[u8],
         like_key: &Option<String>,
         ret: &mut Vec<(Vec<u8>, Vec<u8>)>,
     ) {
-        let key = k.to_vec();
+        let key_str = String::from_utf8_lossy(k);
         if let Some(like_key) = like_key.as_ref() {
-            let key_str = String::from_utf8_lossy(&key);
             if StringUtils::like(&key_str, like_key.as_str()).is_none() {
                 return;
             }
         }
-        ret.push((key, v.to_vec()));
+        ret.push((k.to_vec(), v.to_vec()));
     }
 
-    fn get_table_db_names(&self) -> Vec<Arc<String>> {
-        self.table_map
-            .values()
-            .map(|e| e.table_db_name.clone())
-            .collect()
+    fn get_table_names(&self) -> Vec<Arc<String>> {
+        self.table_map.values().map(|e| e.name.clone()).collect()
+    }
+
+    ///
+    /// 将数据写入raft snapshot文件中
+    ///
+    fn build_snapshot(&self, writer: Addr<SnapshotWriterActor>) -> anyhow::Result<()> {
+        for table_info in self.table_map.values() {
+            for (key, value) in &table_info.table_data {
+                let record = SnapshotRecordDto {
+                    tree: table_info.name.clone(),
+                    key: key.to_owned(),
+                    value: value.to_owned(),
+                    op_type: 0,
+                };
+                writer.do_send(SnapshotWriterRequest::Record(record));
+            }
+        }
+        Ok(())
     }
 }
 
@@ -336,10 +276,7 @@ impl Inject for TableManager {
     ) {
         let raft: Option<Arc<NacosRaft>> = factory_data.get_bean();
         self.raft = raft.map(|e| Arc::downgrade(&e));
-        self.raft_inner_store = factory_data.get_actor();
         self.cache_manager = factory_data.get_actor();
-
-        self.load_tables();
     }
 }
 
@@ -374,6 +311,12 @@ pub enum TableManagerReq {
         last_seq_id: u64,
     },
     ReloadTable,
+}
+
+#[derive(Message)]
+#[rtype(result = "anyhow::Result<TableManagerResult>")]
+pub enum TableManagerInnerReq {
+    BuildSnapshot(Addr<SnapshotWriterActor>),
 }
 
 impl From<TableManagerReq> for RouterRequest {
@@ -450,7 +393,7 @@ impl Handler<TableManagerReq> for TableManager {
                 value,
                 last_seq_id,
             } => {
-                if table_name.as_str() == "cache" {
+                if table_name.as_str() == CACHE_TREE_NAME.as_str() {
                     if let Some(cache_manager) = &self.cache_manager {
                         let req = CacheManagerReq::NotifyChange {
                             key: key.clone(),
@@ -459,13 +402,11 @@ impl Handler<TableManagerReq> for TableManager {
                         cache_manager.do_send(req);
                     }
                 }
-                match self.insert(table_name, key, value, last_seq_id) {
-                    Some(v) => Ok(TableManagerResult::Value(v.to_vec())),
-                    None => Ok(TableManagerResult::None),
-                }
+                self.insert(table_name, key, value, last_seq_id);
+                Ok(TableManagerResult::None)
             }
             TableManagerReq::Remove { table_name, key } => {
-                if table_name.as_str() == "cache" {
+                if table_name.as_str() == CACHE_TREE_NAME.as_str() {
                     if let Some(cache_manager) = &self.cache_manager {
                         let req = CacheManagerReq::NotifyRemove { key: key.clone() };
                         cache_manager.do_send(req);
@@ -501,7 +442,20 @@ impl Handler<TableManagerReq> for TableManager {
                 "must pre transform to TableManagerReq::Set"
             )),
             TableManagerReq::ReloadTable => {
-                self.load_tables();
+                //self.load_tables();
+                Ok(TableManagerResult::None)
+            }
+        }
+    }
+}
+
+impl Handler<TableManagerInnerReq> for TableManager {
+    type Result = anyhow::Result<TableManagerResult>;
+
+    fn handle(&mut self, msg: TableManagerInnerReq, _ctx: &mut Self::Context) -> Self::Result {
+        match msg {
+            TableManagerInnerReq::BuildSnapshot(writer) => {
+                self.build_snapshot(writer).ok();
                 Ok(TableManagerResult::None)
             }
         }
@@ -514,17 +468,17 @@ impl Handler<TableManagerQueryReq> for TableManager {
     fn handle(&mut self, msg: TableManagerQueryReq, _ctx: &mut Self::Context) -> Self::Result {
         match msg {
             TableManagerQueryReq::QueryTableNames => {
-                let table_names = self.get_table_db_names();
+                let table_names = self.get_table_names();
                 Ok(TableManagerResult::TableNames(table_names))
             }
             TableManagerQueryReq::Get { table_name, key } => {
-                match self.get(table_name, key.as_bytes()) {
+                match self.get(table_name, key.as_bytes().to_vec()) {
                     Some(v) => Ok(TableManagerResult::Value(v.to_vec())),
                     None => Ok(TableManagerResult::None),
                 }
             }
             TableManagerQueryReq::GetByArcKey { table_name, key } => {
-                match self.get(table_name, key.as_bytes()) {
+                match self.get(table_name, key.as_bytes().to_vec()) {
                     Some(v) => Ok(TableManagerResult::Value(v.to_vec())),
                     None => Ok(TableManagerResult::None),
                 }

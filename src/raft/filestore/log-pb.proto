@@ -1,0 +1,66 @@
+// 用于生成 log.rs
+// pb-rs log-pb.proto
+
+syntax = "proto3";
+
+
+package log;
+
+message LogRecord {
+    uint64 index=1;
+    uint64 term = 2;
+    //string tree = 3;
+    //bytes key = 4;
+    bytes value = 5;
+    //uint32 op_type= 6;
+}
+
+message SnapshotHeader{
+    uint64 last_index=1;
+    uint64 last_term=2;
+    repeated uint64 member=3;
+    repeated uint64 member_after_consensus = 4;
+    repeated NodeAddrItem node_addrs= 5;
+    bytes extend=6;
+}
+
+message LogSnapshotItem {
+    string tree = 1;
+    bytes key = 4;
+    bytes value = 5;
+    uint32 op_type= 6;
+}
+
+message LogRange {
+    uint64 id=1;
+    uint64 pre_term=2;
+    uint64 start_index=3;
+    uint64 record_count=4;
+    uint64 split_off_index=5;
+    bool is_close=6;
+    bool mark_remove=7;
+}
+
+message SnapshotRange{
+    uint64 id=1;
+    uint64 end_index=2;
+}
+
+message NodeAddrItem{
+    uint64 id=1;
+    string addr=2;
+}
+
+message RaftIndex {
+    repeated LogRange logs=1;
+    uint64 current_log=2;
+    repeated SnapshotRange snapshots=3;
+    uint64 last_snapshot=4;
+    uint64 last_snapshot_index=5;
+    uint64 last_snapshot_term=6;
+    uint64 current_term=7;
+    uint64 voted_for=8;
+    repeated uint64 member=9;
+    repeated uint64 member_after_consensus = 10;
+    repeated NodeAddrItem node_addrs= 11;
+}

@@ -11,17 +11,21 @@ use std::time::Duration;
 
 use crate::raft::store::ClientRequest;
 use crate::raft::NacosRaft;
-//use crate::raft::store::Request;
 use crate::utils::get_md5;
 use serde::{Deserialize, Serialize};
 
+use crate::common::byte_utils::id_to_bin;
+use crate::common::constant::{CONFIG_TREE_NAME, SEQUENCE_TREE_NAME, SEQ_KEY_CONFIG};
+use crate::common::sequence_utils::SimpleSequence;
 use actix::prelude::*;
 
-use super::config_sled::ConfigDB;
 use super::config_subscribe::Subscriber;
 use super::dal::ConfigHistoryParam;
 use crate::config::config_index::{ConfigQueryParam, TenantIndex};
-use crate::config::model::{ConfigRaftCmd, ConfigRaftResult};
+use crate::config::model::{ConfigRaftCmd, ConfigRaftResult, ConfigValueDO, HistoryItem};
+use crate::now_millis_i64;
+use crate::raft::filestore::model::SnapshotRecordDto;
+use crate::raft::filestore::raftsnapshot::{SnapshotWriterActor, SnapshotWriterRequest};
 
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]
 pub struct ConfigKey {
@@ -75,10 +79,12 @@ impl From<&str> for ConfigKey {
 //     }
 // }
 
+#[derive(Clone)]
 pub struct ConfigValue {
     pub(crate) content: Arc<String>,
     pub(crate) md5: Arc<String>,
     pub(crate) tmp: bool,
+    pub(crate) histories: Vec<HistoryItem>,
 }
 
 impl ConfigValue {
@@ -88,7 +94,61 @@ impl ConfigValue {
             content,
             md5: Arc::new(md5),
             tmp: false,
+            histories: vec![],
         }
+    }
+
+    pub fn init(
+        content: Arc<String>,
+        history_id: u64,
+        op_time: i64,
+        md5: Option<Arc<String>>,
+        op_user: Option<Arc<String>>,
+    ) -> Self {
+        let md5 = if let Some(v) = md5 {
+            v
+        } else {
+            Arc::new(get_md5(&content))
+        };
+        Self {
+            content: content.clone(),
+            md5,
+            tmp: false,
+            histories: vec![HistoryItem {
+                id: history_id,
+                content,
+                modified_time: op_time,
+                op_user,
+            }],
+        }
+    }
+
+    pub fn update_value(
+        &mut self,
+        content: Arc<String>,
+        history_id: u64,
+        op_time: i64,
+        md5: Option<Arc<String>>,
+        op_user: Option<Arc<String>>,
+    ) {
+        let md5 = if let Some(v) = md5 {
+            v
+        } else {
+            Arc::new(get_md5(&content))
+        };
+        self.md5 = md5;
+        self.content = content.clone();
+        self.tmp = false;
+        let item = HistoryItem {
+            id: history_id,
+            content,
+            modified_time: op_time,
+            op_user,
+        };
+        if self.histories.len() >= 100 {
+            self.histories.remove(0);
+        }
+        self.histories.push(item);
     }
 }
 
@@ -290,8 +350,8 @@ pub struct ConfigActor {
     listener: ConfigListener,
     subscriber: Subscriber,
     tenant_index: TenantIndex,
-    config_db: ConfigDB,
     raft: Option<Weak<NacosRaft>>,
+    sequence: SimpleSequence,
 }
 
 impl Inject for ConfigActor {
@@ -312,32 +372,39 @@ impl Inject for ConfigActor {
     }
 }
 
-/*
 impl Default for ConfigActor {
     fn default() -> Self {
         Self::new()
     }
 }
-*/
 
 impl ConfigActor {
-    pub fn new(db: Arc<sled::Db>) -> Self {
-        let mut s = Self {
+    pub fn new() -> Self {
+        Self {
             cache: HashMap::new(),
             subscriber: Subscriber::new(),
             listener: ConfigListener::new(),
             tenant_index: TenantIndex::new(),
-            config_db: ConfigDB::new(db),
             raft: None,
-        };
-        s.load_config();
-        s
+            sequence: SimpleSequence::new(0, 100),
+        }
     }
 
     fn set_tmp_config(&mut self, key: ConfigKey, val: Arc<String>) {
-        let mut config_val = ConfigValue::new(val);
-        config_val.tmp = true;
-        self.cache.insert(key, config_val);
+        if let Some(v) = self.cache.get_mut(&key) {
+            v.tmp = true;
+            v.md5 = Arc::new(get_md5(&val));
+            v.content = val;
+        } else {
+            let mut config_val = ConfigValue::new(val);
+            config_val.tmp = true;
+            self.cache.insert(key, config_val);
+        }
+    }
+
+    fn inner_set_config(&mut self, key: ConfigKey, value: ConfigValue) {
+        self.tenant_index.insert_config(key.clone());
+        self.cache.insert(key, value);
     }
 
     fn set_config(
@@ -345,20 +412,24 @@ impl ConfigActor {
         key: ConfigKey,
         val: Arc<String>,
         history_id: u64,
-        history_table_id: Option<u64>,
+        _history_table_id: Option<u64>,
+        op_time: i64,
+        op_user: Option<Arc<String>>,
     ) -> anyhow::Result<ConfigResult> {
-        let config_val = ConfigValue::new(val);
-        if let Some(v) = self.cache.get(&key) {
-            if !v.tmp && v.md5 == config_val.md5 {
+        if let Some(v) = self.cache.get_mut(&key) {
+            let md5 = get_md5(val.as_str());
+            if !v.tmp && v.md5.as_str() == md5 {
                 return Ok(ConfigResult::NULL);
             }
+            if v.histories.is_empty() {
+                self.tenant_index.insert_config(key.clone());
+            }
+            v.update_value(val, history_id, op_time, Some(Arc::new(md5)), op_user);
+        } else {
+            let v = ConfigValue::init(val, history_id, op_time, None, op_user);
+            self.cache.insert(key.clone(), v);
+            self.tenant_index.insert_config(key.clone());
         }
-        //self.config_db.update_config(&key, &config_val).ok();
-        self.config_db
-            .update_config_with_history_id(&key, &config_val, history_id, history_table_id)
-            .ok();
-        self.cache.insert(key.clone(), config_val);
-        self.tenant_index.insert_config(key.clone());
         self.listener.notify(key.clone());
         self.subscriber.notify(key);
         Ok(ConfigResult::NULL)
@@ -366,7 +437,7 @@ impl ConfigActor {
 
     fn del_config(&mut self, key: ConfigKey) -> anyhow::Result<()> {
         self.cache.remove(&key);
-        self.config_db.del_config(&key).ok();
+        //self.config_db.del_config(&key).ok();
         self.tenant_index.remove_config(&key);
         self.listener.notify(key.clone());
         self.subscriber.notify(key.clone());
@@ -374,6 +445,7 @@ impl ConfigActor {
         Ok(())
     }
 
+    /*
     fn load_config(&mut self) {
         for item in self.config_db.query_config_list().unwrap() {
             let key = ConfigKey::new(
@@ -387,6 +459,7 @@ impl ConfigActor {
         }
         self.config_db.init_seq();
     }
+     */
 
     async fn send_raft_request(
         raft: &Option<Weak<NacosRaft>>,
@@ -424,7 +497,8 @@ impl ConfigActor {
         (size, info_list)
     }
 
-    pub(crate) fn get_history_info_page(
+    /*
+    pub(crate) fn get_history_info_page_old(
         &self,
         param: &ConfigHistoryParam,
     ) -> (usize, Vec<ConfigHistoryInfoDto>) {
@@ -442,6 +516,61 @@ impl ConfigActor {
             .collect();
         (size, info_list)
     }
+     */
+
+    ///
+    /// 从内存列表中直接查询历史记录
+    pub(crate) fn get_history_info_page(
+        &self,
+        param: &ConfigHistoryParam,
+    ) -> (usize, Vec<ConfigHistoryInfoDto>) {
+        if let (Some(t), Some(g), Some(id)) = (&param.tenant, &param.group, &param.data_id) {
+            let key = ConfigKey::new(id, g, t);
+            if let Some(v) = self.cache.get(&key) {
+                let mut ret = vec![];
+                let iter = v.histories.iter().rev();
+                if let Some(offset) = param.offset {
+                    let n_i = iter.skip(offset as usize);
+                    if let Some(limit) = param.limit {
+                        let t = n_i.take(limit as usize);
+                        for item in t {
+                            ret.push(item.to_dto(&key));
+                        }
+                    } else {
+                        for item in n_i {
+                            ret.push(item.to_dto(&key));
+                        }
+                    }
+                }
+                return (v.histories.len(), ret);
+            };
+        };
+        (0, vec![])
+    }
+
+    ///
+    /// 将配置中心数据写入 raft snapshot文件中
+    ///
+    fn build_snapshot(&self, writer: Addr<SnapshotWriterActor>) -> anyhow::Result<()> {
+        for (key, value) in &self.cache {
+            let value_db: ConfigValueDO = value.clone().into();
+            let record = SnapshotRecordDto {
+                tree: CONFIG_TREE_NAME.clone(),
+                key: key.build_key().as_bytes().to_vec(),
+                value: value_db.to_bytes()?,
+                op_type: 0,
+            };
+            writer.do_send(SnapshotWriterRequest::Record(record));
+        }
+        let seq_record = SnapshotRecordDto {
+            tree: SEQUENCE_TREE_NAME.clone(),
+            key: SEQ_KEY_CONFIG.as_bytes().to_vec(),
+            value: id_to_bin(self.sequence.get_end_id()),
+            op_type: 0,
+        };
+        writer.do_send(SnapshotWriterRequest::Record(seq_record));
+        Ok(())
+    }
 
     pub fn hb(&self, ctx: &mut actix::Context<Self>) {
         ctx.run_later(Duration::from_millis(500), |act, ctx| {
@@ -457,6 +586,8 @@ pub enum ConfigCmd {
     //ADD(ConfigKey, Arc<String>),
     //DELETE(ConfigKey),
     SetTmpValue(ConfigKey, Arc<String>),
+    InnerSet(ConfigKey, ConfigValue),
+    InnerSetLastId(u64),
     GET(ConfigKey),
     QueryPageInfo(Box<ConfigQueryParam>),
     QueryHistoryPageInfo(Box<ConfigHistoryParam>),
@@ -464,12 +595,13 @@ pub enum ConfigCmd {
     Subscribe(Vec<ListenerItem>, Arc<String>),
     RemoveSubscribe(Vec<ListenerItem>, Arc<String>),
     RemoveSubscribeClient(Arc<String>),
+    BuildSnapshot(Addr<SnapshotWriterActor>),
 }
 
 #[derive(Message)]
 #[rtype(result = "anyhow::Result<ConfigResult>")]
 pub enum ConfigAsyncCmd {
-    Add(ConfigKey, Arc<String>),
+    Add(ConfigKey, Arc<String>, Option<Arc<String>>),
     Delete(ConfigKey),
 }
 
@@ -503,6 +635,12 @@ impl Handler<ConfigCmd> for ConfigActor {
         match msg {
             ConfigCmd::SetTmpValue(key, value) => {
                 self.set_tmp_config(key, value);
+            }
+            ConfigCmd::InnerSet(key, value) => {
+                self.inner_set_config(key, value);
+            }
+            ConfigCmd::InnerSetLastId(last_id) => {
+                self.sequence.set_last_id(last_id);
             }
             ConfigCmd::GET(key) => {
                 if let Some(v) = self.cache.get(&key) {
@@ -558,6 +696,9 @@ impl Handler<ConfigCmd> for ConfigActor {
                 let (size, list) = self.get_history_info_page(query_param.as_ref());
                 return Ok(ConfigResult::ConfigHistoryInfoPage(size, list));
             }
+            ConfigCmd::BuildSnapshot(writer) => {
+                self.build_snapshot(writer).ok();
+            }
         }
         Ok(ConfigResult::NULL)
     }
@@ -568,8 +709,8 @@ impl Handler<ConfigAsyncCmd> for ConfigActor {
 
     fn handle(&mut self, msg: ConfigAsyncCmd, _ctx: &mut Context<Self>) -> Self::Result {
         let raft = self.raft.clone();
-        let history_info = if let ConfigAsyncCmd::Add(_, _) = &msg {
-            match self.config_db.next_history_id_state() {
+        let history_info = if let ConfigAsyncCmd::Add(_, _, _) = &msg {
+            match self.sequence.next_state() {
                 Ok(v) => Some(v),
                 Err(_) => None,
             }
@@ -578,13 +719,15 @@ impl Handler<ConfigAsyncCmd> for ConfigActor {
         };
         let fut = async move {
             match msg {
-                ConfigAsyncCmd::Add(key, value) => {
+                ConfigAsyncCmd::Add(key, value, op_user) => {
                     if let Some((history_id, history_table_id)) = history_info {
                         let req = ClientRequest::ConfigSet {
                             key: key.build_key(),
                             value,
                             history_id,
                             history_table_id,
+                            op_time: now_millis_i64(),
+                            op_user,
                         };
                         Self::send_raft_request(&raft, req).await.ok();
                     }
@@ -614,17 +757,26 @@ impl Handler<ConfigRaftCmd> for ConfigActor {
                 value,
                 history_id,
                 history_table_id,
+                op_time,
+                op_user,
             } => {
                 let config_key: ConfigKey = (&key as &str).into();
-                self.set_config(config_key, value, history_id, history_table_id)
-                    .ok();
+                self.set_config(
+                    config_key,
+                    value,
+                    history_id,
+                    history_table_id,
+                    op_time,
+                    op_user,
+                )
+                .ok();
             }
             ConfigRaftCmd::ConfigRemove { key } => {
                 let config_key: ConfigKey = (&key as &str).into();
                 self.del_config(config_key).ok();
             }
             ConfigRaftCmd::ApplySnaphot => {
-                self.load_config();
+                //self.load_config();
             }
         }
         Ok(ConfigRaftResult::None)

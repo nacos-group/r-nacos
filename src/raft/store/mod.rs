@@ -1,13 +1,10 @@
-pub mod core;
-pub mod innerstore;
+//pub mod core;
+//pub mod innerstore;
 
-use std::collections::HashMap;
 use std::sync::Arc;
 
-use async_raft_ext::raft::MembershipConfig;
 use async_raft_ext::AppData;
 use async_raft_ext::AppDataResponse;
-use prost::Message;
 use serde::Deserialize;
 use serde::Serialize;
 use thiserror::Error;
@@ -22,11 +19,14 @@ pub enum ClientRequest {
         id: u64,
         addr: Arc<String>,
     },
+    Members(Vec<u64>),
     ConfigSet {
         key: String,
         value: Arc<String>,
         history_id: u64,
         history_table_id: Option<u64>,
+        op_time: i64,
+        op_user: Option<Arc<String>>,
     },
     ConfigRemove {
         key: String,
@@ -37,8 +37,15 @@ pub enum ClientRequest {
 impl AppData for ClientRequest {}
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ClientResponse {
-    pub value: Option<Arc<String>>,
+pub enum ClientResponse {
+    Success,
+    Fail,
+}
+
+impl Default for ClientResponse {
+    fn default() -> Self {
+        Self::Success
+    }
 }
 
 impl AppDataResponse for ClientResponse {}
@@ -49,6 +56,7 @@ pub enum ShutdownError {
     UnsafeStorageError,
 }
 
+/*
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
 pub struct StateMachine {
     pub last_applied_log: u64,
@@ -112,3 +120,4 @@ impl SnapshotDataInfo {
         Ok(s)
     }
 }
+ */
