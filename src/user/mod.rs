@@ -4,6 +4,7 @@ use actix::prelude::*;
 use bean_factory::{bean, Inject};
 //use inner_mem_cache::MemCache;
 
+use crate::common::constant::USER_TREE_NAME;
 use crate::{
     now_millis,
     raft::{
@@ -14,7 +15,6 @@ use crate::{
         },
     },
 };
-use crate::common::constant::USER_TREE_NAME;
 
 use self::{
     model::{UserDo, UserDto},
