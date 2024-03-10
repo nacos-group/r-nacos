@@ -14,6 +14,7 @@ use crate::{
         },
     },
 };
+use crate::common::constant::USER_TREE_NAME;
 
 use self::{
     model::{UserDo, UserDto},
@@ -23,10 +24,6 @@ use self::{
 pub mod api;
 pub mod model;
 pub mod permission;
-
-lazy_static::lazy_static! {
-    static ref USER_TABLE_NAME: Arc<String> =  Arc::new("user".to_string());
-}
 
 #[bean(inject)]
 pub struct UserManager {
@@ -56,7 +53,7 @@ impl UserManager {
     ) -> anyhow::Result<()> {
         if let Some(table_manager) = table_manager {
             let req = TableManagerQueryReq::QueryPageList {
-                table_name: USER_TABLE_NAME.clone(),
+                table_name: USER_TREE_NAME.clone(),
                 like_key: None,
                 limit: Some(1),
                 offset: None,
@@ -211,7 +208,7 @@ impl Handler<UserManagerReq> for UserManager {
                     };
                     let user_data = user_do.to_bytes();
                     let req = TableManagerReq::Set {
-                        table_name: USER_TABLE_NAME.clone(),
+                        table_name: USER_TREE_NAME.clone(),
                         key: user.username.as_bytes().to_owned(),
                         value: user_data,
                         last_seq_id: None,
@@ -227,7 +224,7 @@ impl Handler<UserManagerReq> for UserManager {
                 UserManagerReq::UpdateUser { user } => {
                     let mut last_user = if let Some(raft_table_route) = &raft_table_route {
                         let query_req = TableManagerQueryReq::GetByArcKey {
-                            table_name: USER_TABLE_NAME.clone(),
+                            table_name: USER_TREE_NAME.clone(),
                             key: user.username.clone(),
                         };
                         match raft_table_route.get_leader_data(query_req).await? {
@@ -266,7 +263,7 @@ impl Handler<UserManagerReq> for UserManager {
                     last_user.gmt_modified = now;
                     let user_data = last_user.to_bytes();
                     let req = TableManagerReq::Set {
-                        table_name: USER_TABLE_NAME.clone(),
+                        table_name: USER_TREE_NAME.clone(),
                         key: user.username.as_bytes().to_owned(),
                         value: user_data,
                         last_seq_id: None,
@@ -285,7 +282,7 @@ impl Handler<UserManagerReq> for UserManager {
                     }
                     let last_user = if let Some(raft_table_route) = &raft_table_route {
                         let query_req = TableManagerQueryReq::GetByArcKey {
-                            table_name: USER_TABLE_NAME.clone(),
+                            table_name: USER_TREE_NAME.clone(),
                             key: name.clone(),
                         };
                         match raft_table_route.get_leader_data(query_req).await? {
@@ -303,7 +300,7 @@ impl Handler<UserManagerReq> for UserManager {
                 }
                 UserManagerReq::Remove { username } => {
                     let req = TableManagerReq::Remove {
-                        table_name: USER_TABLE_NAME.clone(),
+                        table_name: USER_TREE_NAME.clone(),
                         key: username.as_bytes().to_owned(),
                     };
                     if let Some(raft_table_route) = raft_table_route {
@@ -317,7 +314,7 @@ impl Handler<UserManagerReq> for UserManager {
                     } else {
                         let last_user = if let Some(table_manager) = &table_manager {
                             let query_req = TableManagerQueryReq::GetByArcKey {
-                                table_name: USER_TABLE_NAME.clone(),
+                                table_name: USER_TREE_NAME.clone(),
                                 key: name.clone(),
                             };
                             match table_manager.send(query_req).await?? {
@@ -340,7 +337,7 @@ impl Handler<UserManagerReq> for UserManager {
                 } => {
                     if let Some(table_manager) = &table_manager {
                         let query_req = TableManagerQueryReq::QueryPageList {
-                            table_name: USER_TABLE_NAME.clone(),
+                            table_name: USER_TREE_NAME.clone(),
                             like_key: like_username,
                             offset,
                             limit,
