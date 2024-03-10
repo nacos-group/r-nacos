@@ -98,29 +98,52 @@ impl ConfigValue {
         }
     }
 
-    pub fn init(content: Arc<String>, history_id: u64) -> Self {
-        let md5 = get_md5(&content);
+    pub fn init(
+        content: Arc<String>,
+        history_id: u64,
+        op_time: i64,
+        md5: Option<Arc<String>>,
+        op_user: Option<Arc<String>>,
+    ) -> Self {
+        let md5 = if let Some(v) = md5 {
+            v
+        } else {
+            Arc::new(get_md5(&content))
+        };
         Self {
             content: content.clone(),
-            md5: Arc::new(md5),
+            md5,
             tmp: false,
             histories: vec![HistoryItem {
                 id: history_id,
                 content,
-                modified_time: now_millis_i64(),
+                modified_time: op_time,
+                op_user,
             }],
         }
     }
 
-    pub fn update_value(&mut self, content: Arc<String>, history_id: u64) {
-        let md5 = get_md5(&content);
-        self.md5 = Arc::new(md5);
+    pub fn update_value(
+        &mut self,
+        content: Arc<String>,
+        history_id: u64,
+        op_time: i64,
+        md5: Option<Arc<String>>,
+        op_user: Option<Arc<String>>,
+    ) {
+        let md5 = if let Some(v) = md5 {
+            v
+        } else {
+            Arc::new(get_md5(&content))
+        };
+        self.md5 = md5;
         self.content = content.clone();
         self.tmp = false;
         let item = HistoryItem {
             id: history_id,
             content,
-            modified_time: now_millis_i64(),
+            modified_time: op_time,
+            op_user,
         };
         if self.histories.len() >= 100 {
             self.histories.remove(0);
@@ -368,9 +391,15 @@ impl ConfigActor {
     }
 
     fn set_tmp_config(&mut self, key: ConfigKey, val: Arc<String>) {
-        let mut config_val = ConfigValue::new(val);
-        config_val.tmp = true;
-        self.cache.insert(key, config_val);
+        if let Some(v) = self.cache.get_mut(&key) {
+            v.tmp = true;
+            v.md5 = Arc::new(get_md5(&val));
+            v.content = val;
+        } else {
+            let mut config_val = ConfigValue::new(val);
+            config_val.tmp = true;
+            self.cache.insert(key, config_val);
+        }
     }
 
     fn inner_set_config(&mut self, key: ConfigKey, value: ConfigValue) {
@@ -384,18 +413,23 @@ impl ConfigActor {
         val: Arc<String>,
         history_id: u64,
         _history_table_id: Option<u64>,
+        op_time: i64,
+        op_user: Option<Arc<String>>,
     ) -> anyhow::Result<ConfigResult> {
         if let Some(v) = self.cache.get_mut(&key) {
-            if !v.tmp && v.md5.as_str() == get_md5(val.as_str()) {
+            let md5 = get_md5(val.as_str());
+            if !v.tmp && v.md5.as_str() == md5 {
                 return Ok(ConfigResult::NULL);
             }
-            v.update_value(val, history_id)
+            if v.histories.is_empty() {
+                self.tenant_index.insert_config(key.clone());
+            }
+            v.update_value(val, history_id, op_time, Some(Arc::new(md5)), op_user);
         } else {
-            let v = ConfigValue::init(val, history_id);
+            let v = ConfigValue::init(val, history_id, op_time, None, op_user);
             self.cache.insert(key.clone(), v);
+            self.tenant_index.insert_config(key.clone());
         }
-        //todo update history_table_id
-        self.tenant_index.insert_config(key.clone());
         self.listener.notify(key.clone());
         self.subscriber.notify(key);
         Ok(ConfigResult::NULL)
@@ -567,7 +601,7 @@ pub enum ConfigCmd {
 #[derive(Message)]
 #[rtype(result = "anyhow::Result<ConfigResult>")]
 pub enum ConfigAsyncCmd {
-    Add(ConfigKey, Arc<String>),
+    Add(ConfigKey, Arc<String>, Option<Arc<String>>),
     Delete(ConfigKey),
 }
 
@@ -675,7 +709,7 @@ impl Handler<ConfigAsyncCmd> for ConfigActor {
 
     fn handle(&mut self, msg: ConfigAsyncCmd, _ctx: &mut Context<Self>) -> Self::Result {
         let raft = self.raft.clone();
-        let history_info = if let ConfigAsyncCmd::Add(_, _) = &msg {
+        let history_info = if let ConfigAsyncCmd::Add(_, _, _) = &msg {
             match self.sequence.next_state() {
                 Ok(v) => Some(v),
                 Err(_) => None,
@@ -685,13 +719,15 @@ impl Handler<ConfigAsyncCmd> for ConfigActor {
         };
         let fut = async move {
             match msg {
-                ConfigAsyncCmd::Add(key, value) => {
+                ConfigAsyncCmd::Add(key, value, op_user) => {
                     if let Some((history_id, history_table_id)) = history_info {
                         let req = ClientRequest::ConfigSet {
                             key: key.build_key(),
                             value,
                             history_id,
                             history_table_id,
+                            op_time: now_millis_i64(),
+                            op_user,
                         };
                         Self::send_raft_request(&raft, req).await.ok();
                     }
@@ -721,10 +757,19 @@ impl Handler<ConfigRaftCmd> for ConfigActor {
                 value,
                 history_id,
                 history_table_id,
+                op_time,
+                op_user,
             } => {
                 let config_key: ConfigKey = (&key as &str).into();
-                self.set_config(config_key, value, history_id, history_table_id)
-                    .ok();
+                self.set_config(
+                    config_key,
+                    value,
+                    history_id,
+                    history_table_id,
+                    op_time,
+                    op_user,
+                )
+                .ok();
             }
             ConfigRaftCmd::ConfigRemove { key } => {
                 let config_key: ConfigKey = (&key as &str).into();

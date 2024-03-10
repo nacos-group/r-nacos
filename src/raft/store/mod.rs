@@ -25,6 +25,8 @@ pub enum ClientRequest {
         value: Arc<String>,
         history_id: u64,
         history_table_id: Option<u64>,
+        op_time: i64,
+        op_user: Option<Arc<String>>,
     },
     ConfigRemove {
         key: String,

@@ -77,7 +77,7 @@ impl ConfigRoute {
     pub async fn set_config(&self, req: SetConfigReq) -> anyhow::Result<()> {
         match self.raft_addr_route.get_route_addr().await? {
             RouteAddr::Local => {
-                let cmd = ConfigAsyncCmd::Add(req.config_key, req.value);
+                let cmd = ConfigAsyncCmd::Add(req.config_key, req.value, req.op_user);
                 self.config_addr.send(cmd).await?.ok();
             }
             RouteAddr::Remote(_, addr) => {

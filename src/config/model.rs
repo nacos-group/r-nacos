@@ -12,6 +12,8 @@ pub enum ConfigRaftCmd {
         value: Arc<String>,
         history_id: u64,
         history_table_id: Option<u64>,
+        op_time: i64,
+        op_user: Option<Arc<String>>,
     },
     ConfigRemove {
         key: String,
@@ -32,6 +34,7 @@ pub struct HistoryItem {
     pub id: u64,
     pub content: Arc<String>,
     pub modified_time: i64,
+    pub op_user: Option<Arc<String>>,
 }
 
 impl HistoryItem {
@@ -55,6 +58,8 @@ pub struct ConfigHistoryItemDO {
     pub content: Option<String>,
     #[prost(int64, optional, tag = "3")]
     pub last_time: Option<i64>,
+    #[prost(string, optional, tag = "4")]
+    pub op_user: Option<String>,
 }
 
 impl From<HistoryItem> for ConfigHistoryItemDO {
@@ -63,6 +68,7 @@ impl From<HistoryItem> for ConfigHistoryItemDO {
             id: Some(value.id),
             content: Some(value.content.as_ref().to_string()),
             last_time: Some(value.modified_time),
+            op_user: value.op_user.map(|e| e.as_ref().to_string()),
         }
     }
 }
@@ -73,6 +79,7 @@ impl From<ConfigHistoryItemDO> for HistoryItem {
             id: value.id.unwrap_or_default(),
             content: Arc::new(value.content.unwrap_or_default()),
             modified_time: value.last_time.unwrap_or_default(),
+            op_user: value.op_user.map(Arc::new),
         }
     }
 }

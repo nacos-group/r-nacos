@@ -20,13 +20,30 @@ pub enum RouteAddr {
 pub struct SetConfigReq {
     pub config_key: ConfigKey,
     pub value: Arc<String>,
+    pub op_user: Option<Arc<String>>,
     //pub can_route_to_remote: bool,
     //pub extend_info: Option<HashMap<String,String>>,
 }
 
 impl SetConfigReq {
     pub fn new(config_key: ConfigKey, value: Arc<String>) -> Self {
-        Self { config_key, value }
+        Self {
+            config_key,
+            value,
+            op_user: None,
+        }
+    }
+
+    pub fn new_with_op_user(
+        config_key: ConfigKey,
+        value: Arc<String>,
+        op_user: Arc<String>,
+    ) -> Self {
+        Self {
+            config_key,
+            value,
+            op_user: Some(op_user),
+        }
     }
 }
 
@@ -48,6 +65,7 @@ pub enum RouterRequest {
     ConfigSet {
         key: String,
         value: Arc<String>,
+        op_user: Option<Arc<String>>,
         extend_info: HashMap<String, String>,
     },
     ConfigDel {
@@ -74,6 +92,7 @@ impl From<SetConfigReq> for RouterRequest {
         Self::ConfigSet {
             key: req.config_key.build_key(),
             value: req.value,
+            op_user: req.op_user,
             extend_info: Default::default(),
         }
     }

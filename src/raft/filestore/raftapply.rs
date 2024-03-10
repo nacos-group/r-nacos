@@ -61,12 +61,16 @@ impl LogRecordLoader for LogRecordLoaderInstance {
                     value,
                     history_id,
                     history_table_id,
+                    op_time,
+                    op_user,
                 } => {
                     let cmd = ConfigRaftCmd::ConfigAdd {
                         key,
                         value,
                         history_id,
                         history_table_id,
+                        op_time,
+                        op_user,
                     };
                     self.data_wrap.config.do_send(cmd);
                 }
@@ -300,6 +304,8 @@ impl StateApplyManager {
                 value,
                 history_id,
                 history_table_id,
+                op_time,
+                op_user,
             } => {
                 if let Some(raft_data_wrap) = &self.data_wrap {
                     let cmd = ConfigRaftCmd::ConfigAdd {
@@ -307,6 +313,8 @@ impl StateApplyManager {
                         value,
                         history_id,
                         history_table_id,
+                        op_time,
+                        op_user,
                     };
                     raft_data_wrap.config.do_send(cmd);
                 }
@@ -350,12 +358,16 @@ impl StateApplyManager {
                 value,
                 history_id,
                 history_table_id,
+                op_time,
+                op_user,
             } => {
                 let cmd = ConfigRaftCmd::ConfigAdd {
                     key,
                     value,
                     history_id,
                     history_table_id,
+                    op_time,
+                    op_user,
                 };
                 raft_data_wrap.config.send(cmd).await??;
                 Ok(ClientResponse::Success)
