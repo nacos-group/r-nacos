@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-pub const APP_VERSION: &str = "0.5.0-beta";
+pub const APP_VERSION: &str = "0.5.0";
 
 pub const EMPTY_STR: &str = "";
 
