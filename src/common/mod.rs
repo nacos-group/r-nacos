@@ -62,6 +62,7 @@ pub struct AppSysConfig {
     pub raft_node_addr: String,
     pub raft_auto_init: bool,
     pub raft_join_addr: String,
+    pub raft_snapshot_log_size: u64,
     pub console_login_timeout: i32,
     pub console_login_one_hour_limit: u32,
 }
@@ -110,6 +111,10 @@ impl AppSysConfig {
             .unwrap_or("5".to_owned())
             .parse()
             .unwrap_or(8848);
+        let raft_snapshot_log_size = std::env::var("RNACOS_RAFT_SNAPSHOT_LOG_SIZE")
+            .unwrap_or("10000".to_owned())
+            .parse()
+            .unwrap_or(10000);
         Self {
             config_db_dir,
             config_db_file,
@@ -122,6 +127,7 @@ impl AppSysConfig {
             raft_node_addr,
             raft_auto_init,
             raft_join_addr,
+            raft_snapshot_log_size,
             console_login_timeout,
             console_login_one_hour_limit,
         }

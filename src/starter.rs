@@ -210,7 +210,9 @@ fn build_raft(
         .heartbeat_interval(1000)
         .election_timeout_min(2500)
         .election_timeout_max(5000)
-        .snapshot_policy(async_raft_ext::SnapshotPolicy::LogsSinceLast(50000))
+        .snapshot_policy(async_raft_ext::SnapshotPolicy::LogsSinceLast(
+            sys_config.raft_snapshot_log_size,
+        ))
         .snapshot_max_chunk_size(3 * 1024 * 1024)
         .validate()
         .unwrap();
