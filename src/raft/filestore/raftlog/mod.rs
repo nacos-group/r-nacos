@@ -1,3 +1,4 @@
+use std::time::Duration;
 use std::{
     io::{Cursor, SeekFrom},
     path::Path,
@@ -67,6 +68,7 @@ pub struct LogInnerManager {
     last_term: u64,
     current_index_count: u16,
     need_seek_at_write: bool,
+    last_flush_index: u64,
     pub(crate) split_off_index: u64,
 }
 
@@ -170,6 +172,7 @@ impl LogInnerManager {
             //pre_term,
             last_term: pre_term,
             start_index,
+            last_flush_index: start_index + msg_count,
             index_cursor,
             file_len,
             data_cursor,
@@ -187,6 +190,16 @@ impl LogInnerManager {
             }
         }
         Ok(this)
+    }
+
+    async fn flush_log(&mut self) -> anyhow::Result<()> {
+        let end_index = self.get_end_index();
+        if self.last_flush_index < end_index {
+            self.data_file.flush().await?;
+            self.index_file.flush().await?;
+            self.last_flush_index = end_index;
+        }
+        Ok(())
     }
 
     fn read_indexs(
@@ -240,9 +253,11 @@ impl LogInnerManager {
         let mut reader = MessageBufReader::new();
         file.seek(SeekFrom::Start(data_cursor)).await?;
         let mut c = 0;
-        println!(
+        log::info!(
             "move_to_index_by_count {:?},{},{}",
-            last_index, &start_index, &count
+            last_index,
+            &start_index,
+            &count
         );
         loop {
             let read_len = file.read(&mut buffer).await?;
@@ -284,6 +299,7 @@ impl LogInnerManager {
         if self.index_cursor + 10 >= self.header.data_area_index as u64
             || self.data_cursor >= 2_000_000_000
         {
+            self.flush_log().await?;
             return Ok(LogWriteMark::Failure);
         }
         let mut buf = Vec::new();
@@ -330,6 +346,7 @@ impl LogInnerManager {
         if self.index_cursor + 10 >= self.header.data_area_index as u64
             || self.data_cursor >= 2_000_000_000
         {
+            self.flush_log().await?;
             return Ok(LogWriteMark::SuccessToEnd);
         }
         Ok(LogWriteMark::Success)
@@ -605,6 +622,10 @@ impl LogInnerManager {
                 self.split_off_index = std::cmp::max(split_off_index, self.start_index);
                 Ok(RaftLogResponse::None)
             }
+            RaftLogRequest::Flush => {
+                self.flush_log().await?;
+                Ok(RaftLogResponse::None)
+            }
         }
     }
 }
@@ -690,6 +711,7 @@ pub enum RaftLogRequest {
     StripLogToIndex(u64),
     SplitOff(u64),
     GetLastLogIndex,
+    Flush,
 }
 
 #[derive(Message)]
@@ -845,6 +867,9 @@ impl RaftLogManager {
                 act.index_info = Some(raft_index);
                 act.last_applied_log = last_applied_log;
                 act.build_log_actor(ctx);
+                ctx.run_interval(Duration::from_millis(500), |a, _| {
+                    a.send_flush();
+                });
             } else {
                 log::error!("load_index_info is error");
             }
@@ -1054,6 +1079,12 @@ impl RaftLogManager {
             }
         })
         .wait(ctx);
+    }
+
+    fn send_flush(&mut self) {
+        if let Some(log_actor) = &self.current_log_actor {
+            log_actor.do_send(RaftLogRequest::Flush);
+        };
     }
 
     fn strip_log_to_index(&mut self, _ctx: &mut Context<Self>, end_index: u64) {
