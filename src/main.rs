@@ -142,6 +142,7 @@ async fn run_console_web(source_app_data: Arc<AppShareData>) {
             .app_data(Data::new(bistream_manage_http_addr))
             .wrap(CheckLogin::new(source_app_data))
             .wrap(middleware::Logger::default())
+            .wrap(middleware::Compress::default())
             .configure(app_config)
     })
     .workers(2)
