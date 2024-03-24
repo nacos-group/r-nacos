@@ -73,19 +73,23 @@ jobs:
         if: matrix.os == 'windows-latest'
         run: |
           cd target/release
-          7z a ../../${{ matrix.name }} rnacos.exe
+          cp ../../doc/conf/.env.example .env
+          7z a ../../${{ matrix.name }} rnacos.exe .env
           cd -
       - name: Archive binary (linux and macOS)
         if: ${{  matrix.os != 'windows-latest' && matrix.target !='x86_64-unknown-linux-musl' }}
         run: |
           cd target/release
-          tar czvf ../../${{ matrix.name }} rnacos
+          cp ../../doc/conf/.env.example .env
+          tar czvf ../../${{ matrix.name }} rnacos .env
           cd -
       - name: Archive binary (linux-musl)
         if: matrix.target =='x86_64-unknown-linux-musl'
         run: |
+          # 注意，下面进入了三级目录，与上面两个打包操作路径不同
           cd target/x86_64-unknown-linux-musl/release
-          tar czvf ../../../${{ matrix.name }} rnacos
+          cp ../../../doc/conf/.env.example .env
+          tar czvf ../../../${{ matrix.name }} rnacos .env
           cd -
 
       - name: Upload binary artifacts
