@@ -35,7 +35,8 @@ impl RaftIndexInnerManager {
             .open(&path)
             .await?;
         let meta = file.metadata().await?;
-        let (last_applied_log, raft_index) = if meta.len() == 0 {
+        //log::info!("index file len:{}",meta.len());
+        let (last_applied_log, raft_index) = if meta.len() <= 20 {
             //init write
             let index = RaftIndex::default();
             /*
@@ -50,9 +51,10 @@ impl RaftIndexInnerManager {
             */
             let mut buf = Vec::new();
             let mut writer = Writer::new(&mut buf);
-            writer.write_message(&index)?;
             let header_buf = id_to_bin(0);
-            file.write_all(&header_buf).await?;
+            writer.write_bytes(&header_buf)?;
+            writer.write_message(&index)?;
+            file.seek(std::io::SeekFrom::Start(0)).await?;
             file.write_all(&buf).await?;
             file.flush().await?;
             let raft_index: RaftIndexDto = index.try_into()?;
