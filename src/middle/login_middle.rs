@@ -19,7 +19,9 @@ use crate::raft::cache::{CacheManager, CacheManagerReq, CacheManagerResult};
 use crate::user::permission::UserRole;
 
 lazy_static::lazy_static! {
-    pub static ref IGNORE_CHECK_LOGIN: Vec<&'static str> = vec!["/p/login", "/nacos/v1/console/login/login", "/nacos/v1/console/login/captcha","/404"];
+    pub static ref IGNORE_CHECK_LOGIN: Vec<&'static str> = vec!["/p/login", "/nacos/v1/console/login/login", "/nacos/v1/console/login/captcha","/404",
+        "/rnacos/p/login", "/rnacos/api/console/login/login", "/rnacos/api/console/login/captcha","/rnacos/404",
+    ];
     pub static ref STATIC_FILE_PATH: Regex= Regex::new(r"(?i).*\.(js|css|png|jpg|jpeg|bmp|svg)").unwrap();
     pub static ref API_PATH: Regex = Regex::new(r"(?i)/(api|nacos)/.*").unwrap();
 }
@@ -123,7 +125,8 @@ where
                 } else {
                     //已登录没有权限
                     let response = if is_page {
-                        let move_url = format!("/nopermission?path={}", request.path());
+                        //let move_url = format!("/nopermission?path={}", request.path());
+                        let move_url = format!("/rnacos/nopermission?path={}", request.path());
                         HttpResponse::Ok()
                             .insert_header(("Location", move_url))
                             .status(StatusCode::FOUND)
@@ -142,7 +145,7 @@ where
             } else {
                 //没有登录
                 let response = if is_page {
-                    let move_url = if request.path() == "/p/login" {
+                    let move_url = if request.path() == "/rnacos/p/login" || request.path() == "/p/login" {
                         format!("{}?{}", request.path(), request.query_string())
                     } else {
                         let mut redirect_param = HashMap::new();
@@ -156,7 +159,7 @@ where
                         };
                         let redirect_param =
                             serde_urlencoded::to_string(&redirect_param).unwrap_or_default();
-                        format!("/p/login?{}", redirect_param)
+                        format!("/rnacos/p/login?{}", redirect_param)
                     };
                     HttpResponse::Ok()
                         .insert_header(("Location", move_url))

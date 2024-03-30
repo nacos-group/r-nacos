@@ -117,6 +117,11 @@ lazy_static::lazy_static! {
         R::WebResource("/nopermission"),
         R::WebResource("/p/login"),
         R::WebResource("/manage/about"),
+        R::WebResource("/rnacos"),
+        R::WebResource("/rnacos/404"),
+        R::WebResource("/rnacos/nopermission"),
+        R::WebResource("/rnacos/p/login"),
+        R::WebResource("/rnacos/manage/about"),
         //path
         R::Path("/",HTTP_METHOD_GET),
         R::Path("/404",HTTP_METHOD_GET),
@@ -128,104 +133,126 @@ lazy_static::lazy_static! {
         R::Path("/nacos/v1/console/namespaces",HTTP_METHOD_GET),
         R::Path("/nacos/v1/console/user/info",HTTP_METHOD_GET),
         R::Path("/nacos/v1/console/user/web_resources",HTTP_METHOD_GET),
+        R::Path("/rnacos",HTTP_METHOD_GET),
+        R::Path("/rnacos/404",HTTP_METHOD_GET),
+        R::Path("/rnacos/nopermission",HTTP_METHOD_GET),
+        R::Path("/rnacos/p/login",HTTP_METHOD_GET),
+        R::Path("/rnacos/manage/about",HTTP_METHOD_GET),
+        R::Path("/rnacos/api/console/login/login",HTTP_METHOD_ALL),
+        R::Path("/rnacos/api/console/login/captcha",HTTP_METHOD_ALL),
+        R::Path("/rnacos/api/console/namespaces",HTTP_METHOD_GET),
+        R::Path("/rnacos/api/console/user/info",HTTP_METHOD_GET),
+        R::Path("/rnacos/api/console/user/web_resources",HTTP_METHOD_GET),
     ]);
 
     static ref M_CLUSTER_VISITOR: ModuleResource = ModuleResource::new(vec![
         //WebResource
         R::WebResource("/manage/cluster"),
+        R::WebResource("/rnacos/manage/cluster"),
         //path
-        R::Path("/manage/cluster",HTTP_METHOD_GET),
-        R::Path("/nacos/v1/console/cluster/cluster_node_list",HTTP_METHOD_GET),
+        R::Path("/rnacos/manage/cluster",HTTP_METHOD_GET),
+        R::Path("/rnacos/api/console/cluster/cluster_node_list",HTTP_METHOD_GET),
     ]);
 
     static ref M_NAMESPACE_VISITOR: ModuleResource = ModuleResource::new(vec![
         //WebResource
         R::WebResource("/manage/namespace"),
+        R::WebResource("/rnacos/manage/namespace"),
         //path
-        R::Path("/manage/namespace",HTTP_METHOD_GET),
-        R::Path("/nacos/v1/console/namespaces",HTTP_METHOD_GET),
+        R::Path("/rnacos/manage/namespace",HTTP_METHOD_GET),
+        R::Path("/rnacos/api/console/namespaces",HTTP_METHOD_GET),
     ]);
 
     static ref M_NAMESPACE_MANAGE: ModuleResource = ModuleResource::new(vec![
         //WebResource
         R::WebResource("/manage/namespace"),
+        R::WebResource("/rnacos/manage/namespace"),
         R::WebResource("NAMESPACE_UPDATE"),
         //path
-        R::Path("/manage/namespace",HTTP_METHOD_GET),
-        R::Path("/nacos/v1/console/namespaces",HTTP_METHOD_ALL),
+        R::Path("/rnacos/manage/namespace",HTTP_METHOD_GET),
+        R::Path("/rnacos/api/console/namespaces",HTTP_METHOD_ALL),
     ]);
 
     static ref M_USER_MANAGE: ModuleResource = ModuleResource::new(vec![
         //WebResource
         R::WebResource("/manage/user"),
+        R::WebResource("/rnacos/manage/user"),
         R::WebResource("USER_UPDATE"),
         //path
-        R::Path("/manage/user",HTTP_METHOD_GET),
-        R::Path("/nacos/v1/console/user/list",HTTP_METHOD_GET),
-        R::Path("/nacos/v1/console/user/info",HTTP_METHOD_GET),
-        R::Path("/nacos/v1/console/user/add",HTTP_METHOD_ALL),
-        R::Path("/nacos/v1/console/user/update",HTTP_METHOD_ALL),
-        R::Path("/nacos/v1/console/user/remove",HTTP_METHOD_ALL),
+        R::Path("/rnacos/manage/user",HTTP_METHOD_GET),
+        R::Path("/rnacos/api/console/user/list",HTTP_METHOD_GET),
+        R::Path("/rnacos/api/console/user/info",HTTP_METHOD_GET),
+        R::Path("/rnacos/api/console/user/add",HTTP_METHOD_ALL),
+        R::Path("/rnacos/api/console/user/update",HTTP_METHOD_ALL),
+        R::Path("/rnacos/api/console/user/remove",HTTP_METHOD_ALL),
     ]);
 
     static ref M_CONFIG_VISITOR: ModuleResource = ModuleResource::new(vec![
         //WebResource
         R::WebResource("/manage/configs"),
         R::WebResource("/manage/config/history"),
+        R::WebResource("/rnacos/manage/configs"),
+        R::WebResource("/rnacos/manage/config/history"),
         //path
-        R::Path("/manage/configs",HTTP_METHOD_GET),
-        R::Path("/nacos/v1/console/configs",HTTP_METHOD_GET),
-        R::Path("/nacos/v1/console/config/download",HTTP_METHOD_GET),
-        R::Path("/nacos/v1/cs/configs",HTTP_METHOD_GET),
+        R::Path("/rnacos/manage/configs",HTTP_METHOD_GET),
+        R::Path("/rnacos/api/console/configs",HTTP_METHOD_GET),
+        R::Path("/rnacos/api/console/download",HTTP_METHOD_GET),
+        R::Path("/rnacos/api/console/cs/configs",HTTP_METHOD_GET),
         //config history
-        R::Path("/manage/config/history",HTTP_METHOD_GET),
-        R::Path("/nacos/v1/console/config/history",HTTP_METHOD_GET),
+        R::Path("/rnacos/manage/config/history",HTTP_METHOD_GET),
+        R::Path("//rnacos/api/console/config/history",HTTP_METHOD_GET),
     ]);
 
     static ref M_CONFIG_MANAGE: ModuleResource = ModuleResource::new(vec![
         //WebResource
         R::WebResource("/manage/configs"),
         R::WebResource("/manage/config/history"),
+        R::WebResource("/rnacos/manage/configs"),
+        R::WebResource("/rnacos/manage/config/history"),
         R::WebResource("CONFIG_UPDATE"),
         //path
-        R::Path("/nacos/v1/console/namespaces",HTTP_METHOD_ALL),
-        R::Path("/manage/configs",HTTP_METHOD_ALL),
-        R::Path("/nacos/v1/console/configs",HTTP_METHOD_GET),
-        R::Path("/nacos/v1/console/config/download",HTTP_METHOD_GET),
-        R::Path("/nacos/v1/console/config/import",HTTP_METHOD_ALL),
-        R::Path("/nacos/v1/cs/configs",HTTP_METHOD_ALL),
+        R::Path("/rnacos/manage/configs",HTTP_METHOD_ALL),
+        R::Path("/rnacos/api/console/namespaces",HTTP_METHOD_ALL),
+        R::Path("/rnacos/api/console/configs",HTTP_METHOD_GET),
+        R::Path("/rnacos/api/console/config/download",HTTP_METHOD_GET),
+        R::Path("/rnacos/api/console/config/import",HTTP_METHOD_ALL),
+        R::Path("/rnacos/api/console/cs/configs",HTTP_METHOD_ALL),
         //config history
-        R::Path("/manage/config/history",HTTP_METHOD_GET),
-        R::Path("/nacos/v1/console/config/history",HTTP_METHOD_GET),
+        R::Path("/rnacos/manage/config/history",HTTP_METHOD_GET),
+        R::Path("/rnacos/api/console/config/history",HTTP_METHOD_GET),
     ]);
 
     static ref M_NAMING_VISITOR: ModuleResource = ModuleResource::new(vec![
         //WebResource
         R::WebResource("/manage/service"),
         R::WebResource("/manage/service/instance"),
+        R::WebResource("/rnacos/manage/service"),
+        R::WebResource("/rnacos/manage/service/instance"),
         //path
-        R::Path("/manage/service",HTTP_METHOD_GET),
-        R::Path("/nacos/v1/ns/catalog/services",HTTP_METHOD_GET),
-        R::Path("/nacos/v1/ns/service",HTTP_METHOD_GET),
+        R::Path("/rnacos/manage/service",HTTP_METHOD_GET),
+        R::Path("/rnacos/api/console/ns/services",HTTP_METHOD_GET),
+        R::Path("/rnacos/api/console/ns/service",HTTP_METHOD_GET),
         //instance
-        R::Path("/manage/service/instance",HTTP_METHOD_GET),
-        R::Path("/nacos/v1/console/instances",HTTP_METHOD_GET),
-        R::Path("/nacos/v1/ns/instance",HTTP_METHOD_GET),
+        R::Path("/rnacos/manage/service/instance",HTTP_METHOD_GET),
+        R::Path("/rnacos/api/console/instances",HTTP_METHOD_GET),
+        R::Path("/rnacos/api/console/ns/instance",HTTP_METHOD_GET),
     ]);
 
     static ref M_NAMING_MANAGE: ModuleResource = ModuleResource::new(vec![
         //WebResource
         R::WebResource("/manage/service"),
         R::WebResource("/manage/service/instance"),
+        R::WebResource("/rnacos/manage/service"),
+        R::WebResource("/rnacos/manage/service/instance"),
         R::WebResource("SERVICE_UPDATE"),
         //path
-        R::Path("/manage/service",HTTP_METHOD_GET),
-        R::Path("/nacos/v1/ns/catalog/services",HTTP_METHOD_GET),
-        R::Path("/nacos/v1/ns/service",HTTP_METHOD_ALL),
+        R::Path("/rnacos/manage/service",HTTP_METHOD_GET),
+        R::Path("/rnacos/api/console/ns/services",HTTP_METHOD_GET),
+        R::Path("/rnacos/api/console/ns/service",HTTP_METHOD_ALL),
         //instance
-        R::Path("/manage/service/instance",HTTP_METHOD_GET),
-        R::Path("/nacos/v1/console/instances",HTTP_METHOD_GET),
-        R::Path("/nacos/v1/ns/instance",HTTP_METHOD_ALL),
+        R::Path("/rnacos/manage/service/instance",HTTP_METHOD_GET),
+        R::Path("/rnacos/api/console/instances",HTTP_METHOD_GET),
+        R::Path("/rnacos/api/console/ns/instance",HTTP_METHOD_ALL),
     ]);
 
     static ref R_VISITOR: Arc<GroupResource> = Arc::new(GroupResource::new(vec![
