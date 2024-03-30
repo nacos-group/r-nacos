@@ -70,7 +70,7 @@ pub struct ConfigWebConfirmedParam {
     pub content: String,
 }
 
-async fn add_config(
+pub(crate) async fn add_config(
     a: web::Query<ConfigWebParams>,
     payload: web::Payload,
     appdata: web::Data<Arc<AppShareData>>,
@@ -125,7 +125,7 @@ async fn add_config(
     }
 }
 
-async fn del_config(
+pub(crate) async fn del_config(
     a: web::Query<ConfigWebParams>,
     payload: web::Payload,
     appdata: web::Data<Arc<AppShareData>>,
@@ -178,7 +178,7 @@ async fn del_config(
     }
 }
 
-async fn get_config(
+pub(crate) async fn get_config(
     a: web::Query<ConfigWebParams>,
     config_addr: web::Data<Addr<ConfigActor>>,
 ) -> impl Responder {

@@ -4,7 +4,7 @@ use crate::config::api::app_config as cs_config;
 
 use crate::naming::api::app_config as ns_config;
 
-use crate::console::api::app_config as console_config;
+use crate::console::api::{console_api_config, console_api_config_new};
 
 use crate::auth::mock_token;
 use crate::raft::network::raft_config;
@@ -37,23 +37,46 @@ async fn icon() -> impl Responder {
     handle_embedded_file("server.svg")
 }
 
+#[actix_web::get("/rnacos/server.svg")]
+async fn console_icon() -> impl Responder {
+    handle_embedded_file("server.svg")
+}
+
 #[actix_web::get("/assets/{_:.*}")]
 async fn assets(path: web::Path<String>) -> impl Responder {
     let file = format!("assets/{}", path.as_ref());
     handle_embedded_file(&file)
 }
 
+#[actix_web::get("/rnacos/assets/{_:.*}")]
+async fn console_assets(path: web::Path<String>) -> impl Responder {
+    let file = format!("assets/{}", path.as_ref());
+    handle_embedded_file(&file)
+}
+
+///
+/// 面向SDK的http服务接口
 pub fn app_config(config: &mut web::ServiceConfig) {
     config.service(web::resource("/nacos/v1/auth/login").route(web::post().to(mock_token)));
     config.service(web::resource("/nacos/v1/auth/users/login").route(web::post().to(mock_token)));
     cs_config(config);
     ns_config(config);
     raft_config(config);
-    console_config(config);
-    console_web_config(config);
+    console_api_config(config);
+    console_api_config_new(config);
+    console_page_config(config);
 }
 
-pub fn console_web_config(config: &mut web::ServiceConfig) {
+/// 独立控制台服务
+pub fn console_config(config: &mut web::ServiceConfig) {
+    cs_config(config);
+    ns_config(config);
+    console_api_config(config);
+    console_api_config_new(config);
+    console_page_config(config);
+}
+
+pub fn console_page_config(config: &mut web::ServiceConfig) {
     config
         .service(web::resource("/").route(web::get().to(index)))
         .service(icon)
@@ -62,5 +85,14 @@ pub fn console_web_config(config: &mut web::ServiceConfig) {
         .service(web::resource("/404").route(web::get().to(index)))
         .service(web::resource("/nopermission").route(web::get().to(index)))
         .service(web::resource("/manage/{_:.*}").route(web::get().to(index)))
-        .service(web::resource("/p/{_:.*}").route(web::get().to(index)));
+        .service(web::resource("/p/{_:.*}").route(web::get().to(index)))
+        //new console path
+        .service(web::resource("/rnacos/").route(web::get().to(index)))
+        .service(console_icon)
+        .service(console_assets)
+        .service(web::resource("/rnacos/index.html").route(web::get().to(index)))
+        .service(web::resource("/rnacos/404").route(web::get().to(index)))
+        .service(web::resource("/rnacos/nopermission").route(web::get().to(index)))
+        .service(web::resource("/rnacos/manage/{_:.*}").route(web::get().to(index)))
+        .service(web::resource("/rnacos/p/{_:.*}").route(web::get().to(index)));
 }

@@ -32,7 +32,7 @@ use actix_web::{middleware, HttpServer};
 use clap::Parser;
 use rnacos::common::appdata::AppShareData;
 use rnacos::raft::NacosRaft;
-use rnacos::web_config::app_config;
+use rnacos::web_config::{app_config, console_config};
 
 #[derive(Parser, Clone, Debug)]
 #[clap(author, version, about, long_about = None)]
@@ -143,7 +143,7 @@ async fn run_console_web(source_app_data: Arc<AppShareData>) {
             .wrap(CheckLogin::new(source_app_data))
             .wrap(middleware::Logger::default())
             .wrap(middleware::Compress::default())
-            .configure(app_config)
+            .configure(console_config)
     })
     .workers(2)
     .bind(http_console_addr)
