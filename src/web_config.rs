@@ -39,7 +39,7 @@ async fn icon() -> impl Responder {
 
 #[actix_web::get("/rnacos/server.svg")]
 async fn console_icon() -> impl Responder {
-    handle_embedded_file("server.svg")
+    handle_embedded_file("rnacos/server.svg")
 }
 
 #[actix_web::get("/assets/{_:.*}")]
@@ -50,7 +50,7 @@ async fn assets(path: web::Path<String>) -> impl Responder {
 
 #[actix_web::get("/rnacos/assets/{_:.*}")]
 async fn console_assets(path: web::Path<String>) -> impl Responder {
-    let file = format!("assets/{}", path.as_ref());
+    let file = format!("rnacos/assets/{}", path.as_ref());
     handle_embedded_file(&file)
 }
 
@@ -87,6 +87,7 @@ pub fn console_page_config(config: &mut web::ServiceConfig) {
         .service(web::resource("/manage/{_:.*}").route(web::get().to(index)))
         .service(web::resource("/p/{_:.*}").route(web::get().to(index)))
         //new console path
+        .service(web::resource("/rnacos").route(web::get().to(index)))
         .service(web::resource("/rnacos/").route(web::get().to(index)))
         .service(console_icon)
         .service(console_assets)
