@@ -54,6 +54,23 @@ async fn console_assets(path: web::Path<String>) -> impl Responder {
     handle_embedded_file(&file)
 }
 
+async fn disable_no_auth_console_index() -> impl Responder {
+    let body = "<!DOCTYPE html>
+<html lang='en'>
+  <head>
+    <meta charset='UTF-8' />
+    <meta name='viewport' content='width=device-width, initial-scale=1.0' />
+    <title>R-NACOS</title>
+  </head>
+  <body>
+    <p>R-NACOS 未开启无鉴权控制台。</p>
+    <p>请使用鉴权控制台: http://localhost:10848/rnacos/ </p>
+    <p>或者通过配置 RNACOS_ENABLE_NO_AUTH_CONSOLE=true 开启无鉴权控制台。</p>
+  </body>
+</html>";
+    HttpResponse::Ok().content_type("text/html").body(body)
+}
+
 ///
 /// 面向SDK的http服务接口
 pub fn app_config(config: &mut web::ServiceConfig) {
@@ -67,10 +84,22 @@ pub fn app_config(config: &mut web::ServiceConfig) {
     console_page_config(config);
 }
 
-/// 独立控制台服务
-pub fn console_config(config: &mut web::ServiceConfig) {
+pub fn app_without_no_auth_console_config(config: &mut web::ServiceConfig) {
+    config
+        .service(web::resource("/").route(web::get().to(disable_no_auth_console_index)))
+        .service(web::resource("/nacos").route(web::get().to(disable_no_auth_console_index)))
+        .service(web::resource("/nacos/").route(web::get().to(disable_no_auth_console_index)))
+        .service(web::resource("/rnacos").route(web::get().to(disable_no_auth_console_index)))
+        .service(web::resource("/rnacos/").route(web::get().to(disable_no_auth_console_index)))
+        .service(web::resource("/nacos/v1/auth/login").route(web::post().to(mock_token)))
+        .service(web::resource("/nacos/v1/auth/users/login").route(web::post().to(mock_token)));
     cs_config(config);
     ns_config(config);
+    raft_config(config);
+}
+
+/// 独立控制台服务
+pub fn console_config(config: &mut web::ServiceConfig) {
     console_api_config(config);
     console_api_config_new(config);
     console_page_config(config);

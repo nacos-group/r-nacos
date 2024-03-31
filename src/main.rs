@@ -32,7 +32,7 @@ use actix_web::{middleware, HttpServer};
 use clap::Parser;
 use rnacos::common::appdata::AppShareData;
 use rnacos::raft::NacosRaft;
-use rnacos::web_config::{app_config, console_config};
+use rnacos::web_config::{app_config, app_without_no_auth_console_config, console_config};
 
 #[derive(Parser, Clone, Debug)]
 #[clap(author, version, about, long_about = None)]
@@ -98,13 +98,23 @@ async fn main() -> Result<(), Box<dyn Error>> {
         let naming_addr = app_data.naming_addr.clone();
         let bistream_manage_http_addr = app_data.bi_stream_manage.clone();
         let app_data = app_data.clone();
-        App::new()
-            .app_data(app_data)
-            .app_data(Data::new(config_addr))
-            .app_data(Data::new(naming_addr))
-            .app_data(Data::new(bistream_manage_http_addr))
-            .wrap(middleware::Logger::default())
-            .configure(app_config)
+        if app_data.sys_config.enable_no_auth_console {
+            App::new()
+                .app_data(app_data)
+                .app_data(Data::new(config_addr))
+                .app_data(Data::new(naming_addr))
+                .app_data(Data::new(bistream_manage_http_addr))
+                .wrap(middleware::Logger::default())
+                .configure(app_config)
+        } else {
+            App::new()
+                .app_data(app_data)
+                .app_data(Data::new(config_addr))
+                .app_data(Data::new(naming_addr))
+                .app_data(Data::new(bistream_manage_http_addr))
+                .wrap(middleware::Logger::default())
+                .configure(app_without_no_auth_console_config)
+        }
     });
     if let Some(num) = sys_config.http_workers {
         server = server.workers(num);

@@ -56,6 +56,7 @@ pub struct AppSysConfig {
     pub config_max_content: usize,
     pub http_port: u16,
     pub http_console_port: u16,
+    pub enable_no_auth_console: bool,
     pub http_workers: Option<usize>,
     pub grpc_port: u16,
     pub raft_node_id: u64,
@@ -115,12 +116,17 @@ impl AppSysConfig {
             .unwrap_or("10000".to_owned())
             .parse()
             .unwrap_or(10000);
+        let enable_no_auth_console = std::env::var("RNACOS_ENABLE_NO_AUTH_CONSOLE")
+            .unwrap_or("false".to_owned())
+            .parse()
+            .unwrap_or(false);
         Self {
             config_db_dir,
             config_db_file,
             config_max_content,
             http_port,
             http_console_port,
+            enable_no_auth_console,
             grpc_port,
             http_workers,
             raft_node_id,
