@@ -122,10 +122,11 @@ jobs:
       - name: Archive binary
         run: |
           cp doc/conf/.env.example target/${{ matrix.platform.target }}/release/.env
-          tar czvf target/release/${{ matrix.platform.target }}.tar.gz -C target/${{ matrix.platform.target }}/release rnacos .env
+          tar czvf target/release/rnacos-${{ matrix.platform.target }}.tar.gz -C target/${{ matrix.platform.target }}/release rnacos .env
       - name: Upload binary artifacts
         uses: actions/upload-artifact@v3
         with:
           name: binaries
-          path: target/release/${{ matrix.platform.target }}.tar.gz
+          path: |
+            *.tar.gz
 

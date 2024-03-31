@@ -117,6 +117,7 @@ cargo run
 |RNACOS_RAFT_JOIN_ADDR|是否当做节点加入对应的主节点,LeaderIp:GrpcPort；只在第一次启动时生效|空|127.0.0.1:9848|0.3.0|
 |RNACOS_RAFT_SNAPSHOT_LOG_SIZE|raft打包snapshot镜像的日志数量;即变更日志超过这个值则会触发一次打包镜像|默认值10000|10000|0.5.0|
 |RUST_LOG|日志等级:debug,info,warn,error;所有http,grpc请求都会打info日志,如果不观注可以设置为error减少日志量|info|error|0.3.0|
+|RNACOS_ENABLE_NO_AUTH_CONSOLE|是否开启无鉴权控制台|false|false|0.5.2|
 
 
 启动配置方式可以参考： [运行参数说明](https://r-nacos.github.io/r-nacos/deplay_env.html)
@@ -225,8 +226,9 @@ nacos_rust_client = "0.3.0"
 
 从0.4.0版本开始，支持独立端口号的新控制台。新控制台有完备的用户管理、登陆校验、权限控制，支持对外网暴露。
 
-启动服务后可以在浏览器通过 `http://127.0.0.1:10848/` 访问r-nacos新控制台。 
-老控制台`http://127.0.0.1:8848/` 也仍然可用，不过后继会考虑废弃。老控制台不需要登陆、不支持用户管理。
+启动服务后可以在浏览器通过 `http://127.0.0.1:10848/rnacos/` 访问r-nacos新控制台。 
+
+老控制台`http://127.0.0.1:8848/rnacos/` 标记废弃，默认不开启，可通过配置开启。老控制台不需要登陆鉴权、不支持用户管理。
 
 
 主要包含用户管理、命名空间管理、配置管理、服务管理、服务实例管理。
