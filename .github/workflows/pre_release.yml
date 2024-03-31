@@ -1,0 +1,128 @@
+name: pre release
+
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build ${{ matrix.target }}
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - x86_64-unknown-linux-musl
+          - x86_64-apple-darwin
+          - x86_64-pc-windows-msvc
+          - i686-pc-windows-msvc
+          - aarch64-pc-windows-msvc
+        include:
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-latest
+            name: rnacos-x86_64-unknown-linux-musl.tar.gz
+          - target: x86_64-apple-darwin
+            os: macos-latest
+            name: rnacos-x86_64-apple-darwin.tar.gz
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            name: rnacos-x86_64-pc-windows-msvc.zip
+          - target: i686-pc-windows-msvc
+            os: windows-latest
+            name: rnacos-i686-pc-windows-msvc.zip
+          - target: aarch64-pc-windows-msvc
+            os: windows-latest
+            name: rnacos-aarch64-pc-windows-msvc.zip
+    runs-on: ${{ matrix.os }}
+    steps:
+      # Largely inspired by https://github.com/starship/starship/blob/35a0a20f5c4fea6a08e1b91ff631b089eef8fc50/.github/workflows/deploy.yml
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install musl tools
+        if: matrix.os == 'ubuntu-latest'
+        run: sudo apt-get install -y musl-tools
+
+      # Install gnu-tar because BSD tar is buggy
+      # https://github.com/actions/cache/issues/403
+      - name: Install GNU tar (macOS)
+        if: matrix.os == 'macos-latest'
+        run: |
+          brew install gnu-tar
+          echo "/usr/local/opt/gnu-tar/libexec/gnubin" >> $GITHUB_PATH
+
+      - name: Build 
+        if: matrix.target != 'x86_64-unknown-linux-musl'
+        run: cargo build --release
+
+      - name: Build linux-musl
+        if: matrix.target == 'x86_64-unknown-linux-musl'
+        run: |
+          cargo build --release --target ${{ matrix.target }}
+
+      - name: Archive binary (windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          cd target/release
+          cp ../../doc/conf/.env.example .env
+          7z a ../../${{ matrix.name }} rnacos.exe .env
+          cd -
+      - name: Archive binary (linux and macOS)
+        if: ${{  matrix.os != 'windows-latest' && matrix.target !='x86_64-unknown-linux-musl' }}
+        run: |
+          cd target/release
+          cp ../../doc/conf/.env.example .env
+          tar czvf ../../${{ matrix.name }} rnacos .env
+          cd -
+      - name: Archive binary (linux-musl)
+        if: matrix.target =='x86_64-unknown-linux-musl'
+        run: |
+          # 注意，下面进入了三级目录，与上面两个打包操作路径不同
+          cd target/x86_64-unknown-linux-musl/release
+          cp ../../../doc/conf/.env.example .env
+          tar czvf ../../../${{ matrix.name }} rnacos .env
+          cd -
+
+      - name: Upload binary artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: binaries
+          path: |
+            *.tar.gz
+            *.zip
+
+  build-musl:
+    name: Build ${{ matrix.platform.target }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - target: "aarch64-unknown-linux-musl"
+            image_tag: "aarch64-musl"
+            compatibility: "manylinux2014 musllinux_1_1"
+    container:
+      image: docker://ghcr.io/messense/rust-musl-cross:${{ matrix.platform.image_tag }}
+      env:
+        RUSTUP_HOME: /root/.rustup
+        CARGO_HOME: /root/.cargo
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build
+        run: |
+          cargo build --release --target ${{ matrix.platform.target }}
+      - name: Archive binary
+        run: |
+          cp doc/conf/.env.example target/${{ matrix.platform.target }}/release/.env
+          tar czvf target/release/${{ matrix.platform.target }}.tar.gz -C target/${{ matrix.platform.target }}/release rnacos .env
+      - name: Upload binary artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: binaries
+          path: target/release/${{ matrix.platform.target }}.tar.gz
+
