@@ -100,6 +100,38 @@ jobs:
             *.tar.gz
             *.zip
 
+  build-musl:
+    name: Build ${{ matrix.platform.target }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - target: "aarch64-unknown-linux-musl"
+            image: "rust-musl-cross:aarch64-musl"
+            compatibility: "manylinux2014 musllinux_1_1"
+    container:
+      image: docker://ghcr.io/rust-cross/${{ matrix.platform.image }}
+      env:
+        RUSTUP_HOME: /root/.rustup
+        CARGO_HOME: /root/.cargo
+    steps:
+      - uses: actions/checkout@v3
+      - run: rustup target add --toolchain stable ${{ matrix.platform.target }}
+        if: matrix.platform.target != 'powerpc64le-unknown-linux-musl' && matrix.platform.target != 's390x-unknown-linux-gnu'
+      - name: Build
+        run: |
+          cargo build --release --target ${{ matrix.platform.target }}
+      - name: Archive binary
+        run: |
+          cp doc/conf/.env.example target/${{ matrix.platform.target }}/release/.env
+          tar czvf target/release/${{ matrix.platform.target }}.tar.gz -C target/${{ matrix.platform.target }}/release rnacos .env
+      - name: Upload binary artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: binaries
+          path: target/release/${{ matrix.platform.target }}.tar.gz
+
   release-crates-io:
     name: Release crates.io
     runs-on: ubuntu-latest
@@ -122,7 +154,7 @@ jobs:
     name: Publish to GitHub releases
     runs-on: ubuntu-latest
     if: "startsWith(github.ref, 'refs/tags/')"
-    needs: [ build ]
+    needs: [ build, build-musl ]
     steps:
       - uses: actions/download-artifact@v3
         with:
