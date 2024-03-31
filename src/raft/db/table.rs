@@ -169,34 +169,32 @@ impl TableManager {
         is_rev: bool,
     ) -> (usize, Vec<TableKV>) {
         if let Some(table_info) = self.table_map.get(&name) {
-            let total: usize = table_info.table_data.len();
+            let total = self.query_list_count(&name, &like_key);
             let mut ret = vec![];
             if is_rev {
-                let iter = table_info.table_data.iter().rev();
                 let offset = offset.unwrap_or_default();
-                let n_i = iter.skip(offset as usize);
+                let iter = table_info.table_data.iter().rev().skip(offset as usize);
                 if let Some(limit) = limit {
-                    let t = n_i.take(limit as usize);
+                    let t = iter.take(limit as usize);
                     for (k, v) in t {
                         Self::push_match_condition_item(k, v, &like_key, &mut ret);
                     }
                 } else {
-                    for (k, v) in n_i {
+                    for (k, v) in iter {
                         Self::push_match_condition_item(k, v, &like_key, &mut ret);
                     }
                 }
             } else {
                 //正反 iter 类型不同，后继可以考虑使用宏消除下面的重复编码
                 let offset = offset.unwrap_or_default();
-                //let iter = &table_info.table_data.iter();
-                let n_i = table_info.table_data.iter().skip(offset as usize);
+                let iter = table_info.table_data.iter().skip(offset as usize);
                 if let Some(limit) = limit {
-                    let t = n_i.take(limit as usize);
+                    let t = iter.take(limit as usize);
                     for (k, v) in t {
                         Self::push_match_condition_item(k, v, &like_key, &mut ret);
                     }
                 } else {
-                    for (k, v) in n_i {
+                    for (k, v) in iter {
                         Self::push_match_condition_item(k, v, &like_key, &mut ret);
                     }
                 }
@@ -204,6 +202,25 @@ impl TableManager {
             (total, ret)
         } else {
             (0, vec![])
+        }
+    }
+
+    pub(crate) fn query_list_count(&self, name: &Arc<String>, like_key: &Option<String>) -> usize {
+        if let Some(table_info) = self.table_map.get(name) {
+            if let Some(like_key) = like_key {
+                let mut count = 0;
+                for (k, _) in table_info.table_data.iter() {
+                    let key_str = String::from_utf8_lossy(k);
+                    if StringUtils::like(&key_str, like_key.as_str()).is_some() {
+                        count += 1;
+                    }
+                }
+                count
+            } else {
+                table_info.table_data.len()
+            }
+        } else {
+            0
         }
     }
 

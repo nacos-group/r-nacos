@@ -145,22 +145,23 @@ where
             } else {
                 //没有登录
                 let response = if is_page {
-                    let move_url = if request.path() == "/rnacos/p/login" || request.path() == "/p/login" {
-                        format!("{}?{}", request.path(), request.query_string())
-                    } else {
-                        let mut redirect_param = HashMap::new();
-                        if !request.query_string().is_empty() {
-                            redirect_param.insert(
-                                "redirect_url",
-                                format!("{}?{}", request.path(), request.query_string()),
-                            );
+                    let move_url =
+                        if request.path() == "/rnacos/p/login" || request.path() == "/p/login" {
+                            format!("{}?{}", request.path(), request.query_string())
                         } else {
-                            redirect_param.insert("redirect_url", request.path().to_owned());
+                            let mut redirect_param = HashMap::new();
+                            if !request.query_string().is_empty() {
+                                redirect_param.insert(
+                                    "redirect_url",
+                                    format!("{}?{}", request.path(), request.query_string()),
+                                );
+                            } else {
+                                redirect_param.insert("redirect_url", request.path().to_owned());
+                            };
+                            let redirect_param =
+                                serde_urlencoded::to_string(&redirect_param).unwrap_or_default();
+                            format!("/rnacos/p/login?{}", redirect_param)
                         };
-                        let redirect_param =
-                            serde_urlencoded::to_string(&redirect_param).unwrap_or_default();
-                        format!("/rnacos/p/login?{}", redirect_param)
-                    };
                     HttpResponse::Ok()
                         .insert_header(("Location", move_url))
                         .status(StatusCode::FOUND)
