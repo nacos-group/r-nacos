@@ -279,8 +279,8 @@ curl &quot;http://127.0.0.1:8848/nacos/v1/ns/instance/list?&amp;namespaceId=publ
 <p><a href="https://nacos.io/zh-cn/docs/open-api.html">open-api</a></p>
 <h2 id="三使用r-nacos控制台"><a class="header" href="#三使用r-nacos控制台">三、使用r-nacos控制台</a></h2>
 <p>从0.4.0版本开始，支持独立端口号的新控制台。新控制台有完备的用户管理、登陆校验、权限控制，支持对外网暴露。</p>
-<p>启动服务后可以在浏览器通过 <code>http://127.0.0.1:10848/</code> 访问r-nacos新控制台。 
-老控制台<code>http://127.0.0.1:8848/</code> 也仍然可用，不过后继会考虑废弃。老控制台不需要登陆、不支持用户管理。</p>
+<p>启动服务后可以在浏览器通过 <code>http://127.0.0.1:10848/rnacos/</code> 访问r-nacos新控制台。 </p>
+<p>老控制台<code>http://127.0.0.1:8848/rnacos/</code> 标记废弃，默认不开启，可通过配置开启。老控制台不需要登陆鉴权、不支持用户管理。</p>
 <p>主要包含用户管理、命名空间管理、配置管理、服务管理、服务实例管理。</p>
 <p>1、用户登陆</p>
 <p>在新控制台打开一个地址，如果检测到没有登陆，会自动跳转到登陆页面。
@@ -514,6 +514,7 @@ KEY3=VALUE3
 <tr><td>RNACOS_RAFT_JOIN_ADDR</td><td>是否当做节点加入对应的主节点,LeaderIp:GrpcPort；只在第一次启动时生效</td><td>空</td><td>127.0.0.1:9848</td><td>0.3.0</td></tr>
 <tr><td>RNACOS_RAFT_SNAPSHOT_LOG_SIZE</td><td>raft打包snapshot镜像的日志数量;即变更日志超过这个值则会触发一次打包镜像</td><td>默认值10000</td><td>10000</td><td>0.5.0</td></tr>
 <tr><td>RUST_LOG</td><td>日志等级:debug,info,warn,error;所有http,grpc请求都会打info日志,如果不观注可以设置为error减少日志量</td><td>info</td><td>error</td><td>0.3.0</td></tr>
+<tr><td>RNACOS_ENABLE_NO_AUTH_CONSOLE</td><td>是否开启无鉴权控制台</td><td>false</td><td>false</td><td>0.5.2</td></tr>
 </tbody></table>
 <p>注：从v0.3.0开始，默认参数启动的节点会被当做只有一个节点，当前节点是主节点的集群部署。支持其它新增的从节点加入。</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="性能与容量说明"><a class="header" href="#性能与容量说明">性能与容量说明</a></h1>
