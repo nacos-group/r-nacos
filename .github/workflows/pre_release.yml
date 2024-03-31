@@ -1,8 +1,9 @@
 name: pre release
 
-
 on:
   push:
+    branches:
+      - ignore
   workflow_dispatch:
 
 permissions:
@@ -115,6 +116,7 @@ jobs:
       - uses: actions/checkout@v3
       - name: Build
         run: |
+          rustup update
           cargo build --release --target ${{ matrix.platform.target }}
       - name: Archive binary
         run: |
