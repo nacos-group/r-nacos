@@ -1,11 +1,11 @@
 #!/bin/sh
 
 echo "start build_gnu_docker"
-echo $TARGETARCH
-echo $TARGETPLATFORM
-echo $BUILDPLATFORM
+echo "TARGETARCH: " $TARGETARCH
+echo "TARGETPLATFORM: " $TARGETPLATFORM
+echo "BUILDPLATFORM: " $BUILDPLATFORM
 
-if ["$TARGETARCH" = "arm64" ];
+if ["$TARGETPLATFORM" = "linux/arm64" ];
 then
   rustup target add aarch64-unknown-linux-gnu
   cargo build --release --target aarch64-unknown-linux-gnu
