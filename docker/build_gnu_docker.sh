@@ -2,7 +2,6 @@
 
 CARGO_BUILD_TARGET="x86_64-unknown-linux-gnu"
 if [ "$TARGETPLATFORM" = "linux/arm64" ]; then
-  apt-get update && apt-get install -y gcc-10-aarch64-linux-gnu
   CARGO_BUILD_TARGET="aarch64-unknown-linux-gnu"
 fi
 

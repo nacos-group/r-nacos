@@ -1,5 +1,12 @@
+# x86_64 builder
+FROM --platform=$BUILDPLATFORM ghcr.io/rust-cross/rust-musl-cross:x86_64-musl as builder-amd64
+
+# aarch64 cross compile builder
+FROM --platform=$BUILDPLATFORM ghcr.io/rust-cross/rust-musl-cross:aarch64-musl as builder-arm64
+
 ARG TARGETARCH
-FROM --platform=$BUILDPLATFORM rust:latest as builder
+FROM builder-$TARGETARCH as builder
+
 ARG TARGETARCH
 ARG TARGETPLATFORM
 ARG BUILDPLATFORM
