@@ -1,4 +1,4 @@
-name: Docker Publish
+name: Pre Build Docker
 
 on:
   push:
