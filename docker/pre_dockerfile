@@ -7,14 +7,7 @@ RUN echo $TARGETARCH && \
 
 WORKDIR /usr/src/rnacos
 COPY . .
-RUN if ["$TARGETARCH" = "arm64" ]; \
-    then rustup target add aarch64-unknown-linux-gnu && \
-    cargo build --release aarch64-unknown-linux-gnu && \
-    mv target/aarch64-unknown-linux-gnu/release/rnacos /usr/bin/rnacos \
-    else rustup target add x86_64-unknown-linux-gnu && \
-    cargo build --release x86_64-unknown-linux-gnu && \
-    mv target/x86_64-unknown-linux-gnu/release/rnacos /usr/bin/rnacos \
-    fi
+RUN sh ./docker/build_gnu_docker.sh
 
 FROM debian:bookworm-slim
 # RUN apt-get update && apt-get install -y extra-runtime-dependencies && rm -rf /var/lib/apt/lists/*
