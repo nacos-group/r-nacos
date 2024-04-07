@@ -1,9 +1,9 @@
 [package]
 name = "rnacos"
-version = "0.5.3"
+version = "0.5.4"
 authors = ["heqingpan <heqingpan@126.com>"]
 edition = "2018"
-license = "MIT/Apache-2.0"
+license = "Apache-2.0"
 description = "Nacos server re-implemented in Rust."
 homepage = "https://github.com/heqingpan/rnacos"
 repository = "https://github.com/heqingpan/rnacos"
