@@ -28,30 +28,40 @@ fn handle_embedded_file(path: &str) -> HttpResponse {
     }
 }
 
+fn handle_embedded_file_with_cache(path: &str) -> HttpResponse {
+    match get_embedded_file(path) {
+        Some(content) => HttpResponse::Ok()
+            .content_type(from_path(path).first_or_octet_stream().as_ref())
+            .insert_header(("Cache-Control", "max-age=86400, public"))
+            .body(content.data.into_owned()),
+        None => HttpResponse::NotFound().body("404 Not Found"),
+    }
+}
+
 async fn index() -> impl Responder {
     handle_embedded_file("index.html")
 }
 
 #[actix_web::get("/server.svg")]
 async fn icon() -> impl Responder {
-    handle_embedded_file("server.svg")
+    handle_embedded_file_with_cache("server.svg")
 }
 
 #[actix_web::get("/rnacos/server.svg")]
 async fn console_icon() -> impl Responder {
-    handle_embedded_file("rnacos/server.svg")
+    handle_embedded_file_with_cache("rnacos/server.svg")
 }
 
 #[actix_web::get("/assets/{_:.*}")]
 async fn assets(path: web::Path<String>) -> impl Responder {
     let file = format!("assets/{}", path.as_ref());
-    handle_embedded_file(&file)
+    handle_embedded_file_with_cache(&file)
 }
 
 #[actix_web::get("/rnacos/assets/{_:.*}")]
 async fn console_assets(path: web::Path<String>) -> impl Responder {
     let file = format!("rnacos/assets/{}", path.as_ref());
-    handle_embedded_file(&file)
+    handle_embedded_file_with_cache(&file)
 }
 
 async fn disable_no_auth_console_index() -> impl Responder {
