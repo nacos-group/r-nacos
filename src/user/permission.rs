@@ -142,9 +142,11 @@ lazy_static::lazy_static! {
         R::Path("/rnacos/manage/about",HTTP_METHOD_GET),
         R::Path("/rnacos/api/console/login/login",HTTP_METHOD_ALL),
         R::Path("/rnacos/api/console/login/captcha",HTTP_METHOD_ALL),
+        R::Path("/rnacos/api/console/login/logout",HTTP_METHOD_ALL),
         R::Path("/rnacos/api/console/namespaces",HTTP_METHOD_GET),
         R::Path("/rnacos/api/console/user/info",HTTP_METHOD_GET),
         R::Path("/rnacos/api/console/user/web_resources",HTTP_METHOD_GET),
+        R::Path("/rnacos/api/console/user/reset_password",HTTP_METHOD_ALL),
     ]);
 
     static ref M_CLUSTER_VISITOR: ModuleResource = ModuleResource::new(vec![
