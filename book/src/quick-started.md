@@ -45,8 +45,6 @@ docker 的容器运行目录是 /io，会从这个目录读写配置文件
 + 最新的gnu正式版本: `qingpan/rnacos:stable`
 + 最新的alpine正式版本: `qingpan/rnacos:stable-alpine`
 
-**MacOS arm系统补充说明** ：目前MacOS arm系统运行`stable`镜像失败，可以先换成`stable-alpine`镜像。等后面解决arm `stable`镜像问题后再把这个注意事项去掉。
-
 
 方式3：通过 cargo 编译安装
 
