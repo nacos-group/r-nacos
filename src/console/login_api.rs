@@ -5,7 +5,8 @@ use actix_web::{
     web::{self, Data},
     HttpRequest, HttpResponse, Responder,
 };
-use captcha::{gen, Difficulty};
+use captcha::filters::{Grid, Noise};
+use captcha::{Captcha};
 
 use crate::{
     common::{
@@ -150,8 +151,16 @@ fn decode_password(password: &str, captcha_token: &str) -> anyhow::Result<String
     Ok(password)
 }
 
+const WIDTH: u32 = 220;
+const HEIGHT: u32 = 120;
+
 pub async fn gen_captcha(app: Data<Arc<AppShareData>>) -> actix_web::Result<impl Responder> {
-    let obj = gen(Difficulty::Easy);
+    //let obj = gen(Difficulty::Easy);
+    let mut obj = Captcha::new();
+    obj.add_chars(4)
+        .apply_filter(Noise::new(0.1))
+        .apply_filter(Grid::new(8, 8))
+        .view(WIDTH, HEIGHT);
     let mut code = "".to_owned();
     for c in obj.chars() {
         code.push(c);

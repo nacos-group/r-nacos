@@ -105,9 +105,9 @@ impl AppSysConfig {
             .unwrap_or(raft_node_id == 1);
         let raft_join_addr = std::env::var("RNACOS_RAFT_JOIN_ADDR").unwrap_or_default();
         let console_login_timeout = std::env::var("RNACOS_CONSOLE_LOGIN_TIMEOUT")
-            .unwrap_or("3600".to_owned())
+            .unwrap_or("86400".to_owned())
             .parse()
-            .unwrap_or(3600);
+            .unwrap_or(86400);
         let console_login_one_hour_limit = std::env::var("RNACOS_CONSOLE_LOGIN_ONE_HOUR_LIMIT")
             .unwrap_or("5".to_owned())
             .parse()
