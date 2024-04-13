@@ -229,17 +229,36 @@ nacos_rust_client = "0.3.0"
 
 老控制台`http://127.0.0.1:8848/rnacos/` 标记废弃，默认不开启，可通过配置开启。老控制台不需要登陆鉴权、不支持用户管理。
 
+控制台主要包含用户管理、命名空间管理、配置管理、服务管理、服务实例管理。
 
-主要包含用户管理、命名空间管理、配置管理、服务管理、服务实例管理。
+> 控制台线上演示
 
-1、用户登陆
+地址： [https://www.bestreven.top/rnacos/](https://www.bestreven.top/rnacos/) 
+(演示服务与网址由一位热心用户提供）
+
+演示用户：
+
++ 开发者:
+    + 用户名: `dev` ,密码: `dev`
++ 访客:
+    + 用户名: `guest`, 密码: `guest`
+
+演示内容：
+
++ 配置中心：接近5千个配置
++ 服务中心：30个服务，每个服务有15个实例，共450个服务实例。
+
+
+
+
+> 1、用户登陆
 
 在新控制台打开一个地址，如果检测到没有登陆，会自动跳转到登陆页面。
 一个用户连续登陆失败5次，会被锁定1个小时。这个次数可以通过启动参数配置。
 
 <img style="width: 400px;" width="400" src="https://github.com/r-nacos/r-nacos/raw/master/doc/assets/imgs/20231223220425.png" />
 
-2、用户管理
+> 2、用户管理
 
 ![](https://github.com/r-nacos/r-nacos/raw/master/doc/assets/imgs/20231223222325.png)
 
@@ -257,7 +276,7 @@ nacos_rust_client = "0.3.0"
 **注意：** 对外暴露的nacos控制台端口前，建议增加一个自定义管理员，把admin用户删除或禁用。
 
 
-3、配置管理
+> 3、配置管理
 
 配置列表管理
 
@@ -267,15 +286,15 @@ nacos_rust_client = "0.3.0"
 
 ![](https://github.com/r-nacos/r-nacos/raw/master/doc/assets/imgs/20230506155545.png)
 
-4、服务列表管理
+> 4、服务列表管理
 
 ![](https://github.com/r-nacos/r-nacos/raw/master/doc/assets/imgs/20230506155133.png)
 
-5、服务实例管理
+> 5、服务实例管理
 
 ![](https://github.com/r-nacos/r-nacos/raw/master/doc/assets/imgs/20230506155158.png)
 
-6、命名空间管理
+> 6、命名空间管理
 
 ![](https://user-images.githubusercontent.com/1174480/268299574-4947b9f8-79e1-48e2-97fe-e9767e26ddc0.png)
 
