@@ -3,7 +3,7 @@ use std::{collections::HashMap, sync::Arc};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Default, Deserialize, Serialize)]
-pub struct ApiResult<T>
+pub struct ApiResultOld<T>
 where
     T: Sized + Default,
 {
@@ -13,7 +13,7 @@ where
     pub msg: Option<String>,
 }
 
-impl<T> ApiResult<T>
+impl<T> ApiResultOld<T>
 where
     T: Sized + Default,
 {
@@ -37,8 +37,48 @@ where
 }
 
 #[derive(Debug, Default, Deserialize, Serialize)]
-pub struct PageResult<T> {
+pub struct PageResultOld<T> {
     pub size: usize,
+    pub list: Vec<T>,
+}
+
+#[derive(Debug, Default, Deserialize, Serialize)]
+pub struct ApiResult<T>
+    where
+        T: Sized + Default,
+{
+    pub data: Option<T>,
+    pub success: bool,
+    pub code: Option<String>,
+    pub message: Option<String>,
+}
+
+impl<T> crate::common::model::ApiResult<T>
+    where
+        T: Sized + Default,
+{
+    pub fn success(data: Option<T>) -> Self {
+        Self {
+            data,
+            success: true,
+            code: None,
+            message: None,
+        }
+    }
+
+    pub fn error(code: String, message: Option<String>) -> Self {
+        Self {
+            data: None,
+            success: false,
+            code: Some(code),
+            message,
+        }
+    }
+}
+
+#[derive(Debug, Default, Deserialize, Serialize)]
+pub struct PageResult<T> {
+    pub total_count: usize,
     pub list: Vec<T>,
 }
 

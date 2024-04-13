@@ -13,7 +13,7 @@ use futures_util::future::LocalBoxFuture;
 use regex::Regex;
 
 use crate::common::appdata::AppShareData;
-use crate::common::model::{ApiResult, UserSession};
+use crate::common::model::{ApiResultOld, UserSession};
 use crate::raft::cache::model::{CacheKey, CacheType, CacheValue};
 use crate::raft::cache::{CacheManager, CacheManagerReq, CacheManagerResult};
 use crate::user::permission::UserRole;
@@ -135,7 +135,7 @@ where
                     } else {
                         HttpResponse::Ok()
                             .insert_header(("No-Permission", "1"))
-                            .json(ApiResult::<()>::error("NO_PERMISSION".to_owned(), None))
+                            .json(ApiResultOld::<()>::error("NO_PERMISSION".to_owned(), None))
                             .map_into_right_body()
                     };
                     let (http_request, _pl) = request.into_parts();
@@ -170,7 +170,7 @@ where
                 } else {
                     HttpResponse::Ok()
                         .insert_header(("No-Login", "1"))
-                        .json(ApiResult::<()>::error("NO_LOGIN".to_owned(), None))
+                        .json(ApiResultOld::<()>::error("NO_LOGIN".to_owned(), None))
                         .map_into_right_body()
                 };
                 let (http_request, _pl) = request.into_parts();
