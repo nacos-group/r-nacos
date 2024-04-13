@@ -49,6 +49,15 @@ async fn main() {
     let ip = local_ipaddress::get().unwrap();
     let service_name = "foo";
     let group_name = "DEFAULT_GROUP";
+    for i in 0..15 {
+        let port = 10000 + i;
+        for j in 0..30 {
+            let instance =
+                Instance::new_simple(&ip, port, &format!("foo_{:02}", j + 1), group_name);
+            //注册
+            client.register(instance);
+        }
+    }
     for i in 0..10 {
         let port = 10000 + i;
         let instance = Instance::new_simple(&ip, port, service_name, group_name);
@@ -92,4 +101,3 @@ async fn query_params() -> anyhow::Result<()> {
     }
     Ok(())
 }
-
