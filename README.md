@@ -116,6 +116,7 @@ cargo run
 |RNACOS_RAFT_SNAPSHOT_LOG_SIZE|raft打包snapshot镜像的日志数量;即变更日志超过这个值则会触发一次打包镜像|默认值10000|10000|0.5.0|
 |RUST_LOG|日志等级:debug,info,warn,error;所有http,grpc请求都会打info日志,如果不观注可以设置为error减少日志量|info|error|0.3.0|
 |RNACOS_ENABLE_NO_AUTH_CONSOLE|是否开启无鉴权控制台|false|false|0.5.2|
+|RNACOS_CONSOLE_LOGIN_TIMEOUT|控制台登陆有效时长(单位为秒)|一天,86400秒|86400|0.5.0|
 
 
 启动配置方式可以参考： [运行参数说明](https://r-nacos.github.io/r-nacos/deplay_env.html)

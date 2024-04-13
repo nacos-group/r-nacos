@@ -59,6 +59,7 @@ rnacos 运行时支持的环境变量，如果不设置则按默认配置运行�
 |RNACOS_RAFT_SNAPSHOT_LOG_SIZE|raft打包snapshot镜像的日志数量;即变更日志超过这个值则会触发一次打包镜像|默认值10000|10000|0.5.0|
 |RUST_LOG|日志等级:debug,info,warn,error;所有http,grpc请求都会打info日志,如果不观注可以设置为error减少日志量|info|error|0.3.0|
 |RNACOS_ENABLE_NO_AUTH_CONSOLE|是否开启无鉴权控制台|false|false|0.5.2|
+|RNACOS_CONSOLE_LOGIN_TIMEOUT|控制台登陆有效时长(单位为秒)|一天,86400秒|86400|0.5.0|
 
 
 注：从v0.3.0开始，默认参数启动的节点会被当做只有一个节点，当前节点是主节点的集群部署。支持其它新增的从节点加入。
