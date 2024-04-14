@@ -1,8 +1,8 @@
-use std::sync::Arc;
-use actix_web::{HttpResponse, Responder, web};
 use crate::common::appdata::AppShareData;
 use crate::common::model::ApiResult;
 use crate::console::model::cluster_model::ClusterNodeInfo;
+use actix_web::{web, HttpResponse, Responder};
+use std::sync::Arc;
 
 pub async fn query_cluster_info(app: web::Data<Arc<AppShareData>>) -> impl Responder {
     let nodes = app.naming_node_manage.get_all_valid_nodes().await.unwrap();

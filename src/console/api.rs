@@ -256,5 +256,30 @@ pub fn console_api_config_v2(config: &mut web::ServiceConfig) {
                 web::resource("/cluster/cluster_node_list")
                     .route(web::get().to(v2::cluster_api::query_cluster_info)),
             )
+            .service(
+                web::resource("/config/import")
+                    .route(web::post().to(v2::config_api::import_config)),
+            )
+            .service(
+                web::resource("/config/download")
+                    .route(web::get().to(v2::config_api::download_config)),
+            )
+            .service(
+                web::resource("/config/list")
+                    .route(web::get().to(v2::config_api::query_config_list)),
+            )
+            .service(web::resource("/config/info").route(web::get().to(v2::config_api::get_config)))
+            .service(web::resource("/config/add").route(web::post().to(v2::config_api::add_config)))
+            .service(
+                web::resource("/config/update").route(web::post().to(v2::config_api::add_config)),
+            )
+            .service(
+                web::resource("/config/remove")
+                    .route(web::post().to(v2::config_api::remove_config)),
+            )
+            .service(
+                web::resource("/config/history")
+                    .route(web::get().to(v2::config_api::query_history_config_page)),
+            ),
     );
 }

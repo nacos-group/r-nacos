@@ -1,5 +1,5 @@
 use crate::config::config_index::ConfigQueryParam;
-use crate::config::core::ConfigInfoDto;
+use crate::config::core::{ConfigInfoDto, ConfigKey};
 use crate::config::dal::ConfigHistoryParam;
 use crate::config::ConfigUtils;
 use serde::{Deserialize, Serialize};
@@ -75,4 +75,28 @@ impl OpsConfigQueryListRequest {
 pub struct OpsConfigOptQueryListResponse {
     pub count: u64,
     pub list: Vec<ConfigInfoDto>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct ConfigParams {
+    pub data_id: Arc<String>,
+    pub group: Option<Arc<String>>,
+    pub tenant: Option<Arc<String>>,
+    pub content: Option<Arc<String>>,
+}
+
+impl ConfigParams {
+    pub fn to_key(self) -> ConfigKey {
+        let group = self.group.unwrap_or(Arc::new("DEFAULT_GROUP".to_owned()));
+        let tenant = self.tenant.unwrap_or_default();
+        ConfigKey::new_by_arc(self.data_id, group, tenant)
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct ConfigInfo {
+    pub value: Option<Arc<String>>,
+    pub md5: Option<Arc<String>>,
 }

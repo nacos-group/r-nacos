@@ -1,10 +1,13 @@
 use crate::common::model::ApiResult;
 use actix_web::HttpResponse;
 
+pub mod cluster_api;
+pub mod config_api;
 pub mod login_api;
 pub mod namespace_api;
 pub mod user_api;
-pub mod cluster_api;
+
+pub const ERROR_CODE_SYSTEM_ERROR: &'static str = "SYSTEM_ERROR";
 
 pub enum ApiResponse<T>
 where
