@@ -298,6 +298,16 @@ pub fn console_api_config_v2(config: &mut web::ServiceConfig) {
             .service(
                 web::resource("/instance/list")
                     .route(web::get().to(v2::naming_api::query_instances_list)),
+            )
+            .service(
+                web::resource("/instance/info").route(web::get().to(v2::naming_api::get_instance)),
+            )
+            .service(
+                web::resource("/instance/add").route(web::post().to(v2::naming_api::add_instance)),
+            )
+            .service(
+                web::resource("/instance/update")
+                    .route(web::post().to(v2::naming_api::add_instance)),
             ),
     );
 }

@@ -1,14 +1,12 @@
 use crate::common::appdata::AppShareData;
 use crate::common::model::{ApiResult, PageResult};
-use crate::console::model::naming_model::{
-    OpsNamingQueryListResponse, QueryAllInstanceListParam, ServiceParam,
-};
+use crate::console::model::naming_model::{InstanceParams, ServiceParam};
 use crate::console::v2::ERROR_CODE_SYSTEM_ERROR;
+use crate::naming::api_model::InstanceVO;
 use crate::naming::core::{NamingActor, NamingCmd, NamingResult};
 use crate::naming::model::ServiceDetailDto;
 use crate::naming::ops::ops_model::{OpsServiceDto, OpsServiceQueryListRequest};
 use actix::Addr;
-use actix_web::http::header;
 use actix_web::web::Data;
 use actix_web::{web, HttpResponse, Responder};
 use std::sync::Arc;
@@ -118,6 +116,92 @@ pub async fn query_instances_list(
                 Some(err.to_string()),
             )),
         },
+        Err(err) => HttpResponse::Ok().json(ApiResult::<()>::error(
+            ERROR_CODE_SYSTEM_ERROR.to_string(),
+            Some(err.to_string()),
+        )),
+    }
+}
+
+pub async fn get_instance(
+    appdata: Data<Arc<AppShareData>>,
+    web::Query(param): web::Query<InstanceParams>,
+) -> impl Responder {
+    match param.to_instance() {
+        Ok(instance) => match appdata.naming_addr.send(NamingCmd::Query(instance)).await {
+            Ok(res) => {
+                let result: NamingResult = res.unwrap();
+                match result {
+                    NamingResult::Instance(v) => {
+                        let vo = InstanceVO::from_instance(&v);
+                        HttpResponse::Ok().json(ApiResult::success(Some(vo)))
+                    }
+                    _ => HttpResponse::Ok().json(ApiResult::<()>::error(
+                        ERROR_CODE_SYSTEM_ERROR.to_string(),
+                        None,
+                    )),
+                }
+            }
+            Err(err) => HttpResponse::Ok().json(ApiResult::<()>::error(
+                ERROR_CODE_SYSTEM_ERROR.to_string(),
+                Some(err.to_string()),
+            )),
+        },
+        Err(err) => HttpResponse::Ok().json(ApiResult::<()>::error(
+            ERROR_CODE_SYSTEM_ERROR.to_string(),
+            Some(err.to_string()),
+        )),
+    }
+}
+pub async fn add_instance(
+    appdata: Data<Arc<AppShareData>>,
+    web::Json(param): web::Json<InstanceParams>,
+) -> impl Responder {
+    match param.to_instance() {
+        Ok(instance) => {
+            if !instance.check_vaild() {
+                HttpResponse::Ok().json(ApiResult::<()>::error(
+                    ERROR_CODE_SYSTEM_ERROR.to_string(),
+                    Some("instance check is invalid".to_string()),
+                ))
+            } else {
+                match appdata.naming_route.update_instance(instance, None).await {
+                    Ok(_) => HttpResponse::Ok().json(ApiResult::success(Some(true))),
+                    Err(err) => HttpResponse::Ok().json(ApiResult::<()>::error(
+                        ERROR_CODE_SYSTEM_ERROR.to_string(),
+                        Some(err.to_string()),
+                    )),
+                }
+            }
+        }
+        Err(err) => HttpResponse::Ok().json(ApiResult::<()>::error(
+            ERROR_CODE_SYSTEM_ERROR.to_string(),
+            Some(err.to_string()),
+        )),
+    }
+}
+
+pub async fn remove_instance(
+    appdata: Data<Arc<AppShareData>>,
+    web::Json(param): web::Json<InstanceParams>,
+) -> impl Responder {
+    match param.to_instance() {
+        Ok(instance) => {
+            if !instance.check_vaild() {
+                HttpResponse::Ok().json(ApiResult::<()>::error(
+                    ERROR_CODE_SYSTEM_ERROR.to_string(),
+                    Some("instance check is invalid".to_string()),
+                ))
+            } else {
+                match appdata.naming_route.delete_instance(instance).await {
+                    Ok(_) => HttpResponse::Ok().json(ApiResult::success(Some(true))),
+                    Err(err) => HttpResponse::Ok().json(ApiResult::<()>::error(
+                        ERROR_CODE_SYSTEM_ERROR.to_string(),
+                        Some(err.to_string()),
+                    )),
+                }
+            }
+        }
         Err(err) => HttpResponse::Ok().json(ApiResult::<()>::error(
             ERROR_CODE_SYSTEM_ERROR.to_string(),
             Some(err.to_string()),
