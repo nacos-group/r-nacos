@@ -4,7 +4,7 @@ use crate::config::api::app_config as cs_config;
 
 use crate::naming::api::app_config as ns_config;
 
-use crate::console::api::{console_api_config, console_api_config_new};
+use crate::console::api::{console_api_config, console_api_config_new, console_api_config_v2};
 
 use crate::auth::mock_token;
 use crate::raft::network::raft_config;
@@ -90,6 +90,7 @@ pub fn app_config(config: &mut web::ServiceConfig) {
     ns_config(config);
     raft_config(config);
     console_api_config(config);
+    console_api_config_v2(config);
     console_api_config_new(config);
     console_page_config(config);
 }
@@ -112,6 +113,7 @@ pub fn app_without_no_auth_console_config(config: &mut web::ServiceConfig) {
 pub fn console_config(config: &mut web::ServiceConfig) {
     console_api_config(config);
     console_api_config_new(config);
+    console_api_config_v2(config);
     console_page_config(config);
 }
 

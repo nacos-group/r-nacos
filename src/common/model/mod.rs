@@ -77,6 +77,7 @@ impl<T> crate::common::model::ApiResult<T>
 }
 
 #[derive(Debug, Default, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PageResult<T> {
     pub total_count: usize,
     pub list: Vec<T>,

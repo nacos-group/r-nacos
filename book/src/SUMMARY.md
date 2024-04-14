@@ -15,3 +15,5 @@
 - [常见问题](./faq.md)
 
 - [架构](./architecture.md)
+
+- [控制台接口](./console_api.md)

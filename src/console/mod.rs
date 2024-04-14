@@ -7,6 +7,8 @@ pub mod model;
 pub mod naming_api;
 pub mod user_api;
 
+pub mod v2;
+
 use std::sync::Arc;
 
 use crate::{

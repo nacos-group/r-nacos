@@ -23,6 +23,8 @@ use super::{
 };
 use super::{login_api, user_api};
 
+use super::v2;
+
 pub async fn query_namespace_list(config_addr: web::Data<Addr<ConfigActor>>) -> impl Responder {
     //HttpResponse::InternalServerError().body("system error")
     let namespaces = NamespaceUtils::get_namespaces(&config_addr).await;
@@ -208,5 +210,14 @@ pub fn console_api_config_new(config: &mut web::ServiceConfig) {
                 web::resource("/user/reset_password")
                     .route(web::post().to(user_api::reset_password)),
             ),
+    );
+}
+
+pub fn console_api_config_v2(config: &mut web::ServiceConfig) {
+    config.service(
+        web::scope("/rnacos/api/console/v2")
+            .service(web::resource("/login/login").route(web::post().to(v2::login_api::login)))
+            .service(web::resource("/login/captcha").route(web::get().to(v2::login_api::gen_captcha)))
+            .service(web::resource("/login/logout").route(web::post().to(v2::login_api::logout)))
     );
 }

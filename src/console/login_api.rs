@@ -12,7 +12,7 @@ use crate::{
     common::{
         appdata::AppShareData,
         crypto_utils,
-        model::{ApiResultOld, UserSession},
+        model::{ApiResult, UserSession},
     },
     raft::cache::{
         model::{CacheKey, CacheType, CacheValue},
@@ -32,7 +32,7 @@ pub async fn login(
     let captcha_token = if let Some(ck) = request.cookie("captcha_token") {
         ck.value().to_owned()
     } else {
-        return Ok(HttpResponse::Ok().json(ApiResultOld::<()>::error(
+        return Ok(HttpResponse::Ok().json(ApiResult::<()>::error(
             "CAPTCHA_CHECK_ERROR".to_owned(),
             Some("captcha token is empty".to_owned()),
         )));
@@ -57,7 +57,7 @@ pub async fn login(
                     .http_only(true)
                     .finish(),
             )
-            .json(ApiResultOld::<()>::error(
+            .json(ApiResult::<()>::error(
                 "CAPTCHA_CHECK_ERROR".to_owned(),
                 Some("CAPTCHA_CHECK_ERROR".to_owned()),
             )));
@@ -72,19 +72,19 @@ pub async fn login(
         app.raft_cache_route.request_limiter(limit_req).await
     {
         if !acquire_result {
-            return Ok(HttpResponse::Ok().json(ApiResultOld::<()>::error(
+            return Ok(HttpResponse::Ok().json(ApiResult::<()>::error(
                 "LOGIN_LIMITE_ERROR".to_owned(),
                 Some("Frequent login, please try again later".to_owned()),
             )));
         }
     } else {
-        return Ok(HttpResponse::Ok().json(ApiResultOld::<()>::error("SYSTEM_ERROR".to_owned(), None)));
+        return Ok(HttpResponse::Ok().json(ApiResult::<()>::error("SYSTEM_ERROR".to_owned(), None)));
     }
     let password = match decode_password(&param.password, &captcha_token) {
         Ok(v) => v,
         Err(e) => {
             log::error!("decode_password error:{}", e);
-            return Ok(HttpResponse::Ok().json(ApiResultOld::<()>::error(
+            return Ok(HttpResponse::Ok().json(ApiResult::<()>::error(
                 "SYSTEM_ERROR".to_owned(),
                 Some("decode_password error".to_owned()),
             )));
@@ -132,13 +132,13 @@ pub async fn login(
                         .http_only(true)
                         .finish(),
                 )
-                .json(ApiResultOld::success(Some(valid))));
+                .json(ApiResult::success(Some(valid))));
         } else {
             return Ok(HttpResponse::Ok()
-                .json(ApiResultOld::<()>::error("USER_CHECK_ERROR".to_owned(), None)));
+                .json(ApiResult::<()>::error("USER_CHECK_ERROR".to_owned(), None)));
         }
     }
-    Ok(HttpResponse::Ok().json(ApiResultOld::<()>::error("SYSTEM_ERROR".to_owned(), None)))
+    Ok(HttpResponse::Ok().json(ApiResult::<()>::error("SYSTEM_ERROR".to_owned(), None)))
 }
 
 fn decode_password(password: &str, captcha_token: &str) -> anyhow::Result<String> {
@@ -184,7 +184,7 @@ pub async fn gen_captcha(app: Data<Arc<AppShareData>>) -> actix_web::Result<impl
                 .finish(),
         )
         .insert_header(("Captcha-Token", token.as_str()))
-        .json(ApiResultOld::success(Some(img))))
+        .json(ApiResult::success(Some(img))))
 }
 
 pub async fn logout(
@@ -208,5 +208,5 @@ pub async fn logout(
                 .http_only(true)
                 .finish(),
         )
-        .json(ApiResultOld::success(Some(true))));
+        .json(ApiResult::success(Some(true))));
 }
