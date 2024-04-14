@@ -17,8 +17,8 @@ pub async fn add_namespace(
     app_data: web::Data<Arc<AppShareData>>,
 ) -> impl Responder {
     match NamespaceUtils::add_namespace(&app_data, param.0).await {
-        Ok(_) => HttpResponse::Ok().json(ApiResult::success(None)),
-        Err(e) => HttpResponse::Ok().json(ApiResult::error(
+        Ok(_) => HttpResponse::Ok().json(ApiResult::success(Some(true))),
+        Err(e) => HttpResponse::Ok().json(ApiResult::<()>::error(
             "SYSTEM_ERROR".to_string(),
             Some(e.to_string()),
         )),
@@ -30,8 +30,8 @@ pub async fn update_namespace(
     app_data: web::Data<Arc<AppShareData>>,
 ) -> impl Responder {
     match NamespaceUtils::update_namespace(&app_data, param.0).await {
-        Ok(_) => HttpResponse::Ok().json(ApiResult::success(None)),
-        Err(e) => HttpResponse::Ok().json(ApiResult::error(
+        Ok(_) => HttpResponse::Ok().json(ApiResult::success(Some(true))),
+        Err(e) => HttpResponse::Ok().json(ApiResult::<()>::error(
             "SYSTEM_ERROR".to_string(),
             Some(e.to_string()),
         )),
@@ -43,8 +43,8 @@ pub async fn remove_namespace(
     app_data: web::Data<Arc<AppShareData>>,
 ) -> impl Responder {
     match NamespaceUtils::remove_namespace(&app_data, param.0.namespace_id).await {
-        Ok(_) => HttpResponse::Ok().json(ApiResult::success(None)),
-        Err(e) => HttpResponse::Ok().json(ApiResult::error(
+        Ok(_) => HttpResponse::Ok().json(ApiResult::success(Some(true))),
+        Err(e) => HttpResponse::Ok().json(ApiResult::<()>::error(
             "SYSTEM_ERROR".to_string(),
             Some(e.to_string()),
         )),
