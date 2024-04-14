@@ -129,17 +129,13 @@ lazy_static::lazy_static! {
         R::Path("/nopermission",HTTP_METHOD_GET),
         R::Path("/p/login",HTTP_METHOD_GET),
         R::Path("/manage/about",HTTP_METHOD_GET),
-        R::Path("/nacos/v1/console/login/login",HTTP_METHOD_ALL),
-        R::Path("/nacos/v1/console/login/captcha",HTTP_METHOD_ALL),
-        R::Path("/nacos/v1/console/namespaces",HTTP_METHOD_GET),
-        R::Path("/nacos/v1/console/user/info",HTTP_METHOD_GET),
-        R::Path("/nacos/v1/console/user/web_resources",HTTP_METHOD_GET),
         R::Path("/rnacos",HTTP_METHOD_GET),
         R::Path("/rnacos/",HTTP_METHOD_GET),
         R::Path("/rnacos/404",HTTP_METHOD_GET),
         R::Path("/rnacos/nopermission",HTTP_METHOD_GET),
         R::Path("/rnacos/p/login",HTTP_METHOD_GET),
         R::Path("/rnacos/manage/about",HTTP_METHOD_GET),
+
         R::Path("/rnacos/api/console/login/login",HTTP_METHOD_ALL),
         R::Path("/rnacos/api/console/login/captcha",HTTP_METHOD_ALL),
         R::Path("/rnacos/api/console/login/logout",HTTP_METHOD_ALL),
@@ -147,6 +143,15 @@ lazy_static::lazy_static! {
         R::Path("/rnacos/api/console/user/info",HTTP_METHOD_GET),
         R::Path("/rnacos/api/console/user/web_resources",HTTP_METHOD_GET),
         R::Path("/rnacos/api/console/user/reset_password",HTTP_METHOD_ALL),
+
+        R::Path("/rnacos/api/console/v2/login/login",HTTP_METHOD_ALL),
+        R::Path("/rnacos/api/console/v2/login/captcha",HTTP_METHOD_ALL),
+        R::Path("/rnacos/api/console/v2/login/logout",HTTP_METHOD_ALL),
+        R::Path("/rnacos/api/console/v2/namespaces",HTTP_METHOD_GET),
+        R::Path("/rnacos/api/console/v2/user/info",HTTP_METHOD_GET),
+        R::Path("/rnacos/api/console/v2/user/web_resources",HTTP_METHOD_GET),
+        R::Path("/rnacos/api/console/v2/user/reset_password",HTTP_METHOD_ALL),
+
     ]);
 
     static ref M_CLUSTER_VISITOR: ModuleResource = ModuleResource::new(vec![

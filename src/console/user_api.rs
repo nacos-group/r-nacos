@@ -11,7 +11,7 @@ use crate::{
     common::{
         appdata::AppShareData,
         constant::{APP_VERSION, EMPTY_STR},
-        model::{ApiResultOld, PageResultOld, UserSession},
+        model::{ApiResult, PageResultOld, UserSession},
     },
     user::{model::UserDto, permission::UserRole, UserManagerReq, UserManagerResult},
 };
@@ -31,9 +31,9 @@ pub async fn get_user_info(req: HttpRequest) -> actix_web::Result<impl Responder
             username: Some(session.username.clone()),
             nickname: Some(session.nickname.clone()),
         };
-        Ok(HttpResponse::Ok().json(ApiResultOld::success(Some(userinfo))))
+        Ok(HttpResponse::Ok().json(ApiResult::success(Some(userinfo))))
     } else {
-        Ok(HttpResponse::Ok().json(ApiResultOld::<()>::error(
+        Ok(HttpResponse::Ok().json(ApiResult::<()>::error(
             "NOT_FOUND_USER_SESSION".to_owned(),
             None,
         )))
@@ -54,7 +54,7 @@ pub async fn get_user_web_resources(req: HttpRequest) -> actix_web::Result<impl 
             version: APP_VERSION,
             username: Some(session.username.clone()),
         };
-        Ok(HttpResponse::Ok().json(ApiResultOld::success(Some(data))))
+        Ok(HttpResponse::Ok().json(ApiResult::success(Some(data))))
     } else {
         let resources = UserRole::OldConsole.get_web_resources();
         let data = UserPermissions {
@@ -63,7 +63,7 @@ pub async fn get_user_web_resources(req: HttpRequest) -> actix_web::Result<impl 
             version: APP_VERSION,
             username: None,
         };
-        Ok(HttpResponse::Ok().json(ApiResultOld::success(Some(data))))
+        Ok(HttpResponse::Ok().json(ApiResult::success(Some(data))))
     }
 }
 
@@ -82,7 +82,7 @@ pub async fn reset_password(
             username,
         )
     } else {
-        return Ok(HttpResponse::Ok().json(ApiResultOld::<()>::error(
+        return Ok(HttpResponse::Ok().json(ApiResult::<()>::error(
             "NOT_FOUND_USER_SESSION".to_owned(),
             None,
         )));
@@ -99,19 +99,19 @@ pub async fn reset_password(
                         },
                     };
                     if let Ok(Ok(_r)) = app.user_manager.send(msg).await {
-                        return Ok(HttpResponse::Ok().json(ApiResultOld::success(Some(true))));
+                        return Ok(HttpResponse::Ok().json(ApiResult::success(Some(true))));
                     }
                 }
             }
             _ => {
-                return Ok(HttpResponse::Ok().json(ApiResultOld::<()>::error(
+                return Ok(HttpResponse::Ok().json(ApiResult::<()>::error(
                     "OLD_PASSWORD_INVALID".to_owned(),
                     None,
                 )))
             }
         }
     }
-    Ok(HttpResponse::Ok().json(ApiResultOld::<()>::error("SYSTEM_ERROR".to_owned(), None)))
+    Ok(HttpResponse::Ok().json(ApiResult::<()>::error("SYSTEM_ERROR".to_owned(), None)))
 }
 
 pub async fn get_user_page_list(
@@ -127,9 +127,9 @@ pub async fn get_user_page_list(
     };
     match app.user_manager.send(msg).await.unwrap().unwrap() {
         UserManagerResult::UserPageResult(size, list) => {
-            Ok(HttpResponse::Ok().json(ApiResultOld::success(Some(PageResultOld { size, list }))))
+            Ok(HttpResponse::Ok().json(ApiResult::success(Some(PageResultOld { size, list }))))
         }
-        _ => Ok(HttpResponse::Ok().json(ApiResultOld::<()>::error(
+        _ => Ok(HttpResponse::Ok().json(ApiResult::<()>::error(
             "NOT_FOUND_USER_SESSION".to_owned(),
             Some("result type is error".to_owned()),
         ))),
@@ -151,7 +151,7 @@ pub async fn add_user(
         },
     };
     app.user_manager.send(msg).await.ok();
-    Ok(HttpResponse::Ok().json(ApiResultOld::success(Some(true))))
+    Ok(HttpResponse::Ok().json(ApiResult::success(Some(true))))
 }
 
 pub async fn update_user(
@@ -167,7 +167,7 @@ pub async fn update_user(
         },
     };
     app.user_manager.send(msg).await.ok();
-    Ok(HttpResponse::Ok().json(ApiResultOld::success(Some(true))))
+    Ok(HttpResponse::Ok().json(ApiResult::success(Some(true))))
 }
 
 pub async fn remove_user(
@@ -178,5 +178,5 @@ pub async fn remove_user(
         username: user.username,
     };
     app.user_manager.send(msg).await.ok();
-    Ok(HttpResponse::Ok().json(ApiResultOld::success(Some(true))))
+    Ok(HttpResponse::Ok().json(ApiResult::success(Some(true))))
 }

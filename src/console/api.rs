@@ -217,7 +217,18 @@ pub fn console_api_config_v2(config: &mut web::ServiceConfig) {
     config.service(
         web::scope("/rnacos/api/console/v2")
             .service(web::resource("/login/login").route(web::post().to(v2::login_api::login)))
-            .service(web::resource("/login/captcha").route(web::get().to(v2::login_api::gen_captcha)))
+            .service(
+                web::resource("/login/captcha").route(web::get().to(v2::login_api::gen_captcha)),
+            )
             .service(web::resource("/login/logout").route(web::post().to(v2::login_api::logout)))
+            .service(web::resource("/user/info").route(web::get().to(user_api::get_user_info)))
+            .service(
+                web::resource("/user/web_resources")
+                    .route(web::get().to(user_api::get_user_web_resources)),
+            )
+            .service(
+                web::resource("/user/reset_password")
+                    .route(web::post().to(user_api::reset_password)),
+            ),
     );
 }

@@ -44,8 +44,8 @@ pub struct PageResultOld<T> {
 
 #[derive(Debug, Default, Deserialize, Serialize)]
 pub struct ApiResult<T>
-    where
-        T: Sized + Default,
+where
+    T: Sized + Default,
 {
     pub data: Option<T>,
     pub success: bool,
@@ -54,8 +54,8 @@ pub struct ApiResult<T>
 }
 
 impl<T> crate::common::model::ApiResult<T>
-    where
-        T: Sized + Default,
+where
+    T: Sized + Default,
 {
     pub fn success(data: Option<T>) -> Self {
         Self {

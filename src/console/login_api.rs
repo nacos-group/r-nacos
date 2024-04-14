@@ -6,7 +6,7 @@ use actix_web::{
     HttpRequest, HttpResponse, Responder,
 };
 use captcha::filters::{Grid, Noise};
-use captcha::{Captcha};
+use captcha::Captcha;
 
 use crate::{
     common::{

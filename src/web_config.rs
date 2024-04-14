@@ -111,9 +111,9 @@ pub fn app_without_no_auth_console_config(config: &mut web::ServiceConfig) {
 
 /// 独立控制台服务
 pub fn console_config(config: &mut web::ServiceConfig) {
-    console_api_config(config);
-    console_api_config_new(config);
+    //console_api_config(config);
     console_api_config_v2(config);
+    console_api_config_new(config);
     console_page_config(config);
 }
 
