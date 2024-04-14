@@ -251,6 +251,10 @@ pub fn console_api_config_v2(config: &mut web::ServiceConfig) {
             .service(
                 web::resource("/namespaces/remove")
                     .route(web::post().to(v2::namespace_api::remove_namespace)),
-            ),
+            )
+            .service(
+                web::resource("/cluster/cluster_node_list")
+                    .route(web::get().to(v2::cluster_api::query_cluster_info)),
+            )
     );
 }

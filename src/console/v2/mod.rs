@@ -4,6 +4,7 @@ use actix_web::HttpResponse;
 pub mod login_api;
 pub mod namespace_api;
 pub mod user_api;
+pub mod cluster_api;
 
 pub enum ApiResponse<T>
 where
