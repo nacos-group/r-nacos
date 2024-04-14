@@ -308,6 +308,10 @@ pub fn console_api_config_v2(config: &mut web::ServiceConfig) {
             .service(
                 web::resource("/instance/update")
                     .route(web::post().to(v2::naming_api::add_instance)),
+            )
+            .service(
+                web::resource("/instance/remove")
+                    .route(web::post().to(v2::naming_api::remove_instance)),
             ),
     );
 }
