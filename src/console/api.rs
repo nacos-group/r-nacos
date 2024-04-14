@@ -221,14 +221,20 @@ pub fn console_api_config_v2(config: &mut web::ServiceConfig) {
                 web::resource("/login/captcha").route(web::get().to(v2::login_api::gen_captcha)),
             )
             .service(web::resource("/login/logout").route(web::post().to(v2::login_api::logout)))
-            .service(web::resource("/user/info").route(web::get().to(user_api::get_user_info)))
+            .service(web::resource("/user/info").route(web::get().to(v2::user_api::get_user_info)))
+            .service(
+                web::resource("/user/list").route(web::get().to(v2::user_api::get_user_page_list)),
+            )
+            .service(web::resource("/user/add").route(web::post().to(v2::user_api::add_user)))
+            .service(web::resource("/user/update").route(web::post().to(v2::user_api::update_user)))
+            .service(web::resource("/user/remove").route(web::post().to(v2::user_api::remove_user)))
             .service(
                 web::resource("/user/web_resources")
-                    .route(web::get().to(user_api::get_user_web_resources)),
+                    .route(web::get().to(v2::user_api::get_user_web_resources)),
             )
             .service(
                 web::resource("/user/reset_password")
-                    .route(web::post().to(user_api::reset_password)),
+                    .route(web::post().to(v2::user_api::reset_password)),
             )
             .service(
                 web::resource("/namespaces/list")
