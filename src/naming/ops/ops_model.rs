@@ -14,7 +14,6 @@ pub struct OpsServiceQueryListRequest {
     pub namespace_id: Option<String>,
     pub group_name_param: Option<String>,
     pub service_name_param: Option<String>,
-    pub access_token: Option<String>,
 }
 
 impl OpsServiceQueryListRequest {

@@ -280,6 +280,24 @@ pub fn console_api_config_v2(config: &mut web::ServiceConfig) {
             .service(
                 web::resource("/config/history")
                     .route(web::get().to(v2::config_api::query_history_config_page)),
+            )
+            .service(
+                web::resource("/service/list")
+                    .route(web::get().to(v2::naming_api::query_service_list)),
+            )
+            .service(
+                web::resource("/service/add").route(web::post().to(v2::naming_api::add_service)),
+            )
+            .service(
+                web::resource("/service/update").route(web::post().to(v2::naming_api::add_service)),
+            )
+            .service(
+                web::resource("/service/remove")
+                    .route(web::post().to(v2::naming_api::remove_service)),
+            )
+            .service(
+                web::resource("/instance/list")
+                    .route(web::get().to(v2::naming_api::query_instances_list)),
             ),
     );
 }

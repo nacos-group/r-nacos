@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
@@ -53,4 +54,35 @@ impl QueryAllInstanceListParam {
 pub struct OpsNamingQueryListResponse {
     pub count: u64,
     pub list: Vec<Arc<Instance>>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Default, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ServiceParam {
+    pub service_name: Arc<String>,
+    pub namespace_id: Option<Arc<String>>,
+    pub group_name: Option<Arc<String>>,
+    pub metadata: Option<Arc<HashMap<String, String>>>,
+    pub protect_threshold: Option<f32>,
+}
+
+impl ServiceParam {
+    pub fn to_key(&self) -> ServiceKey {
+        let group_name = self
+            .group_name
+            .clone()
+            .unwrap_or(Arc::new("DEFAULT_GROUP".to_owned()));
+        let namespace_id = self.namespace_id.clone().unwrap_or_default();
+        ServiceKey::new_by_arc(namespace_id, group_name, self.service_name.clone())
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Default, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ServiceInfo {
+    pub namespace_id: Arc<String>,
+    pub service_name: Arc<String>,
+    pub group_name: Arc<String>,
+    pub metadata: Option<Arc<HashMap<String, String>>>,
+    pub protect_threshold: Option<f32>,
 }

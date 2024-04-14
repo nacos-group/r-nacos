@@ -74,7 +74,7 @@ pub async fn get_user_page_list(
             Ok(HttpResponse::Ok().json(ApiResult::success(Some(PageResult { total_count, list }))))
         }
         _ => Ok(HttpResponse::Ok().json(ApiResult::<()>::error(
-            "NOT_FOUND_USER_SESSION".to_owned(),
+            "NOT_FOUND_USER".to_owned(),
             Some("result type is error".to_owned()),
         ))),
     }
