@@ -229,6 +229,22 @@ pub fn console_api_config_v2(config: &mut web::ServiceConfig) {
             .service(
                 web::resource("/user/reset_password")
                     .route(web::post().to(user_api::reset_password)),
+            )
+            .service(
+                web::resource("/namespaces/list")
+                    .route(web::get().to(v2::namespace_api::query_namespace_list)),
+            )
+            .service(
+                web::resource("/namespaces/add")
+                    .route(web::post().to(v2::namespace_api::add_namespace)),
+            )
+            .service(
+                web::resource("/namespaces/update")
+                    .route(web::post().to(v2::namespace_api::update_namespace)),
+            )
+            .service(
+                web::resource("/namespaces/remove")
+                    .route(web::post().to(v2::namespace_api::remove_namespace)),
             ),
     );
 }

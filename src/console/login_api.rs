@@ -26,7 +26,7 @@ use super::model::login_model::LoginParam;
 pub async fn login(
     request: HttpRequest,
     app: Data<Arc<AppShareData>>,
-    web::Form(param): web::Form<LoginParam>,
+    web::Json(param): web::Json<LoginParam>,
 ) -> actix_web::Result<impl Responder> {
     //校验验证码
     let captcha_token = if let Some(ck) = request.cookie("captcha_token") {

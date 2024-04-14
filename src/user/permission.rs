@@ -147,10 +147,10 @@ lazy_static::lazy_static! {
         R::Path("/rnacos/api/console/v2/login/login",HTTP_METHOD_ALL),
         R::Path("/rnacos/api/console/v2/login/captcha",HTTP_METHOD_ALL),
         R::Path("/rnacos/api/console/v2/login/logout",HTTP_METHOD_ALL),
-        R::Path("/rnacos/api/console/v2/namespaces",HTTP_METHOD_GET),
         R::Path("/rnacos/api/console/v2/user/info",HTTP_METHOD_GET),
         R::Path("/rnacos/api/console/v2/user/web_resources",HTTP_METHOD_GET),
         R::Path("/rnacos/api/console/v2/user/reset_password",HTTP_METHOD_ALL),
+        R::Path("/rnacos/api/console/v2/namespaces/list",HTTP_METHOD_GET),
 
     ]);
 
@@ -169,7 +169,7 @@ lazy_static::lazy_static! {
         R::WebResource("/rnacos/manage/namespace"),
         //path
         R::Path("/rnacos/manage/namespace",HTTP_METHOD_GET),
-        R::Path("/rnacos/api/console/namespaces",HTTP_METHOD_GET),
+        //R::Path("/rnacos/api/console/namespaces",HTTP_METHOD_GET),
     ]);
 
     static ref M_NAMESPACE_MANAGE: ModuleResource = ModuleResource::new(vec![
@@ -180,6 +180,10 @@ lazy_static::lazy_static! {
         //path
         R::Path("/rnacos/manage/namespace",HTTP_METHOD_GET),
         R::Path("/rnacos/api/console/namespaces",HTTP_METHOD_ALL),
+
+        R::Path("/rnacos/api/console/v2/namespaces/add",HTTP_METHOD_ALL),
+        R::Path("/rnacos/api/console/v2/namespaces/update",HTTP_METHOD_ALL),
+        R::Path("/rnacos/api/console/v2/namespaces/remove",HTTP_METHOD_ALL),
     ]);
 
     static ref M_USER_MANAGE: ModuleResource = ModuleResource::new(vec![

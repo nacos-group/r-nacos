@@ -70,7 +70,7 @@ pub async fn get_user_web_resources(req: HttpRequest) -> actix_web::Result<impl 
 pub async fn reset_password(
     req: HttpRequest,
     app: Data<Arc<AppShareData>>,
-    web::Form(param): web::Form<ResetPasswordParam>,
+    web::Json(param): web::Json<ResetPasswordParam>,
 ) -> actix_web::Result<impl Responder> {
     let (msg, username) = if let Some(session) = req.extensions().get::<Arc<UserSession>>() {
         let username = Arc::new(session.username.to_string());
