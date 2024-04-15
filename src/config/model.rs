@@ -10,6 +10,8 @@ pub enum ConfigRaftCmd {
     ConfigAdd {
         key: String,
         value: Arc<String>,
+        config_type: Option<Arc<String>>,
+        desc: Option<Arc<String>>,
         history_id: u64,
         history_table_id: Option<u64>,
         op_time: i64,
@@ -89,6 +91,10 @@ pub struct ConfigValueDO {
     pub content: Option<String>,
     #[prost(repeated, message, tag = "2")]
     pub histories: Vec<ConfigHistoryItemDO>,
+    #[prost(string, optional, tag = "3")]
+    pub config_type: Option<String>,
+    #[prost(string, optional, tag = "4")]
+    pub desc: Option<String>,
 }
 
 impl ConfigValueDO {
@@ -111,6 +117,8 @@ impl From<ConfigValue> for ConfigValueDO {
         Self {
             content: Some(value.content.as_ref().to_owned()),
             histories: value.histories.into_iter().map(|e| e.into()).collect(),
+            config_type: value.config_type.map(|e| e.as_ref().to_owned()),
+            desc: value.desc.map(|e| e.as_ref().to_owned()),
         }
     }
 }
@@ -124,6 +132,8 @@ impl From<ConfigValueDO> for ConfigValue {
             md5,
             tmp: false,
             histories: value.histories.into_iter().map(|e| e.into()).collect(),
+            config_type: value.config_type.map(Arc::new),
+            desc: value.desc.map(Arc::new),
         }
     }
 }

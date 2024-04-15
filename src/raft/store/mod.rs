@@ -23,6 +23,8 @@ pub enum ClientRequest {
     ConfigSet {
         key: String,
         value: Arc<String>,
+        config_type: Option<Arc<String>>,
+        desc: Option<Arc<String>>,
         history_id: u64,
         history_table_id: Option<u64>,
         op_time: i64,

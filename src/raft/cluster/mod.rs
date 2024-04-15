@@ -24,11 +24,19 @@ pub async fn handle_route(
             key,
             value,
             op_user,
+            config_type,
+            desc,
             extend_info: _,
         } => {
             let config_key: ConfigKey = (&key as &str).into();
             app.config_addr
-                .send(ConfigAsyncCmd::Add(config_key, value, op_user))
+                .send(ConfigAsyncCmd::Add {
+                    key: config_key,
+                    value,
+                    op_user,
+                    config_type,
+                    desc,
+                })
                 .await??;
         }
         RouterRequest::ConfigDel {

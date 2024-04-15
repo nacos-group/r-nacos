@@ -59,6 +59,8 @@ impl LogRecordLoader for LogRecordLoaderInstance {
                 ClientRequest::ConfigSet {
                     key,
                     value,
+                    config_type,
+                    desc,
                     history_id,
                     history_table_id,
                     op_time,
@@ -67,6 +69,8 @@ impl LogRecordLoader for LogRecordLoaderInstance {
                     let cmd = ConfigRaftCmd::ConfigAdd {
                         key,
                         value,
+                        config_type,
+                        desc,
                         history_id,
                         history_table_id,
                         op_time,
@@ -302,6 +306,8 @@ impl StateApplyManager {
             ClientRequest::ConfigSet {
                 key,
                 value,
+                config_type,
+                desc,
                 history_id,
                 history_table_id,
                 op_time,
@@ -311,6 +317,8 @@ impl StateApplyManager {
                     let cmd = ConfigRaftCmd::ConfigAdd {
                         key,
                         value,
+                        config_type,
+                        desc,
                         history_id,
                         history_table_id,
                         op_time,
@@ -356,6 +364,8 @@ impl StateApplyManager {
             ClientRequest::ConfigSet {
                 key,
                 value,
+                config_type,
+                desc,
                 history_id,
                 history_table_id,
                 op_time,
@@ -364,6 +374,8 @@ impl StateApplyManager {
                 let cmd = ConfigRaftCmd::ConfigAdd {
                     key,
                     value,
+                    config_type,
+                    desc,
                     history_id,
                     history_table_id,
                     op_time,

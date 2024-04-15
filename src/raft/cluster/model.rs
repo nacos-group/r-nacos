@@ -21,6 +21,8 @@ pub struct SetConfigReq {
     pub config_key: ConfigKey,
     pub value: Arc<String>,
     pub op_user: Option<Arc<String>>,
+    pub config_type: Option<Arc<String>>,
+    pub desc: Option<Arc<String>>,
     //pub can_route_to_remote: bool,
     //pub extend_info: Option<HashMap<String,String>>,
 }
@@ -31,6 +33,8 @@ impl SetConfigReq {
             config_key,
             value,
             op_user: None,
+            config_type: None,
+            desc: None,
         }
     }
 
@@ -43,6 +47,8 @@ impl SetConfigReq {
             config_key,
             value,
             op_user: Some(op_user),
+            config_type: None,
+            desc: None,
         }
     }
 }
@@ -66,6 +72,8 @@ pub enum RouterRequest {
         key: String,
         value: Arc<String>,
         op_user: Option<Arc<String>>,
+        config_type: Option<Arc<String>>,
+        desc: Option<Arc<String>>,
         extend_info: HashMap<String, String>,
     },
     ConfigDel {
@@ -93,6 +101,8 @@ impl From<SetConfigReq> for RouterRequest {
             key: req.config_key.build_key(),
             value: req.value,
             op_user: req.op_user,
+            config_type: req.config_type,
+            desc: req.desc,
             extend_info: Default::default(),
         }
     }

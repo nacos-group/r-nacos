@@ -85,6 +85,8 @@ pub struct ConfigValue {
     pub(crate) md5: Arc<String>,
     pub(crate) tmp: bool,
     pub(crate) histories: Vec<HistoryItem>,
+    pub(crate) config_type: Option<Arc<String>>,
+    pub(crate) desc: Option<Arc<String>>,
 }
 
 impl ConfigValue {
@@ -95,6 +97,8 @@ impl ConfigValue {
             md5: Arc::new(md5),
             tmp: false,
             histories: vec![],
+            config_type: None,
+            desc: None,
         }
     }
 
@@ -120,6 +124,8 @@ impl ConfigValue {
                 modified_time: op_time,
                 op_user,
             }],
+            config_type: None,
+            desc: None,
         }
     }
 
@@ -411,6 +417,8 @@ impl ConfigActor {
         &mut self,
         key: ConfigKey,
         val: Arc<String>,
+        config_type: Option<Arc<String>>,
+        desc: Option<Arc<String>>,
         history_id: u64,
         _history_table_id: Option<u64>,
         op_time: i64,
@@ -425,8 +433,16 @@ impl ConfigActor {
                 self.tenant_index.insert_config(key.clone());
             }
             v.update_value(val, history_id, op_time, Some(Arc::new(md5)), op_user);
+            if let Some(s) = config_type {
+                v.config_type = Some(s);
+            }
+            if let Some(s) = desc {
+                v.desc = Some(s);
+            }
         } else {
-            let v = ConfigValue::init(val, history_id, op_time, None, op_user);
+            let mut v = ConfigValue::init(val, history_id, op_time, None, op_user);
+            v.config_type = config_type;
+            v.desc = desc;
             self.cache.insert(key.clone(), v);
             self.tenant_index.insert_config(key.clone());
         }
@@ -601,7 +617,13 @@ pub enum ConfigCmd {
 #[derive(Message)]
 #[rtype(result = "anyhow::Result<ConfigResult>")]
 pub enum ConfigAsyncCmd {
-    Add(ConfigKey, Arc<String>, Option<Arc<String>>),
+    Add {
+        key: ConfigKey,
+        value: Arc<String>,
+        op_user: Option<Arc<String>>,
+        config_type: Option<Arc<String>>,
+        desc: Option<Arc<String>>,
+    },
     Delete(ConfigKey),
 }
 
@@ -709,7 +731,7 @@ impl Handler<ConfigAsyncCmd> for ConfigActor {
 
     fn handle(&mut self, msg: ConfigAsyncCmd, _ctx: &mut Context<Self>) -> Self::Result {
         let raft = self.raft.clone();
-        let history_info = if let ConfigAsyncCmd::Add(_, _, _) = &msg {
+        let history_info = if let ConfigAsyncCmd::Add { .. } = &msg {
             match self.sequence.next_state() {
                 Ok(v) => Some(v),
                 Err(_) => None,
@@ -719,11 +741,19 @@ impl Handler<ConfigAsyncCmd> for ConfigActor {
         };
         let fut = async move {
             match msg {
-                ConfigAsyncCmd::Add(key, value, op_user) => {
+                ConfigAsyncCmd::Add {
+                    key,
+                    value,
+                    op_user,
+                    config_type,
+                    desc,
+                } => {
                     if let Some((history_id, history_table_id)) = history_info {
                         let req = ClientRequest::ConfigSet {
                             key: key.build_key(),
                             value,
+                            config_type,
+                            desc,
                             history_id,
                             history_table_id,
                             op_time: now_millis_i64(),
@@ -755,6 +785,8 @@ impl Handler<ConfigRaftCmd> for ConfigActor {
             ConfigRaftCmd::ConfigAdd {
                 key,
                 value,
+                config_type,
+                desc,
                 history_id,
                 history_table_id,
                 op_time,
@@ -764,6 +796,8 @@ impl Handler<ConfigRaftCmd> for ConfigActor {
                 self.set_config(
                     config_key,
                     value,
+                    config_type,
+                    desc,
                     history_id,
                     history_table_id,
                     op_time,
