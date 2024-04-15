@@ -628,7 +628,12 @@ pub enum ConfigAsyncCmd {
 }
 
 pub enum ConfigResult {
-    DATA(Arc<String>, Arc<String>),
+    Data {
+        value: Arc<String>,
+        md5: Arc<String>,
+        config_type: Option<Arc<String>>,
+        desc: Option<Arc<String>>,
+    },
     NULL,
     ChangeKey(Vec<ConfigKey>),
     ConfigInfoPage(usize, Vec<ConfigInfoDto>),
@@ -666,7 +671,12 @@ impl Handler<ConfigCmd> for ConfigActor {
             }
             ConfigCmd::GET(key) => {
                 if let Some(v) = self.cache.get(&key) {
-                    return Ok(ConfigResult::DATA(v.content.clone(), v.md5.clone()));
+                    return Ok(ConfigResult::Data {
+                        value: v.content.clone(),
+                        md5: v.md5.clone(),
+                        config_type: v.config_type.clone(),
+                        desc: v.desc.clone(),
+                    });
                 }
             }
             ConfigCmd::LISTENER(items, sender, time) => {

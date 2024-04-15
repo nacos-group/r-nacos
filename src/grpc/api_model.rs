@@ -112,7 +112,7 @@ pub struct ConfigQueryResponse {
 
     pub content: Arc<String>,
     pub encrypted_data_key: Option<String>,
-    pub content_type: Option<String>,
+    pub content_type: Option<Arc<String>>,
     pub md5: Option<Arc<String>>,
     pub last_modified: u64,
     pub beta: bool,

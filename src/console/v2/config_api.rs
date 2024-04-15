@@ -74,10 +74,18 @@ pub(crate) async fn get_config(
 ) -> impl Responder {
     let config_key = param.to_key();
     let cmd = ConfigCmd::GET(config_key);
-    if let Ok(Ok(ConfigResult::DATA(v, md5))) = appdata.config_addr.send(cmd).await {
+    if let Ok(Ok(ConfigResult::Data {
+        value: v,
+        md5,
+        config_type,
+        desc,
+    })) = appdata.config_addr.send(cmd).await
+    {
         HttpResponse::Ok().json(ApiResult::success(Some(ConfigInfo {
             value: Some(v),
             md5: Some(md5),
+            config_type,
+            desc,
         })))
     } else {
         HttpResponse::Ok().json(ApiResult::<()>::error(
@@ -93,7 +101,9 @@ pub async fn add_config(
 ) -> impl Responder {
     let content = param.content.clone().unwrap_or_default();
     let config_key = param.to_key();
-    let req = SetConfigReq::new(config_key, content);
+    let mut req = SetConfigReq::new(config_key, content);
+    req.config_type = param.config_type;
+    req.desc = param.desc;
     if let Ok(_) = appdata.config_route.set_config(req).await {
         HttpResponse::Ok().json(ApiResult::success(Some(true)))
     } else {

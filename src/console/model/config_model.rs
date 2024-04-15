@@ -84,13 +84,18 @@ pub struct ConfigParams {
     pub group: Option<Arc<String>>,
     pub tenant: Option<Arc<String>>,
     pub content: Option<Arc<String>>,
+    pub config_type: Option<Arc<String>>,
+    pub desc: Option<Arc<String>>,
 }
 
 impl ConfigParams {
-    pub fn to_key(self) -> ConfigKey {
-        let group = self.group.unwrap_or(Arc::new("DEFAULT_GROUP".to_owned()));
-        let tenant = self.tenant.unwrap_or_default();
-        ConfigKey::new_by_arc(self.data_id, group, tenant)
+    pub fn to_key(&self) -> ConfigKey {
+        let group = self
+            .group
+            .clone()
+            .unwrap_or(Arc::new("DEFAULT_GROUP".to_owned()));
+        let tenant = self.tenant.clone().unwrap_or_default();
+        ConfigKey::new_by_arc(self.data_id.clone(), group, tenant)
     }
 }
 
@@ -99,4 +104,6 @@ impl ConfigParams {
 pub struct ConfigInfo {
     pub value: Option<Arc<String>>,
     pub md5: Option<Arc<String>>,
+    pub config_type: Option<Arc<String>>,
+    pub desc: Option<Arc<String>>,
 }
