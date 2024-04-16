@@ -1,18 +1,19 @@
 use crate::common::appdata::AppShareData;
 use crate::common::model::{ApiResult, PageResult};
-use crate::console::model::naming_model::{InstanceParams, ServiceParam};
+use crate::console::model::naming_model::{
+    InstanceParams, ServiceDto, ServiceParam, ServiceQueryListRequest,
+};
 use crate::console::v2::ERROR_CODE_SYSTEM_ERROR;
 use crate::naming::api_model::InstanceVO;
 use crate::naming::core::{NamingActor, NamingCmd, NamingResult};
 use crate::naming::model::ServiceDetailDto;
-use crate::naming::ops::ops_model::{OpsServiceDto, OpsServiceQueryListRequest};
 use actix::Addr;
 use actix_web::web::Data;
 use actix_web::{web, HttpResponse, Responder};
 use std::sync::Arc;
 
 pub async fn query_service_list(
-    param: web::Query<OpsServiceQueryListRequest>,
+    param: web::Query<ServiceQueryListRequest>,
     naming_addr: web::Data<Addr<NamingActor>>,
 ) -> impl Responder {
     let service_param = param.0.to_param().unwrap();
@@ -23,8 +24,8 @@ pub async fn query_service_list(
         Ok(res) => {
             let result: NamingResult = res.unwrap();
             if let NamingResult::ServiceInfoPage((total_count, list)) = result {
-                let service_list: Vec<OpsServiceDto> =
-                    list.into_iter().map(OpsServiceDto::from).collect::<_>();
+                let service_list: Vec<ServiceDto> =
+                    list.into_iter().map(ServiceDto::from).collect::<_>();
                 HttpResponse::Ok().json(ApiResult::success(Some(PageResult {
                     total_count,
                     list: service_list,

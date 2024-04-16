@@ -3,6 +3,8 @@ use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 
+use crate::naming::service::ServiceInfoDto;
+use crate::naming::service_index::ServiceQueryParam;
 use crate::naming::{
     model::{Instance, ServiceKey},
     NamingUtils,
@@ -18,6 +20,74 @@ pub struct ServiceKeyParam{
     pub service_name:Option<String>,
 }
 */
+
+#[derive(Debug, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct ServiceQueryListRequest {
+    pub page_no: Option<usize>,
+    pub page_size: Option<usize>,
+    pub namespace_id: Option<String>,
+    pub group_name_param: Option<String>,
+    pub service_name_param: Option<String>,
+}
+
+impl ServiceQueryListRequest {
+    pub fn to_param(self) -> anyhow::Result<ServiceQueryParam> {
+        let limit = self.page_size.unwrap_or(0xffff_ffff);
+        let offset = (self.page_no.unwrap_or(1) - 1) * limit;
+        let mut param = ServiceQueryParam {
+            limit,
+            offset,
+            ..Default::default()
+        };
+        if let Some(namespace_id) = self.namespace_id {
+            param.namespace_id = Some(Arc::new(NamingUtils::default_namespace(namespace_id)));
+        }
+        if let Some(group_name_param) = self.group_name_param {
+            if !group_name_param.is_empty() {
+                param.like_group = Some(group_name_param);
+            }
+        }
+        if let Some(service_name_param) = self.service_name_param {
+            if !service_name_param.is_empty() {
+                param.like_service = Some(service_name_param);
+            }
+        }
+        Ok(param)
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct ServiceDto {
+    pub name: Option<Arc<String>>,
+    pub group_name: Option<Arc<String>>,
+    pub cluster_count: Option<u64>,
+    pub ip_count: Option<u64>,
+    pub healthy_instance_count: Option<u64>,
+    pub trigger_flag: Option<bool>,
+    pub metadata: Option<String>,
+    pub protect_threshold: Option<f32>,
+}
+
+impl From<ServiceInfoDto> for ServiceDto {
+    fn from(value: ServiceInfoDto) -> Self {
+        let metadata = value
+            .metadata
+            .as_ref()
+            .map(|e| serde_json::to_string(e).unwrap_or_default());
+        Self {
+            name: Some(value.service_name),
+            group_name: Some(value.group_name),
+            cluster_count: Some(value.cluster_count as u64),
+            ip_count: Some(value.instance_size as u64),
+            healthy_instance_count: Some(value.healthy_instance_size as u64),
+            trigger_flag: Some(value.trigger_flag),
+            metadata,
+            protect_threshold: value.protect_threshold,
+        }
+    }
+}
 
 #[derive(Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
@@ -102,20 +172,17 @@ pub struct InstanceParams {
     pub cluster_name: Option<String>,
     pub namespace_id: Option<String>,
     pub service_name: Arc<String>,
-    pub group_name: Option<Arc<String>>,
+    pub group_name: Option<String>,
 }
 
 impl InstanceParams {
     pub fn to_instance(self) -> Result<Instance, String> {
-        let group_name = if let Some(v) = self.group_name {
-            if v.is_empty() {
-                Arc::new("DEFAULT_GROUP".to_string())
-            } else {
-                v
-            }
-        } else {
-            Arc::new("DEFAULT_GROUP".to_string())
-        };
+        let group_name = Arc::new(NamingUtils::default_group(
+            self.group_name.clone().unwrap_or_default(),
+        ));
+        let namespace_id = Arc::new(NamingUtils::default_namespace(
+            self.namespace_id.clone().unwrap_or_default(),
+        ));
         let mut instance = Instance {
             ip: Arc::new(self.ip.unwrap()),
             port: self.port.unwrap(),
@@ -129,14 +196,9 @@ impl InstanceParams {
                     .unwrap_or(&"".to_owned())
                     .to_owned(),
             ),
-            namespace_id: Arc::new(NamingUtils::default_namespace(
-                self.namespace_id
-                    .as_ref()
-                    .unwrap_or(&"".to_owned())
-                    .to_owned(),
-            )),
             service_name: self.service_name,
             group_name,
+            namespace_id,
             ..Default::default()
         };
 
