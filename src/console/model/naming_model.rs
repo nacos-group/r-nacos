@@ -61,19 +61,20 @@ pub struct OpsNamingQueryListResponse {
 #[serde(rename_all = "camelCase")]
 pub struct ServiceParam {
     pub service_name: Arc<String>,
-    pub namespace_id: Option<Arc<String>>,
-    pub group_name: Option<Arc<String>>,
+    pub namespace_id: Option<String>,
+    pub group_name: Option<String>,
     pub metadata: Option<Arc<HashMap<String, String>>>,
     pub protect_threshold: Option<f32>,
 }
 
 impl ServiceParam {
     pub fn to_key(&self) -> ServiceKey {
-        let group_name = self
-            .group_name
-            .clone()
-            .unwrap_or(Arc::new("DEFAULT_GROUP".to_owned()));
-        let namespace_id = self.namespace_id.clone().unwrap_or_default();
+        let group_name = Arc::new(NamingUtils::default_group(
+            self.group_name.clone().unwrap_or_default(),
+        ));
+        let namespace_id = Arc::new(NamingUtils::default_namespace(
+            self.namespace_id.clone().unwrap_or_default(),
+        ));
         ServiceKey::new_by_arc(namespace_id, group_name, self.service_name.clone())
     }
 }
