@@ -11,6 +11,7 @@ use std::sync::Arc;
 
 use actix_web::{web, HttpRequest, HttpResponse, Responder};
 
+use crate::config::config_type::ConfigType;
 use actix::prelude::Addr;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -190,8 +191,18 @@ pub(crate) async fn get_config(
                 Ok(res) => {
                     let r: ConfigResult = res.unwrap();
                     match r {
-                        ConfigResult::Data { value: v, md5, .. } => HttpResponse::Ok()
-                            .content_type("text/html; charset=utf-8")
+                        ConfigResult::Data {
+                            value: v,
+                            md5,
+                            config_type,
+                            ..
+                        } => HttpResponse::Ok()
+                            .content_type(
+                                config_type
+                                    .map(|v| ConfigType::new_by_value(&v))
+                                    .unwrap_or_default()
+                                    .get_media_type(),
+                            )
                             .insert_header(("content-md5", md5.as_ref().to_string()))
                             .body(v.as_ref().as_bytes().to_vec()),
                         _ => HttpResponse::NotFound().body("config data not exist"),

@@ -1,3 +1,4 @@
+use crate::config::config_type::ConfigType;
 use crate::config::core::{ConfigHistoryInfoDto, ConfigKey, ConfigValue};
 use crate::utils::get_md5;
 use actix::prelude::*;
@@ -132,7 +133,9 @@ impl From<ConfigValueDO> for ConfigValue {
             md5,
             tmp: false,
             histories: value.histories.into_iter().map(|e| e.into()).collect(),
-            config_type: value.config_type.map(Arc::new),
+            config_type: value
+                .config_type
+                .map(|v| ConfigType::new_by_value(&v).get_value()),
             desc: value.desc.map(Arc::new),
         }
     }

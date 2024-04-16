@@ -3,6 +3,7 @@ pub mod config_db;
 pub mod config_index;
 pub mod config_sled;
 pub mod config_subscribe;
+pub mod config_type;
 pub mod core;
 pub mod dal;
 pub mod model;

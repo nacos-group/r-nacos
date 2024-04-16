@@ -22,6 +22,7 @@ use actix::prelude::*;
 use super::config_subscribe::Subscriber;
 use super::dal::ConfigHistoryParam;
 use crate::config::config_index::{ConfigQueryParam, TenantIndex};
+use crate::config::config_type::ConfigType;
 use crate::config::model::{ConfigRaftCmd, ConfigRaftResult, ConfigValueDO, HistoryItem};
 use crate::now_millis_i64;
 use crate::raft::filestore::model::SnapshotRecordDto;
@@ -806,7 +807,7 @@ impl Handler<ConfigRaftCmd> for ConfigActor {
                 self.set_config(
                     config_key,
                     value,
-                    config_type,
+                    config_type.map(|v| ConfigType::new_by_value(v.as_ref()).get_value()),
                     desc,
                     history_id,
                     history_table_id,

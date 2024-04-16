@@ -2,6 +2,7 @@
 
 use std::sync::Arc;
 
+use crate::config::config_type::ConfigType;
 use crate::grpc::api_model::NOT_FOUND;
 use crate::{
     common::appdata::AppShareData,
@@ -61,7 +62,7 @@ impl PayloadHandler for ConfigQueryRequestHandler {
                         response.result_code = SUCCESS_CODE;
                         response.content = content;
                         response.content_type =
-                            Some(config_type.unwrap_or(Arc::new("text".to_owned())));
+                            Some(config_type.unwrap_or(ConfigType::Text.get_value()));
                         //response.encrypted_data_key = Some("".to_owned());
                         //java nacos中定义tag类型是String;
                         //nacos-sdk-go中定义tag类型为bool, nacos-sdk-go中直接设置 response.tag = request.tag会报错
