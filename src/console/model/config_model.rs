@@ -82,7 +82,7 @@ pub struct OpsConfigOptQueryListResponse {
 pub struct ConfigParams {
     pub data_id: Arc<String>,
     pub group: Option<Arc<String>>,
-    pub tenant: Option<Arc<String>>,
+    pub tenant: Option<String>,
     pub content: Option<Arc<String>>,
     pub config_type: Option<Arc<String>>,
     pub desc: Option<Arc<String>>,
@@ -94,8 +94,8 @@ impl ConfigParams {
             .group
             .clone()
             .unwrap_or(Arc::new("DEFAULT_GROUP".to_owned()));
-        let tenant = self.tenant.clone().unwrap_or_default();
-        ConfigKey::new_by_arc(self.data_id.clone(), group, tenant)
+        let tenant = ConfigUtils::default_tenant(self.tenant.clone().unwrap_or_default());
+        ConfigKey::new_by_arc(self.data_id.clone(), group, Arc::new(tenant))
     }
 }
 
