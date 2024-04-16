@@ -427,6 +427,12 @@ impl ConfigActor {
     ) -> anyhow::Result<ConfigResult> {
         if let Some(v) = self.cache.get_mut(&key) {
             let md5 = get_md5(val.as_str());
+            if let Some(s) = config_type {
+                v.config_type = Some(s);
+            }
+            if let Some(s) = desc {
+                v.desc = Some(s);
+            }
             if !v.tmp && v.md5.as_str() == md5 {
                 return Ok(ConfigResult::NULL);
             }
@@ -434,12 +440,6 @@ impl ConfigActor {
                 self.tenant_index.insert_config(key.clone());
             }
             v.update_value(val, history_id, op_time, Some(Arc::new(md5)), op_user);
-            if let Some(s) = config_type {
-                v.config_type = Some(s);
-            }
-            if let Some(s) = desc {
-                v.desc = Some(s);
-            }
         } else {
             let mut v = ConfigValue::init(val, history_id, op_time, None, op_user);
             v.config_type = config_type;
