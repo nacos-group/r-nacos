@@ -56,12 +56,18 @@ pub async fn add_service(
         metadata: param.metadata,
         protect_threshold: param.protect_threshold,
     };
-    if let Ok(_) = appdata
+    if let Ok(res) = appdata
         .naming_addr
         .send(NamingCmd::UpdateService(service_info))
         .await
     {
-        HttpResponse::Ok().json(ApiResult::success(Some(true)))
+        match res {
+            Ok(_) => HttpResponse::Ok().json(ApiResult::success(Some(true))),
+            Err(err) => HttpResponse::Ok().json(ApiResult::<()>::error(
+                ERROR_CODE_SYSTEM_ERROR.to_string(),
+                Some(err.to_string()),
+            )),
+        }
     } else {
         HttpResponse::Ok().json(ApiResult::<()>::error(
             ERROR_CODE_SYSTEM_ERROR.to_string(),
@@ -75,12 +81,18 @@ pub async fn remove_service(
     web::Json(param): web::Json<ServiceParam>,
 ) -> impl Responder {
     let service_key = param.to_key();
-    if let Ok(_) = appdata
+    if let Ok(res) = appdata
         .naming_addr
         .send(NamingCmd::RemoveService(service_key))
         .await
     {
-        HttpResponse::Ok().json(ApiResult::success(Some(true)))
+        match res {
+            Ok(_) => HttpResponse::Ok().json(ApiResult::success(Some(true))),
+            Err(err) => HttpResponse::Ok().json(ApiResult::<()>::error(
+                ERROR_CODE_SYSTEM_ERROR.to_string(),
+                Some(err.to_string()),
+            )),
+        }
     } else {
         HttpResponse::Ok().json(ApiResult::<()>::error(
             ERROR_CODE_SYSTEM_ERROR.to_string(),
