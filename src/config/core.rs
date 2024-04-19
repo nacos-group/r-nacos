@@ -421,10 +421,13 @@ impl ConfigActor {
         config_type: Option<Arc<String>>,
         desc: Option<Arc<String>>,
         history_id: u64,
-        _history_table_id: Option<u64>,
+        history_table_id: Option<u64>,
         op_time: i64,
         op_user: Option<Arc<String>>,
     ) -> anyhow::Result<ConfigResult> {
+        if let Some(history_table_id) = history_table_id {
+            self.sequence.set_valid_last_id(history_table_id);
+        }
         if let Some(v) = self.cache.get_mut(&key) {
             let md5 = get_md5(val.as_str());
             if let Some(s) = config_type {
