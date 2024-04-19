@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>版本说明 - r-nacos文档</title>
+        <title>控制台接口 - r-nacos文档</title>
                 
 
         <!-- Custom HTML head -->
@@ -82,7 +82,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded affix "><a href="intro.html">简介</a></li><li class="chapter-item expanded "><a href="quick-started.html"><strong aria-hidden="true">1.</strong> 快速开始</a></li><li class="chapter-item expanded "><a href="cluster_deploy.html"><strong aria-hidden="true">2.</strong> 集群部署</a></li><li class="chapter-item expanded "><a href="deplay_env.html"><strong aria-hidden="true">3.</strong> 运行参数说明</a></li><li class="chapter-item expanded "><a href="performance.html"><strong aria-hidden="true">4.</strong> 性能与容量说明</a></li><li class="chapter-item expanded "><a href="version_describe.html" class="active"><strong aria-hidden="true">5.</strong> 版本说明</a></li><li class="chapter-item expanded "><a href="faq.html"><strong aria-hidden="true">6.</strong> 常见问题</a></li><li class="chapter-item expanded "><a href="architecture.html"><strong aria-hidden="true">7.</strong> 架构</a></li><li class="chapter-item expanded "><a href="console_api.html"><strong aria-hidden="true">8.</strong> 控制台接口</a></li></ol>            </div>
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="intro.html">简介</a></li><li class="chapter-item expanded "><a href="quick-started.html"><strong aria-hidden="true">1.</strong> 快速开始</a></li><li class="chapter-item expanded "><a href="cluster_deploy.html"><strong aria-hidden="true">2.</strong> 集群部署</a></li><li class="chapter-item expanded "><a href="deplay_env.html"><strong aria-hidden="true">3.</strong> 运行参数说明</a></li><li class="chapter-item expanded "><a href="performance.html"><strong aria-hidden="true">4.</strong> 性能与容量说明</a></li><li class="chapter-item expanded "><a href="version_describe.html"><strong aria-hidden="true">5.</strong> 版本说明</a></li><li class="chapter-item expanded "><a href="faq.html"><strong aria-hidden="true">6.</strong> 常见问题</a></li><li class="chapter-item expanded "><a href="architecture.html"><strong aria-hidden="true">7.</strong> 架构</a></li><li class="chapter-item expanded "><a href="console_api.html" class="active"><strong aria-hidden="true">8.</strong> 控制台接口</a></li></ol>            </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
 
@@ -143,72 +143,65 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="版本说明"><a class="header" href="#版本说明">版本说明</a></h1>
-<h2 id="r-nacos版本说明"><a class="header" href="#r-nacos版本说明">R-NACOS版本说明</a></h2>
-<table><thead><tr><th>版本</th><th>对nacos兼容说明</th><th>版本特点说明</th><th>适用场景</th></tr></thead><tbody>
-<tr><td>v0.3.3以上</td><td>支持2.x新最版nacos面向sdk的协议</td><td>支持集群部署版本，使用1个节点的集群方式当做单机模式,配置中心raft 协议没有充分优化，配置中心集群写入tps在1.5千左右</td><td>对配置中心没有太高频写入需求的应用都推荐使用这个版本 (后面会优化配置写入性能)</td></tr>
-<tr><td>v0.2.3 (不再推荐,新版bugfix暂定不再同步)</td><td>支持2.x新最版nacos面向sdk的协议</td><td>单机部署版本,配置中心数据库使用sled, 初始内存多占用25M左右,配置中心单机写入tps在1.5万以上</td><td>对配置中心有高频写入需求的应用可以考虑使用</td></tr>
-<tr><td>v0.1.10 (不再推荐,新版bugfix暂定不再同步)</td><td>支持1.x服务接口;除了查询服务中心服务列表外，支持2.x大部分接口</td><td>单机部署版本,配置中心数据库使用sqlite，内存占用比较低，但配置写入tps不高，7百左右</td><td>不使用2.x的注册中心服务，对内存占用敏感的小应用可以考虑使用</td></tr>
-</tbody></table>
-<h3 id="docker-版本说明"><a class="header" href="#docker-版本说明">docker 版本说明</a></h3>
-<p>应用每次打包都会同时打对应版本的docker包 ，qingpan/rnacos:$tag 。</p>
-<p>每个版本会打两类docker包</p>
-<table><thead><tr><th>docker包类型</th><th>tag 格式</th><th>示例</th><th>说明</th></tr></thead><tbody>
-<tr><td>gnu debian包</td><td>$version</td><td>qingpan/rnacos:v0.4.2</td><td>docker包基于debian-slim,体积比较大(压缩包36M,解压后102M),运行性能相对较高</td></tr>
-<tr><td>musl alpine包</td><td>$version-alpine</td><td>qingpan/rnacos:v0.4.2-alpine</td><td>docker包基于alpine,体积比较小(压缩包11M,解压后34M),运行性能相对较低</td></tr>
-</tbody></table>
-<p>如果不观注版本，可以使用最新正式版本tag。</p>
-<ul>
-<li>最新的gnu正式版本: <code>qingpan/rnacos:stable</code></li>
-<li>最新的alpine正式版本: <code>qingpan/rnacos:stable-alpine</code></li>
-</ul>
-<p><strong>MacOS arm系统补充说明</strong> ：目前MacOS arm系统运行<code>stable</code>镜像失败，可以先换成<code>stable-alpine</code>镜像。等后面解决arm <code>stable</code>镜像问题后再把这个注意事项去掉。</p>
-<h2 id="nacos-client-sdk"><a class="header" href="#nacos-client-sdk">nacos client sdk</a></h2>
-<h3 id="java-nacos-sdk"><a class="header" href="#java-nacos-sdk">java nacos sdk</a></h3>
-<p><strong>nacos-client</strong></p>
-<pre><code class="language-xml">&lt;dependency&gt;
-    &lt;groupId&gt;com.alibaba.nacos&lt;/groupId&gt;
-    &lt;artifactId&gt;nacos-client&lt;/artifactId&gt;
-    &lt;version&gt;${nacos.version}&lt;/version&gt;
-&lt;/dependency&gt;
+                        <h1 id="控制台接口"><a class="header" href="#控制台接口">控制台接口</a></h1>
+<h2 id="全局说明"><a class="header" href="#全局说明">全局说明</a></h2>
+<h3 id="公共对象"><a class="header" href="#公共对象">公共对象</a></h3>
+<blockquote>
+<p>通用返回值</p>
+</blockquote>
+<pre><code class="language-json">{
+    &quot;success&quot;: boolean, //调用结果是否成功
+    &quot;data: object, //返回对像
+    &quot;code&quot;: string, //返回的错误码，在success为false时有值
+    &quot;message&quot;: string , //返回的错误信息,在success为false时有值
+}
 </code></pre>
-<table><thead><tr><th>协议</th><th>验证过版本</th><th>推荐版本</th></tr></thead><tbody>
-<tr><td>grpc协议(2.x)</td><td>2.1.0</td><td>&gt;2.1.x</td></tr>
-<tr><td>http协议(1.x)</td><td>1.4.1</td><td>&gt;1.4.x</td></tr>
-</tbody></table>
-<h3 id="go-nacos-sdk"><a class="header" href="#go-nacos-sdk">go nacos sdk</a></h3>
-<p><strong>nacos-sdk-go</strong></p>
-<pre><code>nacos-sdk-go/v2 v2.2.5
+<blockquote>
+<p>通用分页对像</p>
+</blockquote>
+<pre><code class="language-json">{
+    &quot;totalCount&quot;: int, //总记录数
+    &quot;list&quot;: [], //本次分页查询结果列表
+}
 </code></pre>
-<table><thead><tr><th>协议</th><th>验证过版本</th><th>推荐版本</th></tr></thead><tbody>
-<tr><td>grpc协议(2.x)</td><td>2.2.5</td><td>&gt;=2.2.5</td></tr>
-</tbody></table>
-<h3 id="rust-nacos-sdk"><a class="header" href="#rust-nacos-sdk">rust nacos sdk</a></h3>
-<p><strong>nacos-sdk-rust</strong></p>
-<pre><code>nacos-sdk = &quot;0.3.3&quot;
+<p>对应的分页查询返回值为</p>
+<pre><code class="language-json">{
+    &quot;success&quot;: boolean, //调用结果是否成功
+    &quot;data: {
+        &quot;totalCount&quot;: int, //总记录数
+        &quot;list&quot;: [], //本次分页查询结果列表
+    },
+    &quot;code&quot;: string, //返回的错误码，在success为false时有值
+    &quot;message&quot;: string , //返回的错误信息,在success为false时有值
+}
+
 </code></pre>
-<table><thead><tr><th>协议</th><th>验证过版本</th><th>推荐版本</th></tr></thead><tbody>
-<tr><td>grpc协议</td><td>0.3.3</td><td>&gt;=0.3.3</td></tr>
+<h3 id="特殊错误码定义"><a class="header" href="#特殊错误码定义">特殊错误码定义</a></h3>
+<table><thead><tr><th>错误码</th><th>错误信息</th><th>备注</th></tr></thead><tbody>
+<tr><td>SYSTEM_ERROR</td><td>系统错误</td><td>未明确的系统错误</td></tr>
+<tr><td>NO_LOGIN</td><td>用户没有登陆</td><td>需要跳转到登陆页</td></tr>
+<tr><td>NO_PERMISSION</td><td>用户没有权限</td><td></td></tr>
+<tr><td>CAPTCHA_CHECK_ERROR</td><td>验证码校验不通过</td><td></td></tr>
+<tr><td>LOGIN_LIMITE_ERROR</td><td>用户频繁密码校验不通过被限制登陆</td><td></td></tr>
 </tbody></table>
-<p><strong>nacos_rust_client</strong></p>
-<pre><code>nacos_rust_client = &quot;0.3.0&quot;
-</code></pre>
-<table><thead><tr><th>协议</th><th>验证过版本</th><th>推荐版本</th></tr></thead><tbody>
-<tr><td>同时支持http协议与grpc协议</td><td>0.3.0</td><td>&gt;=0.3.0</td></tr>
-<tr><td>http协议</td><td>0.2.2</td><td>&gt;=0.2.2</td></tr>
-</tbody></table>
+<h3 id="其它"><a class="header" href="#其它">其它</a></h3>
+<p>重构后规范化的接口都放到<code>/rnacos/api/console/v2/</code>下</p>
+<h2 id="接口"><a class="header" href="#接口">接口</a></h2>
+<h3 id="1-登陆模块"><a class="header" href="#1-登陆模块">1. 登陆模块</a></h3>
+<blockquote>
+<p>登陆接口</p>
+</blockquote>
+<p>'''</p>
+<p>'''</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                                                    <a rel="prev" href="performance.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                                    <a rel="prev" href="architecture.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
                         
-                                                    <a rel="next" href="faq.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
-                                <i class="fa fa-angle-right"></i>
-                            </a>
                         
                         <div style="clear: both"></div>
                     </nav>
@@ -216,13 +209,10 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                                    <a rel="prev" href="performance.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                    <a rel="prev" href="architecture.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
                 
-                                    <a rel="next" href="faq.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
-                        <i class="fa fa-angle-right"></i>
-                    </a>
                             </nav>
 
         </div>

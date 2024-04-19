@@ -83,7 +83,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded affix "><a href="intro.html">简介</a></li><li class="chapter-item expanded "><a href="quick-started.html"><strong aria-hidden="true">1.</strong> 快速开始</a></li><li class="chapter-item expanded "><a href="cluster_deploy.html"><strong aria-hidden="true">2.</strong> 集群部署</a></li><li class="chapter-item expanded "><a href="deplay_env.html"><strong aria-hidden="true">3.</strong> 运行参数说明</a></li><li class="chapter-item expanded "><a href="performance.html"><strong aria-hidden="true">4.</strong> 性能与容量说明</a></li><li class="chapter-item expanded "><a href="version_describe.html"><strong aria-hidden="true">5.</strong> 版本说明</a></li><li class="chapter-item expanded "><a href="faq.html"><strong aria-hidden="true">6.</strong> 常见问题</a></li><li class="chapter-item expanded "><a href="architecture.html"><strong aria-hidden="true">7.</strong> 架构</a></li></ol>            </div>
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="intro.html">简介</a></li><li class="chapter-item expanded "><a href="quick-started.html"><strong aria-hidden="true">1.</strong> 快速开始</a></li><li class="chapter-item expanded "><a href="cluster_deploy.html"><strong aria-hidden="true">2.</strong> 集群部署</a></li><li class="chapter-item expanded "><a href="deplay_env.html"><strong aria-hidden="true">3.</strong> 运行参数说明</a></li><li class="chapter-item expanded "><a href="performance.html"><strong aria-hidden="true">4.</strong> 性能与容量说明</a></li><li class="chapter-item expanded "><a href="version_describe.html"><strong aria-hidden="true">5.</strong> 版本说明</a></li><li class="chapter-item expanded "><a href="faq.html"><strong aria-hidden="true">6.</strong> 常见问题</a></li><li class="chapter-item expanded "><a href="architecture.html"><strong aria-hidden="true">7.</strong> 架构</a></li><li class="chapter-item expanded "><a href="console_api.html"><strong aria-hidden="true">8.</strong> 控制台接口</a></li></ol>            </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
 
@@ -792,6 +792,56 @@ r-nacos 和 java版主体逻辑相同，但实现的细节有些区别。</p>
 所以http注册的实例需要按服务做路由，这样才能支持不同的节点负责不同范围的服务。【低效】</p>
 <p>所以在注册中心使用grpc协议的性能会比http协议性能好很多。</p>
 <p><strong>待补充...</strong></p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="控制台接口"><a class="header" href="#控制台接口">控制台接口</a></h1>
+<h2 id="全局说明"><a class="header" href="#全局说明">全局说明</a></h2>
+<h3 id="公共对象"><a class="header" href="#公共对象">公共对象</a></h3>
+<blockquote>
+<p>通用返回值</p>
+</blockquote>
+<pre><code class="language-json">{
+    &quot;success&quot;: boolean, //调用结果是否成功
+    &quot;data: object, //返回对像
+    &quot;code&quot;: string, //返回的错误码，在success为false时有值
+    &quot;message&quot;: string , //返回的错误信息,在success为false时有值
+}
+</code></pre>
+<blockquote>
+<p>通用分页对像</p>
+</blockquote>
+<pre><code class="language-json">{
+    &quot;totalCount&quot;: int, //总记录数
+    &quot;list&quot;: [], //本次分页查询结果列表
+}
+</code></pre>
+<p>对应的分页查询返回值为</p>
+<pre><code class="language-json">{
+    &quot;success&quot;: boolean, //调用结果是否成功
+    &quot;data: {
+        &quot;totalCount&quot;: int, //总记录数
+        &quot;list&quot;: [], //本次分页查询结果列表
+    },
+    &quot;code&quot;: string, //返回的错误码，在success为false时有值
+    &quot;message&quot;: string , //返回的错误信息,在success为false时有值
+}
+
+</code></pre>
+<h3 id="特殊错误码定义"><a class="header" href="#特殊错误码定义">特殊错误码定义</a></h3>
+<table><thead><tr><th>错误码</th><th>错误信息</th><th>备注</th></tr></thead><tbody>
+<tr><td>SYSTEM_ERROR</td><td>系统错误</td><td>未明确的系统错误</td></tr>
+<tr><td>NO_LOGIN</td><td>用户没有登陆</td><td>需要跳转到登陆页</td></tr>
+<tr><td>NO_PERMISSION</td><td>用户没有权限</td><td></td></tr>
+<tr><td>CAPTCHA_CHECK_ERROR</td><td>验证码校验不通过</td><td></td></tr>
+<tr><td>LOGIN_LIMITE_ERROR</td><td>用户频繁密码校验不通过被限制登陆</td><td></td></tr>
+</tbody></table>
+<h3 id="其它"><a class="header" href="#其它">其它</a></h3>
+<p>重构后规范化的接口都放到<code>/rnacos/api/console/v2/</code>下</p>
+<h2 id="接口"><a class="header" href="#接口">接口</a></h2>
+<h3 id="1-登陆模块"><a class="header" href="#1-登陆模块">1. 登陆模块</a></h3>
+<blockquote>
+<p>登陆接口</p>
+</blockquote>
+<p>'''</p>
+<p>'''</p>
 
                     </main>
 
