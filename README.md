@@ -42,7 +42,7 @@ r-nacos相较于java nacos来说，是一个提供相同功能，启动更快、
 
 方式1：从 [github release](https://github.com/r-nacos/r-nacos/releases) 下载对应系统的应用包，解压后即可运行。
 
-linux 或 mac 
+linux 或 MacOS
 
 ```shell
 # 解压
@@ -98,6 +98,23 @@ cd r-nacos
 cargo build --release
 cargo run
 ```
+
+方式5: MacOS支持通过brew安装
+
+```shell
+# 把r-nacos加入taps
+brew tap r-nacos/r-nacos 
+
+# brew 安装 r-nacos
+brew install r-nacos
+
+# 运行
+rnacos
+
+# 后续可以直接通过以下命令更新到最新版本
+# brew upgrade r-nacos 
+```
+
 
 测试、试用推荐使用第1、第2种方式，直接下载就可以使用。
 

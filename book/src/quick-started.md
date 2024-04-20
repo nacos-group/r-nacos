@@ -64,6 +64,24 @@ cargo build --release
 cargo run
 ```
 
+
+方式5: MacOS支持通过brew安装
+
+```shell
+# 把r-nacos加入taps
+brew tap r-nacos/r-nacos 
+
+# brew 安装 r-nacos
+brew install r-nacos
+
+# 运行
+rnacos
+
+# 后续可以直接通过以下命令更新到最新版本
+# brew upgrade r-nacos 
+```
+
+
 测试、试用推荐使用第1、第2种方式，直接下载就可以使用。
 
 在linux下第1、第2种方式默认是musl版本(性能比gnu版本差一些)，在生产服务对性能有要求的可以考虑使用第3、第4种在对应环境编译gnu版本部署。
