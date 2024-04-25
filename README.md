@@ -11,7 +11,7 @@ r-nacos设计上完全兼容最新版本nacos面向client sdk 的协议（包含
 
 r-nacos相较于java nacos来说，是一个提供相同功能，启动更快、占用系统资源更小、性能更高、运行更稳定的服务。
 
-详细说明可以看 [r-nacos book](https://r-nacos.github.io/r-nacos/index.html)
+详细说明可以看 [r-nacos book](https://r-nacos.github.io/docs/)
 
 ## 适用场景
 
@@ -141,11 +141,11 @@ rnacos
 |RNACOS_CONSOLE_LOGIN_TIMEOUT|控制台登陆有效时长(单位为秒)|一天,86400秒|86400|0.5.0|
 
 
-启动配置方式可以参考： [运行参数说明](https://r-nacos.github.io/r-nacos/deplay_env.html)
+启动配置方式可以参考： [运行参数说明](https://r-nacos.github.io/docs/notes/env_config/)
 
 【集群部署】
 
-集群部署参考： [集群部署](https://r-nacos.github.io/r-nacos/cluster_deploy.html)
+集群部署参考： [集群部署](https://r-nacos.github.io/docs/notes/deploy_example/docker_cluster_deploy/)
 
 
 ### 二、运行nacos 应用
@@ -382,7 +382,7 @@ nacos_rust_client = "0.3.0"
 ### 三、面向部署、集群的功能
 
 1. 支持单机部署
-2. 支持集群部署。集群部署配置中心数据使用raft+节点本地存储组成的分布式存储，不需要依赖mysql。具体参考 [集群部署说明](https://r-nacos.github.io/r-nacos/cluster_deploy.html)
+2. 支持集群部署。集群部署配置中心数据使用raft+节点本地存储组成的分布式存储，不需要依赖mysql。具体参考 [集群部署说明](https://r-nacos.github.io/docs/notes/deploy_example/docker_cluster_deploy/)
 
 
 ## 性能
@@ -402,19 +402,19 @@ nacos_rust_client = "0.3.0"
 **注：** 具体结果和压测环境有关
 
 详细信息可以参考
-[性能与容量说明](https://r-nacos.github.io/r-nacos/performance.html)
+[性能与容量说明](https://r-nacos.github.io/docs/notes/performance/)
 
 
 ## r-nacos架构图
 
 单实例：
 
-![](https://github.com/r-nacos/r-nacos/raw/master/doc/assets/imgs/rnacos_L2_0.1.4.svg)
+![](https://raw.githubusercontent.com/r-nacos/r-nacos/master/doc/assets/imgs/rnacos_L2_0.1.4.svg)
 
 前端应用因依赖nodejs,所以单独放到另一个项目 [r-nacos-console-web](https://github.com/r-nacos/rnacos-console-web) ,再通过cargo 把打包好的前端资源引入到本项目,避免开发rust时还要依赖nodejs。
 
 
-r-nacos架构设计参考： [架构](https://r-nacos.github.io/r-nacos/architecture.html)
+r-nacos架构设计参考： [架构](https://r-nacos.github.io/docs/notes/architecture/)
 
 
 ## 使用登记
