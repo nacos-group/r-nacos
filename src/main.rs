@@ -30,6 +30,8 @@ use tonic::transport::Server;
 
 use actix_web::{middleware, HttpServer};
 use clap::Parser;
+use env_logger::TimestampPrecision;
+use env_logger_timezone_fmt::{TimeZoneFormat, TimeZoneFormatEnv};
 use rnacos::common::appdata::AppShareData;
 use rnacos::common::constant::APP_VERSION;
 use rnacos::raft::NacosRaft;
@@ -49,7 +51,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let rust_log = std::env::var("RUST_LOG").unwrap_or("info".to_owned());
     println!("version:{}, RUST_LOG:{}", APP_VERSION, &rust_log);
     std::env::set_var("RUST_LOG", &rust_log);
-    env_logger::builder().format_timestamp_micros().init();
+    let timezone_fmt = Arc::new(TimeZoneFormatEnv::new(Some(8*60*60),Some(TimestampPrecision::Micros)));
+    env_logger::Builder::from_default_env()
+        .format(move |buf, record| TimeZoneFormat::new(buf, &timezone_fmt).write(record))
+        .init();
     let sys_config = Arc::new(AppSysConfig::init_from_env());
     let factory_data = config_factory(sys_config.clone()).await?;
     let app_data = build_share_data(factory_data.clone())?;

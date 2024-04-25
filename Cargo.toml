@@ -34,13 +34,14 @@ actix = "0.13"
 actix-rt = "2"
 actix-multipart = "0.6"
 actix-multipart-derive = "0.6"
-env_logger = "0.10"
+log = "0.4"
+env_logger = "0.11"
+env_logger_timezone_fmt = "0.1.1"
 rust-crypto = "0.2"
 tokio = { version = "1", features = ["full"] }
 tokio-stream = "0.1"
 chrono = { version = "0.4", features = ["serde"] }
 flate2 = "1.0"
-log = "0.4"
 
 tonic = "0.4"
 
