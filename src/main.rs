@@ -51,11 +51,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let rust_log = std::env::var("RUST_LOG").unwrap_or("info".to_owned());
     println!("version:{}, RUST_LOG:{}", APP_VERSION, &rust_log);
     std::env::set_var("RUST_LOG", &rust_log);
-    let timezone_fmt = Arc::new(TimeZoneFormatEnv::new(Some(8*60*60),Some(TimestampPrecision::Micros)));
+    let sys_config = Arc::new(AppSysConfig::init_from_env());
+    let timezone_fmt = Arc::new(TimeZoneFormatEnv::new(
+        sys_config.gmt_fixed_offset_hours.map(|v| v * 60 * 60),
+        Some(TimestampPrecision::Micros),
+    ));
     env_logger::Builder::from_default_env()
         .format(move |buf, record| TimeZoneFormat::new(buf, &timezone_fmt).write(record))
         .init();
-    let sys_config = Arc::new(AppSysConfig::init_from_env());
     let factory_data = config_factory(sys_config.clone()).await?;
     let app_data = build_share_data(factory_data.clone())?;
     let http_addr = sys_config.get_http_addr();
