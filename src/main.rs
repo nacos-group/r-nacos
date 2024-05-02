@@ -20,10 +20,11 @@ use rnacos::raft::network::core::RaftRouter;
 use rnacos::raft::network::factory::{RaftClusterRequestSender, RaftConnectionFactory};
 use rnacos::raft::store::ClientRequest;
 use rnacos::starter::{build_share_data, config_factory};
-use rnacos::{grpc::server::RequestServerImpl, naming::core::NamingActor};
+use rnacos::{grpc::server::RequestServerImpl, naming::core::NamingActor, openapi};
 use sled::Db;
 use std::collections::{BTreeMap, HashSet};
 use std::error::Error;
+use std::ops::Deref;
 use std::sync::Arc;
 use std::time::Duration;
 use tonic::transport::Server;
@@ -35,7 +36,7 @@ use env_logger_timezone_fmt::{TimeZoneFormat, TimeZoneFormatEnv};
 use rnacos::common::appdata::AppShareData;
 use rnacos::common::constant::APP_VERSION;
 use rnacos::raft::NacosRaft;
-use rnacos::web_config::{app_config, app_without_no_auth_console_config, console_config};
+use rnacos::web_config::{app_config, console_config};
 
 #[derive(Parser, Clone, Debug)]
 #[clap(author, version, about, long_about = None)]
@@ -107,23 +108,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
         let naming_addr = app_data.naming_addr.clone();
         let bistream_manage_http_addr = app_data.bi_stream_manage.clone();
         let app_data = app_data.clone();
-        if app_data.sys_config.enable_no_auth_console {
-            App::new()
-                .app_data(app_data)
-                .app_data(Data::new(config_addr))
-                .app_data(Data::new(naming_addr))
-                .app_data(Data::new(bistream_manage_http_addr))
-                .wrap(middleware::Logger::default())
-                .configure(app_config)
-        } else {
-            App::new()
-                .app_data(app_data)
-                .app_data(Data::new(config_addr))
-                .app_data(Data::new(naming_addr))
-                .app_data(Data::new(bistream_manage_http_addr))
-                .wrap(middleware::Logger::default())
-                .configure(app_without_no_auth_console_config)
-        }
+        let app_config_shard = app_data.sys_config.deref().clone();
+        App::new()
+            .app_data(app_data)
+            .app_data(Data::new(config_addr))
+            .app_data(Data::new(naming_addr))
+            .app_data(Data::new(bistream_manage_http_addr))
+            .wrap(middleware::Logger::default())
+            .configure(app_config(app_config_shard))
     });
     if let Some(num) = sys_config.http_workers {
         server = server.workers(num);

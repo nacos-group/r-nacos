@@ -5,11 +5,10 @@ use actix_web::{http::header, web, HttpResponse, Responder};
 
 use crate::common::appdata::AppShareData;
 use crate::config::core::ConfigActor;
-use crate::naming::api::{
-    add_instance, del_instance, get_instance, query_service, remove_service, update_instance,
-    update_service,
-};
+
 use crate::naming::ops::ops_api::query_opt_service_list;
+use crate::openapi::naming::service::{query_service, remove_service, update_service};
+use crate::openapi::naming::instance::{add_instance, get_instance, update_instance, del_instance};
 //use crate::console::raft_api::{raft_add_learner, raft_change_membership, raft_init, raft_metrics, raft_read, raft_write};
 
 use super::cluster_api::query_cluster_info;
@@ -151,10 +150,10 @@ pub fn console_api_config_new(config: &mut web::ServiceConfig) {
         web::scope("/rnacos/api/console")
             .service(
                 web::resource("/cs/configs")
-                    .route(web::get().to(crate::config::api::get_config))
-                    .route(web::post().to(crate::config::api::add_config))
-                    .route(web::put().to(crate::config::api::add_config))
-                    .route(web::delete().to(crate::config::api::del_config)),
+                    .route(web::get().to(crate::openapi::config::config::get_config))
+                    .route(web::post().to(crate::openapi::config::config::add_config))
+                    .route(web::put().to(crate::openapi::config::config::add_config))
+                    .route(web::delete().to(crate::openapi::config::config::del_config)),
             )
             .service(
                 web::resource("/ns/service")
