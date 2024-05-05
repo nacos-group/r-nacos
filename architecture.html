@@ -145,9 +145,14 @@
                     <main>
                         <h1 id="架构"><a class="header" href="#架构">架构</a></h1>
 <h2 id="r-nacos架构图"><a class="header" href="#r-nacos架构图">r-nacos架构图</a></h2>
-<p>单实例：</p>
-<p><img src="https://github.com/heqingpan/rnacos/raw/master/doc/assets/imgs/rnacos_L2_0.1.4.svg" alt="" /></p>
-<p>前端应用因依赖nodejs,所以单独放到另一个项目 <a href="https://github.com/heqingpan/rnacos-console-web">r-nacos-console-web</a> ,再通过cargo 把打包好的前端资源引入到本项目,避免开发rust时还要依赖nodejs。</p>
+<p><img src="https://raw.githubusercontent.com/r-nacos/r-nacos/master/doc/assets/imgs/r-nacos_L2_0.3.7.svg" alt="架构图" /></p>
+<p>说明：</p>
+<ul>
+<li>r-nacos默认支持集群部署，单机就相当于一个节点的集群，后续有需要可以按需加入新的节点；</li>
+<li>数据持久化使用raft协议分布式数据库(raft协议+节点文件存储),类似etcd;</li>
+<li>只需对<code>RNACOS_CONFIG_DB_DIR:nacos_db</code>目录下的文件备份与恢复，即可实现数据的备份与恢复；</li>
+<li>r-nacos控制台使用前后端分离架构；前端应用因依赖nodejs,所以单独放到另一个项目 <a href="https://github.com/r-nacos/rnacos-console-web">r-nacos-console-web</a> ,再通过cargo 把打包好的前端资源引入到本项目,避免开发rust时还要依赖nodejs。</li>
+</ul>
 <p>多实例的raft和distro分布式协议说明待补充</p>
 <h2 id="配置中心"><a class="header" href="#配置中心">配置中心</a></h2>
 <p>配置模型图</p>
