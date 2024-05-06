@@ -408,12 +408,15 @@ nacos_rust_client = "0.3.0"
 
 ## r-nacos架构图
 
-单实例：
 
-![](https://raw.githubusercontent.com/r-nacos/r-nacos/master/doc/assets/imgs/rnacos_L2_0.1.4.svg)
+![架构图](https://raw.githubusercontent.com/r-nacos/r-nacos/master/doc/assets/imgs/r-nacos_L2_0.3.7.svg)
 
-前端应用因依赖nodejs,所以单独放到另一个项目 [r-nacos-console-web](https://github.com/r-nacos/rnacos-console-web) ,再通过cargo 把打包好的前端资源引入到本项目,避免开发rust时还要依赖nodejs。
+说明：
 
++ r-nacos默认支持集群部署，单机就相当于一个节点的集群，后续有需要可以按需加入新的节点；
++ 数据持久化使用raft协议分布式数据库(raft协议+节点文件存储),类似etcd; 
++ 只需对`RNACOS_CONFIG_DB_DIR:nacos_db`目录下的文件备份与恢复，即可实现数据的备份与恢复；
++ r-nacos控制台使用前后端分离架构；前端应用因依赖nodejs,所以单独放到另一个项目 [r-nacos-console-web](https://github.com/r-nacos/rnacos-console-web) ,再通过cargo 把打包好的前端资源引入到本项目,避免开发rust时还要依赖nodejs。
 
 r-nacos架构设计参考： [架构](https://r-nacos.github.io/docs/notes/architecture/)
 

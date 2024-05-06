@@ -24,6 +24,7 @@ use super::dal::ConfigHistoryParam;
 use crate::config::config_index::{ConfigQueryParam, TenantIndex};
 use crate::config::config_type::ConfigType;
 use crate::config::model::{ConfigRaftCmd, ConfigRaftResult, ConfigValueDO, HistoryItem};
+use crate::config::utils::param_utils;
 use crate::now_millis_i64;
 use crate::raft::filestore::model::SnapshotRecordDto;
 use crate::raft::filestore::raftsnapshot::{SnapshotWriterActor, SnapshotWriterRequest};
@@ -57,6 +58,20 @@ impl ConfigKey {
             return format!("{}\x02{}", self.data_id, self.group);
         }
         format!("{}\x02{}\x02{}", self.data_id, self.group, self.tenant)
+    }
+
+    ///
+    /// 是否合法的key
+    /// 暂时只用于接口层面判断,以支持对部分场景不校验
+    ///
+    pub fn is_valid(&self) -> anyhow::Result<()> {
+        if !param_utils::is_valid(self.data_id.as_str()) {
+            return Err(anyhow::anyhow!("the config data_id is invalid : {}",self.data_id.as_str()))
+        }
+        if !param_utils::is_valid(self.group.as_str())  {
+            return Err(anyhow::anyhow!("the config group is invalid : {}",self.group.as_str()))
+        }
+        Ok(())
     }
 }
 
