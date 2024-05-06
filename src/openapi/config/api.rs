@@ -20,7 +20,7 @@ use crate::utils::select_option_by_clone;
 pub(super) fn service() -> Scope {
     web::scope("/configs")
         .service(
-            web::resource("(/)?")
+            web::resource("/")
                 .route(web::get().to(get_config))
                 .route(web::post().to(add_config))
                 .route(web::put().to(add_config))
