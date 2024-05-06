@@ -1,13 +1,14 @@
 use actix::Addr;
-use actix_web::{get, HttpResponse, Responder, Scope, web};
 use actix_web::http::header;
+use actix_web::{get, web, HttpResponse, Responder, Scope};
 
 use crate::naming::core::{NamingActor, NamingCmd, NamingResult};
-use crate::naming::ops::ops_model::{OpsServiceDto, OpsServiceOptQueryListResponse, OpsServiceQueryListRequest};
+use crate::naming::ops::ops_model::{
+    OpsServiceDto, OpsServiceOptQueryListResponse, OpsServiceQueryListRequest,
+};
 
 pub(super) fn service() -> Scope {
-    web::scope("/catalog")
-        .service(query_opt_service_list)
+    web::scope("/catalog").service(query_opt_service_list)
 }
 
 #[get("/services")]

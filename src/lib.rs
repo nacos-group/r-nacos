@@ -5,12 +5,12 @@ pub mod console;
 pub mod grpc;
 pub mod middle;
 pub mod naming;
+pub mod openapi;
 pub mod raft;
 pub mod starter;
 pub mod user;
 pub mod utils;
 pub mod web_config;
-pub mod openapi;
 
 pub use inner_mem_cache::TimeoutSet;
 

@@ -1,5 +1,5 @@
 use actix::Addr;
-use actix_web::{HttpResponse, Responder, Scope, web};
+use actix_web::{web, HttpResponse, Responder, Scope};
 
 use crate::common::web_utils::get_req_body;
 use crate::naming::api_model::ServiceInfoParam;
@@ -21,10 +21,10 @@ pub(super) fn service() -> Scope {
 }
 
 pub async fn query_service(
-    param: web::Query<ServiceQueryListRequest>,
-    naming_addr: web::Data<Addr<NamingActor>>,
+    _param: web::Query<ServiceQueryListRequest>,
+    _naming_addr: web::Data<Addr<NamingActor>>,
 ) -> impl Responder {
-    HttpResponse::InternalServerError().body("error,not suport at present")
+    HttpResponse::InternalServerError().body("error,not support at present")
 }
 
 pub async fn update_service(
@@ -91,7 +91,6 @@ pub async fn remove_service(
         Err(err) => HttpResponse::InternalServerError().body(err.to_string()),
     }
 }
-
 
 pub async fn query_service_list(
     param: web::Query<ServiceQueryListRequest>,

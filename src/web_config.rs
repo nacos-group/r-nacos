@@ -1,13 +1,9 @@
-use std::ops::Deref;
-use std::sync::Arc;
-
-use actix_web::{HttpResponse, Responder, web};
-use actix_web::web::{Data, ServiceConfig};
+use actix_web::web::ServiceConfig;
+use actix_web::{web, HttpResponse, Responder};
 use mime_guess::from_path;
 use rnacos_web_dist_wrap::get_embedded_file;
 
 use crate::auth::{login_config, mock_token};
-use crate::common::appdata::AppShareData;
 use crate::common::AppSysConfig;
 use crate::console::api::{console_api_config, console_api_config_new, console_api_config_v2};
 use crate::openapi::openapi_config;
@@ -84,16 +80,23 @@ async fn disable_no_auth_console_index() -> impl Responder {
 
 ///
 /// 面向SDK的http服务接口
-pub fn app_config(conf_data: AppSysConfig) -> impl FnOnce(&mut ServiceConfig)
-{
+pub fn app_config(conf_data: AppSysConfig) -> impl FnOnce(&mut ServiceConfig) {
     move |config: &mut ServiceConfig| {
         let config = if !conf_data.enable_no_auth_console {
             config
                 .service(web::resource("/").route(web::get().to(disable_no_auth_console_index)))
-                .service(web::resource("/nacos").route(web::get().to(disable_no_auth_console_index)))
-                .service(web::resource("/nacos/").route(web::get().to(disable_no_auth_console_index)))
-                .service(web::resource("/rnacos").route(web::get().to(disable_no_auth_console_index)))
-                .service(web::resource("/rnacos/").route(web::get().to(disable_no_auth_console_index)))
+                .service(
+                    web::resource("/nacos").route(web::get().to(disable_no_auth_console_index)),
+                )
+                .service(
+                    web::resource("/nacos/").route(web::get().to(disable_no_auth_console_index)),
+                )
+                .service(
+                    web::resource("/rnacos").route(web::get().to(disable_no_auth_console_index)),
+                )
+                .service(
+                    web::resource("/rnacos/").route(web::get().to(disable_no_auth_console_index)),
+                )
         } else {
             config
         };

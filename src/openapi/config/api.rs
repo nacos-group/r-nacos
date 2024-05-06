@@ -3,14 +3,16 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use actix::Addr;
-use actix_web::{HttpRequest, HttpResponse, Responder, Scope, web};
+use actix_web::{web, HttpRequest, HttpResponse, Responder, Scope};
 use chrono::Local;
 use serde::{Deserialize, Serialize};
 
 use crate::common::appdata::AppShareData;
 use crate::common::web_utils::get_req_body;
 use crate::config::config_type::ConfigType;
-use crate::config::core::{ConfigActor, ConfigCmd, ConfigKey, ConfigResult, ListenerItem, ListenerResult};
+use crate::config::core::{
+    ConfigActor, ConfigCmd, ConfigKey, ConfigResult, ListenerItem, ListenerResult,
+};
 use crate::config::utils::param_utils;
 use crate::raft::cluster::model::{DelConfigReq, SetConfigReq};
 use crate::utils::select_option_by_clone;
@@ -22,7 +24,7 @@ pub(super) fn service() -> Scope {
                 .route(web::get().to(get_config))
                 .route(web::post().to(add_config))
                 .route(web::put().to(add_config))
-                .route(web::delete().to(del_config))
+                .route(web::delete().to(del_config)),
         )
         .service(web::resource("/listener").route(web::post().to(listener_config)))
 }
@@ -224,7 +226,6 @@ pub(crate) async fn get_config(
         Err(e) => HttpResponse::InternalServerError().body(e),
     }
 }
-
 
 #[derive(Serialize, Deserialize)]
 pub struct ListenerParams {

@@ -1,8 +1,7 @@
-use actix_web::{get, Responder, Scope, web};
+use actix_web::{get, web, Responder, Scope};
 
 pub(super) fn service() -> Scope {
-    web::scope("/operator")
-        .service(mock_operator_metrics)
+    web::scope("/operator").service(mock_operator_metrics)
 }
 
 #[get("/metrics")]
