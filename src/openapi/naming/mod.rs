@@ -1,6 +1,6 @@
 use actix_web::{web, Scope};
 
-use crate::openapi::constant::{NAMING_V1_BASE_PATH, SLASH};
+use crate::openapi::constant::NAMING_V1_BASE_PATH;
 use crate::openapi::RouteConf;
 
 mod catalog;
@@ -9,11 +9,11 @@ mod operator;
 pub(crate) mod service;
 mod v2;
 
-pub fn openapi_service(conf: RouteConf) -> Scope {
-    web::scope(SLASH).service(openapi_route(conf))
+pub fn openapi_service(conf: RouteConf) -> Vec<Scope> {
+    vec![openapi_v1_route(conf)]
 }
 
-pub fn openapi_route(_conf: RouteConf) -> Scope {
+pub fn openapi_v1_route(_conf: RouteConf) -> Scope {
     web::scope(NAMING_V1_BASE_PATH)
         .service(instance::service())
         .service(service::service())

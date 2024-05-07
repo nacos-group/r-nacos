@@ -15,12 +15,13 @@ use crate::naming::api_model::InstanceVO;
 use crate::naming::core::{NamingActor, NamingCmd, NamingResult};
 use crate::naming::model::{Instance, InstanceUpdateTag, ServiceKey};
 use crate::naming::{NamingUtils, CLIENT_BEAT_INTERVAL_KEY, RESPONSE_CODE_KEY, RESPONSE_CODE_OK};
+use crate::openapi::constant::EMPTY;
 use crate::utils::{get_bool_from_string, select_option_by_clone};
 
 pub(super) fn service() -> Scope {
     web::scope("/instance")
         .service(
-            web::resource("/")
+            web::resource(EMPTY)
                 .route(web::get().to(get_instance))
                 .route(web::post().to(add_instance))
                 .route(web::put().to(update_instance))

@@ -6,12 +6,13 @@ use crate::naming::api_model::ServiceInfoParam;
 use crate::naming::core::{NamingActor, NamingCmd, NamingResult};
 use crate::naming::model::ServiceKey;
 use crate::naming::NamingUtils;
+use crate::openapi::constant::EMPTY;
 use crate::openapi::naming::instance::{ServiceQueryListRequest, ServiceQueryListResponce};
 
 pub(super) fn service() -> Scope {
     web::scope("/service")
         .service(
-            web::resource("/")
+            web::resource(EMPTY)
                 .route(web::post().to(update_service))
                 .route(web::put().to(update_service))
                 .route(web::delete().to(remove_service))

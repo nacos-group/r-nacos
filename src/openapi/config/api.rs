@@ -14,13 +14,14 @@ use crate::config::core::{
     ConfigActor, ConfigCmd, ConfigKey, ConfigResult, ListenerItem, ListenerResult,
 };
 use crate::config::utils::param_utils;
+use crate::openapi::constant::EMPTY;
 use crate::raft::cluster::model::{DelConfigReq, SetConfigReq};
 use crate::utils::select_option_by_clone;
 
 pub(super) fn service() -> Scope {
     web::scope("/configs")
         .service(
-            web::resource("/")
+            web::resource(EMPTY)
                 .route(web::get().to(get_config))
                 .route(web::post().to(add_config))
                 .route(web::put().to(add_config))
