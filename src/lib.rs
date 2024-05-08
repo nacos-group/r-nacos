@@ -5,6 +5,7 @@ pub mod console;
 pub mod grpc;
 pub mod middle;
 pub mod naming;
+pub mod openapi;
 pub mod raft;
 pub mod starter;
 pub mod user;

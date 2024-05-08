@@ -1,4 +1,3 @@
-pub mod api;
 pub mod api_model;
 pub mod core;
 pub(crate) mod filter;
