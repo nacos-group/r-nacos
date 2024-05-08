@@ -61,7 +61,7 @@ rnacos
 git clone https://github.com/heqingpan/rnacos.git
 cd rnacos
 cargo build --release
-cargo run
+cargo run --release
 ```
 
 

@@ -96,7 +96,7 @@ rnacos
 git clone https://github.com/r-nacos/r-nacos.git
 cd r-nacos
 cargo build --release
-cargo run
+cargo run --release
 ```
 
 方式5: MacOS支持通过brew安装
