@@ -126,7 +126,7 @@ pub async fn remove_config(
 ) -> impl Responder {
     let config_key = param.to_key();
     let req = DelConfigReq::new(config_key);
-    if let Ok(_) = appdata.config_route.del_config(req).await {
+    if appdata.config_route.del_config(req).await.is_ok() {
         HttpResponse::Ok().json(ApiResult::success(Some(true)))
     } else {
         HttpResponse::Ok().json(ApiResult::<()>::error(

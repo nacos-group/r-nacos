@@ -230,7 +230,7 @@ impl ListenerItem {
                     list.push(ListenerItem::new(key, Arc::new(end_value)));
                 } else {
                     if end_value == "public" {
-                        end_value = "".to_owned();
+                        "".clone_into(&mut end_value);
                     }
                     let key = ConfigKey::new(&tmp_list[0], &tmp_list[1], &end_value);
                     list.push(ListenerItem::new(key, Arc::new(tmp_list[2].to_owned())));

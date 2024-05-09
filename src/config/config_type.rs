@@ -11,10 +11,10 @@ lazy_static::lazy_static! {
 }
 
 //html media type
-pub(crate) const MEDIA_TYPE_TEXT_PLAIN: &'static str = "text/plain;charset=UTF-8";
-pub(crate) const MEDIA_TYPE_TEXT_HTML: &'static str = "text/html;charset=UTF-8";
-pub(crate) const MEDIA_TYPE_APPLICATION_JSON: &'static str = "application/json;charset=UTF-8";
-pub(crate) const MEDIA_TYPE_APPLICATION_XML: &'static str = "application/xml;charset=UTF-8";
+pub(crate) const MEDIA_TYPE_TEXT_PLAIN: &str = "text/plain;charset=UTF-8";
+pub(crate) const MEDIA_TYPE_TEXT_HTML: &str = "text/html;charset=UTF-8";
+pub(crate) const MEDIA_TYPE_APPLICATION_JSON: &str = "application/json;charset=UTF-8";
+pub(crate) const MEDIA_TYPE_APPLICATION_XML: &str = "application/xml;charset=UTF-8";
 
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]
 pub enum ConfigType {

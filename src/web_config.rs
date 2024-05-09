@@ -3,7 +3,7 @@ use actix_web::{web, HttpResponse, Responder};
 use mime_guess::from_path;
 use rnacos_web_dist_wrap::get_embedded_file;
 
-use crate::auth::{login_config, mock_token};
+use crate::openapi::auth::{login_config, mock_token};
 use crate::common::AppSysConfig;
 use crate::console::api::{console_api_config, console_api_config_new, console_api_config_v2};
 use crate::openapi::openapi_config;

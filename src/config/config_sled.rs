@@ -128,7 +128,7 @@ impl ConfigDB {
     }
 
     fn init_config_history_info(&mut self, key: &ConfigKey) {
-        if self.config_history_id_map.get(key).is_none() {
+        if !self.config_history_id_map.contains_key(key) {
             self.config_history_id_map
                 .insert(key.clone(), ConfigHistoryIdInfo::new(5));
         }
@@ -247,7 +247,7 @@ impl ConfigDB {
             let mut config_key = config.to_key();
             let history_name = Config::build_config_history_tree_name(&mut config_key);
 
-            if let Ok(his_tree) = self.db.open_tree(&history_name) {
+            if let Ok(his_tree) = self.db.open_tree(history_name) {
                 let total: usize = his_tree.len();
                 let mut ret = vec![];
                 let iter = his_tree.iter().rev();

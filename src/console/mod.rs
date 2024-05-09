@@ -8,6 +8,7 @@ pub mod naming_api;
 pub mod user_api;
 
 pub mod v2;
+pub mod middle;
 
 use std::sync::Arc;
 

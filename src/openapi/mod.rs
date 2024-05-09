@@ -8,6 +8,7 @@ mod constant;
 pub(crate) mod naming;
 mod v1;
 mod v2;
+pub(crate) mod auth;
 
 /// r-nacos openapi packages
 

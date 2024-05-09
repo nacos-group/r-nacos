@@ -1,4 +1,5 @@
 use std::convert::TryFrom;
+use std::fmt::Formatter;
 
 use ratelimiter_rs::RateLimiter;
 
@@ -49,12 +50,10 @@ impl TryFrom<&str> for LimiterData {
     }
 }
 
-impl ToString for LimiterData {
-    fn to_string(&self) -> String {
-        format!(
-            "{},{},{}",
-            self.rate_to_ms_conversion, self.consumed_tokens, self.last_refill_time
-        )
+impl std::fmt::Display for LimiterData{
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f,"{},{},{}",
+               self.rate_to_ms_conversion, self.consumed_tokens, self.last_refill_time)
     }
 }
 

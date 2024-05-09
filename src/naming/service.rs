@@ -48,7 +48,7 @@ pub struct Service {
 
 impl Service {
     pub(crate) fn recalculate_checksum(&mut self) {
-        self.check_sum = "".to_owned();
+        "".clone_into(&mut self.check_sum);
     }
 
     /*

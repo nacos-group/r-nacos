@@ -12,7 +12,7 @@ use rnacos::grpc::nacos_proto::bi_request_stream_server::BiRequestStreamServer;
 use rnacos::grpc::nacos_proto::request_server::RequestServer;
 use rnacos::grpc::server::BiRequestStreamServerImpl;
 use rnacos::grpc::PayloadUtils;
-use rnacos::middle::login_middle::CheckLogin;
+use rnacos::console::middle::login_middle::CheckLogin;
 use rnacos::naming::core::{NamingCmd, NamingResult};
 use rnacos::raft::cluster::model::RouterRequest;
 use rnacos::raft::cluster::route::{ConfigRoute, RaftAddrRouter};
