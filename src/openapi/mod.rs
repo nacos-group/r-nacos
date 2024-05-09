@@ -3,12 +3,12 @@ use actix_web::web::{scope, ServiceConfig};
 use crate::common::AppSysConfig;
 use crate::openapi::constant::NACOS_PREFIX;
 
+pub(crate) mod auth;
 pub(crate) mod config;
 mod constant;
 pub(crate) mod naming;
 mod v1;
 mod v2;
-pub(crate) mod auth;
 
 /// r-nacos openapi packages
 

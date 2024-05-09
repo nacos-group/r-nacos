@@ -66,6 +66,8 @@ pub struct AppSysConfig {
     pub raft_snapshot_log_size: u64,
     pub console_login_timeout: i32,
     pub console_login_one_hour_limit: u32,
+    pub openapi_login_timeout: i32,
+    pub openapi_login_one_minute_limit: u32,
     pub gmt_fixed_offset_hours: Option<i32>,
 }
 
@@ -112,7 +114,15 @@ impl AppSysConfig {
         let console_login_one_hour_limit = std::env::var("RNACOS_CONSOLE_LOGIN_ONE_HOUR_LIMIT")
             .unwrap_or("5".to_owned())
             .parse()
-            .unwrap_or(8848);
+            .unwrap_or(5);
+        let openapi_login_timeout = std::env::var("RNACOS_API_LOGIN_TIMEOUT")
+            .unwrap_or("3600".to_owned())
+            .parse()
+            .unwrap_or(3600);
+        let openapi_login_one_minute_limit = std::env::var("RNACOS_API_LOGIN_ONE_MINUTE_LIMIT")
+            .unwrap_or("100".to_owned())
+            .parse()
+            .unwrap_or(100);
         let raft_snapshot_log_size = std::env::var("RNACOS_RAFT_SNAPSHOT_LOG_SIZE")
             .unwrap_or("10000".to_owned())
             .parse()
@@ -141,6 +151,8 @@ impl AppSysConfig {
             raft_snapshot_log_size,
             console_login_timeout,
             console_login_one_hour_limit,
+            openapi_login_timeout,
+            openapi_login_one_minute_limit,
             gmt_fixed_offset_hours,
         }
     }

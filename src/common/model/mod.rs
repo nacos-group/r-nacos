@@ -86,7 +86,14 @@ pub struct PageResult<T> {
 #[derive(Debug, Default, Clone, Deserialize, Serialize)]
 pub struct UserSession {
     pub username: Arc<String>,
-    pub nickname: String,
+    pub nickname: Option<String>,
+    pub roles: Vec<Arc<String>>,
+    pub extend_infos: HashMap<String, String>,
+}
+
+#[derive(Debug, Default, Clone, Deserialize, Serialize)]
+pub struct TokenSession {
+    pub username: Arc<String>,
     pub roles: Vec<Arc<String>>,
     pub extend_infos: HashMap<String, String>,
 }

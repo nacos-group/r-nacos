@@ -93,7 +93,7 @@ pub async fn login(
             );
             let session = Arc::new(UserSession {
                 username: user.username,
-                nickname: user.nickname.unwrap_or_default(),
+                nickname: user.nickname,
                 roles: user.roles.unwrap_or_default(),
                 extend_infos: user.extend_info.unwrap_or_default(),
             });

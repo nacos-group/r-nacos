@@ -50,10 +50,13 @@ impl TryFrom<&str> for LimiterData {
     }
 }
 
-impl std::fmt::Display for LimiterData{
+impl std::fmt::Display for LimiterData {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f,"{},{},{}",
-               self.rate_to_ms_conversion, self.consumed_tokens, self.last_refill_time)
+        write!(
+            f,
+            "{},{},{}",
+            self.rate_to_ms_conversion, self.consumed_tokens, self.last_refill_time
+        )
     }
 }
 

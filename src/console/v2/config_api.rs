@@ -101,10 +101,10 @@ pub async fn add_config(
 ) -> impl Responder {
     let content = param.content.clone().unwrap_or_default();
     let config_key = param.to_key();
-    if let Err(e)= config_key.is_valid() {
+    if let Err(e) = config_key.is_valid() {
         return HttpResponse::Ok().json(ApiResult::<()>::error(
             ERROR_CODE_SYSTEM_ERROR.to_string(),
-            Some(e.to_string())
+            Some(e.to_string()),
         ));
     }
     let mut req = SetConfigReq::new(config_key, content);

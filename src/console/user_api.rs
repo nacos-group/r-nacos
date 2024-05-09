@@ -29,7 +29,7 @@ pub async fn get_user_info(req: HttpRequest) -> actix_web::Result<impl Responder
     if let Some(session) = req.extensions().get::<Arc<UserSession>>() {
         let userinfo = UserInfo {
             username: Some(session.username.clone()),
-            nickname: Some(session.nickname.clone()),
+            nickname: session.nickname.clone(),
         };
         Ok(HttpResponse::Ok().json(ApiResult::success(Some(userinfo))))
     } else {

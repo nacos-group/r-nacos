@@ -32,6 +32,13 @@ where
     a.map(|v| v.to_owned())
 }
 
+pub fn merge_option<T>(a: Option<T>, b: Option<T>) -> Option<T> {
+    match a {
+        Some(v) => Some(v),
+        None => b,
+    }
+}
+
 pub fn get_bool_from_string(s: &Option<String>, default: bool) -> bool {
     if let Some(s) = s {
         if s.eq_ignore_ascii_case("true") {

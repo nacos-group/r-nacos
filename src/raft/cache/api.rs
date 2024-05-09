@@ -62,6 +62,9 @@ pub async fn get_cache(
                 CacheValue::UserSession(m) => {
                     Arc::new(serde_json::to_string(&m).unwrap_or_default())
                 }
+                CacheValue::ApiTokenSession(m) => {
+                    Arc::new(serde_json::to_string(&m).unwrap_or_default())
+                }
             };
             Ok(Json(ValueResult {
                 value: vstr,

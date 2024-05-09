@@ -66,10 +66,16 @@ impl ConfigKey {
     ///
     pub fn is_valid(&self) -> anyhow::Result<()> {
         if !param_utils::is_valid(self.data_id.as_str()) {
-            return Err(anyhow::anyhow!("the config data_id is invalid : {}",self.data_id.as_str()))
+            return Err(anyhow::anyhow!(
+                "the config data_id is invalid : {}",
+                self.data_id.as_str()
+            ));
         }
-        if !param_utils::is_valid(self.group.as_str())  {
-            return Err(anyhow::anyhow!("the config group is invalid : {}",self.group.as_str()))
+        if !param_utils::is_valid(self.group.as_str()) {
+            return Err(anyhow::anyhow!(
+                "the config group is invalid : {}",
+                self.group.as_str()
+            ));
         }
         Ok(())
     }
