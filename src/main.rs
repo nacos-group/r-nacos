@@ -35,6 +35,7 @@ use env_logger::TimestampPrecision;
 use env_logger_timezone_fmt::{TimeZoneFormat, TimeZoneFormatEnv};
 use rnacos::common::appdata::AppShareData;
 use rnacos::common::constant::APP_VERSION;
+use rnacos::openapi::middle::auth_middle::ApiCheckAuth;
 use rnacos::raft::NacosRaft;
 use rnacos::web_config::{app_config, console_config};
 
@@ -89,7 +90,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     });
 
     let app_console_data = app_data.clone();
-    let app_data = Data::new(app_data);
+    let app_data = app_data;
 
     if sys_config.http_console_port > 0 {
         std::thread::spawn(move || {
@@ -104,16 +105,18 @@ async fn main() -> Result<(), Box<dyn Error>> {
     }
 
     let mut server = HttpServer::new(move || {
+        let app_data = app_data.clone();
         let config_addr = app_data.config_addr.clone();
         let naming_addr = app_data.naming_addr.clone();
         let bistream_manage_http_addr = app_data.bi_stream_manage.clone();
-        let app_data = app_data.clone();
+        let source_app_data = app_data.clone();
         let app_config_shard = app_data.sys_config.deref().clone();
         App::new()
-            .app_data(app_data)
+            .app_data(Data::new(app_data))
             .app_data(Data::new(config_addr))
             .app_data(Data::new(naming_addr))
             .app_data(Data::new(bistream_manage_http_addr))
+            .wrap(ApiCheckAuth::new(source_app_data))
             .wrap(middleware::Logger::default())
             .configure(app_config(app_config_shard))
     });

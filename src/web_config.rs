@@ -82,7 +82,7 @@ async fn disable_no_auth_console_index() -> impl Responder {
 /// 面向SDK的http服务接口
 pub fn app_config(conf_data: AppSysConfig) -> impl FnOnce(&mut ServiceConfig) {
     move |config: &mut ServiceConfig| {
-        let config = if !conf_data.enable_no_auth_console {
+        let config = if !conf_data.enable_no_auth_console || conf_data.openapi_open_auth {
             config
                 .service(web::resource("/").route(web::get().to(disable_no_auth_console_index)))
                 .service(

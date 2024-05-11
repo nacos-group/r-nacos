@@ -66,9 +66,10 @@ pub struct AppSysConfig {
     pub raft_snapshot_log_size: u64,
     pub console_login_timeout: i32,
     pub console_login_one_hour_limit: u32,
+    pub gmt_fixed_offset_hours: Option<i32>,
     pub openapi_login_timeout: i32,
     pub openapi_login_one_minute_limit: u32,
-    pub gmt_fixed_offset_hours: Option<i32>,
+    pub openapi_open_auth: bool,
 }
 
 impl AppSysConfig {
@@ -135,6 +136,10 @@ impl AppSysConfig {
             .unwrap_or_default()
             .parse()
             .ok();
+        let openapi_open_auth = std::env::var("RNACOS_ENABLE_OPEN_API_AUTH")
+            .unwrap_or("false".to_owned())
+            .parse()
+            .unwrap_or(false);
         Self {
             config_db_dir,
             config_db_file,
@@ -154,6 +159,7 @@ impl AppSysConfig {
             openapi_login_timeout,
             openapi_login_one_minute_limit,
             gmt_fixed_offset_hours,
+            openapi_open_auth,
         }
     }
 
