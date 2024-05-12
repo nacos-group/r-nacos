@@ -32,6 +32,8 @@ pub struct LoginResult {
     pub global_admin: bool,
 }
 
+const UNKNOWN_USER: &str = "unknown user!";
+
 pub async fn login(
     app: web::Data<Arc<AppShareData>>,
     web::Query(a): web::Query<LoginParams>,
@@ -50,16 +52,15 @@ pub async fn login(
         app.raft_cache_route.request_limiter(limit_req).await
     {
         if !acquire_result {
-            return Ok(
-                HttpResponse::InternalServerError().json(ApiResult::<()>::error(
-                    "LOGIN_LIMITE_ERROR".to_owned(),
-                    Some("Frequent login, please try again later".to_owned()),
-                )),
-            );
+            return Ok(HttpResponse::Forbidden().json(ApiResult::<()>::error(
+                "LOGIN_LIMITE_ERROR".to_owned(),
+                Some("Frequent login, please try again later".to_owned()),
+            )));
         }
     } else {
-        return Ok(HttpResponse::InternalServerError()
-            .json(ApiResult::<()>::error("SYSTEM_ERROR".to_owned(), None)));
+        return Ok(
+            HttpResponse::Forbidden().json(ApiResult::<()>::error("SYSTEM_ERROR".to_owned(), None))
+        );
     }
     let msg = UserManagerReq::CheckUser {
         name: username,
@@ -96,12 +97,10 @@ pub async fn login(
             };
             return Ok(HttpResponse::Ok().json(login_result));
         } else {
-            return Ok(HttpResponse::InternalServerError()
-                .json(ApiResult::<()>::error("USER_CHECK_ERROR".to_owned(), None)));
+            return Ok(HttpResponse::Forbidden().body(UNKNOWN_USER));
         }
     }
-    Ok(HttpResponse::InternalServerError()
-        .json(ApiResult::<()>::error("SYSTEM_ERROR".to_owned(), None)))
+    Ok(HttpResponse::Forbidden().body(UNKNOWN_USER))
 }
 
 pub(crate) async fn mock_token() -> impl Responder {
