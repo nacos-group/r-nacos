@@ -15,6 +15,7 @@ use crate::raft::NacosRaft;
 use crate::user::UserManager;
 use actix::Addr;
 use bean_factory::FactoryData;
+use chrono::FixedOffset;
 use std::sync::Arc;
 
 pub struct AppShareData {
@@ -35,4 +36,5 @@ pub struct AppShareData {
     pub factory_data: FactoryData,
     pub user_manager: Addr<UserManager>,
     pub cache_manager: Addr<CacheManager>,
+    pub timezone_offset: Arc<FixedOffset>,
 }

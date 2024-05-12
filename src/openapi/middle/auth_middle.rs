@@ -1,5 +1,6 @@
 use crate::common::appdata::AppShareData;
-use crate::common::model::{ApiResult, TokenSession};
+use crate::common::datetime_utils;
+use crate::common::model::TokenSession;
 use crate::raft::cache::model::{CacheKey, CacheType, CacheValue};
 use crate::raft::cache::{CacheManager, CacheManagerReq, CacheManagerResult};
 use actix::Addr;
@@ -84,6 +85,7 @@ where
         };
 
         let cache_manager = self.app_share_data.cache_manager.clone();
+        let offset = self.app_share_data.timezone_offset.clone();
         let service = self.service.clone();
         Box::pin(async move {
             let token = if enable_auth && is_check_path {
@@ -121,9 +123,12 @@ where
                 res.await.map(ServiceResponse::map_into_left_body)
             } else {
                 //没有登录
-                let response = HttpResponse::BadGateway()
-                    //.body("AUTH_ERROR")
-                    .json(ApiResult::<()>::error("AUTH_ERROR".to_owned(), None))
+                let body=format!("{{\"timestamp\":\"{}\",\"status\":403,\"error\":\"Forbidden\",\"message\":\"unknown user!\",\"path\":\"{}\"}}"
+                                 ,datetime_utils::get_now_timestamp_str(&offset),request.path());
+                let response = HttpResponse::Forbidden()
+                    .insert_header(("Content-Type", "application/json;charset=UTF-8"))
+                    .body(body)
+                    //.json(ApiResult::<()>::error("AUTH_ERROR".to_owned(), None))
                     .map_into_right_body();
                 let (http_request, _pl) = request.into_parts();
                 let res = ServiceResponse::new(http_request, response);

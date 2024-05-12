@@ -41,6 +41,7 @@ use crate::{
 use actix::prelude::*;
 use async_raft_ext::{raft::ClientWriteRequest, Config, Raft, RaftStorage};
 use bean_factory::{BeanDefinition, BeanFactory, FactoryData};
+use chrono::{FixedOffset, Local, Offset};
 
 pub async fn config_factory(sys_config: Arc<AppSysConfig>) -> anyhow::Result<FactoryData> {
     /*
@@ -179,13 +180,20 @@ pub async fn config_factory(sys_config: Arc<AppSysConfig>) -> anyhow::Result<Fac
 }
 
 pub fn build_share_data(factory_data: FactoryData) -> anyhow::Result<Arc<AppShareData>> {
+    let sys_config: Arc<AppSysConfig> = factory_data.get_bean().unwrap();
+    let timezone_offset =
+        if let Some(offset_value) = sys_config.gmt_fixed_offset_hours.map(|e| e * 3600) {
+            FixedOffset::east_opt(offset_value).unwrap_or(Local::now().offset().fix())
+        } else {
+            Local::now().offset().fix()
+        };
     let app_data = Arc::new(AppShareData {
         config_addr: factory_data.get_actor().unwrap(),
         naming_addr: factory_data.get_actor().unwrap(),
         bi_stream_manage: factory_data.get_actor().unwrap(),
         raft: factory_data.get_bean().unwrap(),
         raft_store: factory_data.get_bean().unwrap(),
-        sys_config: factory_data.get_bean().unwrap(),
+        sys_config,
         config_route: factory_data.get_bean().unwrap(),
         cluster_sender: factory_data.get_bean().unwrap(),
         naming_route: factory_data.get_bean().unwrap(),
@@ -197,6 +205,7 @@ pub fn build_share_data(factory_data: FactoryData) -> anyhow::Result<Arc<AppShar
         user_manager: factory_data.get_actor().unwrap(),
         cache_manager: factory_data.get_actor().unwrap(),
         factory_data,
+        timezone_offset: Arc::new(timezone_offset),
     });
     Ok(app_data)
 }
