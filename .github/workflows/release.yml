@@ -30,7 +30,7 @@ jobs:
             os: ubuntu-latest
             name: rnacos-x86_64-unknown-linux-musl.tar.gz
           - target: x86_64-apple-darwin
-            os: macos-latest-large
+            os: macos-13
             name: rnacos-x86_64-apple-darwin.tar.gz
           - target: x86_64-pc-windows-msvc
             os: windows-latest
@@ -42,7 +42,7 @@ jobs:
             os: windows-latest
             name: rnacos-aarch64-pc-windows-msvc.zip
           - target: arm64-apple-darwin
-            os: macos-latest-xlarge
+            os: macos-latest
             name: rnacos-arm64-apple-darwin.tar.gz
     runs-on: ${{ matrix.os }}
     steps:
@@ -59,7 +59,7 @@ jobs:
       # Install gnu-tar because BSD tar is buggy
       # https://github.com/actions/cache/issues/403
       - name: Install GNU tar (macOS)
-        if:  ${{ matrix.os == 'macos-latest-large' || matrix.os == 'macos-latest-xlarge' }}
+        if:  ${{ matrix.os == 'macos-13' || matrix.os == 'macos-latest' }}
         run: |
           brew install gnu-tar
           echo "/usr/local/opt/gnu-tar/libexec/gnubin" >> $GITHUB_PATH
