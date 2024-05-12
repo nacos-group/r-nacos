@@ -25,6 +25,40 @@ pub struct HandlerResult {
     pub payload: nacos_proto::Payload,
     pub message: Option<String>,
 }
+impl HandlerResult {
+    pub fn success(payload: nacos_proto::Payload) -> Self {
+        Self {
+            success: true,
+            message: None,
+            payload,
+        }
+    }
+
+    pub fn error(code: u16, message: String) -> Self {
+        let payload = PayloadUtils::build_error_payload(code, message.clone());
+        Self {
+            success: false,
+            message: Some(message),
+            payload,
+        }
+    }
+
+    pub fn error_mark(payload: nacos_proto::Payload) -> Self {
+        Self {
+            success: false,
+            message: None,
+            payload,
+        }
+    }
+
+    pub fn error_with_message(payload: nacos_proto::Payload, message: String) -> Self {
+        Self {
+            success: false,
+            message: Some(message),
+            payload,
+        }
+    }
+}
 
 #[async_trait]
 pub trait PayloadHandler {
@@ -32,7 +66,7 @@ pub trait PayloadHandler {
         &self,
         request_payload: nacos_proto::Payload,
         request_meta: RequestMeta,
-    ) -> anyhow::Result<nacos_proto::Payload>;
+    ) -> anyhow::Result<HandlerResult>;
 }
 
 pub struct PayloadUtils;

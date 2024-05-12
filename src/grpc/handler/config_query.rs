@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use crate::config::config_type::ConfigType;
 use crate::grpc::api_model::NOT_FOUND;
+use crate::grpc::HandlerResult;
 use crate::{
     common::appdata::AppShareData,
     config::core::{ConfigActor, ConfigCmd, ConfigKey, ConfigResult},
@@ -35,7 +36,7 @@ impl PayloadHandler for ConfigQueryRequestHandler {
         &self,
         request_payload: crate::grpc::nacos_proto::Payload,
         _request_meta: crate::grpc::RequestMeta,
-    ) -> anyhow::Result<Payload> {
+    ) -> anyhow::Result<HandlerResult> {
         let body_vec = request_payload.body.unwrap_or_default().value;
         let request: ConfigQueryRequest = serde_json::from_slice(&body_vec)?;
         let cmd = ConfigCmd::GET(ConfigKey::new(
@@ -79,19 +80,19 @@ impl PayloadHandler for ConfigQueryRequestHandler {
                         response.message = Some("config data not exist".to_owned());
                     }
                 }
-                Ok(PayloadUtils::build_payload(
+                Ok(HandlerResult::success(PayloadUtils::build_payload(
                     "ConfigQueryResponse",
                     serde_json::to_string(&response)?,
-                ))
+                )))
             }
             Err(err) => {
                 response.result_code = ERROR_CODE;
                 response.error_code = ERROR_CODE;
                 response.message = Some(err.to_string());
-                Ok(PayloadUtils::build_payload(
+                Ok(HandlerResult::success(PayloadUtils::build_payload(
                     "ErrorResponse",
                     serde_json::to_string(&response)?,
-                ))
+                )))
             }
         }
     }

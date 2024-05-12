@@ -5,6 +5,7 @@ use std::sync::{
     Arc,
 };
 
+use crate::grpc::HandlerResult;
 use crate::{
     common::appdata::AppShareData,
     grpc::{
@@ -97,7 +98,7 @@ impl PayloadHandler for InstanceRequestHandler {
         &self,
         request_payload: crate::grpc::nacos_proto::Payload,
         request_meta: crate::grpc::RequestMeta,
-    ) -> anyhow::Result<Payload> {
+    ) -> anyhow::Result<HandlerResult> {
         let body_vec = request_payload.body.unwrap_or_default().value;
         let request: InstanceRequest = serde_json::from_slice(&body_vec)?;
         let request_id = request.request_id.clone();
@@ -138,15 +139,15 @@ impl PayloadHandler for InstanceRequestHandler {
                 response.result_code = ERROR_CODE;
                 response.error_code = 500u16;
                 response.message = Some(err.to_string());
-                return Ok(PayloadUtils::build_payload(
+                return Ok(HandlerResult::success(PayloadUtils::build_payload(
                     "ErrorResponse",
                     serde_json::to_string(&response)?,
-                ));
+                )));
             }
         };
-        Ok(PayloadUtils::build_payload(
+        Ok(HandlerResult::success(PayloadUtils::build_payload(
             "InstanceResponse",
             serde_json::to_string(&response)?,
-        ))
+        )))
     }
 }

@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use crate::grpc::HandlerResult;
 use crate::{
     common::appdata::AppShareData,
     grpc::{nacos_proto::Payload, PayloadHandler, PayloadUtils, RequestMeta},
@@ -23,7 +24,7 @@ impl PayloadHandler for NamingRouteRequestHandler {
         &self,
         request_payload: Payload,
         _request_meta: RequestMeta,
-    ) -> anyhow::Result<Payload> {
+    ) -> anyhow::Result<HandlerResult> {
         let body_vec = request_payload.body.unwrap_or_default().value;
         let request: NamingRouteRequest = serde_json::from_slice(&body_vec)?;
         let res = handle_naming_route(
@@ -37,6 +38,6 @@ impl PayloadHandler for NamingRouteRequestHandler {
         .await?;
         let value = serde_json::to_string(&res)?;
         let payload = PayloadUtils::build_payload("NamingRouteResponse", value);
-        Ok(payload)
+        Ok(HandlerResult::success(payload))
     }
 }

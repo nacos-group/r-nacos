@@ -15,7 +15,7 @@ use self::{
 use super::{
     api_model::{BaseResponse, ServerCheckResponse, SUCCESS_CODE},
     nacos_proto::Payload,
-    PayloadHandler, PayloadUtils, RequestMeta,
+    HandlerResult, PayloadHandler, PayloadUtils, RequestMeta,
 };
 use crate::grpc::handler::raft_append::RaftAppendRequestHandler;
 use crate::grpc::handler::raft_snapshot::RaftSnapshotRequestHandler;
@@ -183,9 +183,9 @@ impl InvokerHandler {
 impl PayloadHandler for InvokerHandler {
     async fn handle(
         &self,
-        request_payload: super::nacos_proto::Payload,
+        request_payload: Payload,
         request_meta: RequestMeta,
-    ) -> anyhow::Result<Payload> {
+    ) -> anyhow::Result<HandlerResult> {
         if let Some(url) = PayloadUtils::get_payload_type(&request_payload) {
             if SERVER_CHECK_REQUEST.eq(url) {
                 let response = ServerCheckResponse {
@@ -193,35 +193,29 @@ impl PayloadHandler for InvokerHandler {
                     connection_id: Some(request_meta.connection_id.as_ref().to_owned()),
                     ..Default::default()
                 };
-                return Ok(PayloadUtils::build_payload(
+                return Ok(HandlerResult::success(PayloadUtils::build_payload(
                     "ServerCheckResponse",
                     serde_json::to_string(&response)?,
-                ));
+                )));
             }
             if self.app.sys_config.openapi_enable_auth
                 && !self.ignore_auth(url)
                 && request_meta.token_session.is_none()
             {
                 //开启鉴权，但取不到用户会话信息
-                return Ok(PayloadUtils::build_error_payload(
-                    403u16,
-                    "unknown user!".to_string(),
-                ));
+                return Ok(HandlerResult::error(403u16, "unknown user!".to_string()));
             }
             //println!("InvokerHandler type:{}",url);
             if let Some(handler) = self.match_handler(url) {
                 return handler.handle(request_payload, request_meta).await;
             }
             log::warn!("InvokerHandler not fund handler,type:{}", url);
-            return Ok(PayloadUtils::build_error_payload(
+            return Ok(HandlerResult::error(
                 302u16,
                 format!("{} RequestHandler Not Found", url),
             ));
         }
-        Ok(PayloadUtils::build_error_payload(
-            302u16,
-            "empty type url".to_owned(),
-        ))
+        Ok(HandlerResult::error(302u16, "empty type url".to_owned()))
     }
 }
 
@@ -229,14 +223,14 @@ impl PayloadHandler for InvokerHandler {
 impl PayloadHandler for HealthCheckRequestHandler {
     async fn handle(
         &self,
-        _request_payload: super::nacos_proto::Payload,
+        _request_payload: Payload,
         _request_meta: RequestMeta,
-    ) -> anyhow::Result<Payload> {
+    ) -> anyhow::Result<HandlerResult> {
         //println!("HealthCheckRequest");
         let response = BaseResponse::build_success_response();
-        return Ok(PayloadUtils::build_payload(
+        return Ok(HandlerResult::success(PayloadUtils::build_payload(
             "HealthCheckResponse",
             serde_json::to_string(&response)?,
-        ));
+        )));
     }
 }

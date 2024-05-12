@@ -135,21 +135,28 @@ impl request_server::Request for RequestServerImpl {
             .as_secs_f64();
         match handle_result {
             Ok(res) => {
-                //log::info!("{}|ok|{}",PayloadUtils::get_payload_header(&res));
+                //log::info!("{}|ok|{}",PayloadUtils::get_payload_header(&res.payload));
                 //debug
-                //log::info!("client response: {}",PayloadUtils::get_payload_string(&res));
-                if duration < 1f64 {
+                //log::info!("client response: {}",PayloadUtils::get_payload_string(&res.payload));
+                if !res.success {
+                    let msg = if let Some(m) = &res.message {
+                        m.as_str()
+                    } else {
+                        ""
+                    };
+                    log::error!("{}|err|{}|{}", request_log_info, duration, msg);
+                } else if duration < 1f64 {
                     log::info!("{}|ok|{}", request_log_info, duration);
                 } else {
                     //slow request handle
                     log::warn!("{}|ok|{}", request_log_info, duration);
                 }
-                Ok(tonic::Response::new(res))
+                Ok(tonic::Response::new(res.payload))
             }
             Err(e) => {
                 //Err(tonic::Status::aborted(e.to_string()))
                 //log::error!("request_server handler error:{:?}",e);
-                log::error!("{}|err|{}|{:?}", request_log_info, duration, e);
+                log::error!("{}|err|{}|{}", request_log_info, duration, e);
                 Ok(tonic::Response::new(PayloadUtils::build_error_payload(
                     500u16,
                     e.to_string(),

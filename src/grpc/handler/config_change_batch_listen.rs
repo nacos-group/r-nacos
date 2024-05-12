@@ -2,6 +2,7 @@
 
 use std::sync::Arc;
 
+use crate::grpc::HandlerResult;
 use crate::{
     common::appdata::AppShareData,
     config::core::{ConfigActor, ConfigCmd, ConfigKey, ConfigResult, ListenerItem},
@@ -34,7 +35,7 @@ impl PayloadHandler for ConfigChangeBatchListenRequestHandler {
         &self,
         request_payload: crate::grpc::nacos_proto::Payload,
         request_meta: crate::grpc::RequestMeta,
-    ) -> anyhow::Result<Payload> {
+    ) -> anyhow::Result<HandlerResult> {
         let body_vec = request_payload.body.unwrap_or_default().value;
         let request: ConfigBatchListenRequest = serde_json::from_slice(&body_vec)?;
         let mut listener_items = vec![];
@@ -70,19 +71,19 @@ impl PayloadHandler for ConfigChangeBatchListenRequestHandler {
                         response.result_code = SUCCESS_CODE;
                     }
                 }
-                Ok(PayloadUtils::build_payload(
+                Ok(HandlerResult::success(PayloadUtils::build_payload(
                     "ConfigChangeBatchListenResponse",
                     serde_json::to_string(&response)?,
-                ))
+                )))
             }
             Err(err) => {
                 response.result_code = ERROR_CODE;
                 response.error_code = ERROR_CODE;
                 response.message = Some(err.to_string());
-                Ok(PayloadUtils::build_payload(
+                Ok(HandlerResult::success(PayloadUtils::build_payload(
                     "ErrorResponse",
                     serde_json::to_string(&response)?,
-                ))
+                )))
             }
         }
     }
