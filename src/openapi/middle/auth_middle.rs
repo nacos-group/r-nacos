@@ -75,9 +75,9 @@ where
 
     fn call(&self, req: ServiceRequest) -> Self::Future {
         let mut request = req;
-        let open_auth = self.app_share_data.sys_config.openapi_open_auth;
+        let enable_auth = self.app_share_data.sys_config.openapi_enable_auth;
         let path = request.path();
-        let is_check_path = if open_auth {
+        let is_check_path = if enable_auth {
             API_PATH.is_match(path) && !IGNORE_PATH.contains(&path)
         } else {
             true
@@ -86,7 +86,7 @@ where
         let cache_manager = self.app_share_data.cache_manager.clone();
         let service = self.service.clone();
         Box::pin(async move {
-            let token = if open_auth && is_check_path {
+            let token = if enable_auth && is_check_path {
                 if let Some(v) = request.headers().get(AUTHORIZATION_HEADER) {
                     Arc::new(v.to_str().unwrap_or_default().to_owned())
                 } else if let Ok(info) =
@@ -99,7 +99,7 @@ where
             } else {
                 EMPTY_TOKEN.clone()
             };
-            let pass = if !open_auth || !is_check_path {
+            let pass = if !enable_auth || !is_check_path {
                 true
             } else if token.is_empty() {
                 false

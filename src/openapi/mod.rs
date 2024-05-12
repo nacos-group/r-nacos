@@ -22,7 +22,7 @@ pub struct RouteConf {
 impl From<AppSysConfig> for RouteConf {
     fn from(val: AppSysConfig) -> Self {
         RouteConf {
-            enable_auth: !val.enable_no_auth_console,
+            enable_auth: !val.enable_no_auth_console || !val.openapi_enable_auth,
             auth_key: None,
         }
     }
