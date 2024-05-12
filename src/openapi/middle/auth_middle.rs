@@ -1,4 +1,5 @@
 use crate::common::appdata::AppShareData;
+use crate::common::constant::{AUTHORIZATION_HEADER, EMPTY_ARC_STRING};
 use crate::common::datetime_utils;
 use crate::common::model::TokenSession;
 use crate::raft::cache::model::{CacheKey, CacheType, CacheValue};
@@ -14,15 +15,12 @@ use serde::{Deserialize, Serialize};
 use std::future::{ready, Ready};
 use std::sync::Arc;
 
-pub(crate) const AUTHORIZATION_HEADER: &str = "Authorization";
-
 lazy_static::lazy_static! {
     pub static ref IGNORE_PATH: Vec<&'static str> = vec![
         "/nacos/v1/auth/login", "/nacos/v1/auth/users/login",
     ];
     pub static ref API_PATH: Regex = Regex::new(r"(?i)/nacos/.*").unwrap();
     //pub static ref PARM_AUTH_TOKEN: Regex = Regex::new(r"accessToken=(\w*)").unwrap();
-    pub static ref EMPTY_TOKEN: Arc<String> = Arc::new("".to_owned());
 }
 
 #[derive(Clone)]
@@ -99,7 +97,7 @@ where
                     peek_body_token(&mut request).await
                 }
             } else {
-                EMPTY_TOKEN.clone()
+                EMPTY_ARC_STRING.clone()
             };
             let pass = if !enable_auth || !is_check_path {
                 true
@@ -145,7 +143,7 @@ pub struct AccessInfo<'a> {
 }
 
 async fn peek_body_token(request: &mut ServiceRequest) -> Arc<String> {
-    let mut result = EMPTY_TOKEN.clone();
+    let mut result = EMPTY_ARC_STRING.clone();
     if request.method().as_str() == "GET" {
         return result;
     }

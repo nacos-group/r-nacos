@@ -1,12 +1,17 @@
 use std::sync::Arc;
 use std::time::SystemTime;
 
+use crate::common::appdata::AppShareData;
+use crate::common::constant::{ACCESS_TOKEN_HEADER, AUTHORIZATION_HEADER, EMPTY_ARC_STRING};
+use crate::common::model::TokenSession;
 use actix::prelude::*;
 //use tokio_stream::StreamExt;
 
 use crate::grpc::bistream_manage::BiStreamManageResult;
 use crate::grpc::nacos_proto::{request_server, Payload};
 use crate::grpc::{PayloadHandler, PayloadUtils, RequestMeta};
+use crate::raft::cache::model::{CacheKey, CacheType, CacheValue};
+use crate::raft::cache::{CacheManager, CacheManagerReq, CacheManagerResult};
 
 use super::bistream_conn::BiStreamConn;
 use super::bistream_manage::{BiStreamManage, BiStreamManageCmd};
@@ -14,16 +19,41 @@ use super::handler::InvokerHandler;
 use super::nacos_proto::bi_request_stream_server::BiRequestStream;
 
 pub struct RequestServerImpl {
-    bistream_manage_addr: Addr<BiStreamManage>,
+    app: Arc<AppShareData>,
     invoker: InvokerHandler,
 }
 
 impl RequestServerImpl {
-    pub fn new(bistream_manage_addr: Addr<BiStreamManage>, invoker: InvokerHandler) -> Self {
-        Self {
-            bistream_manage_addr,
-            invoker,
+    pub fn new(app: Arc<AppShareData>, invoker: InvokerHandler) -> Self {
+        Self { app, invoker }
+    }
+    async fn fill_token_session(
+        &self,
+        payload: &Payload,
+        request_meta: &mut RequestMeta,
+    ) -> anyhow::Result<()> {
+        let token = if let Some(meta) = &payload.metadata {
+            if let Some(v) = meta.headers.get(ACCESS_TOKEN_HEADER) {
+                Arc::new(v.to_owned())
+            } else if let Some(v) = meta.headers.get(AUTHORIZATION_HEADER) {
+                Arc::new(v.to_owned())
+            } else {
+                EMPTY_ARC_STRING.clone()
+            }
+        } else {
+            EMPTY_ARC_STRING.clone()
+        };
+        if self.app.sys_config.openapi_enable_auth && !token.is_empty() {
+            if let Ok(Some(session)) = get_user_session(
+                &self.app.cache_manager,
+                CacheManagerReq::Get(CacheKey::new(CacheType::ApiTokenSession, token.clone())),
+            )
+            .await
+            {
+                request_meta.token_session = Some(session);
+            }
         }
+        Ok(())
     }
 }
 
@@ -35,12 +65,12 @@ impl request_server::Request for RequestServerImpl {
     ) -> Result<tonic::Response<Payload>, tonic::Status> {
         let start = SystemTime::now();
         let remote_addr = request.remote_addr().unwrap();
-        let request_meta = RequestMeta {
+        let payload = request.into_inner();
+        let mut request_meta = RequestMeta {
             client_ip: remote_addr.ip().to_string(),
             connection_id: Arc::new(remote_addr.to_string()),
             ..Default::default()
         };
-        let payload = request.into_inner();
         //debug
         //log::info!( "client request: {}", PayloadUtils::get_payload_string(&payload));
         let request_type = PayloadUtils::get_payload_type(&payload).unwrap();
@@ -51,7 +81,8 @@ impl request_server::Request for RequestServerImpl {
         let ignore_active_err = self.invoker.ignore_active_err(request_type);
         //self.bistream_manage_addr.do_send(BiStreamManageCmd::ActiveClinet(request_meta.connection_id.clone()));
         let active_result = self
-            .bistream_manage_addr
+            .app
+            .bi_stream_manage
             .send(BiStreamManageCmd::ActiveClinet(
                 request_meta.connection_id.clone(),
             ))
@@ -94,6 +125,9 @@ impl request_server::Request for RequestServerImpl {
                 }
             }
         };
+        self.fill_token_session(&payload, &mut request_meta)
+            .await
+            .ok();
         let handle_result = self.invoker.handle(payload, request_meta).await;
         let duration = SystemTime::now()
             .duration_since(start)
@@ -159,5 +193,15 @@ impl BiRequestStream for BiRequestStreamServerImpl {
         self.bistream_manage_addr
             .do_send(BiStreamManageCmd::AddConn(client_id, conn));
         Ok(tonic::Response::new(r_stream))
+    }
+}
+
+async fn get_user_session(
+    cache_manager: &Addr<CacheManager>,
+    req: CacheManagerReq,
+) -> anyhow::Result<Option<Arc<TokenSession>>> {
+    match cache_manager.send(req).await?? {
+        CacheManagerResult::Value(CacheValue::ApiTokenSession(session)) => Ok(Some(session)),
+        _ => Ok(None),
     }
 }

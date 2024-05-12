@@ -68,7 +68,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     log::info!("http server addr:{}", &http_addr);
     log::info!("grpc server addr:{}", &grpc_addr);
 
-    let mut invoker = InvokerHandler::new();
+    let mut invoker = InvokerHandler::new(app_data.clone());
     invoker.add_config_handler(&app_data);
     invoker.add_naming_handler(&app_data);
     invoker.add_raft_handler(&app_data);
@@ -77,8 +77,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     tokio::spawn(async move {
         let addr = grpc_addr.parse().unwrap();
-        let request_server =
-            RequestServerImpl::new(grpc_app_data.bi_stream_manage.clone(), invoker);
+        let request_server = RequestServerImpl::new(grpc_app_data.clone(), invoker);
         let bi_request_stream_server =
             BiRequestStreamServerImpl::new(grpc_app_data.bi_stream_manage.clone());
         Server::builder()

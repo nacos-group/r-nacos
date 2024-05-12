@@ -1,6 +1,7 @@
 use std::{collections::HashMap, sync::Arc};
 
 use self::api_model::BaseResponse;
+use crate::common::model::TokenSession;
 use async_trait::async_trait;
 
 pub mod api_model;
@@ -16,6 +17,13 @@ pub struct RequestMeta {
     pub client_ip: String,
     pub client_version: String,
     pub labels: HashMap<String, String>,
+    pub token_session: Option<Arc<TokenSession>>,
+}
+
+pub struct HandlerResult {
+    pub success: bool,
+    pub payload: nacos_proto::Payload,
+    pub message: Option<String>,
 }
 
 #[async_trait]
