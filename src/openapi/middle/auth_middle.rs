@@ -6,9 +6,10 @@ use actix::Addr;
 use actix_http::body::EitherBody;
 use actix_http::HttpMessage;
 use actix_web::dev::{Service, ServiceRequest, ServiceResponse, Transform};
-use actix_web::{dev, Error, HttpResponse};
+use actix_web::{dev, web, Error, HttpResponse};
 use futures_util::future::LocalBoxFuture;
 use regex::Regex;
+use serde::{Deserialize, Serialize};
 use std::future::{ready, Ready};
 use std::sync::Arc;
 
@@ -19,7 +20,7 @@ lazy_static::lazy_static! {
         "/nacos/v1/auth/login", "/nacos/v1/auth/users/login",
     ];
     pub static ref API_PATH: Regex = Regex::new(r"(?i)/nacos/.*").unwrap();
-    pub static ref PARM_AUTH_TOKEN: Regex = Regex::new(r"accessToken=(\w*)").unwrap();
+    //pub static ref PARM_AUTH_TOKEN: Regex = Regex::new(r"accessToken=(\w*)").unwrap();
     pub static ref EMPTY_TOKEN: Arc<String> = Arc::new("".to_owned());
 }
 
@@ -72,7 +73,8 @@ where
 
     dev::forward_ready!(service);
 
-    fn call(&self, request: ServiceRequest) -> Self::Future {
+    fn call(&self, req: ServiceRequest) -> Self::Future {
+        let mut request = req;
         let open_auth = self.app_share_data.sys_config.openapi_open_auth;
         let path = request.path();
         let is_check_path = if open_auth {
@@ -80,21 +82,23 @@ where
         } else {
             true
         };
-        let token = if open_auth && is_check_path {
-            if let Some(v) = request.headers().get(AUTHORIZATION_HEADER) {
-                Arc::new(v.to_str().unwrap_or_default().to_owned())
-            } else if let Some(c) = PARM_AUTH_TOKEN.captures(request.query_string()) {
-                c.get(1)
-                    .map_or(EMPTY_TOKEN.clone(), |m| Arc::new(m.as_str().to_owned()))
-            } else {
-                EMPTY_TOKEN.clone()
-            }
-        } else {
-            EMPTY_TOKEN.clone()
-        };
+
         let cache_manager = self.app_share_data.cache_manager.clone();
         let service = self.service.clone();
         Box::pin(async move {
+            let token = if open_auth && is_check_path {
+                if let Some(v) = request.headers().get(AUTHORIZATION_HEADER) {
+                    Arc::new(v.to_str().unwrap_or_default().to_owned())
+                } else if let Ok(info) =
+                    serde_urlencoded::from_str::<AccessInfo>(request.query_string())
+                {
+                    Arc::new(info.access_token.to_string())
+                } else {
+                    peek_body_token(&mut request).await
+                }
+            } else {
+                EMPTY_TOKEN.clone()
+            };
             let pass = if !open_auth || !is_check_path {
                 true
             } else if token.is_empty() {
@@ -127,6 +131,36 @@ where
             }
         })
     }
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AccessInfo<'a> {
+    pub access_token: &'a str,
+}
+
+async fn peek_body_token(request: &mut ServiceRequest) -> Arc<String> {
+    let mut result = EMPTY_TOKEN.clone();
+    if request.method().as_str() == "GET" {
+        return result;
+    }
+    if let Ok(p) = request.extract::<web::Payload>().await {
+        if let Ok(v) = p.to_bytes().await {
+            //let body_str = String::from_utf8_lossy(v.as_ref());
+            //log::info!("body info: {}",body_str.as_ref());
+            if let Ok(info) = serde_urlencoded::from_bytes::<AccessInfo>(v.as_ref()) {
+                result = Arc::new(info.access_token.to_string())
+            }
+            request.set_payload(bytes_to_payload(v.into()));
+        }
+    };
+    result
+}
+
+fn bytes_to_payload(buf: web::Bytes) -> dev::Payload {
+    let (_, mut pl) = actix_http::h1::Payload::create(true);
+    pl.unread_data(buf);
+    dev::Payload::from(pl)
 }
 
 async fn get_user_session(
