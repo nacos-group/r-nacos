@@ -39,6 +39,10 @@ pub async fn login(
     web::Query(a): web::Query<LoginParams>,
     web::Form(b): web::Form<LoginParams>,
 ) -> actix_web::Result<impl Responder> {
+    if !app.sys_config.openapi_enable_auth {
+        return Ok(HttpResponse::Ok()
+            .body("{\"accessToken\":\"AUTH_DISABLED\",\"tokenTtl\":18000,\"globalAdmin\":true}"));
+    }
     let param = a.merge(b);
     let username = Arc::new(param.username.unwrap_or_default());
     let password = param.password.unwrap_or_default();
