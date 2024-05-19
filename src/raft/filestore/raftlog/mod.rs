@@ -1,3 +1,4 @@
+#![allow(clippy::suspicious_open_options)]
 use std::fmt::{Display, Formatter};
 use std::time::Duration;
 use std::{
@@ -99,14 +100,12 @@ impl LogInnerManager {
             .read(true)
             .write(true)
             .create(true)
-            .truncate(true)
             .open(&log_path)
             .await?;
         let mut data_file = OpenOptions::new()
             .read(true)
             .write(true)
             .create(true)
-            .truncate(true)
             .open(&log_path)
             .await?;
         //let index_meta = index_file.metadata().await?;

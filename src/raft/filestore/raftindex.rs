@@ -1,3 +1,4 @@
+#![allow(clippy::suspicious_open_options)]
 use std::{collections::HashMap, path::Path, sync::Arc};
 
 use actix::prelude::*;
@@ -32,7 +33,6 @@ impl RaftIndexInnerManager {
             .read(true)
             .write(true)
             .create(true)
-            .truncate(true)
             .open(&path)
             .await?;
         let meta = file.metadata().await?;

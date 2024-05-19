@@ -1,3 +1,4 @@
+#![allow(clippy::suspicious_open_options)]
 use std::{path::Path, sync::Arc};
 
 use actix::prelude::*;
@@ -29,7 +30,6 @@ impl SnapshotWriter {
             //.append(true)
             //.create_new(true)
             .create(true)
-            .truncate(true)
             .open(path)
             .await?;
         let mut buf = Vec::new();
