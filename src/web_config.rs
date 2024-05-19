@@ -82,7 +82,7 @@ async fn disable_no_auth_console_index() -> impl Responder {
 /// 面向SDK的http服务接口
 pub fn app_config(conf_data: AppSysConfig) -> impl FnOnce(&mut ServiceConfig) {
     move |config: &mut ServiceConfig| {
-        let config = if !conf_data.enable_no_auth_console || conf_data.openapi_enable_auth {
+        if !conf_data.enable_no_auth_console || conf_data.openapi_enable_auth {
             config
                 .service(web::resource("/").route(web::get().to(disable_no_auth_console_index)))
                 .service(
@@ -96,16 +96,19 @@ pub fn app_config(conf_data: AppSysConfig) -> impl FnOnce(&mut ServiceConfig) {
                 )
                 .service(
                     web::resource("/rnacos/").route(web::get().to(disable_no_auth_console_index)),
-                )
+                );
+            login_config(config);
+            config.configure(openapi_config(conf_data));
+            raft_config(config);
         } else {
-            config
+            login_config(config);
+            config.configure(openapi_config(conf_data));
+            raft_config(config);
+            console_api_config(config);
+            console_api_config_v2(config);
+            console_api_config_new(config);
+            console_page_config(config);
         };
-        login_config(config);
-        raft_config(config);
-        console_api_config(config);
-        console_api_config_new(config);
-        console_page_config(config);
-        config.configure(openapi_config(conf_data));
     }
 }
 
