@@ -121,7 +121,7 @@ pub struct InstanceWebQueryListParams {
     pub service_name: Option<String>,
     pub group_name: Option<String>,
     pub clusters: Option<String>,
-    pub healthy_only: Option<bool>,
+    pub healthy_only: Option<String>,
     #[serde(rename = "clientIP")]
     pub client_ip: Option<String>,
     pub udp_port: Option<u16>,
@@ -527,7 +527,7 @@ pub async fn get_instance_list(
     param: web::Query<InstanceWebQueryListParams>,
     naming_addr: web::Data<Addr<NamingActor>>,
 ) -> impl Responder {
-    let only_healthy = param.healthy_only.unwrap_or(true);
+    let only_healthy = get_bool_from_string(&param.healthy_only, true);
     let addr = param.get_addr();
     match param.to_clusters_key() {
         Ok((key, clusters)) => {

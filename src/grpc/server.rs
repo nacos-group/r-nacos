@@ -53,12 +53,13 @@ impl RequestServerImpl {
                 request_meta.token_session = Some(session);
             }
         } else if !self.app.sys_config.cluster_token.is_empty() {
-            if let Some(Some(key)) = payload
+            if let Some(Some(token)) = payload
                 .metadata
                 .as_ref()
                 .map(|e| e.headers.get(CLUSTER_TOKEN))
             {
-                request_meta.cluster_token_is_valid = key == self.app.sys_config.cluster_token.as_ref();
+                request_meta.cluster_token_is_valid =
+                    token == self.app.sys_config.cluster_token.as_ref();
             }
         }
         Ok(())
