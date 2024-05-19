@@ -140,6 +140,8 @@ rnacos
 |RNACOS_ENABLE_NO_AUTH_CONSOLE|是否开启无鉴权控制台|false|false|0.5.2|
 |RNACOS_CONSOLE_LOGIN_TIMEOUT|控制台登陆有效时长(单位为秒)|一天,86400秒|86400|0.5.0|
 |RNACOS_GMT_OFFSET_HOURS|日志时间的时区，单位小时；默认为本机时区，运行在docker时需要指定|local|8(东8区),-5(西5区)|0.5.7|
+|RNACOS_ENABLE_OPEN_API_AUTH|是否对openapi开启鉴权|false|true|0.5.8|
+|RNACOS_CLUSTER_TOKEN|集群间的通信请求校验token，空表示不开启校验，设置后只有相同token的节点间才可通讯|空字符串|1234567890abcdefg|0.5.8|
 
 
 启动配置方式可以参考： [运行参数说明](https://r-nacos.github.io/docs/notes/env_config/)
