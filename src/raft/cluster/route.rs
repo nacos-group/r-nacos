@@ -2,6 +2,7 @@ use std::{fmt::Debug, sync::Arc};
 
 use actix::prelude::*;
 
+use crate::grpc::handler::RAFT_ROUTE_REQUEST;
 use crate::raft::filestore::core::FileStore;
 use crate::{
     config::core::{ConfigActor, ConfigAsyncCmd, ConfigCmd},
@@ -90,7 +91,7 @@ impl ConfigRoute {
                 let source_req = req.clone();
                 let req: RouterRequest = req.into();
                 let request = serde_json::to_string(&req).unwrap_or_default();
-                let payload = PayloadUtils::build_payload("RaftRouteRequest", request);
+                let payload = PayloadUtils::build_payload(RAFT_ROUTE_REQUEST, request);
                 let resp_payload = self.cluster_sender.send_request(addr, payload).await?;
                 let body_vec = resp_payload.body.unwrap_or_default().value;
                 let _: RouterResponse = serde_json::from_slice(&body_vec)?;
@@ -115,7 +116,7 @@ impl ConfigRoute {
             RouteAddr::Remote(_, addr) => {
                 let req: RouterRequest = req.into();
                 let request = serde_json::to_string(&req).unwrap_or_default();
-                let payload = PayloadUtils::build_payload("RaftRouteRequest", request);
+                let payload = PayloadUtils::build_payload(RAFT_ROUTE_REQUEST, request);
                 let resp_payload = self.cluster_sender.send_request(addr, payload).await?;
                 let body_vec = resp_payload.body.unwrap_or_default().value;
                 let _: RouterResponse = serde_json::from_slice(&body_vec)?;

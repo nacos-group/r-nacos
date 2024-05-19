@@ -1,6 +1,7 @@
 use std::{collections::HashSet, sync::Arc, time::Duration};
 
 use crate::common::actor_utils::{create_actor_at_thread, create_actor_at_thread2};
+use crate::grpc::handler::RAFT_ROUTE_REQUEST;
 use crate::raft::filestore::core::FileStore;
 use crate::raft::filestore::raftapply::StateApplyManager;
 use crate::raft::filestore::raftdata::RaftDataWrap;
@@ -298,7 +299,7 @@ async fn auto_join_raft(
             node_addr: Arc::new(sys_config.raft_node_addr.to_owned()),
         };
         let request = serde_json::to_string(&req).unwrap_or_default();
-        let payload = PayloadUtils::build_payload("RaftRouteRequest", request);
+        let payload = PayloadUtils::build_payload(RAFT_ROUTE_REQUEST, request);
         cluster_sender
             .send_request(Arc::new(sys_config.raft_join_addr.to_owned()), payload)
             .await?;

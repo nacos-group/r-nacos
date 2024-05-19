@@ -12,6 +12,7 @@ use crate::{
 };
 
 use super::{CacheLimiterReq, CacheManager, CacheManagerResult};
+use crate::grpc::handler::RAFT_ROUTE_REQUEST;
 use actix::prelude::*;
 
 pub struct CacheRoute {
@@ -46,7 +47,7 @@ impl CacheRoute {
             RouteAddr::Remote(_, addr) => {
                 let req: RouterRequest = req.into();
                 let request = serde_json::to_string(&req).unwrap_or_default();
-                let payload = PayloadUtils::build_payload("RaftRouteRequest", request);
+                let payload = PayloadUtils::build_payload(RAFT_ROUTE_REQUEST, request);
                 let resp_payload = self.cluster_sender.send_request(addr, payload).await?;
                 let body_vec = resp_payload.body.unwrap_or_default().value;
                 let resp: RouterResponse = serde_json::from_slice(&body_vec)?;

@@ -2,6 +2,7 @@ use std::{collections::HashMap, sync::Arc, time::Duration};
 
 use actix::prelude::*;
 
+use crate::grpc::handler::NAMING_ROUTE_REQUEST;
 use crate::{grpc::PayloadUtils, raft::network::factory::RaftClusterRequestSender};
 
 use super::model::{
@@ -76,7 +77,7 @@ impl Handler<SyncSenderRequest> for ClusteSyncSender {
             let req = msg.0;
             let request = serde_json::to_string(&req).unwrap_or_default();
             let payload = PayloadUtils::build_full_payload(
-                "NamingRouteRequest",
+                NAMING_ROUTE_REQUEST,
                 request,
                 "",
                 send_extend_infos.clone(),
@@ -95,7 +96,7 @@ impl Handler<SyncSenderRequest> for ClusteSyncSender {
                     tokio::time::sleep(Duration::from_millis(100)).await;
                     let request = serde_json::to_string(&req).unwrap_or_default();
                     let payload = PayloadUtils::build_full_payload(
-                        "NamingRouteRequest",
+                        NAMING_ROUTE_REQUEST,
                         request,
                         "",
                         send_extend_infos,

@@ -1,3 +1,4 @@
+use crate::grpc::handler::{RAFT_APPEND_REQUEST, RAFT_SNAPSHOT_REQUEST, RAFT_VOTE_REQUEST};
 use async_raft_ext::raft::{
     AppendEntriesRequest, AppendEntriesResponse, InstallSnapshotRequest, InstallSnapshotResponse,
     VoteRequest, VoteResponse,
@@ -40,7 +41,7 @@ impl RaftNetwork<ClientRequest> for RaftRouter {
         req: AppendEntriesRequest<ClientRequest>,
     ) -> anyhow::Result<AppendEntriesResponse> {
         let request = serde_json::to_string(&req).unwrap_or_default();
-        let payload = PayloadUtils::build_payload("RaftAppendRequest", request);
+        let payload = PayloadUtils::build_payload(RAFT_APPEND_REQUEST, request);
         let resp_payload = self.send_request(target, payload).await?;
         let body_vec = resp_payload.body.unwrap_or_default().value;
         let res: AppendEntriesResponse = serde_json::from_slice(&body_vec)?;
@@ -53,7 +54,7 @@ impl RaftNetwork<ClientRequest> for RaftRouter {
         req: InstallSnapshotRequest,
     ) -> anyhow::Result<InstallSnapshotResponse> {
         let request = serde_json::to_string(&req).unwrap_or_default();
-        let payload = PayloadUtils::build_payload("RaftSnapshotRequest", request);
+        let payload = PayloadUtils::build_payload(RAFT_SNAPSHOT_REQUEST, request);
         let resp_payload = self.send_request(target, payload).await?;
         let body_vec = resp_payload.body.unwrap_or_default().value;
         let res: InstallSnapshotResponse = serde_json::from_slice(&body_vec)?;
@@ -62,7 +63,7 @@ impl RaftNetwork<ClientRequest> for RaftRouter {
 
     async fn vote(&self, target: NodeId, req: VoteRequest) -> anyhow::Result<VoteResponse> {
         let request = serde_json::to_string(&req).unwrap_or_default();
-        let payload = PayloadUtils::build_payload("RaftVoteRequest", request);
+        let payload = PayloadUtils::build_payload(RAFT_VOTE_REQUEST, request);
         let resp_payload = self.send_request(target, payload).await?;
         let body_vec = resp_payload.body.unwrap_or_default().value;
         let res: VoteResponse = serde_json::from_slice(&body_vec)?;

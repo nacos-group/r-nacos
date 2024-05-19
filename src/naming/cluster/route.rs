@@ -14,6 +14,7 @@ use super::{
     node_manage::{NodeManage, NodeManageRequest},
 };
 
+use crate::grpc::handler::NAMING_ROUTE_REQUEST;
 use actix::prelude::*;
 
 #[derive(Clone, Debug)]
@@ -79,7 +80,7 @@ impl NamingRoute {
             }
         };
         let request = serde_json::to_string(&req).unwrap_or_default();
-        let payload = PayloadUtils::build_payload("NamingRouteRequest", request);
+        let payload = PayloadUtils::build_payload(NAMING_ROUTE_REQUEST, request);
         let resp_payload = self.cluster_sender.send_request(addr, payload).await?;
         let body_vec = resp_payload.body.unwrap_or_default().value;
         let _: NamingRouterResponse = serde_json::from_slice(&body_vec)?;

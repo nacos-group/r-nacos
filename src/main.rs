@@ -54,6 +54,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     println!("version:{}, RUST_LOG:{}", APP_VERSION, &rust_log);
     std::env::set_var("RUST_LOG", &rust_log);
     let sys_config = Arc::new(AppSysConfig::init_from_env());
+    println!("data dir:{}", sys_config.config_db_dir);
     let timezone_fmt = Arc::new(TimeZoneFormatEnv::new(
         sys_config.gmt_fixed_offset_hours.map(|v| v * 60 * 60),
         Some(TimestampPrecision::Micros),
