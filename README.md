@@ -146,7 +146,10 @@ rnacos
 
 【集群部署】
 
-集群部署参考： [集群部署](https://r-nacos.github.io/docs/notes/deploy_example/docker_cluster_deploy/)
+集群部署参考文档： 
+
++ [集群部署](https://r-nacos.github.io/docs/notes/cluster_deploy)
++ [集群部署样例](https://r-nacos.github.io/docs/notes/deploy_example/docker_cluster_deploy/)
 
 
 ### 二、运行nacos 应用
