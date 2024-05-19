@@ -182,6 +182,8 @@ KEY3=VALUE3
 <tr><td>RNACOS_ENABLE_NO_AUTH_CONSOLE</td><td>是否开启无鉴权控制台</td><td>false</td><td>false</td><td>0.5.2</td></tr>
 <tr><td>RNACOS_CONSOLE_LOGIN_TIMEOUT</td><td>控制台登陆有效时长(单位为秒)</td><td>一天,86400秒</td><td>86400</td><td>0.5.0</td></tr>
 <tr><td>RNACOS_GMT_OFFSET_HOURS</td><td>日志时间的时区，单位小时；默认为本机时区，运行在docker时需要指定</td><td>local</td><td>8(东8区),-5(西5区)</td><td>0.5.7</td></tr>
+<tr><td>RNACOS_ENABLE_OPEN_API_AUTH</td><td>是否对openapi开启鉴权</td><td>false</td><td>true</td><td>0.5.8</td></tr>
+<tr><td>RNACOS_CLUSTER_TOKEN</td><td>集群间的通信请求校验token，空表示不开启校验，设置后只有相同token的节点间才可通讯</td><td>空字符串</td><td>1234567890abcdefg</td><td>0.5.8</td></tr>
 </tbody></table>
 <p>注：从v0.3.0开始，默认参数启动的节点会被当做只有一个节点，当前节点是主节点的集群部署。支持其它新增的从节点加入。</p>
 
