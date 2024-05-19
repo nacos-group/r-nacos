@@ -71,7 +71,7 @@ pub struct AppSysConfig {
     pub openapi_login_timeout: i32,
     pub openapi_login_one_minute_limit: u32,
     pub openapi_enable_auth: bool,
-    pub cluster_key: Arc<String>,
+    pub cluster_token: Arc<String>,
 }
 
 impl AppSysConfig {
@@ -142,8 +142,8 @@ impl AppSysConfig {
             .unwrap_or("false".to_owned())
             .parse()
             .unwrap_or(false);
-        let cluster_key = std::env::var("RNACOS_CLUSTER_KEY")
-            .map(|v| Arc::new(v))
+        let cluster_token = std::env::var("RNACOS_CLUSTER_TOKEN")
+            .map(Arc::new)
             .unwrap_or(constant::EMPTY_ARC_STRING.clone());
         Self {
             config_db_dir,
@@ -165,7 +165,7 @@ impl AppSysConfig {
             openapi_login_one_minute_limit,
             gmt_fixed_offset_hours,
             openapi_enable_auth,
-            cluster_key,
+            cluster_token,
         }
     }
 

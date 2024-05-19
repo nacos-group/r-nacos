@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use crate::common::AppSysConfig;
+use crate::grpc::handler::CLUSTER_TOKEN;
 use actix::prelude::*;
 use inner_mem_cache::MemCache;
 use tonic::transport::Channel;
@@ -9,11 +11,15 @@ use crate::grpc::nacos_proto::{request_client::RequestClient, Payload};
 #[derive(Debug)]
 pub struct RaftClusterRequestSender {
     conn_factory: Addr<RaftConnectionFactory>,
+    sys_config: Arc<AppSysConfig>,
 }
 
 impl RaftClusterRequestSender {
-    pub fn new(conn_factory: Addr<RaftConnectionFactory>) -> Self {
-        Self { conn_factory }
+    pub fn new(conn_factory: Addr<RaftConnectionFactory>, sys_config: Arc<AppSysConfig>) -> Self {
+        Self {
+            conn_factory,
+            sys_config,
+        }
     }
 
     pub async fn get_node_channel(&self, addr: Arc<String>) -> anyhow::Result<Arc<Channel>> {
@@ -30,10 +36,18 @@ impl RaftClusterRequestSender {
     pub async fn send_request(
         &self,
         addr: Arc<String>,
-        payload: Payload,
+        mut payload: Payload,
     ) -> anyhow::Result<Payload> {
         let channel = self.get_node_channel(addr.clone()).await?;
         let mut request_client = RequestClient::new(channel.as_ref().clone());
+        if !self.sys_config.cluster_token.is_empty() {
+            if let Some(meta) = payload.metadata.as_mut() {
+                meta.headers.insert(
+                    CLUSTER_TOKEN.to_string(),
+                    self.sys_config.cluster_token.as_str().to_string(),
+                );
+            }
+        }
         let resp = match request_client.request(payload).await {
             Ok(resp) => {
                 self.conn_factory.do_send(RaftConnRequest::UpdateChannel {

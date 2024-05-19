@@ -39,6 +39,8 @@ pub mod raft_route;
 mod raft_snapshot;
 mod raft_vote;
 
+pub(crate) const CLUSTER_TOKEN: &str = "ClusterToken";
+
 pub(crate) const HEALTH_CHECK_REQUEST: &str = "HealthCheckRequest";
 pub(crate) const SERVER_CHECK_REQUEST: &str = "ServerCheckRequest";
 pub(crate) const RAFT_APPEND_REQUEST: &str = "RaftAppendRequest";
@@ -107,6 +109,14 @@ impl InvokerHandler {
         SERVER_CHECK_REQUEST.eq(t)
             || HEALTH_CHECK_REQUEST.eq(t)
             || RAFT_APPEND_REQUEST.eq(t)
+            || RAFT_SNAPSHOT_REQUEST.eq(t)
+            || RAFT_VOTE_REQUEST.eq(t)
+            || RAFT_ROUTE_REQUEST.eq(t)
+            || NAMING_ROUTE_REQUEST.eq(t)
+    }
+
+    pub fn is_cluster_request(&self, t: &str) -> bool {
+        RAFT_APPEND_REQUEST.eq(t)
             || RAFT_SNAPSHOT_REQUEST.eq(t)
             || RAFT_VOTE_REQUEST.eq(t)
             || RAFT_ROUTE_REQUEST.eq(t)
@@ -204,6 +214,15 @@ impl PayloadHandler for InvokerHandler {
             {
                 //开启鉴权，但取不到用户会话信息
                 return Ok(HandlerResult::error(403u16, "unknown user!".to_string()));
+            } else if !self.app.sys_config.cluster_token.is_empty()
+                && self.is_cluster_request(url)
+                && !request_meta.cluster_token_is_valid
+            {
+                //集群请求key校验不通过
+                return Ok(HandlerResult::error(
+                    500u16,
+                    "request cluster token is invalid".to_string(),
+                ));
             }
             //println!("InvokerHandler type:{}",url);
             if let Some(handler) = self.match_handler(url) {

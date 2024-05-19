@@ -15,7 +15,7 @@ use crate::raft::cache::{CacheManager, CacheManagerReq, CacheManagerResult};
 
 use super::bistream_conn::BiStreamConn;
 use super::bistream_manage::{BiStreamManage, BiStreamManageCmd};
-use super::handler::InvokerHandler;
+use super::handler::{InvokerHandler, CLUSTER_TOKEN};
 use super::nacos_proto::bi_request_stream_server::BiRequestStream;
 
 pub struct RequestServerImpl {
@@ -51,6 +51,14 @@ impl RequestServerImpl {
             .await
             {
                 request_meta.token_session = Some(session);
+            }
+        } else if !self.app.sys_config.cluster_token.is_empty() {
+            if let Some(Some(key)) = payload
+                .metadata
+                .as_ref()
+                .map(|e| e.headers.get(CLUSTER_TOKEN))
+            {
+                request_meta.cluster_token_is_valid = key == self.app.sys_config.cluster_token.as_ref();
             }
         }
         Ok(())

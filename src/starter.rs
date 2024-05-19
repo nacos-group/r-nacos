@@ -78,7 +78,10 @@ pub async fn config_factory(sys_config: Arc<AppSysConfig>) -> anyhow::Result<Fac
     //raft
     let conn_factory = RaftConnectionFactory::new(60).start();
     factory.register(BeanDefinition::actor_from_obj(conn_factory.clone()));
-    let cluster_sender = Arc::new(RaftClusterRequestSender::new(conn_factory));
+    let cluster_sender = Arc::new(RaftClusterRequestSender::new(
+        conn_factory,
+        sys_config.clone(),
+    ));
     factory.register(BeanDefinition::from_obj(cluster_sender.clone()));
 
     let log_manager = RaftLogManager::new(base_path.clone());
