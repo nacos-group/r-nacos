@@ -55,21 +55,23 @@ impl ConfigWebParams {
             if v.is_empty() {
                 return Err("dataId is empty".to_owned());
             }
-            param.data_id = v.to_owned();
+            v.clone_into(&mut param.data_id);
         }
-        param.group = self
-            .group
+        self.group
             .as_ref()
             .unwrap_or(&"DEFAULT_GROUP".to_owned())
-            .to_owned();
+            .clone_into(&mut param.group);
         //param.tenant= self.tenant.as_ref().unwrap_or(&"public".to_owned()).to_owned();
-        param.tenant = self.tenant.as_ref().unwrap_or(&"".to_owned()).to_owned();
+        self.tenant
+            .as_ref()
+            .unwrap_or(&"".to_owned())
+            .clone_into(&mut param.tenant);
         if param.tenant == "public" {
-            param.tenant = "".to_owned();
+            "".clone_into(&mut param.tenant)
         }
         if let Some(v) = self.content.as_ref() {
             if !v.is_empty() {
-                param.content = v.to_owned();
+                v.clone_into(&mut param.content);
             }
         }
         Ok(param)

@@ -128,7 +128,7 @@ impl Inject for CacheManager {
         self.table_manager = factory_data.get_actor();
         let table_manager = self.table_manager.clone();
         self.cache.time_out_fn = Some(Arc::new(move |key, _value| {
-            CacheManager::remove_key(&table_manager, key.to_string().as_bytes().to_vec());
+            CacheManager::remove_key(&table_manager, key.to_key_string().as_bytes().to_vec());
         }));
         //init
         self.load(ctx).ok();
@@ -219,7 +219,7 @@ impl Handler<CacheManagerReq> for CacheManager {
                         cache_do.timeout = now + ttl;
                         let req = TableManagerReq::Set {
                             table_name: CACHE_TREE_NAME.clone(),
-                            key: key.to_string().into_bytes(),
+                            key: key.to_key_string().into_bytes(),
                             value: cache_do.to_bytes(),
                             last_seq_id: None,
                         };
@@ -233,7 +233,7 @@ impl Handler<CacheManagerReq> for CacheManager {
                     if let Some(raft_table_route) = &raft_table_route {
                         let req = TableManagerReq::Remove {
                             table_name: CACHE_TREE_NAME.clone(),
-                            key: key.to_string().into_bytes(),
+                            key: key.to_key_string().into_bytes(),
                         };
                         raft_table_route.request(req).await?;
                     } else {
@@ -323,7 +323,7 @@ impl Handler<CacheLimiterReq> for CacheManager {
             if let Some(table_manager) = self.table_manager.as_ref() {
                 let req: TableManagerReq = TableManagerReq::Set {
                     table_name: CACHE_TREE_NAME.clone(),
-                    key: key.to_string().into_bytes(),
+                    key: key.to_key_string().into_bytes(),
                     value: cache_do.to_bytes(),
                     last_seq_id: None,
                 };

@@ -109,13 +109,13 @@ impl Service {
             if let Some(update_tag) = update_tag {
                 if !update_tag.is_none() {
                     if !update_tag.enabled {
-                        instance.enabled = old_instance.enabled.to_owned();
+                        old_instance.enabled.clone_into(&mut instance.enabled);
                     }
                     if !update_tag.ephemeral {
-                        instance.ephemeral = old_instance.ephemeral.to_owned();
+                        old_instance.ephemeral.clone_into(&mut instance.ephemeral);
                     }
                     if !update_tag.weight {
-                        instance.weight = old_instance.weight.to_owned();
+                        old_instance.weight.clone_into(&mut instance.weight);
                     }
                     if !update_tag.metadata {
                         instance.metadata = old_instance.metadata.clone();
@@ -131,9 +131,9 @@ impl Service {
                     }
                 } else {
                     //不更新
-                    instance.enabled = old_instance.enabled.to_owned();
-                    instance.ephemeral = old_instance.ephemeral.to_owned();
-                    instance.weight = old_instance.weight.to_owned();
+                    old_instance.enabled.clone_into(&mut instance.enabled);
+                    old_instance.ephemeral.clone_into(&mut instance.ephemeral);
+                    old_instance.weight.clone_into(&mut instance.weight);
                     instance.metadata = old_instance.metadata.clone();
                     rtype = UpdateInstanceType::UpdateTime;
                 }

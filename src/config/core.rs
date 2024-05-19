@@ -23,7 +23,9 @@ use super::config_subscribe::Subscriber;
 use super::dal::ConfigHistoryParam;
 use crate::config::config_index::{ConfigQueryParam, TenantIndex};
 use crate::config::config_type::ConfigType;
-use crate::config::model::{ConfigRaftCmd, ConfigRaftResult, ConfigValueDO, HistoryItem};
+use crate::config::model::{
+    ConfigRaftCmd, ConfigRaftResult, ConfigValueDO, HistoryItem, SetConfigParam,
+};
 use crate::config::utils::param_utils;
 use crate::now_millis_i64;
 use crate::raft::filestore::model::SnapshotRecordDto;
@@ -435,44 +437,46 @@ impl ConfigActor {
         self.cache.insert(key, value);
     }
 
-    fn set_config(
-        &mut self,
-        key: ConfigKey,
-        val: Arc<String>,
-        config_type: Option<Arc<String>>,
-        desc: Option<Arc<String>>,
-        history_id: u64,
-        history_table_id: Option<u64>,
-        op_time: i64,
-        op_user: Option<Arc<String>>,
-    ) -> anyhow::Result<ConfigResult> {
-        if let Some(history_table_id) = history_table_id {
+    fn set_config(&mut self, param: SetConfigParam) -> anyhow::Result<ConfigResult> {
+        if let Some(history_table_id) = param.history_table_id {
             self.sequence.set_valid_last_id(history_table_id);
         }
-        if let Some(v) = self.cache.get_mut(&key) {
-            let md5 = get_md5(val.as_str());
-            if let Some(s) = config_type {
+        if let Some(v) = self.cache.get_mut(&param.key) {
+            let md5 = get_md5(param.value.as_str());
+            if let Some(s) = param.config_type {
                 v.config_type = Some(s);
             }
-            if let Some(s) = desc {
+            if let Some(s) = param.desc {
                 v.desc = Some(s);
             }
             if !v.tmp && v.md5.as_str() == md5 {
                 return Ok(ConfigResult::NULL);
             }
             if v.histories.is_empty() {
-                self.tenant_index.insert_config(key.clone());
+                self.tenant_index.insert_config(param.key.clone());
             }
-            v.update_value(val, history_id, op_time, Some(Arc::new(md5)), op_user);
+            v.update_value(
+                param.value,
+                param.history_id,
+                param.op_time,
+                Some(Arc::new(md5)),
+                param.op_user,
+            );
         } else {
-            let mut v = ConfigValue::init(val, history_id, op_time, None, op_user);
-            v.config_type = config_type;
-            v.desc = desc;
-            self.cache.insert(key.clone(), v);
-            self.tenant_index.insert_config(key.clone());
+            let mut v = ConfigValue::init(
+                param.value,
+                param.history_id,
+                param.op_time,
+                None,
+                param.op_user,
+            );
+            v.config_type = param.config_type;
+            v.desc = param.desc;
+            self.cache.insert(param.key.clone(), v);
+            self.tenant_index.insert_config(param.key.clone());
         }
-        self.listener.notify(key.clone());
-        self.subscriber.notify(key);
+        self.listener.notify(param.key.clone());
+        self.subscriber.notify(param.key);
         Ok(ConfigResult::NULL)
     }
 
@@ -827,18 +831,19 @@ impl Handler<ConfigRaftCmd> for ConfigActor {
                 op_time,
                 op_user,
             } => {
-                let config_key: ConfigKey = (&key as &str).into();
-                self.set_config(
-                    config_key,
+                let key: ConfigKey = (&key as &str).into();
+                let param = SetConfigParam {
+                    key,
                     value,
-                    config_type.map(|v| ConfigType::new_by_value(v.as_ref()).get_value()),
+                    config_type: config_type
+                        .map(|v| ConfigType::new_by_value(v.as_ref()).get_value()),
                     desc,
                     history_id,
                     history_table_id,
                     op_time,
                     op_user,
-                )
-                .ok();
+                };
+                self.set_config(param).ok();
             }
             ConfigRaftCmd::ConfigRemove { key } => {
                 let config_key: ConfigKey = (&key as &str).into();

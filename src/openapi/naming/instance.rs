@@ -142,7 +142,7 @@ impl InstanceWebQueryListParams {
         }
         if let Some(_group_name) = self.group_name.as_ref() {
             if !_group_name.is_empty() {
-                group_name = _group_name.to_owned();
+                _group_name.clone_into(&mut group_name)
             }
         }
         let namespace_id = NamingUtils::default_namespace(

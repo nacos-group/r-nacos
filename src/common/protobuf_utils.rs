@@ -123,7 +123,7 @@ pub fn inner_sizeof_varint(v: u64) -> usize {
     }
 }
 
-fn move_data_to_start(message_buf: &mut Vec<u8>, start: usize) {
+fn move_data_to_start(message_buf: &mut [u8], start: usize) {
     if start == 0 {
         return;
     }

@@ -8,7 +8,7 @@ pub mod namespace_api;
 pub mod naming_api;
 pub mod user_api;
 
-pub const ERROR_CODE_SYSTEM_ERROR: &'static str = "SYSTEM_ERROR";
+pub const ERROR_CODE_SYSTEM_ERROR: &str = "SYSTEM_ERROR";
 
 pub enum ApiResponse<T>
 where

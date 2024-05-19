@@ -1,3 +1,4 @@
+use std::fmt::{Display, Formatter};
 use std::{collections::HashMap, convert::TryFrom, sync::Arc};
 
 use serde::{Deserialize, Serialize};
@@ -67,9 +68,15 @@ pub struct CacheKey {
     pub key: Arc<String>,
 }
 
-impl ToString for CacheKey {
-    fn to_string(&self) -> String {
+impl CacheKey {
+    pub fn to_key_string(&self) -> String {
         format!("{}\x00{}", self.cache_type.get_type_data(), &self.key)
+    }
+}
+
+impl Display for CacheKey {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}\x00{}", self.cache_type.get_type_data(), &self.key)
     }
 }
 

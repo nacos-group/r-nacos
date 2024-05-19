@@ -324,6 +324,7 @@ impl RaftStorage<ClientRequest, ClientResponse> for FileStore {
                     .read(true)
                     .write(true)
                     .create(true)
+                    .truncate(true)
                     .open(path.as_str())
                     .await?;
                 Ok((snapshot_id.to_string(), Box::new(file)))

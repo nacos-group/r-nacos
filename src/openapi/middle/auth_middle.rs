@@ -154,7 +154,7 @@ async fn peek_body_token(request: &mut ServiceRequest) -> Arc<String> {
             if let Ok(info) = serde_urlencoded::from_bytes::<AccessInfo>(v.as_ref()) {
                 result = Arc::new(info.access_token.to_string())
             }
-            request.set_payload(bytes_to_payload(v.into()));
+            request.set_payload(bytes_to_payload(v));
         }
     };
     result

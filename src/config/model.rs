@@ -24,6 +24,18 @@ pub enum ConfigRaftCmd {
     ApplySnaphot,
 }
 
+#[derive(Debug)]
+pub struct SetConfigParam {
+    pub key: ConfigKey,
+    pub value: Arc<String>,
+    pub config_type: Option<Arc<String>>,
+    pub desc: Option<Arc<String>>,
+    pub history_id: u64,
+    pub history_table_id: Option<u64>,
+    pub op_time: i64,
+    pub op_user: Option<Arc<String>>,
+}
+
 pub enum ConfigRaftResult {
     Snapshot {
         data: Vec<(ConfigKey, Arc<String>)>,
