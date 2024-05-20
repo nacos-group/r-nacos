@@ -7,7 +7,7 @@ use crate::common::appdata::AppShareData;
 use crate::config::core::ConfigActor;
 
 use crate::naming::ops::ops_api::query_opt_service_list;
-use crate::openapi::naming::instance::{add_instance, del_instance, get_instance, update_instance};
+use crate::openapi::naming::instance::{del_instance, get_instance, update_instance};
 use crate::openapi::naming::service::{query_service, remove_service, update_service};
 //use crate::console::raft_api::{raft_add_learner, raft_change_membership, raft_init, raft_metrics, raft_read, raft_write};
 
@@ -145,7 +145,7 @@ pub fn console_api_config(config: &mut web::ServiceConfig) {
     );
 }
 
-pub fn console_api_config_new(config: &mut web::ServiceConfig) {
+pub fn console_api_config_v1(config: &mut web::ServiceConfig) {
     config.service(
         web::scope("/rnacos/api/console")
             .service(
@@ -165,7 +165,7 @@ pub fn console_api_config_new(config: &mut web::ServiceConfig) {
             .service(
                 web::resource("/ns/instance")
                     .route(web::get().to(get_instance))
-                    .route(web::post().to(add_instance))
+                    .route(web::post().to(update_instance))
                     .route(web::put().to(update_instance))
                     .route(web::delete().to(del_instance)),
             )

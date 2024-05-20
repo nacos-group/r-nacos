@@ -476,7 +476,7 @@ pub async fn del_instance(
     match instance {
         Ok(instance) => {
             if !instance.check_vaild() {
-                HttpResponse::InternalServerError().body("instance check is invalid")
+                HttpResponse::InternalServerError().body("console: instance check is invalid")
             } else {
                 match appdata.naming_route.delete_instance(instance).await {
                     Ok(_) => HttpResponse::Ok().body("ok"),

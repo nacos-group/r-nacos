@@ -1,5 +1,4 @@
 #![allow(unused_imports, unused_assignments, unused_variables)]
-
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -23,7 +22,7 @@ pub(super) fn service() -> Scope {
         .service(
             web::resource(EMPTY)
                 .route(web::get().to(get_instance))
-                .route(web::post().to(add_instance))
+                .route(web::post().to(update_instance))
                 .route(web::put().to(update_instance))
                 .route(web::delete().to(del_instance)),
         )
@@ -326,53 +325,6 @@ pub async fn get_instance(
     }
 }
 
-pub async fn add_instance(
-    a: web::Query<InstanceWebParams>,
-    payload: web::Payload,
-    appdata: web::Data<Arc<AppShareData>>,
-) -> impl Responder {
-    let body = match get_req_body(payload).await {
-        Ok(v) => v,
-        Err(err) => {
-            return HttpResponse::InternalServerError().body(err.to_string());
-        }
-    };
-    let b = match serde_urlencoded::from_bytes(&body) {
-        Ok(v) => v,
-        Err(err) => {
-            return HttpResponse::InternalServerError().body(err.to_string());
-        }
-    };
-    let param = a.select_option(&b);
-    let update_tag = InstanceUpdateTag {
-        weight: match &param.weight {
-            Some(v) => *v != 1.0f32,
-            None => false,
-        },
-        metadata: match &param.metadata {
-            Some(v) => !v.is_empty(),
-            None => false,
-        },
-        enabled: false,
-        ephemeral: false,
-        from_update: false,
-    };
-    let instance = param.convert_to_instance();
-    match instance {
-        Ok(instance) => {
-            if !instance.check_vaild() {
-                HttpResponse::InternalServerError().body("instance check is invalid")
-            } else {
-                match appdata.naming_route.update_instance(instance, None).await {
-                    Ok(_) => HttpResponse::Ok().body("ok"),
-                    Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
-                }
-            }
-        }
-        Err(e) => HttpResponse::InternalServerError().body(e),
-    }
-}
-
 pub async fn update_instance(
     a: web::Query<InstanceWebParams>,
     payload: web::Payload,
@@ -397,8 +349,7 @@ pub async fn update_instance(
             None => false,
         },
         metadata: match &param.metadata {
-            //Some(v) => !v.is_empty() && v!="{}",
-            Some(v) => !v.is_empty(),
+            Some(v) => !v.is_empty() && v != "{}",
             None => false,
         },
         enabled: match &param.enabled {

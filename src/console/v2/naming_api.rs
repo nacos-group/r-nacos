@@ -6,7 +6,7 @@ use crate::console::model::naming_model::{
 use crate::console::v2::ERROR_CODE_SYSTEM_ERROR;
 use crate::naming::api_model::InstanceVO;
 use crate::naming::core::{NamingActor, NamingCmd, NamingResult};
-use crate::naming::model::ServiceDetailDto;
+use crate::naming::model::{InstanceUpdateTag, ServiceDetailDto};
 use actix::Addr;
 use actix_web::web::Data;
 use actix_web::{web, HttpResponse, Responder};
@@ -170,6 +170,25 @@ pub async fn add_instance(
     appdata: Data<Arc<AppShareData>>,
     web::Json(param): web::Json<InstanceParams>,
 ) -> impl Responder {
+    let update_tag = InstanceUpdateTag {
+        weight: match &param.weight {
+            Some(_v) => true,
+            None => false,
+        },
+        metadata: match &param.metadata {
+            Some(_v) => true,
+            None => false,
+        },
+        enabled: match &param.enabled {
+            Some(_v) => true,
+            None => false,
+        },
+        ephemeral: match &param.ephemeral {
+            Some(_v) => true,
+            None => false,
+        },
+        from_update: true,
+    };
     match param.to_instance() {
         Ok(instance) => {
             if !instance.check_vaild() {
@@ -178,7 +197,11 @@ pub async fn add_instance(
                     Some("instance check is invalid".to_string()),
                 ))
             } else {
-                match appdata.naming_route.update_instance(instance, None).await {
+                match appdata
+                    .naming_route
+                    .update_instance(instance, Some(update_tag))
+                    .await
+                {
                     Ok(_) => HttpResponse::Ok().json(ApiResult::success(Some(true))),
                     Err(err) => HttpResponse::Ok().json(ApiResult::<()>::error(
                         ERROR_CODE_SYSTEM_ERROR.to_string(),
