@@ -523,7 +523,7 @@ impl ConfigActor {
         let (size, list) = self.tenant_index.query_config_page(param);
 
         if size == 0 {
-            return (size, Vec::new())
+            return (size, Vec::new());
         }
 
         let mut info_list = Vec::with_capacity(size);
