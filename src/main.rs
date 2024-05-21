@@ -89,10 +89,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
             .unwrap();
     });
 
-    let app_console_data = app_data.clone();
-    let app_data = app_data;
-
     if sys_config.http_console_port > 0 {
+        let app_console_data = app_data.clone();
+
         std::thread::spawn(move || {
             actix_rt::System::with_tokio_rt(|| {
                 tokio::runtime::Builder::new_current_thread()
