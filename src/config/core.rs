@@ -521,6 +521,11 @@ impl ConfigActor {
 
     pub fn get_config_info_page(&self, param: &ConfigQueryParam) -> (usize, Vec<ConfigInfoDto>) {
         let (size, list) = self.tenant_index.query_config_page(param);
+
+        if size == 0 {
+            return (size, Vec::new())
+        }
+
         let mut info_list = Vec::with_capacity(size);
         for item in &list {
             if let Some(value) = self.cache.get(item) {

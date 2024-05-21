@@ -590,6 +590,11 @@ impl NamingActor {
 
     pub fn get_service_info_page(&self, param: ServiceQueryParam) -> (usize, Vec<ServiceInfoDto>) {
         let (size, list) = self.namespace_index.query_service_page(&param);
+
+        if size == 0 {
+            return (0, Vec::new());
+        }
+
         let mut info_list = Vec::with_capacity(list.len());
         for item in &list {
             if let Some(service) = self.service_map.get(item) {
