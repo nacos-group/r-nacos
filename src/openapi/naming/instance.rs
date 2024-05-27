@@ -265,12 +265,15 @@ impl BeatRequest {
         let service_name_option = beat_info.service_name.clone();
         let mut instance = beat_info.convert_to_instance();
         if service_name_option.is_none() {
-            let grouped_name = self.service_name.unwrap();
-            if let Some((group_name, service_name)) =
-                NamingUtils::split_group_and_serivce_name(&grouped_name)
-            {
-                instance.service_name = Arc::new(service_name);
-                instance.group_name = Arc::new(group_name);
+            if let Some(grouped_name) = self.service_name {
+                if let Some((group_name, service_name)) =
+                    NamingUtils::split_group_and_serivce_name(&grouped_name)
+                {
+                    instance.service_name = Arc::new(service_name);
+                    instance.group_name = Arc::new(group_name);
+                }
+            } else {
+                return Err(anyhow::anyhow!("service name is empty".to_owned()));
             }
             if let Some(group_name) = self.group_name.as_ref() {
                 if !group_name.is_empty() {
@@ -298,7 +301,7 @@ impl BeatRequest {
     fn get_beat_info(&self) -> anyhow::Result<BeatInfo> {
         let beat_str = self.beat.clone().unwrap_or_default();
         if let Some(beat_str) = self.beat.as_ref() {
-            let v = serde_json::from_str::<BeatInfo>(&beat_str)?;
+            let v = serde_json::from_str::<BeatInfo>(beat_str)?;
             Ok(v)
         } else {
             Ok(BeatInfo::default())
@@ -330,12 +333,13 @@ impl BeatInfo {
             ),
             ..Default::default()
         };
-        let grouped_name = self.service_name.as_ref().unwrap().to_owned();
-        if let Some((group_name, service_name)) =
-            NamingUtils::split_group_and_serivce_name(&grouped_name)
-        {
-            instance.service_name = Arc::new(service_name);
-            instance.group_name = Arc::new(group_name);
+        if let Some(grouped_name) = self.service_name.as_ref() {
+            if let Some((group_name, service_name)) =
+                NamingUtils::split_group_and_serivce_name(grouped_name)
+            {
+                instance.service_name = Arc::new(service_name);
+                instance.group_name = Arc::new(group_name);
+            }
         }
         if let Some(metadata) = self.metadata {
             instance.metadata = Arc::new(metadata);
