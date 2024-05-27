@@ -189,6 +189,8 @@ pub struct BeatRequest {
     pub group_name: Option<String>,
     pub ephemeral: Option<String>,
     pub beat: Option<String>,
+    pub ip: Option<String>,
+    pub port: Option<u32>,
 }
 
 impl BeatRequest {
@@ -200,11 +202,19 @@ impl BeatRequest {
             group_name: select_option_by_clone(&self.group_name, &o.group_name),
             ephemeral: select_option_by_clone(&self.ephemeral, &o.ephemeral),
             beat: select_option_by_clone(&self.beat, &o.beat),
+            ip: select_option_by_clone(&self.ip, &o.ip),
+            port: select_option_by_clone(&self.port, &o.port),
         }
     }
 
-    pub fn convert_to_instance(self) -> Result<Instance, String> {
-        let beat = self.beat.unwrap_or_default();
+    /*
+    pub fn convert_to_instance_old(self) -> Result<Instance, String> {
+        let beat = match self.beat {
+            Some(v) => v,
+            None => {
+                return Err("beat value is empty".to_string());
+            }
+        };
         let beat_info = match serde_json::from_str::<BeatInfo>(&beat) {
             Ok(v) => v,
             Err(err) => {
@@ -242,6 +252,57 @@ impl BeatRequest {
         ));
         instance.generate_key();
         Ok(instance)
+    }
+    */
+
+    pub fn convert_to_instance(self) -> anyhow::Result<Instance> {
+        let mut beat_info = self.get_beat_info()?;
+        let use_beat = self.beat.as_ref().map_or(false, |s| !s.is_empty());
+        if !use_beat {
+            beat_info.ip = self.ip;
+            beat_info.port = self.port;
+        }
+        let service_name_option = beat_info.service_name.clone();
+        let mut instance = beat_info.convert_to_instance();
+        if service_name_option.is_none() {
+            let grouped_name = self.service_name.unwrap();
+            if let Some((group_name, service_name)) =
+                NamingUtils::split_group_and_serivce_name(&grouped_name)
+            {
+                instance.service_name = Arc::new(service_name);
+                instance.group_name = Arc::new(group_name);
+            }
+            if let Some(group_name) = self.group_name.as_ref() {
+                if !group_name.is_empty() {
+                    instance.group_name = Arc::new(group_name.to_owned());
+                }
+            }
+        }
+        instance.ephemeral = get_bool_from_string(&self.ephemeral, true);
+        instance.cluster_name = NamingUtils::default_cluster(
+            self.cluster_name
+                .as_ref()
+                .unwrap_or(&"".to_owned())
+                .to_owned(),
+        );
+        instance.namespace_id = Arc::new(NamingUtils::default_namespace(
+            self.namespace_id
+                .as_ref()
+                .unwrap_or(&"".to_owned())
+                .to_owned(),
+        ));
+        instance.generate_key();
+        Ok(instance)
+    }
+
+    fn get_beat_info(&self) -> anyhow::Result<BeatInfo> {
+        let beat_str = self.beat.clone().unwrap_or_default();
+        if let Some(beat_str) = self.beat.as_ref() {
+            let v = serde_json::from_str::<BeatInfo>(&beat_str)?;
+            Ok(v)
+        } else {
+            Ok(BeatInfo::default())
+        }
     }
 }
 
@@ -422,12 +483,7 @@ pub async fn beat_instance(
     payload: web::Payload,
     appdata: web::Data<Arc<AppShareData>>,
 ) -> impl Responder {
-    let body = match get_req_body(payload).await {
-        Ok(v) => v,
-        Err(err) => {
-            return HttpResponse::InternalServerError().body(err.to_string());
-        }
-    };
+    let body = get_req_body(payload).await.unwrap_or_default();
     let b = match serde_urlencoded::from_bytes(&body) {
         Ok(v) => v,
         Err(err) => {
@@ -469,7 +525,7 @@ pub async fn beat_instance(
                 }
             }
         }
-        Err(e) => HttpResponse::InternalServerError().body(e),
+        Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
     }
 }
 
