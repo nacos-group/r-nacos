@@ -1,10 +1,11 @@
 // raft缓存数据
 
 use std::{convert::TryInto, sync::Arc};
+use std::time::Duration;
 
 use actix::prelude::*;
 use bean_factory::{bean, Inject};
-use inner_mem_cache::MemCache;
+use inner_mem_cache::{MemCache, MemCacheMode};
 use ratelimiter_rs::RateLimiter;
 use serde::{Deserialize, Serialize};
 
@@ -132,6 +133,11 @@ impl Inject for CacheManager {
         }));
         //init
         self.load(ctx).ok();
+        //增加每10秒触发缓存清理
+        self.cache.mode = MemCacheMode::None;
+        ctx.run_interval(Duration::from_millis(10000),|act,_|{
+            act.cache.clear_time_out();
+        });
     }
 }
 
