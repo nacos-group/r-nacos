@@ -35,13 +35,14 @@ impl BiStreamConn {
     }
 
     pub fn receive(&mut self, ctx: &mut Context<Self>) {
+        println!("BiStreamConn start receive");
         if let Some(mut receiver_stream) = self.receiver_stream.replace(None) {
             let manage = self.manage.clone();
             let client_id = self.client_id.clone();
             async move {
-                if let Some(Ok(_payload)) = receiver_stream.next().await {
-                    //println!("BiStreamConn receive frist msg:{}",PayloadUtils::get_payload_string(&payload));
-                }
+                //if let Some(Ok(_payload)) = receiver_stream.next().await {
+                //println!("BiStreamConn receive frist msg:{}",PayloadUtils::get_payload_string(&payload));
+                //}
                 while let Some(Ok(payload)) = receiver_stream.next().await {
                     //println!("BiStreamConn receive msg:{}",PayloadUtils::get_payload_string(&payload));
                     manage.do_send(BiStreamManageCmd::Response(client_id.clone(), payload));
@@ -50,6 +51,8 @@ impl BiStreamConn {
             }
             .into_actor(self)
             .map(|_, _, ctx| {
+                //debug
+                println!("stop at receive!");
                 ctx.stop();
             })
             .spawn(ctx);
@@ -65,21 +68,40 @@ impl BiStreamConn {
             .map(|_, _, _| {})
             .spawn(ctx);
     }
+
+    fn close_stream_and_stop(&mut self, ctx: &mut Context<Self>) {
+        let sender = self.sender.clone();
+        async move {
+            //debug
+            println!("close_stream_and_stop! 01");
+            sender.send(Err(tonic::Status::cancelled("close"))).await
+        }
+        .into_actor(self)
+        .map(|_, _, ctx| {
+            //debug
+            println!("stop at close_stream_and_stop!");
+            ctx.stop();
+        })
+        .wait(ctx);
+    }
 }
 
 impl Actor for BiStreamConn {
     type Context = Context<Self>;
 
-    fn started(&mut self, _ctx: &mut Self::Context) {
+    fn started(&mut self, ctx: &mut Self::Context) {
         //log::info!("BiStreamConn started");
+        self.receive(ctx);
     }
 }
 
+/*
 impl Supervised for BiStreamConn {
     fn restarting(&mut self, _ctx: &mut <Self as Actor>::Context) {
         log::warn!("BiStreamConn restart ...");
     }
 }
+*/
 
 #[derive(Debug, Message)]
 #[rtype(result = "Result<BiStreamSenderResult,std::io::Error>")]
@@ -129,7 +151,7 @@ impl Handler<BiStreamSenderCmd> for BiStreamConn {
                 self.send_payload(ctx, payload.as_ref().to_owned());
             }
             BiStreamSenderCmd::Close => {
-                ctx.stop();
+                self.close_stream_and_stop(ctx);
             }
         }
         Ok(BiStreamSenderResult::None)

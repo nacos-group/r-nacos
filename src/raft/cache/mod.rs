@@ -1,7 +1,7 @@
 // raft缓存数据
 
-use std::{convert::TryInto, sync::Arc};
 use std::time::Duration;
+use std::{convert::TryInto, sync::Arc};
 
 use actix::prelude::*;
 use bean_factory::{bean, Inject};
@@ -42,7 +42,7 @@ type KvPair = (Vec<u8>, Vec<u8>);
 impl CacheManager {
     pub fn new() -> Self {
         Self {
-            cache: MemCache::default(),
+            cache: MemCache::new(),
             //default_timeout: 1200,
             raft_table_route: None,
             table_manager: None,
@@ -135,7 +135,7 @@ impl Inject for CacheManager {
         self.load(ctx).ok();
         //增加每10秒触发缓存清理
         self.cache.mode = MemCacheMode::None;
-        ctx.run_interval(Duration::from_millis(10000),|act,_|{
+        ctx.run_interval(Duration::from_millis(10000), |act, _| {
             act.cache.clear_time_out();
         });
     }
