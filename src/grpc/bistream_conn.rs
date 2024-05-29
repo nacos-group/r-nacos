@@ -35,7 +35,7 @@ impl BiStreamConn {
     }
 
     pub fn receive(&mut self, ctx: &mut Context<Self>) {
-        println!("BiStreamConn start receive");
+        //println!("BiStreamConn start receive");
         if let Some(mut receiver_stream) = self.receiver_stream.replace(None) {
             let manage = self.manage.clone();
             let client_id = self.client_id.clone();
@@ -52,7 +52,7 @@ impl BiStreamConn {
             .into_actor(self)
             .map(|_, _, ctx| {
                 //debug
-                println!("stop at receive!");
+                //println!("stop at receive!");
                 ctx.stop();
             })
             .spawn(ctx);
@@ -73,13 +73,13 @@ impl BiStreamConn {
         let sender = self.sender.clone();
         async move {
             //debug
-            println!("close_stream_and_stop! 01");
+            //println!("close_stream_and_stop! 01");
             sender.send(Err(tonic::Status::cancelled("close"))).await
         }
         .into_actor(self)
         .map(|_, _, ctx| {
             //debug
-            println!("stop at close_stream_and_stop!");
+            //println!("stop at close_stream_and_stop!");
             ctx.stop();
         })
         .wait(ctx);

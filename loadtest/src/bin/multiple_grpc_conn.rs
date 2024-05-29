@@ -16,7 +16,7 @@ async fn main() {
     env_logger::init();
     let namespace_id = "public".to_owned();
     let mut list = vec![];
-    for i in 0..CONN_COUNT {
+    for _i in 0..CONN_COUNT {
         let auth_info = None;
         let client = ClientBuilder::new()
             .set_endpoint_addrs("127.0.0.1:8848")

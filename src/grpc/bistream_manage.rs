@@ -230,11 +230,11 @@ impl Handler<BiStreamManageCmd> for BiStreamManage {
                 if let Some(naming_addr) = &self.naming_addr {
                     naming_addr.do_send(NamingCmd::RemoveClient(client_id));
                 }
-                println!("|ConnClose|conn size: {}",self.conn_cache.len());
+                //println!("|ConnClose|conn size: {}",self.conn_cache.len());
             }
             BiStreamManageCmd::AddConn(client_id, conn) => {
                 self.add_conn(client_id, conn.start());
-                println!("|AddConn|conn size: {}",self.conn_cache.len());
+                //println!("|AddConn|conn size: {}",self.conn_cache.len());
             }
             BiStreamManageCmd::ActiveClinet(client_id) => {
                 self.active_client(client_id)?;
