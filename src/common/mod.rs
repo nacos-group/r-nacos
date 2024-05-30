@@ -78,9 +78,9 @@ pub struct AppSysConfig {
 
 impl AppSysConfig {
     pub fn init_from_env() -> Self {
-        let admin_username = std::env::var("RNACOS_ADMIN_USERNAME")
+        let admin_username = std::env::var("RNACOS_INIT_ADMIN_USERNAME")
             .unwrap_or("admin".to_owned());
-        let admin_password = std::env::var("RNACOS_ADMIN_PASSWORD")
+        let admin_password = std::env::var("RNACOS_INIT_ADMIN_PASSWORD")
             .unwrap_or("admin".to_owned());
         let config_db_file =
             std::env::var("RNACOS_CONFIG_DB_FILE").unwrap_or("config.db".to_owned());
