@@ -52,6 +52,8 @@ impl NamingSysConfig {
 
 #[derive(Default, Clone, Debug)]
 pub struct AppSysConfig {
+    pub admin_username: String,
+    pub admin_password: String,
     pub config_db_file: String,
     pub config_db_dir: String,
     pub config_max_content: usize,
@@ -76,6 +78,10 @@ pub struct AppSysConfig {
 
 impl AppSysConfig {
     pub fn init_from_env() -> Self {
+        let admin_username = std::env::var("RNACOS_ADMIN_USERNAME")
+            .unwrap_or("admin".to_owned());
+        let admin_password = std::env::var("RNACOS_ADMIN_PASSWORD")
+            .unwrap_or("admin".to_owned());
         let config_db_file =
             std::env::var("RNACOS_CONFIG_DB_FILE").unwrap_or("config.db".to_owned());
         let config_max_content = std::env::var("RNACOS_CONFIG_MAX_CONTENT")
@@ -146,6 +152,8 @@ impl AppSysConfig {
             .map(Arc::new)
             .unwrap_or(constant::EMPTY_ARC_STRING.clone());
         Self {
+            admin_username,
+            admin_password,
             config_db_dir,
             config_db_file,
             config_max_content,
