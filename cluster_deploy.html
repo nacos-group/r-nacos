@@ -189,6 +189,8 @@
 <p>env01</p>
 <pre><code>#file:env01 , Initialize with the leader node role
 RUST_LOG=warn
+#RNACOS_INIT_ADMIN_USERNAME=admin
+#RNACOS_INIT_ADMIN_PASSWORD=admin
 RNACOS_HTTP_PORT=8848
 RNACOS_RAFT_NODE_ADDR=127.0.0.1:9848
 RNACOS_CONFIG_DB_DIR=db01
@@ -198,6 +200,8 @@ RNACOS_RAFT_AUTO_INIT=true
 <p>env02:</p>
 <pre><code>#file:env02 , Initialize with the follower node role
 RUST_LOG=warn
+#RNACOS_INIT_ADMIN_USERNAME=admin
+#RNACOS_INIT_ADMIN_PASSWORD=admin
 RNACOS_HTTP_PORT=8849
 RNACOS_RAFT_NODE_ADDR=127.0.0.1:9849
 RNACOS_CONFIG_DB_DIR=db02
@@ -207,6 +211,8 @@ RNACOS_RAFT_JOIN_ADDR=127.0.0.1:9848
 <p>env03:</p>
 <pre><code>#file:env03 , Initialize with the follower node role
 RUST_LOG=warn
+#RNACOS_INIT_ADMIN_USERNAME=admin
+#RNACOS_INIT_ADMIN_PASSWORD=admin
 RNACOS_HTTP_PORT=8850
 RNACOS_RAFT_NODE_ADDR=127.0.0.1:9850
 RNACOS_CONFIG_DB_DIR=db03
