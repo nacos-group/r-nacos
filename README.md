@@ -290,7 +290,7 @@ nacos_rust_client = "0.3.0"
 
 ![](https://github.com/r-nacos/r-nacos/raw/master/doc/assets/imgs/20231223222325.png)
 
-系统会默认创建一个名为`admin`的用户，密码为`admin`。 
+系统会默认创建一个名为`admin`的用户，密码为`admin`(也可以通过环境变量 RNACOS_ADMIN_USERNAME 和 RNACOS_ADMIN_PASSWORD 修改默认账号的账户名和密码)。 
 
 进去控制台后可按需管理用户。 
 
