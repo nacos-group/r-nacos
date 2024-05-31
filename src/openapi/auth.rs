@@ -96,7 +96,7 @@ pub async fn login(
             app.cache_manager.do_send(clear_limit_req);
             let login_result = LoginResult {
                 access_token: Some(token),
-                token_ttl: app.sys_config.console_login_timeout as i64,
+                token_ttl: app.sys_config.openapi_login_timeout as i64,
                 global_admin: false,
             };
             return Ok(HttpResponse::Ok().json(login_result));
