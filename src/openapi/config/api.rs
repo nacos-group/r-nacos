@@ -8,12 +8,16 @@ use chrono::Local;
 use serde::{Deserialize, Serialize};
 
 use crate::common::appdata::AppShareData;
+use crate::common::model::ApiResult;
 use crate::common::web_utils::get_req_body;
+use crate::config::config_index::ConfigQueryParam;
 use crate::config::config_type::ConfigType;
 use crate::config::core::{
-    ConfigActor, ConfigCmd, ConfigKey, ConfigResult, ListenerItem, ListenerResult,
+    ConfigActor, ConfigCmd, ConfigInfoDto, ConfigKey, ConfigResult, ListenerItem, ListenerResult,
 };
 use crate::config::utils::param_utils;
+use crate::config::ConfigUtils;
+use crate::console::v2::ERROR_CODE_SYSTEM_ERROR;
 use crate::openapi::constant::EMPTY;
 use crate::raft::cluster::model::{DelConfigReq, SetConfigReq};
 use crate::utils::select_option_by_clone;
@@ -37,6 +41,46 @@ pub struct ConfigWebParams {
     pub group: Option<String>,
     pub tenant: Option<String>,
     pub content: Option<String>,
+    pub search: Option<String>,   //search type
+    pub page_no: Option<usize>,   //use at search
+    pub page_size: Option<usize>, //use at search
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ConfigSearchPage<T> {
+    pub total_count: Option<usize>,
+    pub page_number: Option<usize>,
+    pub pages_available: Option<usize>,
+    pub page_items: Option<Vec<T>>,
+}
+
+#[derive(Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct ConfigInfo {
+    pub id: Option<String>,
+    pub encrypted_data_key: Option<String>,
+    pub app_name: Option<String>,
+    pub r#type: Option<String>,
+
+    pub tenant: Arc<String>,
+    pub group: Arc<String>,
+    pub data_id: Arc<String>,
+    pub content: Option<Arc<String>>,
+    pub md5: Option<Arc<String>>,
+}
+
+impl From<ConfigInfoDto> for ConfigInfo {
+    fn from(v: ConfigInfoDto) -> Self {
+        Self {
+            tenant: v.tenant,
+            group: v.group,
+            data_id: v.data_id,
+            content: v.content,
+            md5: v.md5,
+            ..Default::default()
+        }
+    }
 }
 
 impl ConfigWebParams {
@@ -46,6 +90,9 @@ impl ConfigWebParams {
             group: select_option_by_clone(&self.group, &o.group),
             tenant: select_option_by_clone(&self.tenant, &o.tenant),
             content: select_option_by_clone(&self.content, &o.content),
+            search: select_option_by_clone(&self.search, &o.search),
+            page_no: select_option_by_clone(&self.page_no, &o.page_no),
+            page_size: select_option_by_clone(&self.page_size, &o.page_size),
         }
     }
 
@@ -75,6 +122,22 @@ impl ConfigWebParams {
             }
         }
         Ok(param)
+    }
+
+    pub fn to_like_search_param(self) -> ConfigQueryParam {
+        let limit = self.page_size.unwrap_or(0xffff_ffff);
+        let offset = (self.page_no.unwrap_or(1) - 1) * limit;
+        let mut param = ConfigQueryParam {
+            limit,
+            offset,
+            like_group: self.group,
+            like_data_id: self.data_id,
+            ..Default::default()
+        };
+        param.tenant = Some(Arc::new(ConfigUtils::default_tenant(
+            self.tenant.unwrap_or_default(),
+        )));
+        param
     }
 }
 
@@ -196,13 +259,18 @@ pub(crate) async fn del_config(
 
 pub(crate) async fn get_config(
     a: web::Query<ConfigWebParams>,
-    config_addr: web::Data<Addr<ConfigActor>>,
+    appdata: web::Data<Arc<AppShareData>>,
 ) -> impl Responder {
+    if let Some(search) = a.search.as_ref() {
+        if search == "blur" {
+            return search_config_blur(a, appdata).await;
+        }
+    };
     let param = a.to_confirmed_param();
     match param {
         Ok(p) => {
             let cmd = ConfigCmd::GET(ConfigKey::new(&p.data_id, &p.group, &p.tenant));
-            match config_addr.send(cmd).await {
+            match appdata.config_addr.send(cmd).await {
                 Ok(res) => {
                     let r: ConfigResult = res.unwrap();
                     match r {
@@ -227,6 +295,40 @@ pub(crate) async fn get_config(
             }
         }
         Err(e) => HttpResponse::InternalServerError().body(e),
+    }
+}
+
+async fn search_config_blur(
+    param: web::Query<ConfigWebParams>,
+    appdata: web::Data<Arc<AppShareData>>,
+) -> HttpResponse {
+    let page_number = param.0.page_size.clone().unwrap_or(1);
+    let query_param = param.0.to_like_search_param();
+    let page_size = query_param.limit;
+    let cmd = ConfigCmd::QueryPageInfo(Box::new(query_param));
+    match appdata.config_addr.send(cmd).await {
+        Ok(res) => {
+            let r: ConfigResult = res.unwrap();
+            match r {
+                ConfigResult::ConfigInfoPage(total_count, list) => {
+                    let page = ConfigSearchPage {
+                        total_count: Some(total_count),
+                        page_number: Some(page_number),
+                        pages_available: Some((total_count + page_size - 1) / page_size),
+                        page_items: Some(list),
+                    };
+                    HttpResponse::Ok().json(page)
+                }
+                _ => HttpResponse::Ok().json(ApiResult::<()>::error(
+                    ERROR_CODE_SYSTEM_ERROR.to_string(),
+                    None,
+                )),
+            }
+        }
+        Err(err) => HttpResponse::Ok().json(ApiResult::<()>::error(
+            ERROR_CODE_SYSTEM_ERROR.to_string(),
+            Some(err.to_string()),
+        )),
     }
 }
 

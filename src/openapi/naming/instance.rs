@@ -262,6 +262,9 @@ impl BeatRequest {
             beat_info.ip = self.ip;
             beat_info.port = self.port;
         }
+        if beat_info.ip.is_none() || beat_info.port.is_none() {
+            return Err(anyhow::anyhow!("ip or port is empty".to_owned()));
+        }
         let service_name_option = beat_info.service_name.clone();
         let mut instance = beat_info.convert_to_instance();
         if service_name_option.is_none() {
@@ -275,24 +278,16 @@ impl BeatRequest {
             } else {
                 return Err(anyhow::anyhow!("service name is empty".to_owned()));
             }
-            if let Some(group_name) = self.group_name.as_ref() {
+            if let Some(group_name) = self.group_name {
                 if !group_name.is_empty() {
-                    instance.group_name = Arc::new(group_name.to_owned());
+                    instance.group_name = Arc::new(group_name);
                 }
             }
         }
         instance.ephemeral = get_bool_from_string(&self.ephemeral, true);
-        instance.cluster_name = NamingUtils::default_cluster(
-            self.cluster_name
-                .as_ref()
-                .unwrap_or(&"".to_owned())
-                .to_owned(),
-        );
+        instance.cluster_name = NamingUtils::default_cluster(self.cluster_name.unwrap_or_default());
         instance.namespace_id = Arc::new(NamingUtils::default_namespace(
-            self.namespace_id
-                .as_ref()
-                .unwrap_or(&"".to_owned())
-                .to_owned(),
+            self.namespace_id.unwrap_or_default(),
         ));
         instance.generate_key();
         Ok(instance)
