@@ -39,11 +39,25 @@ pub async fn login(
     web::Query(a): web::Query<LoginParams>,
     web::Form(b): web::Form<LoginParams>,
 ) -> actix_web::Result<impl Responder> {
-    if !app.sys_config.openapi_enable_auth {
-        return Ok(HttpResponse::Ok()
-            .body("{\"accessToken\":\"AUTH_DISABLED\",\"tokenTtl\":18000,\"globalAdmin\":true}"));
-    }
     let param = a.merge(b);
+    match do_login(param, app).await {
+        Ok(v) => Ok(v),
+        Err(e) => {
+            if !app.sys_config.openapi_enable_auth {
+                Ok(HttpResponse::Ok().body(
+                    "{\"accessToken\":\"AUTH_DISABLED\",\"tokenTtl\":18000,\"globalAdmin\":true}",
+                ))
+            } else {
+                Ok(HttpResponse::Forbidden().body(e.to_string()))
+            }
+        }
+    }
+}
+
+async fn do_login(
+    param: LoginParams,
+    app: web::Data<Arc<AppShareData>>,
+) -> anyhow::Result<HttpResponse> {
     let username = Arc::new(param.username.unwrap_or_default());
     let password = param.password.unwrap_or_default();
     let limit_key = Arc::new(format!("API_USER_L#{}", &username));
@@ -56,15 +70,12 @@ pub async fn login(
         app.raft_cache_route.request_limiter(limit_req).await
     {
         if !acquire_result {
-            return Ok(HttpResponse::Forbidden().json(ApiResult::<()>::error(
-                "LOGIN_LIMITE_ERROR".to_owned(),
-                Some("Frequent login, please try again later".to_owned()),
-            )));
+            return Err(anyhow::anyhow!(
+                "LOGIN_LIMITE_ERROR,Frequent login, please try again later"
+            ));
         }
     } else {
-        return Ok(
-            HttpResponse::Forbidden().json(ApiResult::<()>::error("SYSTEM_ERROR".to_owned(), None))
-        );
+        return Err(anyhow::anyhow!("SYSTEM_ERROR"));
     }
     let msg = UserManagerReq::CheckUser {
         name: username,
@@ -101,10 +112,10 @@ pub async fn login(
             };
             return Ok(HttpResponse::Ok().json(login_result));
         } else {
-            return Ok(HttpResponse::Forbidden().body(UNKNOWN_USER));
+            return Err(anyhow::anyhow!(UNKNOWN_USER));
         }
     }
-    Ok(HttpResponse::Forbidden().body(UNKNOWN_USER))
+    Err(anyhow::anyhow!(UNKNOWN_USER))
 }
 
 pub(crate) async fn mock_token() -> impl Responder {
