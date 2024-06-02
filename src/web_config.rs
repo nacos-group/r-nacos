@@ -95,7 +95,8 @@ pub fn app_config(conf_data: AppSysConfig) -> impl FnOnce(&mut ServiceConfig) {
                     web::resource("/rnacos").route(web::get().to(disable_no_auth_console_index)),
                 )
                 .service(
-                    web::resource("/rnacos/").route(web::get().to(disable_no_auth_console_index)),
+                    web::resource("/rnacos/{_:.*}")
+                        .route(web::get().to(disable_no_auth_console_index)),
                 );
             login_config(config);
             config.configure(openapi_config(conf_data));
@@ -119,7 +120,9 @@ pub fn app_without_no_auth_console_config(config: &mut web::ServiceConfig) {
         .service(web::resource("/nacos").route(web::get().to(disable_no_auth_console_index)))
         .service(web::resource("/nacos/").route(web::get().to(disable_no_auth_console_index)))
         .service(web::resource("/rnacos").route(web::get().to(disable_no_auth_console_index)))
-        .service(web::resource("/rnacos/").route(web::get().to(disable_no_auth_console_index)))
+        .service(
+            web::resource("/rnacos/{_:.*}").route(web::get().to(disable_no_auth_console_index)),
+        )
         .service(web::resource("/nacos/v1/auth/login").route(web::post().to(mock_token)))
         .service(web::resource("/nacos/v1/auth/users/login").route(web::post().to(mock_token)));
     raft_config(config);
