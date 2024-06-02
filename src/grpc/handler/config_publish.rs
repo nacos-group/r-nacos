@@ -2,6 +2,8 @@
 
 use std::sync::Arc;
 
+use crate::common::string_utils::StringUtils;
+use crate::config::config_type::ConfigType;
 use crate::grpc::HandlerResult;
 use crate::{
     common::appdata::AppShareData,
@@ -35,10 +37,16 @@ impl PayloadHandler for ConfigPublishRequestHandler {
     ) -> anyhow::Result<HandlerResult> {
         let body_vec = request_payload.body.unwrap_or_default().value;
         let request: ConfigPublishRequest = serde_json::from_slice(&body_vec)?;
-        let req = SetConfigReq::new(
+        let config_type = StringUtils::map_not_empty(request.get_addition_param("type").cloned())
+            .map(|v| ConfigType::new_by_value(v.as_ref()).get_value());
+        let desc =
+            StringUtils::map_not_empty(request.get_addition_param("desc").cloned()).map(Arc::new);
+        let mut req = SetConfigReq::new(
             ConfigKey::new(&request.data_id, &request.group, &request.tenant),
             request.content,
         );
+        req.config_type = config_type;
+        req.desc = desc;
         match self.app_data.config_route.set_config(req).await {
             Ok(_res) => {
                 //let res:ConfigResult = res.unwrap();

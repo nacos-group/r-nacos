@@ -90,6 +90,16 @@ pub struct ConfigPublishRequest {
     pub addition_map: Option<HashMap<String, String>>,
 }
 
+impl ConfigPublishRequest {
+    pub fn get_addition_param(&self, key: &str) -> Option<&String> {
+        if let Some(addition_map) = self.addition_map.as_ref() {
+            addition_map.get(key)
+        } else {
+            None
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct ConfigQueryRequest {

@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::common::appdata::AppShareData;
 use crate::common::model::ApiResult;
+use crate::common::string_utils::StringUtils;
 use crate::common::web_utils::get_req_body;
 use crate::config::config_index::ConfigQueryParam;
 use crate::config::config_type::ConfigType;
@@ -41,6 +42,8 @@ pub struct ConfigWebParams {
     pub group: Option<String>,
     pub tenant: Option<String>,
     pub content: Option<String>,
+    pub desc: Option<String>,
+    pub r#type: Option<String>,
     pub search: Option<String>,   //search type
     pub page_no: Option<usize>,   //use at search
     pub page_size: Option<usize>, //use at search
@@ -90,6 +93,8 @@ impl ConfigWebParams {
             group: select_option_by_clone(&self.group, &o.group),
             tenant: select_option_by_clone(&self.tenant, &o.tenant),
             content: select_option_by_clone(&self.content, &o.content),
+            desc: select_option_by_clone(&self.desc, &o.desc),
+            r#type: select_option_by_clone(&self.r#type, &o.r#type),
             search: select_option_by_clone(&self.search, &o.search),
             page_no: select_option_by_clone(&self.page_no, &o.page_no),
             page_size: select_option_by_clone(&self.page_size, &o.page_size),
@@ -124,7 +129,7 @@ impl ConfigWebParams {
         Ok(param)
     }
 
-    pub fn to_like_search_param(self) -> ConfigQueryParam {
+    pub fn build_like_search_param(self) -> ConfigQueryParam {
         let limit = self.page_size.unwrap_or(0xffff_ffff);
         let offset = (self.page_no.unwrap_or(1) - 1) * limit;
         let mut param = ConfigQueryParam {
@@ -141,7 +146,7 @@ impl ConfigWebParams {
         param
     }
 
-    pub fn to_search_param(self) -> ConfigQueryParam {
+    pub fn build_search_param(self) -> ConfigQueryParam {
         let limit = self.page_size.unwrap_or(0xffff_ffff);
         let offset = (self.page_no.unwrap_or(1) - 1) * limit;
         let mut param = ConfigQueryParam {
@@ -204,13 +209,17 @@ pub(crate) async fn add_config(
         }
     }
 
+    let config_type = StringUtils::map_not_empty(selected_param.r#type.clone());
+    let desc = StringUtils::map_not_empty(selected_param.desc.clone());
     let param = selected_param.to_confirmed_param();
     match param {
         Ok(p) => {
-            let req = SetConfigReq::new(
+            let mut req = SetConfigReq::new(
                 ConfigKey::new(&p.data_id, &p.group, &p.tenant),
                 Arc::new(p.content.to_owned()),
             );
+            req.config_type = config_type.map(|v| ConfigType::new_by_value(v.as_ref()).get_value());
+            req.desc = desc.map(Arc::new);
             match appdata.config_route.set_config(req).await {
                 Ok(_) => HttpResponse::Ok()
                     .content_type("text/html; charset=utf-8")
@@ -281,10 +290,10 @@ pub(crate) async fn get_config(
 ) -> impl Responder {
     if let Some(search) = web_param.search.as_ref() {
         if search == "blur" {
-            let query_param = web_param.0.to_like_search_param();
+            let query_param = web_param.0.build_like_search_param();
             return do_search_config(query_param, appdata).await;
         } else if search == "accurate" {
-            let query_param = web_param.0.to_search_param();
+            let query_param = web_param.0.build_search_param();
             return do_search_config(query_param, appdata).await;
         }
     };
