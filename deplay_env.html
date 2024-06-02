@@ -166,8 +166,6 @@ KEY3=VALUE3
 <p>rnacos 运行时支持的环境变量，如果不设置则按默认配置运行。</p>
 <h2 id="运行参数说明"><a class="header" href="#运行参数说明">运行参数说明</a></h2>
 <table><thead><tr><th>参数KEY</th><th>内容描述</th><th>默认值</th><th>示例</th><th>开始支持的版本</th></tr></thead><tbody>
-<tr><td>RNACOS_INIT_ADMIN_USERNAME</td><td>rnacos默认管理员用户名</td><td>admin</td><td>rnacos</td><td>0.5.11</td></tr>
-<tr><td>RNACOS_INIT_ADMIN_PASSWORD</td><td>rnacos默认管理员密码</td><td>admin</td><td>rnacos123456</td><td>0.5.11</td></tr>
 <tr><td>RNACOS_HTTP_PORT</td><td>rnacos监听http端口</td><td>8848</td><td>8848</td><td>0.1.x</td></tr>
 <tr><td>RNACOS_GRPC_PORT</td><td>rnacos监听grpc端口</td><td>默认是 HTTP端口+1000</td><td>9848</td><td>0.1.x</td></tr>
 <tr><td>RNACOS_HTTP_CONSOLE_PORT</td><td>r-nacos独立控制台端口</td><td>默认是 HTTP端口+2000;设置为0可不开启独立控制台</td><td>10848</td><td>0.4.x</td></tr>
@@ -184,8 +182,11 @@ KEY3=VALUE3
 <tr><td>RNACOS_ENABLE_NO_AUTH_CONSOLE</td><td>是否开启无鉴权控制台</td><td>false</td><td>false</td><td>0.5.2</td></tr>
 <tr><td>RNACOS_CONSOLE_LOGIN_TIMEOUT</td><td>控制台登陆有效时长(单位为秒)</td><td>一天,86400秒</td><td>86400</td><td>0.5.0</td></tr>
 <tr><td>RNACOS_GMT_OFFSET_HOURS</td><td>日志时间的时区，单位小时；默认为本机时区，运行在docker时需要指定</td><td>local</td><td>8(东8区),-5(西5区)</td><td>0.5.7</td></tr>
-<tr><td>RNACOS_ENABLE_OPEN_API_AUTH</td><td>是否对openapi开启鉴权</td><td>false</td><td>true</td><td>0.5.8</td></tr>
+<tr><td>RNACOS_ENABLE_OPEN_API_AUTH</td><td>是否对openapi开启鉴权；（注：nacos切换到r-nacos过程中不要开启鉴权）</td><td>false</td><td>true</td><td>0.5.8</td></tr>
+<tr><td>RNACOS_API_LOGIN_TIMEOUT</td><td>open api鉴权有效时长，单位为秒；(注：从不鉴权到开启鉴权，需要间隔对应时长以保证客户端token能更新生效)</td><td>一小时,3600秒</td><td>3600</td><td>0.5.8</td></tr>
 <tr><td>RNACOS_CLUSTER_TOKEN</td><td>集群间的通信请求校验token，空表示不开启校验，设置后只有相同token的节点间才可通讯</td><td>空字符串</td><td>1234567890abcdefg</td><td>0.5.8</td></tr>
+<tr><td>RNACOS_INIT_ADMIN_USERNAME</td><td>初始化管理员用户名，只在主节点第一次启动时生效</td><td>admin</td><td>rnacos</td><td>0.5.11</td></tr>
+<tr><td>RNACOS_INIT_ADMIN_PASSWORD</td><td>初始化管理员密码，只在主节点第一次启动时生效</td><td>admin</td><td>rnacos123456</td><td>0.5.11</td></tr>
 </tbody></table>
 <p>注：从v0.3.0开始，默认参数启动的节点会被当做只有一个节点，当前节点是主节点的集群部署。支持其它新增的从节点加入。</p>
 
