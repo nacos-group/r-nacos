@@ -1,3 +1,4 @@
+use crate::common::string_utils::StringUtils;
 use lazy_static::lazy_static;
 use std::sync::{Arc, Mutex};
 use uuid::Uuid;
@@ -52,8 +53,6 @@ impl NamingSysConfig {
 
 #[derive(Default, Clone, Debug)]
 pub struct AppSysConfig {
-    pub admin_username: String,
-    pub admin_password: String,
     pub config_db_file: String,
     pub config_db_dir: String,
     pub config_max_content: usize,
@@ -74,14 +73,12 @@ pub struct AppSysConfig {
     pub openapi_login_one_minute_limit: u32,
     pub openapi_enable_auth: bool,
     pub cluster_token: Arc<String>,
+    pub init_admin_username: String,
+    pub init_admin_password: String,
 }
 
 impl AppSysConfig {
     pub fn init_from_env() -> Self {
-        let admin_username = std::env::var("RNACOS_INIT_ADMIN_USERNAME")
-            .unwrap_or("admin".to_owned());
-        let admin_password = std::env::var("RNACOS_INIT_ADMIN_PASSWORD")
-            .unwrap_or("admin".to_owned());
         let config_db_file =
             std::env::var("RNACOS_CONFIG_DB_FILE").unwrap_or("config.db".to_owned());
         let config_max_content = std::env::var("RNACOS_CONFIG_MAX_CONTENT")
@@ -151,9 +148,13 @@ impl AppSysConfig {
         let cluster_token = std::env::var("RNACOS_CLUSTER_TOKEN")
             .map(Arc::new)
             .unwrap_or(constant::EMPTY_ARC_STRING.clone());
+        let init_admin_username =
+            StringUtils::map_not_empty(std::env::var("RNACOS_INIT_ADMIN_USERNAME").ok())
+                .unwrap_or("admin".to_owned());
+        let init_admin_password =
+            StringUtils::map_not_empty(std::env::var("RNACOS_INIT_ADMIN_PASSWORD").ok())
+                .unwrap_or("admin".to_owned());
         Self {
-            admin_username,
-            admin_password,
             config_db_dir,
             config_db_file,
             config_max_content,
@@ -174,6 +175,8 @@ impl AppSysConfig {
             gmt_fixed_offset_hours,
             openapi_enable_auth,
             cluster_token,
+            init_admin_username,
+            init_admin_password,
         }
     }
 

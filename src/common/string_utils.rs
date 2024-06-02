@@ -12,4 +12,15 @@ impl StringUtils {
     pub fn like(a: &str, b: &str) -> Option<usize> {
         a.rfind(b)
     }
+
+    ///
+    /// 空字符串转为None
+    pub fn map_not_empty(v: Option<String>) -> Option<String> {
+        if let Some(v) = &v {
+            if v.is_empty() {
+                return None;
+            }
+        }
+        v
+    }
 }

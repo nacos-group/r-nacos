@@ -45,8 +45,6 @@ rnacos 运行时支持的环境变量，如果不设置则按默认配置运行�
 
 | 参数KEY|内容描述|默认值|示例|开始支持的版本|
 |--|--|--|--|--|
-|RNACOS_INIT_ADMIN_USERNAME|rnacos默认管理员用户名|admin|rnacos|0.5.11|
-|RNACOS_INIT_ADMIN_PASSWORD|rnacos默认管理员密码|admin|rnacos123456|0.5.11|
 |RNACOS_HTTP_PORT|rnacos监听http端口|8848|8848|0.1.x|
 |RNACOS_GRPC_PORT|rnacos监听grpc端口|默认是 HTTP端口+1000|9848|0.1.x|
 |RNACOS_HTTP_CONSOLE_PORT|r-nacos独立控制台端口|默认是 HTTP端口+2000;设置为0可不开启独立控制台|10848|0.4.x|
@@ -65,6 +63,8 @@ rnacos 运行时支持的环境变量，如果不设置则按默认配置运行�
 |RNACOS_GMT_OFFSET_HOURS|日志时间的时区，单位小时；默认为本机时区，运行在docker时需要指定|local|8(东8区),-5(西5区)|0.5.7|
 |RNACOS_ENABLE_OPEN_API_AUTH|是否对openapi开启鉴权|false|true|0.5.8|
 |RNACOS_CLUSTER_TOKEN|集群间的通信请求校验token，空表示不开启校验，设置后只有相同token的节点间才可通讯|空字符串|1234567890abcdefg|0.5.8|
+|RNACOS_INIT_ADMIN_USERNAME|初始化管理员用户名，只在主节点第一次启动时生效|admin|rnacos|0.5.11|
+|RNACOS_INIT_ADMIN_PASSWORD|初始化管理员密码，只在主节点第一次启动时生效|admin|rnacos123456|0.5.11|
 
 
 注：从v0.3.0开始，默认参数启动的节点会被当做只有一个节点，当前节点是主节点的集群部署。支持其它新增的从节点加入。

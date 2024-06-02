@@ -64,9 +64,9 @@ impl UserManager {
                 if count == 0 {
                     let sys_config = AppSysConfig::init_from_env();
                     let user = UserDto {
-                        username: Arc::new(sys_config.admin_username.to_string()),
-                        nickname: Some(sys_config.admin_username.to_owned()),
-                        password: Some(sys_config.admin_password.to_owned()),
+                        username: Arc::new(sys_config.init_admin_username.to_string()),
+                        nickname: Some(sys_config.init_admin_username.to_owned()),
+                        password: Some(sys_config.init_admin_password.to_owned()),
                         roles: Some(vec![USER_ROLE_MANAGER.clone()]),
                         ..Default::default()
                     };
