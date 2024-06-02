@@ -132,6 +132,24 @@ impl ConfigWebParams {
             offset,
             like_group: self.group,
             like_data_id: self.data_id,
+            query_context: true,
+            ..Default::default()
+        };
+        param.tenant = Some(Arc::new(ConfigUtils::default_tenant(
+            self.tenant.unwrap_or_default(),
+        )));
+        param
+    }
+
+    pub fn to_search_param(self) -> ConfigQueryParam {
+        let limit = self.page_size.unwrap_or(0xffff_ffff);
+        let offset = (self.page_no.unwrap_or(1) - 1) * limit;
+        let mut param = ConfigQueryParam {
+            limit,
+            offset,
+            group: self.group.map(Arc::new),
+            data_id: self.data_id.map(Arc::new),
+            query_context: true,
             ..Default::default()
         };
         param.tenant = Some(Arc::new(ConfigUtils::default_tenant(
@@ -258,15 +276,19 @@ pub(crate) async fn del_config(
 }
 
 pub(crate) async fn get_config(
-    a: web::Query<ConfigWebParams>,
+    web_param: web::Query<ConfigWebParams>,
     appdata: web::Data<Arc<AppShareData>>,
 ) -> impl Responder {
-    if let Some(search) = a.search.as_ref() {
+    if let Some(search) = web_param.search.as_ref() {
         if search == "blur" {
-            return search_config_blur(a, appdata).await;
+            let query_param = web_param.0.to_like_search_param();
+            return do_search_config(query_param, appdata).await;
+        } else if search == "accurate" {
+            let query_param = web_param.0.to_search_param();
+            return do_search_config(query_param, appdata).await;
         }
     };
-    let param = a.to_confirmed_param();
+    let param = web_param.to_confirmed_param();
     match param {
         Ok(p) => {
             let cmd = ConfigCmd::GET(ConfigKey::new(&p.data_id, &p.group, &p.tenant));
@@ -298,13 +320,12 @@ pub(crate) async fn get_config(
     }
 }
 
-async fn search_config_blur(
-    param: web::Query<ConfigWebParams>,
+async fn do_search_config(
+    query_param: ConfigQueryParam,
     appdata: web::Data<Arc<AppShareData>>,
 ) -> HttpResponse {
-    let page_number = param.0.page_size.clone().unwrap_or(1);
-    let query_param = param.0.to_like_search_param();
     let page_size = query_param.limit;
+    let page_number = query_param.offset / query_param.limit + 1;
     let cmd = ConfigCmd::QueryPageInfo(Box::new(query_param));
     match appdata.config_addr.send(cmd).await {
         Ok(res) => {
