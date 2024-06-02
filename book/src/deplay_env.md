@@ -45,6 +45,8 @@ rnacos 运行时支持的环境变量，如果不设置则按默认配置运行�
 
 | 参数KEY|内容描述|默认值|示例|开始支持的版本|
 |--|--|--|--|--|
+|RNACOS_INIT_ADMIN_USERNAME|rnacos默认管理员用户名|admin|rnacos|0.5.11|
+|RNACOS_INIT_ADMIN_PASSWORD|rnacos默认管理员密码|admin|rnacos123456|0.5.11|
 |RNACOS_HTTP_PORT|rnacos监听http端口|8848|8848|0.1.x|
 |RNACOS_GRPC_PORT|rnacos监听grpc端口|默认是 HTTP端口+1000|9848|0.1.x|
 |RNACOS_HTTP_CONSOLE_PORT|r-nacos独立控制台端口|默认是 HTTP端口+2000;设置为0可不开启独立控制台|10848|0.4.x|
