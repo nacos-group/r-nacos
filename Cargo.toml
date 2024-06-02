@@ -25,6 +25,7 @@ name = "rnacos"
 path = "src/main.rs"
 
 [dependencies]
+mimalloc = { version = "*", features = ["secure"] }
 serde = { version = "1", features = ["derive", "rc"] }
 serde_json = "1"
 serde_urlencoded = "0.7"
@@ -104,3 +105,8 @@ features = [
 ]
 
 [build-dependencies]
+
+[profile.release]
+opt-level = 3
+strip = true
+lto = true

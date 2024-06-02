@@ -33,11 +33,15 @@ use actix_web::{middleware, HttpServer};
 use clap::Parser;
 use env_logger::TimestampPrecision;
 use env_logger_timezone_fmt::{TimeZoneFormat, TimeZoneFormatEnv};
+use mimalloc::MiMalloc;
 use rnacos::common::appdata::AppShareData;
 use rnacos::common::constant::APP_VERSION;
 use rnacos::openapi::middle::auth_middle::ApiCheckAuth;
 use rnacos::raft::NacosRaft;
 use rnacos::web_config::{app_config, console_config};
+
+#[global_allocator]
+static GLOBAL: MiMalloc = MiMalloc;
 
 #[derive(Parser, Clone, Debug)]
 #[clap(author, version, about, long_about = None)]
