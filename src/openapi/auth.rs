@@ -1,5 +1,5 @@
 use crate::common::appdata::AppShareData;
-use crate::common::model::{ApiResult, TokenSession};
+use crate::common::model::TokenSession;
 use crate::raft::cache::model::{CacheKey, CacheType, CacheValue};
 use crate::raft::cache::{CacheLimiterReq, CacheManagerReq, CacheManagerResult};
 use crate::user::{UserManagerReq, UserManagerResult};
@@ -40,13 +40,14 @@ pub async fn login(
     web::Form(b): web::Form<LoginParams>,
 ) -> actix_web::Result<impl Responder> {
     let param = a.merge(b);
-    match do_login(param, app).await {
+    match do_login(param, &app).await {
         Ok(v) => Ok(v),
         Err(e) => {
             if !app.sys_config.openapi_enable_auth {
-                Ok(HttpResponse::Ok().body(
-                    "{\"accessToken\":\"AUTH_DISABLED\",\"tokenTtl\":18000,\"globalAdmin\":true}",
-                ))
+                Ok(HttpResponse::Ok().body(format!(
+                    "{{\"accessToken\":\"AUTH_DISABLED\",\"tokenTtl\":{},\"globalAdmin\":true}}",
+                    app.sys_config.openapi_login_timeout
+                )))
             } else {
                 Ok(HttpResponse::Forbidden().body(e.to_string()))
             }
@@ -56,7 +57,7 @@ pub async fn login(
 
 async fn do_login(
     param: LoginParams,
-    app: web::Data<Arc<AppShareData>>,
+    app: &web::Data<Arc<AppShareData>>,
 ) -> anyhow::Result<HttpResponse> {
     let username = Arc::new(param.username.unwrap_or_default());
     let password = param.password.unwrap_or_default();
