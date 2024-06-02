@@ -13,7 +13,10 @@ use crate::common::web_utils::get_req_body;
 use crate::naming::api_model::InstanceVO;
 use crate::naming::core::{NamingActor, NamingCmd, NamingResult};
 use crate::naming::model::{Instance, InstanceUpdateTag, ServiceKey};
-use crate::naming::{NamingUtils, CLIENT_BEAT_INTERVAL_KEY, RESPONSE_CODE_KEY, RESPONSE_CODE_OK};
+use crate::naming::{
+    NamingUtils, CLIENT_BEAT_INTERVAL_KEY, LIGHT_BEAT_ENABLED_KEY, RESPONSE_CODE_KEY,
+    RESPONSE_CODE_OK,
+};
 use crate::openapi::constant::EMPTY;
 use crate::utils::{get_bool_from_string, select_option_by_clone};
 
@@ -514,7 +517,7 @@ pub async fn beat_instance(
                         let mut result = HashMap::new();
                         result.insert(RESPONSE_CODE_KEY, serde_json::json!(RESPONSE_CODE_OK));
                         result.insert(CLIENT_BEAT_INTERVAL_KEY, serde_json::json!(5000));
-                        //result.insert(LIGHT_BEAT_ENABLED_KEY, serde_json::json!(false));
+                        result.insert(LIGHT_BEAT_ENABLED_KEY, serde_json::json!(true));
                         let v = serde_json::to_string(&result).unwrap();
                         HttpResponse::Ok()
                             .insert_header(header::ContentType(mime::APPLICATION_JSON))
