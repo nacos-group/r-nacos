@@ -126,7 +126,7 @@ pub struct InstanceWebQueryListParams {
     pub healthy_only: Option<String>,
     #[serde(rename = "clientIP")]
     pub client_ip: Option<String>,
-    pub udp_port: Option<u16>,
+    pub udp_port: Option<String>,
 }
 
 impl InstanceWebQueryListParams {
@@ -169,7 +169,11 @@ impl InstanceWebQueryListParams {
     }
 
     fn get_addr(&self) -> Option<SocketAddr> {
-        if let Some(port) = &self.udp_port {
+        let port: Option<u16> = self
+            .udp_port
+            .as_ref()
+            .map(|e| e.parse().unwrap_or_default());
+        if let Some(port) = &port {
             if *port == 0u16 {
                 return None;
             }
@@ -552,7 +556,9 @@ pub async fn get_instance_list(
                 Ok(res) => {
                     let result: NamingResult = res.unwrap();
                     match result {
-                        NamingResult::InstanceListString(v) => HttpResponse::Ok().body(v),
+                        NamingResult::InstanceListString(v) => HttpResponse::Ok()
+                            .insert_header(header::ContentType(mime::APPLICATION_JSON))
+                            .body(v),
                         _ => HttpResponse::InternalServerError().body("error"),
                     }
                 }
