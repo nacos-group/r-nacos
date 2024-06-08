@@ -28,22 +28,22 @@ jobs:
         include:
           - target: x86_64-unknown-linux-musl
             os: ubuntu-latest
-            name: rnacos-x86_64-unknown-linux-musl.tar.gz
+            name: rnacos-x86_64-unknown-linux-musl-${GITHUB_REF#refs/tags/}.tar.gz
           - target: x86_64-apple-darwin
             os: macos-13
-            name: rnacos-x86_64-apple-darwin.tar.gz
+            name: rnacos-x86_64-apple-darwin-${GITHUB_REF#refs/tags/}.tar.gz
           - target: x86_64-pc-windows-msvc
             os: windows-latest
-            name: rnacos-x86_64-pc-windows-msvc.zip
+            name: rnacos-x86_64-pc-windows-msvc-${GITHUB_REF#refs/tags/}.zip
           - target: i686-pc-windows-msvc
             os: windows-latest
-            name: rnacos-i686-pc-windows-msvc.zip
+            name: rnacos-i686-pc-windows-msvc-${GITHUB_REF#refs/tags/}.zip
           - target: aarch64-pc-windows-msvc
             os: windows-latest
-            name: rnacos-aarch64-pc-windows-msvc.zip
+            name: rnacos-aarch64-pc-windows-msvc-${GITHUB_REF#refs/tags/}.zip
           - target: aarch64-apple-darwin
             os: macos-latest
-            name: rnacos-aarch64-apple-darwin.tar.gz
+            name: rnacos-aarch64-apple-darwin-${GITHUB_REF#refs/tags/}.tar.gz
     runs-on: ${{ matrix.os }}
     steps:
       # Largely inspired by https://github.com/starship/starship/blob/35a0a20f5c4fea6a08e1b91ff631b089eef8fc50/.github/workflows/deploy.yml
