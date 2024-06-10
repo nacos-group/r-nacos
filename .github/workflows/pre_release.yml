@@ -91,6 +91,8 @@ jobs:
           cp ../../../doc/conf/.env.example .env
           tar czvf ../../../${{ matrix.name }} rnacos .env
           cd -
+          echo ${{ matrix.name }}
+          echo ${GITHUB_REF#refs/*/}
 
       - name: Upload binary artifacts
         uses: actions/upload-artifact@v3
@@ -127,6 +129,8 @@ jobs:
         run: |
           cp doc/conf/.env.example target/${{ matrix.platform.target }}/release/.env
           tar czvf ${{ matrix.platform.name }}.tar.gz -C target/${{ matrix.platform.target }}/release rnacos .env
+          echo ${{ matrix.platform.name }}
+          echo ${GITHUB_REF#refs/*/}
       - name: Upload binary artifacts
         uses: actions/upload-artifact@v3
         with:
