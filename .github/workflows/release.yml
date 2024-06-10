@@ -114,6 +114,7 @@ jobs:
           - target: "aarch64-unknown-linux-musl"
             image: "rust-musl-cross:aarch64-musl"
             compatibility: "manylinux2014 musllinux_1_1"
+            name: rnacos-aarch64-unknown-linux-musl-${GITHUB_REF#refs/tags/}.tar.gz
     container:
       image: docker://ghcr.io/rust-cross/${{ matrix.platform.image }}
       env:
@@ -129,7 +130,7 @@ jobs:
       - name: Archive binary
         run: |
           cp doc/conf/.env.example target/${{ matrix.platform.target }}/release/.env
-          tar czvf rnacos-${{ matrix.platform.target }}.tar.gz -C target/${{ matrix.platform.target }}/release rnacos .env
+          tar czvf ${{ matrix.platform.name }}.tar.gz -C target/${{ matrix.platform.target }}/release rnacos .env
       - name: Upload binary artifacts
         uses: actions/upload-artifact@v3
         with:
