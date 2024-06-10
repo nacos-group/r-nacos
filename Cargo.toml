@@ -107,6 +107,6 @@ features = [
 [build-dependencies]
 
 [profile.release]
-opt-level = 3
-strip = true
-lto = true
+#opt-level = 3
+#strip = true
+#lto = true
