@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration
+        xmlns="http://ch.qos.logback/xml/ns/logback"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://ch.qos.logback/xml/ns/logback logback.xsd">
+    <appender name="consoleLog" class="ch.qos.logback.core.ConsoleAppender">
+        <!-- layout代表输出格式 -->
+        <layout class="ch.qos.logback.classic.PatternLayout">
+            <pattern>%date %level [%thread] %logger [%file:%line] %msg%n</pattern>
+        </layout>
+    </appender>
+    <root level="debug">
+        <!-- 引入控制台输出规则 -->
+        <appender-ref ref="consoleLog" />
+    </root>
+</configuration>
