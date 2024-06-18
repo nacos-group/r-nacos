@@ -9,6 +9,7 @@ pub mod starter;
 pub mod user;
 pub mod utils;
 pub mod web_config;
+pub mod metrics;
 
 pub use inner_mem_cache::TimeoutSet;
 
