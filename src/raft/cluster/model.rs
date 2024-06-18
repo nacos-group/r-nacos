@@ -30,12 +30,11 @@ pub struct SetConfigReq {
 
 impl SetConfigReq {
     pub fn new(config_key: ConfigKey, value: Arc<String>) -> Self {
-        let data_id_clone = Arc::clone(&config_key.data_id);
         Self {
             config_key,
             value,
             op_user: None,
-            config_type: Self::detect_config_type(data_id_clone),
+            config_type: None,
             desc: None,
         }
     }
@@ -54,7 +53,7 @@ impl SetConfigReq {
         }
     }
 
-    fn detect_config_type(data_id: Arc<String>) -> Option<Arc<String>> {
+    pub fn detect_config_type(data_id: Arc<String>) -> Option<Arc<String>> {
         if let Some(pos) = data_id.rfind('.') {
             let suffix = &data_id[pos+1..];
 
