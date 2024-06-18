@@ -136,7 +136,10 @@ pub async fn import_config(
                         };
                         //println!("update load, {:?}:{}",&config_key,&value);
                         //config_addr.do_send(ConfigAsyncCmd::Add(config_key, Arc::new(value)));
-                        let req = SetConfigReq::new(config_key, Arc::new(value));
+                        let mut req = SetConfigReq::new(config_key.clone(), Arc::new(value));
+                        let data_id_clone = config_key.data_id.clone();
+                        req.config_type = SetConfigReq::detect_config_type(data_id_clone);
+
                         app.config_route.set_config(req).await.ok();
                     }
                 }
