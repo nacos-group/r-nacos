@@ -9,6 +9,7 @@ use crate::{
         db::table::{TableManagerQueryReq, TableManagerReq, TableManagerResult},
     },
 };
+use crate::config::config_type::ConfigType;
 
 pub enum RouteAddr {
     Local,
@@ -29,11 +30,12 @@ pub struct SetConfigReq {
 
 impl SetConfigReq {
     pub fn new(config_key: ConfigKey, value: Arc<String>) -> Self {
+        let data_id_clone = Arc::clone(&config_key.data_id);
         Self {
             config_key,
             value,
             op_user: None,
-            config_type: None,
+            config_type: Self::detect_config_type(data_id_clone),
             desc: None,
         }
     }
@@ -50,6 +52,18 @@ impl SetConfigReq {
             config_type: None,
             desc: None,
         }
+    }
+
+    fn detect_config_type(data_id: Arc<String>) -> Option<Arc<String>> {
+        if let Some(pos) = data_id.rfind('.') {
+            let suffix = &data_id[pos+1..];
+
+            if !suffix.is_empty() {
+                return Some(ConfigType::new_by_value(suffix).get_value());
+            }
+        }
+
+        None
     }
 }
 
