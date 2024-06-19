@@ -1,13 +1,11 @@
 pub mod core;
-pub mod metrics_type;
 pub mod counter;
 mod gauge;
 mod histogram;
+pub mod metrics_type;
 
-
-
-#[derive(Default,Debug,Clone)]
-pub struct CounterItem(pub(crate)u64);
+#[derive(Default, Debug, Clone)]
+pub struct CounterItem(pub(crate) u64);
 
 impl CounterItem {
     pub fn increment(&mut self, value: u64) {
@@ -35,18 +33,18 @@ impl From<u64> for CounterItem {
     }
 }
 
-#[derive(Default,Debug,Clone)]
-pub struct GaugeItem(pub(crate)f64);
+#[derive(Default, Debug, Clone)]
+pub struct GaugeItem(pub(crate) f64);
 
 impl GaugeItem {
     /// Increments the gauge by the given amount.
-    fn increment(&mut self, value: f64){
-        self.0+=value;
+    fn increment(&mut self, value: f64) {
+        self.0 += value;
     }
 
     /// Decrements the gauge by the given amount.
     fn decrement(&mut self, value: f64) {
-        self.0-=value;
+        self.0 -= value;
     }
 
     /// Sets the gauge to the given amount.

@@ -1,4 +1,3 @@
-
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]
 pub enum MetricsType {
     None,

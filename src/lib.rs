@@ -2,6 +2,7 @@ pub mod common;
 pub mod config;
 pub mod console;
 pub mod grpc;
+pub mod metrics;
 pub mod naming;
 pub mod openapi;
 pub mod raft;
@@ -9,7 +10,6 @@ pub mod starter;
 pub mod user;
 pub mod utils;
 pub mod web_config;
-pub mod metrics;
 
 pub use inner_mem_cache::TimeoutSet;
 

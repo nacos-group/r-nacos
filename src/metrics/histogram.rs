@@ -1,9 +1,9 @@
-use std::collections::HashMap;
-use crate::metrics::CounterItem;
 use crate::metrics::metrics_type::MetricsType;
+use crate::metrics::CounterItem;
+use std::collections::HashMap;
 
 type Key = MetricsType;
-#[derive(Default,Debug,Clone)]
+#[derive(Default, Debug, Clone)]
 pub struct HistogramGroup {
     count: u64,
     sum: f64,
@@ -19,7 +19,12 @@ impl HistogramGroup {
 
         let buckets = vec![CounterItem::default(); bounds.len()];
 
-        Some(HistogramGroup { count: 0, bounds: Vec::from(bounds), buckets, sum: 0.0 })
+        Some(HistogramGroup {
+            count: 0,
+            bounds: Vec::from(bounds),
+            buckets,
+            sum: 0.0,
+        })
     }
 
     pub fn sum(&self) -> f64 {
@@ -31,7 +36,11 @@ impl HistogramGroup {
     }
 
     pub fn buckets(&self) -> Vec<(f64, CounterItem)> {
-        self.bounds.iter().cloned().zip(self.buckets.iter().cloned()).collect()
+        self.bounds
+            .iter()
+            .cloned()
+            .zip(self.buckets.iter().cloned())
+            .collect()
     }
 
     pub fn record(&mut self, sample: f64) {
@@ -46,8 +55,8 @@ impl HistogramGroup {
     }
 
     pub fn record_many<'a, S>(&mut self, samples: S)
-        where
-            S: IntoIterator<Item = &'a f64> + 'a,
+    where
+        S: IntoIterator<Item = &'a f64> + 'a,
     {
         let mut bucketed = vec![0u64; self.buckets.len()];
 
@@ -80,9 +89,7 @@ impl HistogramGroup {
 }
 
 pub struct HistogramManager {
-    date_map : HashMap<Key,HistogramGroup>,
+    date_map: HashMap<Key, HistogramGroup>,
 }
 
-impl HistogramManager {
-
-}
+impl HistogramManager {}
