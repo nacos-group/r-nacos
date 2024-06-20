@@ -338,6 +338,10 @@ impl Service {
     pub(crate) fn exist_priority_metadata(&self, instance_key: &InstanceShortKey) -> bool {
         self.instance_metadata_map.contains_key(instance_key)
     }
+
+    pub fn get_time_info_size(&self) -> usize {
+        self.timeinfos.len()
+    }
 }
 
 #[derive(Debug, Default, Clone)]

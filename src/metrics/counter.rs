@@ -1,12 +1,12 @@
 use crate::metrics::metrics_type::MetricsType;
-use crate::metrics::CounterItem;
+use crate::metrics::model::CounterItem;
 use std::collections::HashMap;
 
 type Key = MetricsType;
 
 #[derive(Default, Debug)]
 pub struct CounterManager {
-    date_map: HashMap<Key, CounterItem>,
+    pub(crate) date_map: HashMap<Key, CounterItem>,
 }
 
 impl CounterManager {

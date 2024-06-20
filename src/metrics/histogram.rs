@@ -1,95 +1,59 @@
 use crate::metrics::metrics_type::MetricsType;
-use crate::metrics::CounterItem;
+use crate::metrics::model::{CounterItem, HistogramItem};
 use std::collections::HashMap;
 
 type Key = MetricsType;
-#[derive(Default, Debug, Clone)]
-pub struct HistogramGroup {
-    count: u64,
-    sum: f64,
-    bounds: Vec<f64>,
-    buckets: Vec<CounterItem>,
+
+#[derive(Default, Debug)]
+pub struct HistogramManager {
+    pub(crate) date_map: HashMap<Key, HistogramItem>,
 }
 
-impl HistogramGroup {
-    pub fn new(bounds: &[f64]) -> Option<HistogramGroup> {
-        if bounds.is_empty() {
-            return None;
-        }
-
-        let buckets = vec![CounterItem::default(); bounds.len()];
-
-        Some(HistogramGroup {
-            count: 0,
-            bounds: Vec::from(bounds),
-            buckets,
-            sum: 0.0,
-        })
-    }
-
-    pub fn sum(&self) -> f64 {
-        self.sum
-    }
-
-    pub fn count(&self) -> u64 {
-        self.count
-    }
-
-    pub fn buckets(&self) -> Vec<(f64, CounterItem)> {
-        self.bounds
-            .iter()
-            .cloned()
-            .zip(self.buckets.iter().cloned())
-            .collect()
-    }
-
-    pub fn record(&mut self, sample: f64) {
-        self.sum += sample;
-        self.count += 1;
-
-        for (idx, bucket) in self.bounds.iter().enumerate() {
-            if sample <= *bucket {
-                self.buckets[idx].0 += 1;
+impl HistogramManager {
+    pub fn init(&mut self, key: Key, bounds: &[f64]) {
+        if !self.date_map.contains_key(&key) {
+            if let Some(item) = HistogramItem::new(bounds) {
+                self.date_map.insert(key, item);
             }
         }
     }
 
-    pub fn record_many<'a, S>(&mut self, samples: S)
+    pub fn record(&mut self, key: &Key, sample: f64) {
+        if let Some(item) = self.date_map.get_mut(key) {
+            item.record(sample);
+        }
+    }
+
+    pub fn record_many<'a, S>(&mut self, key: &Key, samples: S)
     where
         S: IntoIterator<Item = &'a f64> + 'a,
     {
-        let mut bucketed = vec![0u64; self.buckets.len()];
-
-        let mut sum = 0.0;
-        let mut count = 0;
-        for sample in samples.into_iter() {
-            sum += *sample;
-            count += 1;
-
-            for (idx, bucket) in self.bounds.iter().enumerate() {
-                if sample <= bucket {
-                    bucketed[idx] += 1;
-                    break;
-                }
-            }
+        if let Some(item) = self.date_map.get_mut(key) {
+            item.record_many(samples);
         }
+    }
 
-        if bucketed.len() >= 2 {
-            for idx in 0..(bucketed.len() - 1) {
-                bucketed[idx + 1] += bucketed[idx];
-            }
+    pub fn sum(&self, key: &Key) -> f64 {
+        if let Some(item) = self.date_map.get(key) {
+            item.sum
+        } else {
+            0f64
         }
+    }
 
-        for (idx, local) in bucketed.iter().enumerate() {
-            self.buckets[idx].0 += local;
+    pub fn count(&self, key: &Key) -> u64 {
+        if let Some(item) = self.date_map.get(key) {
+            item.count
+        } else {
+            0u64
         }
-        self.sum += sum;
-        self.count += count;
+    }
+
+    pub fn buckets(&self, key: &Key) -> Vec<(f64, u64)> {
+        if let Some(item) = self.date_map.get(key) {
+            item.buckets()
+        } else {
+            vec![]
+        }
     }
 }
-
-pub struct HistogramManager {
-    date_map: HashMap<Key, HistogramGroup>,
-}
-
-impl HistogramManager {}

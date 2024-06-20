@@ -42,7 +42,6 @@ impl ConfigQueryParam {
 #[derive(Debug, Clone, Default)]
 pub struct ConfigIndex {
     pub(crate) group_data: BTreeMap<Arc<String>, BTreeSet<Arc<String>>>,
-    pub(crate) data_size: usize,
 }
 
 impl ConfigIndex {
@@ -53,14 +52,12 @@ impl ConfigIndex {
     pub(crate) fn insert_config(&mut self, group: Arc<String>, config: Arc<String>) -> bool {
         if let Some(set) = self.group_data.get_mut(&group) {
             if set.insert(config) {
-                self.data_size += 1;
                 return true;
             }
         } else {
             let mut set = BTreeSet::new();
             set.insert(config);
             self.group_data.insert(group, set);
-            self.data_size += 1;
             return true;
         }
         false
@@ -74,7 +71,6 @@ impl ConfigIndex {
         let b = if let Some(set) = self.group_data.get_mut(group) {
             let b = set.remove(config);
             if b {
-                self.data_size -= 1;
                 if set.is_empty() {
                     self.group_data.remove(group);
                 }
@@ -192,6 +188,18 @@ impl TenantIndex {
             }
         }
         (size, rlist)
+    }
+
+    pub fn get_tenant_count(&self) -> usize {
+        self.tenant_group.len()
+    }
+
+    pub fn get_all_config_count(&self) -> usize {
+        let mut sum = 0;
+        for (_, service_index) in &self.tenant_group {
+            sum += service_index.group_data.len();
+        }
+        sum
     }
 }
 

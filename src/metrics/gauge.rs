@@ -1,16 +1,16 @@
 use crate::metrics::metrics_type::MetricsType;
-use crate::metrics::GaugeItem;
+use crate::metrics::model::GaugeItem;
 use std::collections::HashMap;
 
-type key = MetricsType;
+type Key = MetricsType;
 
 #[derive(Default, Debug)]
 pub struct GaugeManager {
-    date_map: HashMap<key, GaugeItem>,
+    pub(crate) date_map: HashMap<Key, GaugeItem>,
 }
 
 impl GaugeManager {
-    pub fn increment(&mut self, key: key, value: f64) {
+    pub fn increment(&mut self, key: Key, value: f64) {
         if let Some(item) = self.date_map.get_mut(&key) {
             item.increment(value);
         } else {
@@ -18,7 +18,7 @@ impl GaugeManager {
         }
     }
 
-    pub fn decrement(&mut self, key: key, value: f64) {
+    pub fn decrement(&mut self, key: Key, value: f64) {
         if let Some(item) = self.date_map.get_mut(&key) {
             item.increment(value);
         } else {
@@ -26,7 +26,7 @@ impl GaugeManager {
         }
     }
 
-    pub fn set(&mut self, key: key, value: f64) {
+    pub fn set(&mut self, key: Key, value: f64) {
         if let Some(item) = self.date_map.get_mut(&key) {
             item.set(value);
         } else {
