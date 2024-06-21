@@ -158,6 +158,17 @@ pub enum MetricsRecord {
     HistogramRecords(Vec<f64>),
 }
 
+impl MetricsRecord {
+    pub fn value_str(&self) -> String {
+        match &self {
+            MetricsRecord::Counter(v) => v.to_string(),
+            MetricsRecord::Gauge(v) => v.to_string(),
+            MetricsRecord::HistogramRecord(v) => v.to_string(),
+            MetricsRecord::HistogramRecords(v) => "Vec<[]>".to_string(),
+        }
+    }
+}
+
 pub struct MetricsItem {
     pub metrics_type: MetricsType,
     pub record: MetricsRecord,

@@ -162,6 +162,10 @@ impl Subscriber {
         }
     }
 
+    pub fn get_listener_key_size(&self) -> usize {
+        self.listener.len()
+    }
+
     pub fn get_listener_value_size(&self) -> usize {
         let mut sum = 0;
         for (_, map) in &self.listener {

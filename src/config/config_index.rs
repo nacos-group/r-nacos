@@ -106,6 +106,14 @@ impl ConfigIndex {
         }
         (index, rlist)
     }
+
+    pub fn get_config_count(&self) -> usize {
+        let mut sum = 0;
+        for (_, set) in &self.group_data {
+            sum += set.len();
+        }
+        sum
+    }
 }
 
 #[derive(Debug, Clone, Default)]
@@ -194,12 +202,14 @@ impl TenantIndex {
         self.tenant_group.len()
     }
 
-    pub fn get_all_config_count(&self) -> usize {
+    pub fn get_config_count(&self) -> (usize, usize) {
+        let mut group_sum = 0;
         let mut sum = 0;
         for (_, service_index) in &self.tenant_group {
-            sum += service_index.group_data.len();
+            group_sum += service_index.group_data.len();
+            sum += service_index.get_config_count();
         }
-        sum
+        (group_sum, sum)
     }
 }
 

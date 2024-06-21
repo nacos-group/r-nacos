@@ -130,6 +130,14 @@ impl ServiceIndex {
         }
         (index, rlist)
     }
+
+    pub fn get_service_count(&self) -> usize {
+        let mut sum = 0;
+        for (_, set) in &self.group_service {
+            sum += set.len();
+        }
+        sum
+    }
 }
 
 #[derive(Debug, Clone, Default)]
@@ -212,6 +220,20 @@ impl NamespaceIndex {
             }
         }
         (size, rlist)
+    }
+
+    pub fn get_tenant_count(&self) -> usize {
+        self.namespace_group.len()
+    }
+
+    pub fn get_service_count(&self) -> (usize, usize) {
+        let mut group_sum = 0;
+        let mut sum = 0;
+        for (_, service) in &self.namespace_group {
+            group_sum += service.group_service.len();
+            sum += service.get_service_count();
+        }
+        (group_sum, sum)
     }
 }
 

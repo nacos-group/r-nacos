@@ -55,6 +55,8 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
 
+use crate::metrics::metrics_type::MetricsType;
+use crate::metrics::model::{MetricsItem, MetricsQuery, MetricsRecord};
 use actix::prelude::*;
 
 //#[derive(Default)]
@@ -716,6 +718,30 @@ impl NamingActor {
             node_manage.do_send(NodeManageRequest::RemoveClientId(client_id));
         }
     }
+
+    fn get_instance_size(&self) -> usize {
+        let mut sum = 0;
+        for (_, service) in &self.service_map {
+            sum += service.instances.len();
+        }
+        sum
+    }
+
+    fn get_time_info_size(&self) -> usize {
+        let mut sum = 0;
+        for (_, service) in &self.service_map {
+            sum += service.get_time_info_size();
+        }
+        sum
+    }
+
+    fn get_client_instance_set_item_size(&self) -> usize {
+        let mut sum = 0;
+        for (_, set) in &self.client_instance_set {
+            sum += set.len();
+        }
+        sum
+    }
 }
 
 #[derive(Debug, Message)]
@@ -934,6 +960,80 @@ impl Handler<NamingCmd> for NamingActor {
                 Ok(NamingResult::NULL)
             }
         }
+    }
+}
+
+impl Handler<MetricsQuery> for NamingActor {
+    type Result = anyhow::Result<Vec<MetricsItem>>;
+
+    fn handle(&mut self, _: MetricsQuery, ctx: &mut Self::Context) -> Self::Result {
+        let mut list = vec![];
+        list.push(MetricsItem {
+            metrics_type: MetricsType::NamingServiceSize,
+            record: MetricsRecord::Gauge(self.service_map.len() as f64),
+        });
+        list.push(MetricsItem {
+            metrics_type: MetricsType::NamingInstanceSize,
+            record: MetricsRecord::Gauge(self.get_instance_size() as f64),
+        });
+        list.push(MetricsItem {
+            metrics_type: MetricsType::NamingTimeInfoSize,
+            record: MetricsRecord::Gauge(self.get_time_info_size() as f64),
+        });
+        list.push(MetricsItem {
+            metrics_type: MetricsType::NamingSubscriberListenerKeySize,
+            record: MetricsRecord::Gauge(self.subscriber.get_listener_key_size() as f64),
+        });
+        list.push(MetricsItem {
+            metrics_type: MetricsType::NamingSubscriberListenerValueSize,
+            record: MetricsRecord::Gauge(self.subscriber.get_listener_value_size() as f64),
+        });
+        list.push(MetricsItem {
+            metrics_type: MetricsType::NamingSubscriberClientSize,
+            record: MetricsRecord::Gauge(self.subscriber.get_client_size() as f64),
+        });
+        list.push(MetricsItem {
+            metrics_type: MetricsType::NamingSubscriberClientValueSize,
+            record: MetricsRecord::Gauge(self.subscriber.get_client_value_size() as f64),
+        });
+        list.push(MetricsItem {
+            metrics_type: MetricsType::NamingEmptyServiceSetSize,
+            record: MetricsRecord::Gauge(self.empty_service_set.len() as f64),
+        });
+        list.push(MetricsItem {
+            metrics_type: MetricsType::NamingEmptyServiceSetItemSize,
+            record: MetricsRecord::Gauge(self.empty_service_set.item_size() as f64),
+        });
+        list.push(MetricsItem {
+            metrics_type: MetricsType::NamingInstanceMetaSetSize,
+            record: MetricsRecord::Gauge(self.instance_metadate_set.len() as f64),
+        });
+        list.push(MetricsItem {
+            metrics_type: MetricsType::NamingInstanceMetaSetItemSize,
+            record: MetricsRecord::Gauge(self.instance_metadate_set.item_size() as f64),
+        });
+        list.push(MetricsItem {
+            metrics_type: MetricsType::NamingClientInstanceSetKeySize,
+            record: MetricsRecord::Gauge(self.client_instance_set.len() as f64),
+        });
+        list.push(MetricsItem {
+            metrics_type: MetricsType::NamingClientInstanceSetValueSize,
+            record: MetricsRecord::Gauge(self.get_client_instance_set_item_size() as f64),
+        });
+        list.push(MetricsItem {
+            metrics_type: MetricsType::NamingIndexTenantSize,
+            record: MetricsRecord::Gauge(self.namespace_index.get_tenant_count() as f64),
+        });
+        let (group_size, service_size) = self.namespace_index.get_service_count();
+        list.push(MetricsItem {
+            metrics_type: MetricsType::NamingIndexGroupSize,
+            record: MetricsRecord::Gauge(group_size as f64),
+        });
+        list.push(MetricsItem {
+            metrics_type: MetricsType::NamingIndexServiceSize,
+            record: MetricsRecord::Gauge(service_size as f64),
+        });
+        Ok(list)
     }
 }
 
