@@ -41,6 +41,11 @@ impl Instance {
         self.from_cluster > 0
     }
 
+    pub fn is_enable_timeout(&self) -> bool {
+        //grpc 不走过期检查
+        !self.from_grpc && !self.is_from_cluster()
+    }
+
     pub fn generate_key(&mut self) {
         //self.id = format!("{}#{}#{}#{}#{}",&self.ip,&self.port,&self.cluster_name,&self.service_name,&self.group_name)
         self.id = Arc::new(format!("{}#{}", &self.ip, &self.port))
@@ -100,10 +105,6 @@ impl Instance {
 
     pub fn get_id_string(&self) -> String {
         format!("{}#{}", &self.ip, &self.port)
-    }
-
-    pub(crate) fn get_time_info(&self) -> InstanceTimeInfo {
-        InstanceTimeInfo::new(self.get_short_key(), self.last_modified_millis)
     }
 }
 
@@ -287,23 +288,6 @@ impl InstanceShortKey {
         Self {
             ip: Arc::new(ip_str.to_owned()),
             port,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Default, Hash, PartialEq, Eq)]
-pub(crate) struct InstanceTimeInfo {
-    pub(crate) time: i64,
-    pub(crate) instance_id: InstanceShortKey,
-    pub(crate) enable: bool,
-}
-
-impl InstanceTimeInfo {
-    pub(crate) fn new(instance_id: InstanceShortKey, time: i64) -> Self {
-        Self {
-            time,
-            instance_id,
-            enable: true,
         }
     }
 }

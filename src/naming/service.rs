@@ -7,14 +7,15 @@ use std::{
 };
 
 use actix_web::rt;
+use inner_mem_cache::TimeoutSet;
 
 use crate::now_millis;
 
 use super::{
     api_model::QueryListResult,
     model::{
-        Instance, InstanceShortKey, InstanceTimeInfo, InstanceUpdateTag, ServiceDetailDto,
-        ServiceKey, UpdateInstanceType,
+        Instance, InstanceShortKey, InstanceUpdateTag, ServiceDetailDto, ServiceKey,
+        UpdateInstanceType,
     },
 };
 
@@ -25,7 +26,7 @@ pub struct ServiceMetadata {
 
 type InstanceMetaData = Arc<HashMap<String, String>>;
 
-#[derive(Debug, Clone, Default)]
+#[derive(Default)]
 pub struct Service {
     pub service_name: Arc<String>,
     pub group_name: Arc<String>,
@@ -42,8 +43,11 @@ pub struct Service {
     pub(crate) healthy_instance_size: i64,
     //pub cluster_map:HashMap<String,Cluster>,
     pub(crate) instances: HashMap<InstanceShortKey, Arc<Instance>>,
-    pub(crate) timeinfos: LinkedList<InstanceTimeInfo>,
     pub(crate) instance_metadata_map: HashMap<InstanceShortKey, InstanceMetaData>,
+    /// 健康状态过期记录，过期后把实例状态改为不健康
+    pub(crate) healthy_timeout_set: TimeoutSet<InstanceShortKey>,
+    /// 不健康状态过期记录，过期后反实例删除
+    pub(crate) unhealthy_timeout_set: TimeoutSet<InstanceShortKey>,
 }
 
 impl Service {
@@ -148,27 +152,14 @@ impl Service {
             rtype = UpdateInstanceType::New;
         }
         let new_instance = Arc::new(instance);
-        //grpc 不走timecheck
-        if !new_instance.from_grpc && !new_instance.is_from_cluster() {
-            let time_info = new_instance.get_time_info();
-            self.update_timeinfos(time_info);
+        if new_instance.is_enable_timeout() {
+            self.healthy_timeout_set.add(
+                new_instance.last_modified_millis as u64,
+                new_instance.get_short_key(),
+            );
         }
         self.instances.insert(key, new_instance);
-        /*
-        if update_mark {
-            self.update_timeinfos(time_info);
-        }
-        */
         rtype
-    }
-
-    pub(crate) fn update_timeinfos(&mut self, time_info: InstanceTimeInfo) {
-        for item in &mut self.timeinfos {
-            if item.instance_id == time_info.instance_id {
-                item.enable = false;
-            }
-        }
-        self.timeinfos.push_back(time_info);
     }
 
     pub(crate) fn time_check(
@@ -176,34 +167,25 @@ impl Service {
         healthy_time: i64,
         offline_time: i64,
     ) -> (Vec<InstanceShortKey>, Vec<InstanceShortKey>) {
-        assert!(healthy_time >= offline_time);
-        let mut i = 0;
-        let t = self.timeinfos.iter();
         let mut remove_list = vec![];
-        let mut update_list = vec![];
-        let mut remove_index = 0;
-        for item in t {
-            i += 1;
-            if !item.enable {
-                continue;
-            }
-            if item.time <= healthy_time {
-                if item.time <= offline_time {
-                    remove_list.push(item.instance_id.clone());
-                    remove_index = i;
-                } else {
-                    update_list.push(item.instance_id.clone());
+        for key in self.healthy_timeout_set.timeout(offline_time as u64) {
+            if let Some(instance) = self.instances.get(&key) {
+                if !instance.is_enable_timeout() || instance.last_modified_millis > offline_time {
+                    continue;
                 }
-            } else {
-                break;
             }
+            self.remove_instance(&key, None);
+            remove_list.push(key);
         }
-        self.timeinfos = self.timeinfos.split_off(remove_index);
-        for item in &remove_list {
-            self.remove_instance(item, None);
-        }
-        for item in &update_list {
-            self.update_instance_healthy_unvaild(item);
+        let mut update_list = vec![];
+        for key in self.healthy_timeout_set.timeout(healthy_time as u64) {
+            if let Some(instance) = self.instances.get(&key) {
+                if !instance.is_enable_timeout() || instance.last_modified_millis > healthy_time {
+                    continue;
+                }
+            }
+            self.update_instance_healthy_invalid(&key);
+            update_list.push(key);
         }
         (remove_list, update_list)
     }
@@ -235,13 +217,15 @@ impl Service {
         }
     }
 
-    pub(crate) fn update_instance_healthy_unvaild(&mut self, instance_id: &InstanceShortKey) {
+    pub(crate) fn update_instance_healthy_invalid(&mut self, instance_id: &InstanceShortKey) {
         if let Some(i) = self.instances.remove(instance_id) {
             if i.healthy {
                 self.healthy_instance_size -= 1;
             }
             let mut i = i.as_ref().clone();
             i.healthy = false;
+            self.unhealthy_timeout_set
+                .add(i.last_modified_millis as u64, instance_id.clone());
             self.instances.insert(instance_id.clone(), Arc::new(i));
         }
     }
@@ -337,10 +321,6 @@ impl Service {
 
     pub(crate) fn exist_priority_metadata(&self, instance_key: &InstanceShortKey) -> bool {
         self.instance_metadata_map.contains_key(instance_key)
-    }
-
-    pub fn get_time_info_size(&self) -> usize {
-        self.timeinfos.len()
     }
 }
 

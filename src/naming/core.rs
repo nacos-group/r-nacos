@@ -19,7 +19,6 @@ use super::listener::{InnerNamingListener, ListenerItem, NamingListenerCmd};
 use super::model::Instance;
 use super::model::InstanceKey;
 use super::model::InstanceShortKey;
-use super::model::InstanceTimeInfo;
 use super::model::InstanceUpdateTag;
 use super::model::ServiceDetailDto;
 use super::model::ServiceInfo;
@@ -727,14 +726,6 @@ impl NamingActor {
         sum
     }
 
-    fn get_time_info_size(&self) -> usize {
-        let mut sum = 0;
-        for (_, service) in &self.service_map {
-            sum += service.get_time_info_size();
-        }
-        sum
-    }
-
     fn get_client_instance_set_item_size(&self) -> usize {
         let mut sum = 0;
         for (_, set) in &self.client_instance_set {
@@ -975,10 +966,6 @@ impl Handler<MetricsQuery> for NamingActor {
         list.push(MetricsItem {
             metrics_type: MetricsType::NamingInstanceSize,
             record: MetricsRecord::Gauge(self.get_instance_size() as f64),
-        });
-        list.push(MetricsItem {
-            metrics_type: MetricsType::NamingTimeInfoSize,
-            record: MetricsRecord::Gauge(self.get_time_info_size() as f64),
         });
         list.push(MetricsItem {
             metrics_type: MetricsType::NamingSubscriberListenerKeySize,
