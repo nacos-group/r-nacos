@@ -733,6 +733,37 @@ impl NamingActor {
         }
         sum
     }
+
+    fn get_healthy_timeout_set_size(&self) -> usize {
+        let mut sum = 0;
+        for (_, service) in &self.service_map {
+            sum += service.healthy_timeout_set.len();
+        }
+        sum
+    }
+    fn get_healthy_timeout_set_item_size(&self) -> usize {
+        let mut sum = 0;
+        for (_, service) in &self.service_map {
+            sum += service.get_healthy_timeout_set_item_size();
+        }
+        sum
+    }
+
+    fn get_unhealthy_timeout_set_size(&self) -> usize {
+        let mut sum = 0;
+        for (_, service) in &self.service_map {
+            sum += service.unhealthy_timeout_set.len();
+        }
+        sum
+    }
+
+    fn get_unhealthy_timeout_set_item_size(&self) -> usize {
+        let mut sum = 0;
+        for (_, service) in &self.service_map {
+            sum += service.get_unhealthy_timeout_set_item_size();
+        }
+        sum
+    }
 }
 
 #[derive(Debug, Message)]
@@ -998,6 +1029,22 @@ impl Handler<MetricsQuery> for NamingActor {
         list.push(MetricsItem {
             metrics_type: MetricsType::NamingInstanceMetaSetItemSize,
             record: MetricsRecord::Gauge(self.instance_metadate_set.item_size() as f64),
+        });
+        list.push(MetricsItem {
+            metrics_type: MetricsType::NamingHealthyTimeoutSetSize,
+            record: MetricsRecord::Gauge(self.get_healthy_timeout_set_size() as f64),
+        });
+        list.push(MetricsItem {
+            metrics_type: MetricsType::NamingHealthyTimeoutSetItemSize,
+            record: MetricsRecord::Gauge(self.get_healthy_timeout_set_item_size() as f64),
+        });
+        list.push(MetricsItem {
+            metrics_type: MetricsType::NamingUnhealthyTimeoutSetSize,
+            record: MetricsRecord::Gauge(self.get_unhealthy_timeout_set_size() as f64),
+        });
+        list.push(MetricsItem {
+            metrics_type: MetricsType::NamingUnhealthyTimeoutSetItemSize,
+            record: MetricsRecord::Gauge(self.get_unhealthy_timeout_set_item_size() as f64),
         });
         list.push(MetricsItem {
             metrics_type: MetricsType::NamingClientInstanceSetKeySize,

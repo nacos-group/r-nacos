@@ -168,7 +168,7 @@ impl Service {
         offline_time: i64,
     ) -> (Vec<InstanceShortKey>, Vec<InstanceShortKey>) {
         let mut remove_list = vec![];
-        for key in self.healthy_timeout_set.timeout(offline_time as u64) {
+        for key in self.unhealthy_timeout_set.timeout(offline_time as u64) {
             if let Some(instance) = self.instances.get(&key) {
                 if !instance.is_enable_timeout() || instance.last_modified_millis > offline_time {
                     continue;
@@ -321,6 +321,14 @@ impl Service {
 
     pub(crate) fn exist_priority_metadata(&self, instance_key: &InstanceShortKey) -> bool {
         self.instance_metadata_map.contains_key(instance_key)
+    }
+
+    pub(crate) fn get_healthy_timeout_set_item_size(&self) -> usize {
+        self.healthy_timeout_set.item_size()
+    }
+
+    pub(crate) fn get_unhealthy_timeout_set_item_size(&self) -> usize {
+        self.unhealthy_timeout_set.item_size()
     }
 }
 
