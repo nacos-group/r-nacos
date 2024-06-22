@@ -720,7 +720,7 @@ impl NamingActor {
 
     pub(crate) fn get_instance_size(&self) -> usize {
         let mut sum = 0;
-        for (_, service) in &self.service_map {
+        for service in self.service_map.values() {
             sum += service.instances.len();
         }
         sum
@@ -728,7 +728,7 @@ impl NamingActor {
 
     pub(crate) fn get_client_instance_set_item_size(&self) -> usize {
         let mut sum = 0;
-        for (_, set) in &self.client_instance_set {
+        for set in self.client_instance_set.values() {
             sum += set.len();
         }
         sum
@@ -736,14 +736,14 @@ impl NamingActor {
 
     pub(crate) fn get_healthy_timeout_set_size(&self) -> usize {
         let mut sum = 0;
-        for (_, service) in &self.service_map {
+        for service in self.service_map.values() {
             sum += service.healthy_timeout_set.len();
         }
         sum
     }
     pub(crate) fn get_healthy_timeout_set_item_size(&self) -> usize {
         let mut sum = 0;
-        for (_, service) in &self.service_map {
+        for service in self.service_map.values() {
             sum += service.get_healthy_timeout_set_item_size();
         }
         sum
@@ -751,7 +751,7 @@ impl NamingActor {
 
     pub(crate) fn get_unhealthy_timeout_set_size(&self) -> usize {
         let mut sum = 0;
-        for (_, service) in &self.service_map {
+        for service in self.service_map.values() {
             sum += service.unhealthy_timeout_set.len();
         }
         sum
@@ -759,7 +759,7 @@ impl NamingActor {
 
     pub(crate) fn get_unhealthy_timeout_set_item_size(&self) -> usize {
         let mut sum = 0;
-        for (_, service) in &self.service_map {
+        for service in self.service_map.values() {
             sum += service.get_unhealthy_timeout_set_item_size();
         }
         sum

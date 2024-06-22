@@ -168,7 +168,7 @@ impl Subscriber {
 
     pub fn get_listener_value_size(&self) -> usize {
         let mut sum = 0;
-        for (_, map) in &self.listener {
+        for map in self.listener.values() {
             sum += map.len();
         }
         sum
@@ -180,7 +180,7 @@ impl Subscriber {
 
     pub fn get_client_value_size(&self) -> usize {
         let mut sum = 0;
-        for (_, item) in &self.client_keys {
+        for item in self.client_keys.values() {
             sum += item.len();
         }
         sum

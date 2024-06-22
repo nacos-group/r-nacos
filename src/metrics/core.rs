@@ -1,8 +1,8 @@
 use crate::config::core::ConfigActor;
+use crate::grpc::bistream_manage::BiStreamManage;
 use crate::metrics::counter::CounterManager;
 use crate::metrics::gauge::GaugeManager;
 use crate::metrics::histogram::HistogramManager;
-use crate::metrics::metrics_key::MetricsKey;
 use crate::metrics::model::{MetricsItem, MetricsQuery, MetricsRecord};
 use crate::naming::core::NamingActor;
 use actix::prelude::*;
@@ -17,6 +17,7 @@ pub struct MetricsManager {
     histogram_manager: HistogramManager,
     naming_actor: Option<Addr<NamingActor>>,
     config_actor: Option<Addr<ConfigActor>>,
+    bi_stream_manage: Option<Addr<BiStreamManage>>,
 }
 
 impl MetricsManager {
@@ -30,6 +31,7 @@ impl MetricsManager {
     async fn do_peek_metrics(
         naming_actor: Option<Addr<NamingActor>>,
         config_actor: Option<Addr<ConfigActor>>,
+        bi_stream_manage: Option<Addr<BiStreamManage>>,
     ) -> anyhow::Result<Vec<MetricsItem>> {
         let mut list = vec![];
         if let Some(naming_actor) = naming_actor {
@@ -38,6 +40,10 @@ impl MetricsManager {
         }
         if let Some(config_actor) = config_actor {
             let mut t = config_actor.send(MetricsQuery).await??;
+            list.append(&mut t);
+        }
+        if let Some(bi_stream_manage) = bi_stream_manage {
+            let mut t = bi_stream_manage.send(MetricsQuery).await??;
             list.append(&mut t);
         }
         Ok(list)
@@ -71,7 +77,8 @@ impl MetricsManager {
     fn query_metrics(&mut self, ctx: &mut Context<Self>) {
         let naming_actor = self.naming_actor.clone();
         let config_actor = self.config_actor.clone();
-        async move { Self::do_peek_metrics(naming_actor, config_actor).await }
+        let bi_stream_manage = self.bi_stream_manage.clone();
+        async move { Self::do_peek_metrics(naming_actor, config_actor, bi_stream_manage).await }
             .into_actor(self)
             .map(|r, act, ctx| {
                 //Self::log_metrics(&r);
@@ -90,7 +97,7 @@ impl MetricsManager {
 
 impl Actor for MetricsManager {
     type Context = Context<Self>;
-    fn started(&mut self, ctx: &mut Self::Context) {
+    fn started(&mut self, _ctx: &mut Self::Context) {
         log::info!("MetricsManager started");
     }
 }
@@ -106,6 +113,7 @@ impl Inject for MetricsManager {
     ) {
         self.naming_actor = factory_data.get_actor();
         self.config_actor = factory_data.get_actor();
+        self.bi_stream_manage = factory_data.get_actor();
         self.init(ctx);
     }
 }

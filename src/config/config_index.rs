@@ -70,10 +70,8 @@ impl ConfigIndex {
     ) -> (bool, usize) {
         let b = if let Some(set) = self.group_data.get_mut(group) {
             let b = set.remove(config);
-            if b {
-                if set.is_empty() {
-                    self.group_data.remove(group);
-                }
+            if b && set.is_empty() {
+                self.group_data.remove(group);
             }
             b
         } else {
@@ -109,7 +107,7 @@ impl ConfigIndex {
 
     pub fn get_config_count(&self) -> usize {
         let mut sum = 0;
-        for (_, set) in &self.group_data {
+        for set in self.group_data.values() {
             sum += set.len();
         }
         sum
@@ -205,7 +203,7 @@ impl TenantIndex {
     pub fn get_config_count(&self) -> (usize, usize) {
         let mut group_sum = 0;
         let mut sum = 0;
-        for (_, service_index) in &self.tenant_group {
+        for service_index in self.tenant_group.values() {
             group_sum += service_index.group_data.len();
             sum += service_index.get_config_count();
         }

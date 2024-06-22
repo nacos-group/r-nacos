@@ -133,7 +133,7 @@ impl ServiceIndex {
 
     pub fn get_service_count(&self) -> usize {
         let mut sum = 0;
-        for (_, set) in &self.group_service {
+        for set in self.group_service.values() {
             sum += set.len();
         }
         sum
@@ -229,7 +229,7 @@ impl NamespaceIndex {
     pub fn get_service_count(&self) -> (usize, usize) {
         let mut group_sum = 0;
         let mut sum = 0;
-        for (_, service) in &self.namespace_group {
+        for service in self.namespace_group.values() {
             group_sum += service.group_service.len();
             sum += service.get_service_count();
         }

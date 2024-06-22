@@ -1,5 +1,6 @@
 use crate::metrics::metrics_key::{MetricsKey, ORDER_ALL_KEYS};
-use crate::metrics::model::{CounterValue, HistogramValue};
+use crate::metrics::model::HistogramValue;
+use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 
 type Key = MetricsKey;
@@ -11,9 +12,9 @@ pub struct HistogramManager {
 
 impl HistogramManager {
     pub fn init(&mut self, key: Key, bounds: &[f64]) {
-        if !self.date_map.contains_key(&key) {
+        if let Entry::Vacant(e) = self.date_map.entry(key) {
             if let Some(item) = HistogramValue::new(bounds) {
-                self.date_map.insert(key, item);
+                e.insert(item);
             }
         }
     }

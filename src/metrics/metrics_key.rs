@@ -33,11 +33,16 @@ pub enum MetricsKey {
     NamingIndexTenantSize,
     NamingIndexGroupSize,
     NamingIndexServiceSize,
+    //grpc
+    GrpcConnSize,
+    GrpcConnActiveTimeoutSetItemSize,
+    GrpcConnResponseTimeoutSetItemSize,
 }
 
 lazy_static! {
     /// 用于有序遍历打印信息
     pub static ref ORDER_ALL_KEYS: Vec<MetricsKey> = vec![
+        //config
         MetricsKey::ConfigDataSize,
         MetricsKey::ConfigListenerClientSize,
         MetricsKey::ConfigListenerKeySize,
@@ -47,6 +52,7 @@ lazy_static! {
         MetricsKey::ConfigSubscriberClientValueSize,
         MetricsKey::ConfigIndexTenantSize,
         MetricsKey::ConfigIndexConfigSize,
+        //naming
         MetricsKey::NamingServiceSize,
         MetricsKey::NamingInstanceSize,
         MetricsKey::NamingSubscriberListenerKeySize,
@@ -66,6 +72,10 @@ lazy_static! {
         MetricsKey::NamingIndexTenantSize,
         MetricsKey::NamingIndexGroupSize,
         MetricsKey::NamingIndexServiceSize,
+        //grpc
+        MetricsKey::GrpcConnSize,
+        MetricsKey::GrpcConnActiveTimeoutSetItemSize,
+        MetricsKey::GrpcConnResponseTimeoutSetItemSize,
     ];
 }
 
@@ -100,6 +110,9 @@ impl MetricsKey {
             MetricsKey::NamingIndexTenantSize => "NamingIndexTenantSize",
             MetricsKey::NamingIndexGroupSize => "NamingIndexGroupSize",
             MetricsKey::NamingIndexServiceSize => "NamingIndexServiceSize",
+            MetricsKey::GrpcConnSize => "GrpcConnSize",
+            MetricsKey::GrpcConnActiveTimeoutSetItemSize => "GrpcConnActiveTimeoutSetItemSize",
+            MetricsKey::GrpcConnResponseTimeoutSetItemSize => "GrpcConnResponseTimeoutSetItemSize",
         }
     }
 
@@ -133,6 +146,9 @@ impl MetricsKey {
             MetricsKey::NamingIndexTenantSize => MetricsType::Gauge,
             MetricsKey::NamingIndexGroupSize => MetricsType::Gauge,
             MetricsKey::NamingIndexServiceSize => MetricsType::Gauge,
+            MetricsKey::GrpcConnSize => MetricsType::Gauge,
+            MetricsKey::GrpcConnActiveTimeoutSetItemSize => MetricsType::Gauge,
+            MetricsKey::GrpcConnResponseTimeoutSetItemSize => MetricsType::Gauge,
         }
     }
 }

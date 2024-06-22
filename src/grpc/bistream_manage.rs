@@ -24,7 +24,7 @@ use actix::prelude::*;
 use bean_factory::{bean, Inject};
 use inner_mem_cache::TimeoutSet;
 
-struct ConnCacheItem {
+pub(crate) struct ConnCacheItem {
     last_active_time: u64,
     conn: Addr<BiStreamConn>,
 }
@@ -41,9 +41,9 @@ impl ConnCacheItem {
 #[bean(inject)]
 #[derive(Default)]
 pub struct BiStreamManage {
-    conn_cache: HashMap<Arc<String>, ConnCacheItem>,
-    active_time_set: TimeoutSet<Arc<String>>,
-    response_time_set: TimeoutSet<Arc<String>>,
+    pub(crate) conn_cache: HashMap<Arc<String>, ConnCacheItem>,
+    pub(crate) active_time_set: TimeoutSet<Arc<String>>,
+    pub(crate) response_time_set: TimeoutSet<Arc<String>>,
     detection_time_out: u64,
     response_time_out: u64,
     request_id: u64,

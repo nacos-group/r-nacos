@@ -125,7 +125,7 @@ impl HistogramValue {
 
         let mut sum = 0.0;
         let mut count = 0;
-        for sample in samples.into_iter() {
+        for sample in samples {
             sum += *sample;
             count += 1;
 
