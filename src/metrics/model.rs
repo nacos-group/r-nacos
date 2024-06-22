@@ -1,4 +1,4 @@
-use crate::metrics::metrics_type::MetricsType;
+use crate::metrics::metrics_key::MetricsKey;
 use actix::prelude::*;
 use std::fmt::{Display, Formatter};
 
@@ -166,18 +166,7 @@ pub enum MetricsRecord {
     HistogramRecords(Vec<f64>),
 }
 
-impl MetricsRecord {
-    pub fn value_str(&self) -> String {
-        match &self {
-            MetricsRecord::CounterInc(v) => v.to_string(),
-            MetricsRecord::Gauge(v) => v.to_string(),
-            MetricsRecord::HistogramRecord(v) => v.to_string(),
-            MetricsRecord::HistogramRecords(v) => "Vec<[]>".to_string(),
-        }
-    }
-}
-
 pub struct MetricsItem {
-    pub metrics_type: MetricsType,
+    pub metrics_type: MetricsKey,
     pub record: MetricsRecord,
 }

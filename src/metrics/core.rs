@@ -1,7 +1,7 @@
 use crate::metrics::counter::CounterManager;
 use crate::metrics::gauge::GaugeManager;
 use crate::metrics::histogram::HistogramManager;
-use crate::metrics::metrics_type::MetricsType;
+use crate::metrics::metrics_key::MetricsKey;
 use crate::metrics::model::{MetricsItem, MetricsQuery, MetricsRecord};
 use crate::naming::core::NamingActor;
 use actix::prelude::*;

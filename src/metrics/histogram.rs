@@ -1,8 +1,8 @@
-use crate::metrics::metrics_type::MetricsType;
+use crate::metrics::metrics_key::MetricsKey;
 use crate::metrics::model::{CounterItem, HistogramItem};
 use std::collections::HashMap;
 
-type Key = MetricsType;
+type Key = MetricsKey;
 
 #[derive(Default, Debug)]
 pub struct HistogramManager {
