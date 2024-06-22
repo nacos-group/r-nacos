@@ -1,18 +1,18 @@
-use crate::metrics::metrics_key::MetricsKey;
-use crate::metrics::model::{CounterItem, HistogramItem};
+use crate::metrics::metrics_key::{MetricsKey, ORDER_ALL_KEYS};
+use crate::metrics::model::{CounterValue, HistogramValue};
 use std::collections::HashMap;
 
 type Key = MetricsKey;
 
 #[derive(Default, Debug)]
 pub struct HistogramManager {
-    pub(crate) date_map: HashMap<Key, HistogramItem>,
+    pub(crate) date_map: HashMap<Key, HistogramValue>,
 }
 
 impl HistogramManager {
     pub fn init(&mut self, key: Key, bounds: &[f64]) {
         if !self.date_map.contains_key(&key) {
-            if let Some(item) = HistogramItem::new(bounds) {
+            if let Some(item) = HistogramValue::new(bounds) {
                 self.date_map.insert(key, item);
             }
         }
@@ -54,9 +54,11 @@ impl HistogramManager {
         }
     }
     pub fn print_metrics(&self) {
-        log::info!("-------------- HISTOGRAM TYPE --------------");
-        for (key, val) in &self.date_map {
-            log::info!("[metrics_histogram]|{}:{}|", key.get_key(), val);
+        log::info!("-------------- METRICS HISTOGRAM --------------");
+        for key in ORDER_ALL_KEYS.iter() {
+            if let Some(val) = self.date_map.get(key) {
+                log::info!("[metrics_histogram]|{}:{}|", key.get_key(), val);
+            }
         }
     }
 }

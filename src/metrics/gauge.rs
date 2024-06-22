@@ -1,12 +1,12 @@
-use crate::metrics::metrics_key::MetricsKey;
-use crate::metrics::model::GaugeItem;
+use crate::metrics::metrics_key::{MetricsKey, ORDER_ALL_KEYS};
+use crate::metrics::model::GaugeValue;
 use std::collections::HashMap;
 
 type Key = MetricsKey;
 
 #[derive(Default, Debug)]
 pub struct GaugeManager {
-    pub(crate) date_map: HashMap<Key, GaugeItem>,
+    pub(crate) date_map: HashMap<Key, GaugeValue>,
 }
 
 impl GaugeManager {
@@ -35,9 +35,12 @@ impl GaugeManager {
     }
 
     pub fn print_metrics(&self) {
-        log::info!("-------------- GAUGE TYPE --------------");
-        for (key, val) in &self.date_map {
-            log::info!("[metrics_gauge]|{}:{}|", key.get_key(), val.0);
+        log::info!("-------------- METRICS GAUGE --------------");
+        for (key, val) in &self.date_map {}
+        for key in ORDER_ALL_KEYS.iter() {
+            if let Some(val) = self.date_map.get(key) {
+                log::info!("[metrics_gauge]|{}:{}|", key.get_key(), val.0);
+            }
         }
     }
 }

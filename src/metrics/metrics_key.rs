@@ -1,6 +1,8 @@
+use crate::metrics::model::MetricsType;
+use lazy_static::lazy_static;
+
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]
 pub enum MetricsKey {
-    None,
     //config
     ConfigDataSize,
     ConfigListenerSize,
@@ -32,16 +34,42 @@ pub enum MetricsKey {
     NamingIndexServiceSize,
 }
 
-impl Default for MetricsKey {
-    fn default() -> Self {
-        Self::None
-    }
+lazy_static! {
+    /// 用于有序遍历打印信息
+    pub static ref ORDER_ALL_KEYS: Vec<MetricsKey> = vec![
+        MetricsKey::ConfigDataSize,
+        MetricsKey::ConfigListenerSize,
+        MetricsKey::ConfigSubscriberListenerKeySize,
+        MetricsKey::ConfigSubscriberListenerValueSize,
+        MetricsKey::ConfigSubscriberClientSize,
+        MetricsKey::ConfigSubscriberClientValueSize,
+        MetricsKey::ConfigIndexTenantSize,
+        MetricsKey::ConfigIndexConfigSize,
+        MetricsKey::NamingServiceSize,
+        MetricsKey::NamingInstanceSize,
+        MetricsKey::NamingSubscriberListenerKeySize,
+        MetricsKey::NamingSubscriberListenerValueSize,
+        MetricsKey::NamingSubscriberClientSize,
+        MetricsKey::NamingSubscriberClientValueSize,
+        MetricsKey::NamingEmptyServiceSetSize,
+        MetricsKey::NamingEmptyServiceSetItemSize,
+        MetricsKey::NamingInstanceMetaSetSize,
+        MetricsKey::NamingInstanceMetaSetItemSize,
+        MetricsKey::NamingHealthyTimeoutSetSize,
+        MetricsKey::NamingHealthyTimeoutSetItemSize,
+        MetricsKey::NamingUnhealthyTimeoutSetSize,
+        MetricsKey::NamingUnhealthyTimeoutSetItemSize,
+        MetricsKey::NamingClientInstanceSetKeySize,
+        MetricsKey::NamingClientInstanceSetValueSize,
+        MetricsKey::NamingIndexTenantSize,
+        MetricsKey::NamingIndexGroupSize,
+        MetricsKey::NamingIndexServiceSize,
+    ];
 }
 
 impl MetricsKey {
     pub fn get_key(&self) -> &'static str {
         match &self {
-            MetricsKey::None => "None",
             MetricsKey::ConfigDataSize => "ConfigDataSize",
             MetricsKey::ConfigListenerSize => "ConfigListenerSize",
             MetricsKey::ConfigSubscriberListenerKeySize => "ConfigSubscriberListenerKeySize",
@@ -69,6 +97,38 @@ impl MetricsKey {
             MetricsKey::NamingIndexTenantSize => "NamingIndexTenantSize",
             MetricsKey::NamingIndexGroupSize => "NamingIndexGroupSize",
             MetricsKey::NamingIndexServiceSize => "NamingIndexServiceSize",
+        }
+    }
+
+    pub fn get_metrics_type(&self) -> MetricsType {
+        match &self {
+            MetricsKey::ConfigDataSize => MetricsType::Gauge,
+            MetricsKey::ConfigListenerSize => MetricsType::Gauge,
+            MetricsKey::ConfigSubscriberListenerKeySize => MetricsType::Gauge,
+            MetricsKey::ConfigSubscriberListenerValueSize => MetricsType::Gauge,
+            MetricsKey::ConfigSubscriberClientSize => MetricsType::Gauge,
+            MetricsKey::ConfigSubscriberClientValueSize => MetricsType::Gauge,
+            MetricsKey::ConfigIndexTenantSize => MetricsType::Gauge,
+            MetricsKey::ConfigIndexConfigSize => MetricsType::Gauge,
+            MetricsKey::NamingServiceSize => MetricsType::Gauge,
+            MetricsKey::NamingInstanceSize => MetricsType::Gauge,
+            MetricsKey::NamingSubscriberListenerKeySize => MetricsType::Gauge,
+            MetricsKey::NamingSubscriberListenerValueSize => MetricsType::Gauge,
+            MetricsKey::NamingSubscriberClientSize => MetricsType::Gauge,
+            MetricsKey::NamingSubscriberClientValueSize => MetricsType::Gauge,
+            MetricsKey::NamingEmptyServiceSetSize => MetricsType::Gauge,
+            MetricsKey::NamingEmptyServiceSetItemSize => MetricsType::Gauge,
+            MetricsKey::NamingInstanceMetaSetSize => MetricsType::Gauge,
+            MetricsKey::NamingInstanceMetaSetItemSize => MetricsType::Gauge,
+            MetricsKey::NamingHealthyTimeoutSetSize => MetricsType::Gauge,
+            MetricsKey::NamingHealthyTimeoutSetItemSize => MetricsType::Gauge,
+            MetricsKey::NamingUnhealthyTimeoutSetSize => MetricsType::Gauge,
+            MetricsKey::NamingUnhealthyTimeoutSetItemSize => MetricsType::Gauge,
+            MetricsKey::NamingClientInstanceSetKeySize => MetricsType::Gauge,
+            MetricsKey::NamingClientInstanceSetValueSize => MetricsType::Gauge,
+            MetricsKey::NamingIndexTenantSize => MetricsType::Gauge,
+            MetricsKey::NamingIndexGroupSize => MetricsType::Gauge,
+            MetricsKey::NamingIndexServiceSize => MetricsType::Gauge,
         }
     }
 }

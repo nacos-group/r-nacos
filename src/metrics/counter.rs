@@ -1,12 +1,12 @@
-use crate::metrics::metrics_key::MetricsKey;
-use crate::metrics::model::CounterItem;
+use crate::metrics::metrics_key::{MetricsKey, ORDER_ALL_KEYS};
+use crate::metrics::model::CounterValue;
 use std::collections::HashMap;
 
 type Key = MetricsKey;
 
 #[derive(Default, Debug)]
 pub struct CounterManager {
-    pub(crate) date_map: HashMap<Key, CounterItem>,
+    pub(crate) date_map: HashMap<Key, CounterValue>,
 }
 
 impl CounterManager {
@@ -26,9 +26,11 @@ impl CounterManager {
         }
     }
     pub fn print_metrics(&self) {
-        log::info!("-------------- COUNTER TYPE --------------");
-        for (key, val) in &self.date_map {
-            log::info!("[metrics_counter]|{}:{}|", key.get_key(), val.0);
+        log::info!("-------------- METRICS COUNTER --------------");
+        for key in ORDER_ALL_KEYS.iter() {
+            if let Some(val) = self.date_map.get(key) {
+                log::info!("[metrics_counter]|{}:{}|", key.get_key(), val.0);
+            }
         }
     }
 }

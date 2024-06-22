@@ -2,10 +2,16 @@ use crate::metrics::metrics_key::MetricsKey;
 use actix::prelude::*;
 use std::fmt::{Display, Formatter};
 
-#[derive(Default, Debug, Clone)]
-pub struct CounterItem(pub(crate) u64);
+pub enum MetricsType {
+    Counter,
+    Gauge,
+    Histogram,
+}
 
-impl CounterItem {
+#[derive(Default, Debug, Clone)]
+pub struct CounterValue(pub(crate) u64);
+
+impl CounterValue {
     pub fn increment(&mut self, value: u64) {
         self.0 += value;
     }
@@ -19,22 +25,22 @@ impl CounterItem {
     }
 }
 
-impl From<CounterItem> for u64 {
-    fn from(value: CounterItem) -> Self {
+impl From<CounterValue> for u64 {
+    fn from(value: CounterValue) -> Self {
         value.0
     }
 }
 
-impl From<u64> for CounterItem {
+impl From<u64> for CounterValue {
     fn from(value: u64) -> Self {
         Self(value)
     }
 }
 
 #[derive(Default, Debug, Clone)]
-pub struct GaugeItem(pub(crate) f64);
+pub struct GaugeValue(pub(crate) f64);
 
-impl GaugeItem {
+impl GaugeValue {
     /// Increments the gauge by the given amount.
     pub fn increment(&mut self, value: f64) {
         self.0 += value;
@@ -51,35 +57,35 @@ impl GaugeItem {
     }
 }
 
-impl From<GaugeItem> for f64 {
-    fn from(value: GaugeItem) -> Self {
+impl From<GaugeValue> for f64 {
+    fn from(value: GaugeValue) -> Self {
         value.0
     }
 }
 
-impl From<f64> for GaugeItem {
+impl From<f64> for GaugeValue {
     fn from(value: f64) -> Self {
         Self(value)
     }
 }
 
 #[derive(Default, Debug, Clone)]
-pub struct HistogramItem {
+pub struct HistogramValue {
     pub(crate) count: u64,
     pub(crate) sum: f64,
     bounds: Vec<f64>,
-    buckets: Vec<CounterItem>,
+    buckets: Vec<CounterValue>,
 }
 
-impl HistogramItem {
-    pub fn new(bounds: &[f64]) -> Option<HistogramItem> {
+impl HistogramValue {
+    pub fn new(bounds: &[f64]) -> Option<HistogramValue> {
         if bounds.is_empty() {
             return None;
         }
 
-        let buckets = vec![CounterItem::default(); bounds.len()];
+        let buckets = vec![CounterValue::default(); bounds.len()];
 
-        Some(HistogramItem {
+        Some(HistogramValue {
             count: 0,
             bounds: Vec::from(bounds),
             buckets,
@@ -145,7 +151,7 @@ impl HistogramItem {
     }
 }
 
-impl Display for HistogramItem {
+impl Display for HistogramValue {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "total_count={},total_sum={}", self.count, self.sum).ok();
         for (k, v) in self.buckets() {
