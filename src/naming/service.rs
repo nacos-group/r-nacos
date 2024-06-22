@@ -148,7 +148,9 @@ impl Service {
                 instance.metadata = priority_metadata.clone();
             }
             self.instance_size += 1;
-            self.healthy_instance_size += 1;
+            if instance.healthy {
+                self.healthy_instance_size += 1;
+            }
             rtype = UpdateInstanceType::New;
         }
         let new_instance = Arc::new(instance);
