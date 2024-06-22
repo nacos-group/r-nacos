@@ -1,3 +1,4 @@
+use crate::config::core::ConfigActor;
 use crate::metrics::counter::CounterManager;
 use crate::metrics::gauge::GaugeManager;
 use crate::metrics::histogram::HistogramManager;
@@ -15,6 +16,7 @@ pub struct MetricsManager {
     gauge_manager: GaugeManager,
     histogram_manager: HistogramManager,
     naming_actor: Option<Addr<NamingActor>>,
+    config_actor: Option<Addr<ConfigActor>>,
 }
 
 impl MetricsManager {
@@ -27,10 +29,15 @@ impl MetricsManager {
 
     async fn do_peek_metrics(
         naming_actor: Option<Addr<NamingActor>>,
+        config_actor: Option<Addr<ConfigActor>>,
     ) -> anyhow::Result<Vec<MetricsItem>> {
         let mut list = vec![];
         if let Some(naming_actor) = naming_actor {
             let mut t = naming_actor.send(MetricsQuery).await??;
+            list.append(&mut t);
+        }
+        if let Some(config_actor) = config_actor {
+            let mut t = config_actor.send(MetricsQuery).await??;
             list.append(&mut t);
         }
         Ok(list)
@@ -63,7 +70,8 @@ impl MetricsManager {
 
     fn query_metrics(&mut self, ctx: &mut Context<Self>) {
         let naming_actor = self.naming_actor.clone();
-        async move { Self::do_peek_metrics(naming_actor).await }
+        let config_actor = self.config_actor.clone();
+        async move { Self::do_peek_metrics(naming_actor, config_actor).await }
             .into_actor(self)
             .map(|r, act, ctx| {
                 //Self::log_metrics(&r);
@@ -97,6 +105,7 @@ impl Inject for MetricsManager {
         ctx: &mut Self::Context,
     ) {
         self.naming_actor = factory_data.get_actor();
+        self.config_actor = factory_data.get_actor();
         self.init(ctx);
     }
 }

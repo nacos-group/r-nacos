@@ -296,7 +296,7 @@ pub enum ListenerResult {
 type ListenerSenderType = tokio::sync::oneshot::Sender<ListenerResult>;
 //type ListenerReceiverType = tokio::sync::oneshot::Receiver<ListenerResult>;
 
-struct ConfigListener {
+pub(crate) struct ConfigListener {
     version: u64,
     listener: HashMap<ConfigKey, Vec<u64>>,
     time_listener: BTreeMap<i64, Vec<OnceListener>>,
@@ -372,14 +372,22 @@ impl ConfigListener {
             self.time_listener.remove(&key);
         }
     }
+
+    pub(crate) fn get_listener_client_size(&self) -> usize {
+        self.sender_map.len()
+    }
+
+    pub(crate) fn get_listener_key_size(&self) -> usize {
+        self.listener.len()
+    }
 }
 
 #[bean(inject)]
 pub struct ConfigActor {
-    cache: HashMap<ConfigKey, ConfigValue>,
-    listener: ConfigListener,
-    subscriber: Subscriber,
-    tenant_index: TenantIndex,
+    pub(crate) cache: HashMap<ConfigKey, ConfigValue>,
+    pub(crate) listener: ConfigListener,
+    pub(crate) subscriber: Subscriber,
+    pub(crate) tenant_index: TenantIndex,
     raft: Option<Weak<NacosRaft>>,
     sequence: SimpleSequence,
 }

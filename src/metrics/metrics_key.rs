@@ -5,7 +5,8 @@ use lazy_static::lazy_static;
 pub enum MetricsKey {
     //config
     ConfigDataSize,
-    ConfigListenerSize,
+    ConfigListenerClientSize,
+    ConfigListenerKeySize,
     ConfigSubscriberListenerKeySize,
     ConfigSubscriberListenerValueSize,
     ConfigSubscriberClientSize,
@@ -38,7 +39,8 @@ lazy_static! {
     /// 用于有序遍历打印信息
     pub static ref ORDER_ALL_KEYS: Vec<MetricsKey> = vec![
         MetricsKey::ConfigDataSize,
-        MetricsKey::ConfigListenerSize,
+        MetricsKey::ConfigListenerClientSize,
+        MetricsKey::ConfigListenerKeySize,
         MetricsKey::ConfigSubscriberListenerKeySize,
         MetricsKey::ConfigSubscriberListenerValueSize,
         MetricsKey::ConfigSubscriberClientSize,
@@ -71,7 +73,8 @@ impl MetricsKey {
     pub fn get_key(&self) -> &'static str {
         match &self {
             MetricsKey::ConfigDataSize => "ConfigDataSize",
-            MetricsKey::ConfigListenerSize => "ConfigListenerSize",
+            MetricsKey::ConfigListenerClientSize => "ConfigListenerClientSize",
+            MetricsKey::ConfigListenerKeySize => "ConfigListenerKeySize",
             MetricsKey::ConfigSubscriberListenerKeySize => "ConfigSubscriberListenerKeySize",
             MetricsKey::ConfigSubscriberListenerValueSize => "ConfigSubscriberListenerValueSize",
             MetricsKey::ConfigSubscriberClientSize => "ConfigSubscriberClientSize",
@@ -103,7 +106,8 @@ impl MetricsKey {
     pub fn get_metrics_type(&self) -> MetricsType {
         match &self {
             MetricsKey::ConfigDataSize => MetricsType::Gauge,
-            MetricsKey::ConfigListenerSize => MetricsType::Gauge,
+            MetricsKey::ConfigListenerClientSize => MetricsType::Gauge,
+            MetricsKey::ConfigListenerKeySize => MetricsType::Gauge,
             MetricsKey::ConfigSubscriberListenerKeySize => MetricsType::Gauge,
             MetricsKey::ConfigSubscriberListenerValueSize => MetricsType::Gauge,
             MetricsKey::ConfigSubscriberClientSize => MetricsType::Gauge,

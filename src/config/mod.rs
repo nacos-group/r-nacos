@@ -5,6 +5,7 @@ pub mod config_subscribe;
 pub mod config_type;
 pub mod core;
 pub mod dal;
+pub mod metrics;
 pub mod model;
 pub mod utils;
 
