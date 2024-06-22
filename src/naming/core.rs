@@ -494,12 +494,12 @@ impl NamingActor {
                         );
                     }
                 }
-                if item.instance_size <= 0 {
-                    self.empty_service_set.add(
-                        now + self.sys_config.service_time_out_millis,
-                        item.get_service_key(),
-                    );
-                }
+            }
+            if item.instance_size <= 0 {
+                self.empty_service_set.add(
+                    now + self.sys_config.service_time_out_millis,
+                    item.get_service_key(),
+                );
             }
             change_list.push((service_key, rlist, ulist));
             if size >= self.sys_config.once_time_check_size {
