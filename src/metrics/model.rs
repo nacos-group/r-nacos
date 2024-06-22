@@ -165,6 +165,14 @@ impl Display for HistogramValue {
 #[rtype(result = "anyhow::Result<Vec<MetricsItem>>")]
 pub struct MetricsQuery;
 
+#[derive(Message, Clone, Debug)]
+#[rtype(result = "anyhow::Result<()>")]
+pub enum MetricsRequest {
+    Record(MetricsItem),
+    BatchRecord(Vec<MetricsItem>),
+}
+
+#[derive(Clone, Debug)]
 pub enum MetricsRecord {
     CounterInc(u64),
     Gauge(f64),
@@ -172,7 +180,17 @@ pub enum MetricsRecord {
     HistogramRecords(Vec<f64>),
 }
 
+#[derive(Clone, Debug)]
 pub struct MetricsItem {
     pub metrics_type: MetricsKey,
     pub record: MetricsRecord,
+}
+
+impl MetricsItem {
+    pub fn new(metrics_type: MetricsKey, record: MetricsRecord) -> Self {
+        Self {
+            metrics_type,
+            record,
+        }
+    }
 }

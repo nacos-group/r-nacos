@@ -55,7 +55,7 @@ impl HistogramManager {
         }
     }
     pub fn print_metrics(&self) {
-        log::info!("-------------- METRICS HISTOGRAM --------------");
+        //log::info!("-------------- METRICS HISTOGRAM --------------");
         for key in ORDER_ALL_KEYS.iter() {
             if let Some(val) = self.date_map.get(key) {
                 log::info!("[metrics_histogram]|{}:{}|", key.get_key(), val);

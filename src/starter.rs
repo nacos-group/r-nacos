@@ -211,6 +211,7 @@ pub fn build_share_data(factory_data: FactoryData) -> anyhow::Result<Arc<AppShar
         raft_cache_route: factory_data.get_bean().unwrap(),
         user_manager: factory_data.get_actor().unwrap(),
         cache_manager: factory_data.get_actor().unwrap(),
+        metrics_manager: factory_data.get_actor().unwrap(),
         factory_data,
         timezone_offset: Arc::new(timezone_offset),
     });

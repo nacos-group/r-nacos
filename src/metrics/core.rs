@@ -3,7 +3,8 @@ use crate::grpc::bistream_manage::BiStreamManage;
 use crate::metrics::counter::CounterManager;
 use crate::metrics::gauge::GaugeManager;
 use crate::metrics::histogram::HistogramManager;
-use crate::metrics::model::{MetricsItem, MetricsQuery, MetricsRecord};
+use crate::metrics::metrics_key::MetricsKey;
+use crate::metrics::model::{MetricsItem, MetricsQuery, MetricsRecord, MetricsRequest};
 use crate::naming::core::NamingActor;
 use actix::prelude::*;
 use bean_factory::{bean, BeanFactory, FactoryData, Inject};
@@ -25,7 +26,25 @@ impl MetricsManager {
         Self::default()
     }
     fn init(&mut self, ctx: &mut Context<Self>) {
+        self.init_histogram();
         self.hb(ctx);
+    }
+
+    fn init_histogram(&mut self) {
+        // 单位毫秒ms
+        self.histogram_manager.init(
+            MetricsKey::GrpcRequestHandleRtHistogram,
+            &vec![
+                0.5f64, 1f64, 3f64, 5f64, 10f64, 25f64, 50f64, 100f64, 300f64, 500f64, 1000f64,
+            ],
+        );
+        // 单位毫秒ms
+        self.histogram_manager.init(
+            MetricsKey::HttpRequestHandleRtHistogram,
+            &vec![
+                0.5f64, 1f64, 3f64, 5f64, 10f64, 25f64, 50f64, 100f64, 300f64, 500f64, 1000f64,
+            ],
+        );
     }
 
     async fn do_peek_metrics(
@@ -52,21 +71,24 @@ impl MetricsManager {
     fn update_peek_metrics(&mut self, r: anyhow::Result<Vec<MetricsItem>>) {
         if let Ok(list) = r {
             for item in list {
-                match item.record {
-                    MetricsRecord::CounterInc(v) => {
-                        self.counter_manager.increment(item.metrics_type, v)
-                    }
-                    MetricsRecord::Gauge(v) => self.gauge_manager.set(item.metrics_type, v),
-                    MetricsRecord::HistogramRecord(v) => {
-                        self.histogram_manager.record(&item.metrics_type, v)
-                    }
-                    MetricsRecord::HistogramRecords(batch_value) => self
-                        .histogram_manager
-                        .record_many(&item.metrics_type, &batch_value),
-                }
+                self.update_item_record(item);
             }
         }
     }
+
+    fn update_item_record(&mut self, item: MetricsItem) {
+        match item.record {
+            MetricsRecord::CounterInc(v) => self.counter_manager.increment(item.metrics_type, v),
+            MetricsRecord::Gauge(v) => self.gauge_manager.set(item.metrics_type, v),
+            MetricsRecord::HistogramRecord(v) => {
+                self.histogram_manager.record(&item.metrics_type, v)
+            }
+            MetricsRecord::HistogramRecords(batch_value) => self
+                .histogram_manager
+                .record_many(&item.metrics_type, &batch_value),
+        }
+    }
+
     fn print_metrics(&self) {
         //log::info!("-------------- log metrics start --------------");
         self.gauge_manager.print_metrics();
@@ -115,5 +137,23 @@ impl Inject for MetricsManager {
         self.config_actor = factory_data.get_actor();
         self.bi_stream_manage = factory_data.get_actor();
         self.init(ctx);
+    }
+}
+
+impl Handler<MetricsRequest> for MetricsManager {
+    type Result = anyhow::Result<()>;
+
+    fn handle(&mut self, msg: MetricsRequest, _ctx: &mut Self::Context) -> Self::Result {
+        match msg {
+            MetricsRequest::Record(item) => {
+                self.update_item_record(item);
+            }
+            MetricsRequest::BatchRecord(items) => {
+                for item in items {
+                    self.update_item_record(item);
+                }
+            }
+        }
+        Ok(())
     }
 }

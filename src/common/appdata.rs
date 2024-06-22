@@ -1,6 +1,7 @@
 use crate::common::AppSysConfig;
 use crate::config::core::ConfigActor;
 use crate::grpc::bistream_manage::BiStreamManage;
+use crate::metrics::core::MetricsManager;
 use crate::naming::cluster::node_manage::{InnerNodeManage, NodeManage};
 use crate::naming::cluster::route::NamingRoute;
 use crate::naming::core::NamingActor;
@@ -37,4 +38,5 @@ pub struct AppShareData {
     pub user_manager: Addr<UserManager>,
     pub cache_manager: Addr<CacheManager>,
     pub timezone_offset: Arc<FixedOffset>,
+    pub metrics_manager: Addr<MetricsManager>,
 }

@@ -2,6 +2,9 @@ use crate::common::appdata::AppShareData;
 use crate::common::constant::{AUTHORIZATION_HEADER, EMPTY_ARC_STRING};
 use crate::common::datetime_utils;
 use crate::common::model::TokenSession;
+use crate::metrics::core::MetricsManager;
+use crate::metrics::metrics_key::MetricsKey;
+use crate::metrics::model::{MetricsItem, MetricsRecord, MetricsRequest};
 use crate::raft::cache::model::{CacheKey, CacheType, CacheValue};
 use crate::raft::cache::{CacheManager, CacheManagerReq, CacheManagerResult};
 use actix::Addr;
@@ -14,6 +17,7 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::future::{ready, Ready};
 use std::sync::Arc;
+use std::time::SystemTime;
 
 lazy_static::lazy_static! {
     pub static ref IGNORE_PATH: Vec<&'static str> = vec![
@@ -73,6 +77,7 @@ where
     dev::forward_ready!(service);
 
     fn call(&self, req: ServiceRequest) -> Self::Future {
+        let start = SystemTime::now();
         let mut request = req;
         let enable_auth = self.app_share_data.sys_config.openapi_enable_auth;
         let path = request.path();
@@ -81,11 +86,11 @@ where
         } else {
             true
         };
-
-        let cache_manager = self.app_share_data.cache_manager.clone();
-        let offset = self.app_share_data.timezone_offset.clone();
+        let app_share_data = self.app_share_data.clone();
         let service = self.service.clone();
         Box::pin(async move {
+            let cache_manager = &app_share_data.cache_manager;
+            let offset = &app_share_data.timezone_offset;
             let token = if enable_auth && is_check_path {
                 if let Some(v) = request.headers().get(AUTHORIZATION_HEADER) {
                     Arc::new(v.to_str().unwrap_or_default().to_owned())
@@ -104,7 +109,7 @@ where
             } else if token.is_empty() {
                 false
             } else if let Ok(Some(session)) = get_user_session(
-                &cache_manager,
+                cache_manager,
                 CacheManagerReq::Get(CacheKey::new(CacheType::ApiTokenSession, token.clone())),
             )
             .await
@@ -118,11 +123,20 @@ where
             if pass {
                 let res = service.call(request);
                 // forwarded responses map to "left" body
-                res.await.map(ServiceResponse::map_into_left_body)
+                //record_req_metrics(&app_share_data.metrics_manager,duration,false);
+                //res.await.map(ServiceResponse::map_into_left_body)
+                res.await.map(move |item| {
+                    let duration = SystemTime::now()
+                        .duration_since(start)
+                        .unwrap_or_default()
+                        .as_secs_f64();
+                    record_req_metrics(&app_share_data.metrics_manager, duration, true);
+                    ServiceResponse::map_into_left_body(item)
+                })
             } else {
                 //没有登录
                 let body=format!("{{\"timestamp\":\"{}\",\"status\":403,\"error\":\"Forbidden\",\"message\":\"unknown user!\",\"path\":\"{}\"}}"
-                                 ,datetime_utils::get_now_timestamp_str(&offset),request.path());
+                                 ,datetime_utils::get_now_timestamp_str(offset),request.path());
                 let response = HttpResponse::Forbidden()
                     .insert_header(("Content-Type", "application/json;charset=UTF-8"))
                     .body(body)
@@ -130,6 +144,11 @@ where
                     .map_into_right_body();
                 let (http_request, _pl) = request.into_parts();
                 let res = ServiceResponse::new(http_request, response);
+                let duration = SystemTime::now()
+                    .duration_since(start)
+                    .unwrap_or_default()
+                    .as_secs_f64();
+                record_req_metrics(&app_share_data.metrics_manager, duration, false);
                 Ok(res)
             }
         })
@@ -174,4 +193,17 @@ async fn get_user_session(
         CacheManagerResult::Value(CacheValue::ApiTokenSession(session)) => Ok(Some(session)),
         _ => Ok(None),
     }
+}
+
+fn record_req_metrics(metrics_manager: &Addr<MetricsManager>, duration: f64, _success: bool) {
+    metrics_manager.do_send(MetricsRequest::BatchRecord(vec![
+        MetricsItem::new(
+            MetricsKey::HttpRequestHandleRtHistogram,
+            MetricsRecord::HistogramRecord(duration * 1000f64),
+        ),
+        MetricsItem::new(
+            MetricsKey::HttpRequestTotalCount,
+            MetricsRecord::CounterInc(1),
+        ),
+    ]));
 }

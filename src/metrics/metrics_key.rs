@@ -1,4 +1,4 @@
-use crate::metrics::model::MetricsType;
+//use crate::metrics::model::MetricsType;
 use lazy_static::lazy_static;
 
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]
@@ -37,6 +37,12 @@ pub enum MetricsKey {
     GrpcConnSize,
     GrpcConnActiveTimeoutSetItemSize,
     GrpcConnResponseTimeoutSetItemSize,
+    //grpc request
+    GrpcRequestHandleRtHistogram,
+    GrpcRequestTotalCount,
+    //http api request
+    HttpRequestHandleRtHistogram,
+    HttpRequestTotalCount,
 }
 
 lazy_static! {
@@ -76,6 +82,12 @@ lazy_static! {
         MetricsKey::GrpcConnSize,
         MetricsKey::GrpcConnActiveTimeoutSetItemSize,
         MetricsKey::GrpcConnResponseTimeoutSetItemSize,
+        //grpc request
+        MetricsKey::GrpcRequestHandleRtHistogram,
+        MetricsKey::GrpcRequestTotalCount,
+        //http request
+        MetricsKey::HttpRequestHandleRtHistogram,
+        MetricsKey::HttpRequestTotalCount,
     ];
 }
 
@@ -113,9 +125,16 @@ impl MetricsKey {
             MetricsKey::GrpcConnSize => "GrpcConnSize",
             MetricsKey::GrpcConnActiveTimeoutSetItemSize => "GrpcConnActiveTimeoutSetItemSize",
             MetricsKey::GrpcConnResponseTimeoutSetItemSize => "GrpcConnResponseTimeoutSetItemSize",
+            //grpc request
+            MetricsKey::GrpcRequestHandleRtHistogram => "GrpcRequestHandleRtHistogram",
+            MetricsKey::GrpcRequestTotalCount => "GrpcRequestTotalCount",
+            //http request
+            MetricsKey::HttpRequestHandleRtHistogram => "HttpRequestHandleRtHistogram",
+            MetricsKey::HttpRequestTotalCount => "HttpRequestTotalCount",
         }
     }
 
+    /*
     pub fn get_metrics_type(&self) -> MetricsType {
         match &self {
             MetricsKey::ConfigDataSize => MetricsType::Gauge,
@@ -151,4 +170,5 @@ impl MetricsKey {
             MetricsKey::GrpcConnResponseTimeoutSetItemSize => MetricsType::Gauge,
         }
     }
+     */
 }
