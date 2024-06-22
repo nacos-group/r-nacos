@@ -25,4 +25,10 @@ impl CounterManager {
             self.date_map.insert(key, value.into());
         }
     }
+    pub fn print_metrics(&self) {
+        log::info!("-------------- COUNTER TYPE --------------");
+        for (key, val) in &self.date_map {
+            log::info!("[metrics_counter]|{}:{}|", key.get_key(), val.0);
+        }
+    }
 }

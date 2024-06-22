@@ -1,5 +1,6 @@
 use crate::metrics::metrics_type::MetricsType;
 use actix::prelude::*;
+use std::fmt::{Display, Formatter};
 
 #[derive(Default, Debug, Clone)]
 pub struct CounterItem(pub(crate) u64);
@@ -113,10 +114,7 @@ impl HistogramItem {
         }
     }
 
-    pub fn record_many<'a, S>(&mut self, samples: S)
-    where
-        S: IntoIterator<Item = &'a f64> + 'a,
-    {
+    pub fn record_many(&mut self, samples: &[f64]) {
         let mut bucketed = vec![0u64; self.buckets.len()];
 
         let mut sum = 0.0;
@@ -147,12 +145,22 @@ impl HistogramItem {
     }
 }
 
+impl Display for HistogramItem {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "total_count={},total_sum={}", self.count, self.sum).ok();
+        for (k, v) in self.buckets() {
+            write!(f, "|le={},count={}", k, v).ok();
+        }
+        write!(f, "|le=+Inf,count={}|", self.count)
+    }
+}
+
 #[derive(Message)]
 #[rtype(result = "anyhow::Result<Vec<MetricsItem>>")]
 pub struct MetricsQuery;
 
 pub enum MetricsRecord {
-    Counter(u64),
+    CounterInc(u64),
     Gauge(f64),
     HistogramRecord(f64),
     HistogramRecords(Vec<f64>),
@@ -161,7 +169,7 @@ pub enum MetricsRecord {
 impl MetricsRecord {
     pub fn value_str(&self) -> String {
         match &self {
-            MetricsRecord::Counter(v) => v.to_string(),
+            MetricsRecord::CounterInc(v) => v.to_string(),
             MetricsRecord::Gauge(v) => v.to_string(),
             MetricsRecord::HistogramRecord(v) => v.to_string(),
             MetricsRecord::HistogramRecords(v) => "Vec<[]>".to_string(),

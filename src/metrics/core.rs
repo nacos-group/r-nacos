@@ -2,7 +2,7 @@ use crate::metrics::counter::CounterManager;
 use crate::metrics::gauge::GaugeManager;
 use crate::metrics::histogram::HistogramManager;
 use crate::metrics::metrics_type::MetricsType;
-use crate::metrics::model::{MetricsItem, MetricsQuery};
+use crate::metrics::model::{MetricsItem, MetricsQuery, MetricsRecord};
 use crate::naming::core::NamingActor;
 use actix::prelude::*;
 use bean_factory::{bean, BeanFactory, FactoryData, Inject};
@@ -36,22 +36,29 @@ impl MetricsManager {
         Ok(list)
     }
 
-    fn log_metrics(r: anyhow::Result<Vec<MetricsItem>>) {
-        match r {
-            Ok(list) => {
-                log::info!("log metrics start");
-                for item in list {
-                    log::info!(
-                        "[MetricsManager metrics]|{}:{}|",
-                        item.metrics_type.get_key(),
-                        item.record.value_str()
-                    )
+    fn update_peek_metrics(&mut self, r: anyhow::Result<Vec<MetricsItem>>) {
+        if let Ok(list) = r {
+            for item in list {
+                match item.record {
+                    MetricsRecord::CounterInc(v) => {
+                        self.counter_manager.increment(item.metrics_type, v)
+                    }
+                    MetricsRecord::Gauge(v) => self.gauge_manager.set(item.metrics_type, v),
+                    MetricsRecord::HistogramRecord(v) => {
+                        self.histogram_manager.record(&item.metrics_type, v)
+                    }
+                    MetricsRecord::HistogramRecords(batch_value) => self
+                        .histogram_manager
+                        .record_many(&item.metrics_type, &batch_value),
                 }
             }
-            Err(e) => {
-                log::info!("log metrics error,{}", e);
-            }
         }
+    }
+    fn print_metrics(&self) {
+        //log::info!("-------------- log metrics start --------------");
+        self.gauge_manager.print_metrics();
+        self.counter_manager.print_metrics();
+        self.histogram_manager.print_metrics();
     }
 
     fn query_metrics(&mut self, ctx: &mut Context<Self>) {
@@ -59,13 +66,15 @@ impl MetricsManager {
         async move { Self::do_peek_metrics(naming_actor).await }
             .into_actor(self)
             .map(|r, act, ctx| {
-                Self::log_metrics(r);
+                //Self::log_metrics(&r);
+                act.update_peek_metrics(r);
+                act.print_metrics();
                 act.hb(ctx);
             })
             .spawn(ctx);
     }
     fn hb(&mut self, ctx: &mut Context<Self>) {
-        ctx.run_later(Duration::from_secs(30), |act, ctx| {
+        ctx.run_later(Duration::from_secs(10), |act, ctx| {
             act.query_metrics(ctx);
         });
     }

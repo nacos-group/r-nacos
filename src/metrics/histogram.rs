@@ -24,10 +24,7 @@ impl HistogramManager {
         }
     }
 
-    pub fn record_many<'a, S>(&mut self, key: &Key, samples: S)
-    where
-        S: IntoIterator<Item = &'a f64> + 'a,
-    {
+    pub fn record_many(&mut self, key: &Key, samples: &[f64]) {
         if let Some(item) = self.date_map.get_mut(key) {
             item.record_many(samples);
         }
@@ -54,6 +51,12 @@ impl HistogramManager {
             item.buckets()
         } else {
             vec![]
+        }
+    }
+    pub fn print_metrics(&self) {
+        log::info!("-------------- HISTOGRAM TYPE --------------");
+        for (key, val) in &self.date_map {
+            log::info!("[metrics_histogram]|{}:{}|", key.get_key(), val);
         }
     }
 }
