@@ -140,6 +140,12 @@ impl From<ConfigValueDO> for ConfigValue {
     fn from(value: ConfigValueDO) -> Self {
         let content = value.content.unwrap_or_default();
         let md5 = Arc::new(get_md5(&content));
+        let last_modified =
+            if let Some(Some(v)) = value.histories.iter().last().map(|e| e.last_time) {
+                v
+            } else {
+                0
+            };
         Self {
             content: Arc::new(content),
             md5,
@@ -149,6 +155,7 @@ impl From<ConfigValueDO> for ConfigValue {
                 .config_type
                 .map(|v| ConfigType::new_by_value(&v).get_value()),
             desc: value.desc.map(Arc::new),
+            last_modified,
         }
     }
 }

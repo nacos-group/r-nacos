@@ -79,6 +79,7 @@ pub(crate) async fn get_config(
         md5,
         config_type,
         desc,
+        ..
     })) = appdata.config_addr.send(cmd).await
     {
         HttpResponse::Ok().json(ApiResult::success(Some(ConfigInfo {
