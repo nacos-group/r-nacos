@@ -300,7 +300,7 @@ impl NamingActor {
         } else {
             return UpdateInstanceType::None;
         };
-        let old_instance = service.remove_instance(instance_id, client_id);
+        let old_instance = service.remove_instance(instance_id, client_id.clone());
         let now = now_millis();
         let tag = if let Some(old_instance) = &old_instance {
             let short_key = old_instance.get_short_key();
@@ -322,6 +322,15 @@ impl NamingActor {
         }
         let remove_instance = old_instance.filter(|e| !e.is_from_cluster());
         self.do_notify(&tag, key.clone(), remove_instance);
+        if let UpdateInstanceType::Remove = &tag {
+            if let Some(client_id) = client_id {
+                if !client_id.as_ref().is_empty() {
+                    let instance_key =
+                        InstanceKey::new_by_service_key(key, instance_id.ip.clone(), instance_id.port);
+                    self.remove_client_instance_key(client_id, &instance_key);
+                }
+            }
+        }
         tag
     }
 
@@ -368,6 +377,12 @@ impl NamingActor {
                 let short_key = instance_key.get_short_key();
                 self.remove_instance(&service_key, &short_key, Some(client_id));
             }
+        }
+    }
+
+    fn remove_client_instance_key(&mut self, client_id: &Arc<String>, key: &InstanceKey) {
+        if let Some(keys) = self.client_instance_set.get_mut(client_id) {
+            keys.remove(key);
         }
     }
 

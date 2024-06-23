@@ -6,6 +6,7 @@ use std::{
     sync::Arc,
 };
 
+use crate::naming::model::Instance;
 use crate::{
     common::appdata::AppShareData,
     naming::core::{NamingCmd, NamingResult},
@@ -62,15 +63,12 @@ pub async fn handle_naming_route(
         }
         NamingRouteRequest::SyncUpdateInstance { mut instance } => {
             let cluster_id = get_cluster_id(extend_info)?;
-            if instance.client_id.is_empty() {
-                instance.client_id = Arc::new(format!("{}_G", &cluster_id));
-            }
+            reset_cluster_info(cluster_id, &mut instance);
             app.naming_inner_node_manage
                 .do_send(NodeManageRequest::AddClientId(
                     cluster_id,
                     instance.client_id.clone(),
                 ));
-            instance.from_cluster = cluster_id;
             let cmd = NamingCmd::Update(instance, None);
             let _: NamingResult = app.naming_addr.send(cmd).await??;
         }
@@ -78,6 +76,7 @@ pub async fn handle_naming_route(
             let cluster_id = get_cluster_id(extend_info)?;
             app.naming_node_manage.active_node(cluster_id);
             instance.from_cluster = cluster_id;
+            //reset_cluster_info(cluster_id, &mut instance);
             let cmd = NamingCmd::Delete(instance);
             let _: NamingResult = app.naming_addr.send(cmd).await??;
         }
@@ -87,12 +86,14 @@ pub async fn handle_naming_route(
             let mut batch_receive = SyncBatchForReceive::try_from(snapshot)?;
             let mut client_sets = HashSet::new();
             for instance in &mut batch_receive.update_instances {
-                if instance.client_id.is_empty() {
-                    instance.client_id = Arc::new(format!("{}_G", &cluster_id));
-                }
-                instance.from_cluster = cluster_id;
+                reset_cluster_info(cluster_id, instance);
                 client_sets.insert(instance.client_id.clone());
             }
+            /*
+            for instance in &mut batch_receive.remove_instances {
+                reset_cluster_info(cluster_id, instance);
+            }
+             */
             app.naming_inner_node_manage
                 .do_send(NodeManageRequest::AddClientIds(cluster_id, client_sets));
             app.naming_addr
@@ -134,10 +135,7 @@ pub async fn handle_naming_route(
             let mut snapshot_receive = SnapshotForReceive::try_from(snapshot)?;
             let mut client_sets = HashSet::new();
             for instance in &mut snapshot_receive.instances {
-                if instance.client_id.is_empty() {
-                    instance.client_id = Arc::new(format!("{}_G", &cluster_id));
-                }
-                instance.from_cluster = cluster_id;
+                reset_cluster_info(cluster_id, instance);
                 client_sets.insert(instance.client_id.clone());
             }
             app.naming_inner_node_manage
@@ -147,4 +145,11 @@ pub async fn handle_naming_route(
         }
     };
     Ok(NamingRouterResponse::None)
+}
+
+fn reset_cluster_info(cluster_id: u64, instance: &mut Instance) {
+    if instance.client_id.is_empty() {
+        instance.client_id = Arc::new(format!("{}_G", &cluster_id));
+    }
+    instance.from_cluster = cluster_id;
 }

@@ -109,6 +109,7 @@ impl InnerNodeManage {
                 dels.push(*key);
             }
         }
+        let mut is_change = !dels.is_empty();
         for key in dels {
             self.all_nodes.remove(&key);
         }
@@ -121,6 +122,7 @@ impl InnerNodeManage {
                 let sync_sender = if is_local {
                     None
                 } else {
+                    is_change = true;
                     Some(
                         ClusteSyncSender::new(
                             self.local_id,
