@@ -153,9 +153,9 @@ impl HistogramValue {
 
 impl Display for HistogramValue {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "total_count={},total_sum={}", self.count, self.sum).ok();
+        write!(f, "total_count={},total_sum={:.2}", self.count, self.sum).ok();
         for (k, v) in self.buckets() {
-            write!(f, "|le={},count={}", k, v).ok();
+            write!(f, "|le={:.1},count={}", k, v).ok();
         }
         write!(f, "|le=+Inf,count={}|", self.count)
     }

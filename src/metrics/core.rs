@@ -1,3 +1,4 @@
+use crate::common::AppSysConfig;
 use crate::config::core::ConfigActor;
 use crate::grpc::bistream_manage::BiStreamManage;
 use crate::metrics::counter::CounterManager;
@@ -9,6 +10,7 @@ use crate::naming::core::NamingActor;
 use crate::now_millis;
 use actix::prelude::*;
 use bean_factory::{bean, BeanFactory, FactoryData, Inject};
+use std::sync::Arc;
 use std::time::Duration;
 use sysinfo::{Pid, System};
 
@@ -26,6 +28,8 @@ pub struct MetricsManager {
     start_time_millis: u64,
     //last_load_time: u64,
     total_memory: f64,
+    log_interval: u64,
+    metrics_enable: bool,
 }
 
 impl Default for MetricsManager {
@@ -55,6 +59,8 @@ impl MetricsManager {
             start_time_millis,
             //last_load_time: 0,
             total_memory,
+            log_interval: 30,
+            metrics_enable: true,
         }
     }
     fn init(&mut self, ctx: &mut Context<Self>) {
@@ -136,7 +142,7 @@ impl MetricsManager {
             let vms = process.virtual_memory() as f64 / (1024.0 * 1024.0);
             let rss_usage = rss / self.total_memory * 100.0;
             let running_seconds = (now_millis() - self.start_time_millis) / 1000;
-            log::info!("[metrics_system]|already running seconds:{}s|cpu_usage: {:.2}%|rss_usage: {:.2}%|rss: {}M|vms: {}M|total_memory: {}M|",running_seconds,&cpu_usage,&rss_usage,&rss,&vms,&self.total_memory);
+            log::info!("[metrics_system]|already running seconds: {}s|cpu_usage: {:.2}%|rss_usage: {:.2}%|rss: {}M|vms: {}M|total_memory: {}M|",running_seconds,&cpu_usage,&rss_usage,&rss,&vms,&self.total_memory);
             self.gauge_manager.set(MetricsKey::AppCpuUsage, cpu_usage);
             self.gauge_manager.set(MetricsKey::AppRssMemory, rss);
             self.gauge_manager.set(MetricsKey::AppVmsMemory, vms);
@@ -160,7 +166,7 @@ impl MetricsManager {
             .spawn(ctx);
     }
     fn hb(&mut self, ctx: &mut Context<Self>) {
-        ctx.run_later(Duration::from_secs(10), |act, ctx| {
+        ctx.run_later(Duration::from_secs(self.log_interval), |act, ctx| {
             act.load_metrics(ctx);
         });
     }
@@ -185,7 +191,20 @@ impl Inject for MetricsManager {
         self.naming_actor = factory_data.get_actor();
         self.config_actor = factory_data.get_actor();
         self.bi_stream_manage = factory_data.get_actor();
-        self.init(ctx);
+        let sys_config: Option<Arc<AppSysConfig>> = factory_data.get_bean();
+        if let Some(sys_config) = sys_config {
+            self.metrics_enable = sys_config.metrics_enable;
+            self.log_interval = sys_config.metrics_log_interval_second;
+            if self.metrics_enable {
+                log::info!("metrics enable! log_interval: {}s", self.log_interval);
+                self.init(ctx);
+            } else {
+                log::info!("metrics disable!");
+            }
+        } else {
+            log::warn!("MetricsManager, get AppSysConfig bean is empty!");
+            self.init(ctx);
+        }
     }
 }
 
@@ -193,6 +212,9 @@ impl Handler<MetricsRequest> for MetricsManager {
     type Result = anyhow::Result<()>;
 
     fn handle(&mut self, msg: MetricsRequest, _ctx: &mut Self::Context) -> Self::Result {
+        if !self.metrics_enable {
+            return Ok(());
+        }
         match msg {
             MetricsRequest::Record(item) => {
                 self.update_item_record(item);

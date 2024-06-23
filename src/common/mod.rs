@@ -75,6 +75,8 @@ pub struct AppSysConfig {
     pub cluster_token: Arc<String>,
     pub init_admin_username: String,
     pub init_admin_password: String,
+    pub metrics_enable: bool,
+    pub metrics_log_interval_second: u64,
 }
 
 impl AppSysConfig {
@@ -154,6 +156,17 @@ impl AppSysConfig {
         let init_admin_password =
             StringUtils::map_not_empty(std::env::var("RNACOS_INIT_ADMIN_PASSWORD").ok())
                 .unwrap_or("admin".to_owned());
+        let metrics_enable = std::env::var("RNACOS_ENABLE_METRICS")
+            .unwrap_or("true".to_owned())
+            .parse()
+            .unwrap_or(true);
+        let mut metrics_log_interval_second = std::env::var("RNACOS_METRICS_LOG_INTERVAL_SECOND")
+            .unwrap_or("30".to_owned())
+            .parse()
+            .unwrap_or(30);
+        if metrics_log_interval_second < 5 {
+            metrics_log_interval_second = 5;
+        }
         Self {
             config_db_dir,
             config_db_file,
@@ -177,6 +190,8 @@ impl AppSysConfig {
             cluster_token,
             init_admin_username,
             init_admin_password,
+            metrics_enable,
+            metrics_log_interval_second,
         }
     }
 
