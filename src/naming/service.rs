@@ -71,7 +71,7 @@ impl Service {
         &mut self,
         mut instance: Instance,
         update_tag: Option<InstanceUpdateTag>,
-    ) -> UpdateInstanceType {
+    ) -> (UpdateInstanceType, Option<Arc<String>>) {
         //log::info!("test update_instance {:?}", &instance);
         instance.namespace_id = self.namespace_id.clone();
         instance.group_name = self.group_name.clone();
@@ -82,6 +82,7 @@ impl Service {
         let mut rtype = UpdateInstanceType::None;
         let short_key = instance.get_short_key();
         let old_instance = self.instances.get(&key);
+        let mut replace_old_client_id = None;
         if let Some(old_instance) = old_instance {
             if !instance.from_grpc {
                 match (old_instance.from_grpc, old_instance.is_from_cluster()) {
@@ -91,7 +92,7 @@ impl Service {
                             old_instance.from_cluster,
                             instance,
                         );
-                        return rtype;
+                        return (rtype, replace_old_client_id);
                     }
                     (true, false) => {
                         //如果新实例来自http,旧实例来自grpc,则保持grpc的实例信息
@@ -101,6 +102,9 @@ impl Service {
                     //直接更新
                     (false, _) => {}
                 };
+            }
+            if !old_instance.client_id.is_empty() && instance.client_id != old_instance.client_id {
+                replace_old_client_id = Some(old_instance.client_id.clone());
             }
             if !old_instance.healthy && instance.healthy {
                 self.healthy_instance_size += 1;
@@ -159,7 +163,7 @@ impl Service {
             );
         }
         self.instances.insert(key, new_instance);
-        rtype
+        (rtype, replace_old_client_id)
     }
 
     ///

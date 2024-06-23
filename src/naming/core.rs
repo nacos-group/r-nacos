@@ -360,28 +360,33 @@ impl NamingActor {
         }
         //let cluster_name = instance.cluster_name.clone();
         let service = self.service_map.get_mut(key).unwrap();
+        let client_id = instance.client_id.clone();
+        let instance_key =
+            InstanceKey::new_by_service_key(key, instance.ip.clone(), instance.port.to_owned());
         if (instance.from_grpc || instance.is_from_cluster()) && !instance.client_id.is_empty() {
-            let client_id = instance.client_id.clone();
-            let key =
-                InstanceKey::new_by_service_key(key, instance.ip.clone(), instance.port.to_owned());
             if let Some(set) = self.client_instance_set.get_mut(&client_id) {
-                set.insert(key);
+                set.insert(instance_key.clone());
             } else {
                 let mut set = HashSet::new();
-                set.insert(key);
+                set.insert(instance_key.clone());
                 self.client_instance_set.insert(client_id, set);
             }
         }
-        let instance_key = instance.get_short_key();
+        let instance_short_key = instance.get_short_key();
 
-        let tag = service.update_instance(instance, tag);
+        let (tag, replace_old_client_id) = service.update_instance(instance, tag);
         if let UpdateInstanceType::UpdateOtherClusterMetaData(_, _) = &tag {
             return tag;
+        }
+        if let Some(replace_old_client_id) = replace_old_client_id {
+            if let Some(set) = self.client_instance_set.get_mut(&replace_old_client_id) {
+                set.remove(&instance_key);
+            }
         }
         if !is_from_from_cluster {
             //change notify
             let instance = service
-                .get_instance(&instance_key)
+                .get_instance(&instance_short_key)
                 .filter(|e| !e.is_from_cluster());
             self.do_notify(&tag, key.clone(), instance);
         }
