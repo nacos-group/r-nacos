@@ -157,6 +157,18 @@ impl InnerNodeManage {
                 act.load_snapshot_from_node();
             });
         }
+        if is_change {
+            //集群节点变更化重新刷新服务管理范围
+            self.refresh_process_range();
+        }
+    }
+
+    fn refresh_process_range(&mut self) {
+        if let Some(naming_actor) = &self.naming_actor {
+            naming_actor.do_send(NamingCmd::ClusterRefreshProcessRange(
+                self.current_range.clone(),
+            ));
+        }
     }
 
     fn update_nodes_index(&mut self) {

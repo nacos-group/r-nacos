@@ -34,14 +34,14 @@ impl MetricsManager {
         // 单位毫秒ms
         self.histogram_manager.init(
             MetricsKey::GrpcRequestHandleRtHistogram,
-            &vec![
+            &[
                 0.5f64, 1f64, 3f64, 5f64, 10f64, 25f64, 50f64, 100f64, 300f64, 500f64, 1000f64,
             ],
         );
         // 单位毫秒ms
         self.histogram_manager.init(
             MetricsKey::HttpRequestHandleRtHistogram,
-            &vec![
+            &[
                 0.5f64, 1f64, 3f64, 5f64, 10f64, 25f64, 50f64, 100f64, 300f64, 500f64, 1000f64,
             ],
         );

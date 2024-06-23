@@ -6,6 +6,8 @@ use std::{
     sync::{atomic::Ordering, Arc},
 };
 
+use crate::common::constant::EMPTY_ARC_STRING;
+use crate::naming::cluster::model::ProcessRange;
 use actix_web::rt;
 use inner_mem_cache::TimeoutSet;
 
@@ -70,11 +72,7 @@ impl Service {
         mut instance: Instance,
         update_tag: Option<InstanceUpdateTag>,
     ) -> UpdateInstanceType {
-        /*
-        if instance.service_name=="service-consumer" {
-            //println!("service-consumer update_instance {:?}",&instance);
-        }
-        */
+        //log::info!("test update_instance {:?}", &instance);
         instance.namespace_id = self.namespace_id.clone();
         instance.group_name = self.group_name.clone();
         instance.service_name = self.service_name.clone();
@@ -162,6 +160,32 @@ impl Service {
         }
         self.instances.insert(key, new_instance);
         rtype
+    }
+
+    ///
+    /// 刷新重新纳入本节点管理的实例
+    /// 增量http实例增加过期管理
+    pub(crate) fn do_refresh_process_range(&mut self) {
+        let instances: Vec<&Arc<Instance>> = self
+            .instances
+            .values()
+            .filter(|instance| !instance.from_grpc && instance.is_from_cluster())
+            .collect();
+        //log::info!("do_refresh_process_range instance size:{}", instances.len());
+        for instance in instances {
+            /*
+            log::info!(
+                "do_refresh_process_range item,key:{:?},last_modified_millis:{},client_id:{}",
+                instance.get_short_key(),
+                instance.last_modified_millis,
+                &instance.client_id
+            );
+             */
+            self.healthy_timeout_set.add(
+                instance.last_modified_millis as u64,
+                instance.get_short_key(),
+            );
+        }
     }
 
     pub(crate) fn time_check(

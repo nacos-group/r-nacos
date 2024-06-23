@@ -148,7 +148,7 @@ pub async fn handle_naming_route(
 }
 
 fn reset_cluster_info(cluster_id: u64, instance: &mut Instance) {
-    if instance.client_id.is_empty() {
+    if instance.client_id.is_empty() && cluster_id > 0 {
         instance.client_id = Arc::new(format!("{}_G", &cluster_id));
     }
     instance.from_cluster = cluster_id;

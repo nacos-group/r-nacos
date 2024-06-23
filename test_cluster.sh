@@ -75,7 +75,7 @@ EOF
     cat >$env_file <<EOF
 #file:env03
 #RUST_LOG=debug|info|warn|error, default is info
-RUST_LOG=warn
+#RUST_LOG=warn
 RNACOS_HTTP_PORT=8850
 RNACOS_RAFT_NODE_ADDR=127.0.0.1:9850
 RNACOS_CONFIG_DB_DIR=cluster_example/db_03
