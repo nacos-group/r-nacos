@@ -38,7 +38,7 @@ impl GaugeManager {
         //log::info!("-------------- METRICS GAUGE --------------");
         for key in ORDER_ALL_KEYS.iter() {
             if let Some(val) = self.date_map.get(key) {
-                log::info!("[metrics_gauge]|{}:{:.1}|", key.get_key(), val.0);
+                log::info!("[metrics_gauge]|{}:{}|", key.get_key(), val.0);
             }
         }
     }
