@@ -6,12 +6,14 @@ use crate::metrics::histogram::HistogramManager;
 use crate::metrics::metrics_key::MetricsKey;
 use crate::metrics::model::{MetricsItem, MetricsQuery, MetricsRecord, MetricsRequest};
 use crate::naming::core::NamingActor;
+use crate::now_millis;
 use actix::prelude::*;
 use bean_factory::{bean, BeanFactory, FactoryData, Inject};
 use std::time::Duration;
+use sysinfo::{Pid, System};
 
 #[bean(inject)]
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub struct MetricsManager {
     counter_manager: CounterManager,
     gauge_manager: GaugeManager,
@@ -19,11 +21,41 @@ pub struct MetricsManager {
     naming_actor: Option<Addr<NamingActor>>,
     config_actor: Option<Addr<ConfigActor>>,
     bi_stream_manage: Option<Addr<BiStreamManage>>,
+    system: System,
+    current_process_id: u32,
+    start_time_millis: u64,
+    //last_load_time: u64,
+    total_memory: f64,
+}
+
+impl Default for MetricsManager {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl MetricsManager {
     pub fn new() -> Self {
-        Self::default()
+        let current_process_id = std::process::id();
+        let start_time_millis = now_millis();
+        let mut system = System::new();
+        system.refresh_memory();
+        let total_memory = system.total_memory() as f64 / (1024.0 * 1024.0);
+        let mut gauge_manager = GaugeManager::default();
+        gauge_manager.set(MetricsKey::SysTotalMemory, total_memory);
+        Self {
+            counter_manager: Default::default(),
+            gauge_manager,
+            histogram_manager: Default::default(),
+            naming_actor: None,
+            config_actor: None,
+            bi_stream_manage: None,
+            system,
+            current_process_id,
+            start_time_millis,
+            //last_load_time: 0,
+            total_memory,
+        }
     }
     fn init(&mut self, ctx: &mut Context<Self>) {
         self.init_histogram();
@@ -96,7 +128,23 @@ impl MetricsManager {
         self.histogram_manager.print_metrics();
     }
 
-    fn query_metrics(&mut self, ctx: &mut Context<Self>) {
+    fn load_sys_metrics(&mut self) {
+        self.system.refresh_all();
+        if let Some(process) = self.system.process(Pid::from_u32(self.current_process_id)) {
+            let cpu_usage = process.cpu_usage() as f64;
+            let rss = process.memory() as f64 / (1024.0 * 1024.0);
+            let vms = process.virtual_memory() as f64 / (1024.0 * 1024.0);
+            let rss_usage = rss / self.total_memory * 100.0;
+            let running_seconds = (now_millis() - self.start_time_millis) / 1000;
+            log::info!("[metrics_system]|already running seconds:{}s|cpu_usage: {:.2}%|rss_usage: {:.2}%|rss: {}M|vms: {}M|total_memory: {}M|",running_seconds,&cpu_usage,&rss_usage,&rss,&vms,&self.total_memory);
+            self.gauge_manager.set(MetricsKey::AppCpuUsage, cpu_usage);
+            self.gauge_manager.set(MetricsKey::AppRssMemory, rss);
+            self.gauge_manager.set(MetricsKey::AppVmsMemory, vms);
+            self.gauge_manager.set(MetricsKey::AppRssMemory, rss_usage);
+        }
+    }
+
+    fn load_metrics(&mut self, ctx: &mut Context<Self>) {
         let naming_actor = self.naming_actor.clone();
         let config_actor = self.config_actor.clone();
         let bi_stream_manage = self.bi_stream_manage.clone();
@@ -105,6 +153,7 @@ impl MetricsManager {
             .map(|r, act, ctx| {
                 //Self::log_metrics(&r);
                 act.update_peek_metrics(r);
+                act.load_sys_metrics();
                 act.print_metrics();
                 act.hb(ctx);
             })
@@ -112,7 +161,7 @@ impl MetricsManager {
     }
     fn hb(&mut self, ctx: &mut Context<Self>) {
         ctx.run_later(Duration::from_secs(10), |act, ctx| {
-            act.query_metrics(ctx);
+            act.load_metrics(ctx);
         });
     }
 }

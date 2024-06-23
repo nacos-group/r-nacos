@@ -70,7 +70,7 @@ mime_guess = { version = "2" }
 rusqlite = { version = "0.25", features = ["bundled"] }
 rsql_builder = "0.1.5"
 inner-mem-cache = "0.1.7"
-rnacos-web-dist-wrap = "=0.3.12"
+rnacos-web-dist-wrap = "=0.3.13"
 nacos_rust_client = "0.2"
 zip = "0.6"
 tempfile = "3"
@@ -108,6 +108,7 @@ cbc = "0.1.2"
 quick-protobuf = "0.8.1"
 binrw = "0.13.3"
 binrw_derive = "0.13.3"
+sysinfo = "0.30.12"
 
 [dependencies.uuid]
 version = "1.2.1"

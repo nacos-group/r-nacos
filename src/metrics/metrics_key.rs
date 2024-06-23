@@ -3,6 +3,12 @@ use lazy_static::lazy_static;
 
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]
 pub enum MetricsKey {
+    //app
+    SysTotalMemory,
+    AppRssMemory,
+    AppVmsMemory,
+    AppMemoryUsage,
+    AppCpuUsage,
     //config
     ConfigDataSize,
     ConfigListenerClientSize,
@@ -48,6 +54,14 @@ pub enum MetricsKey {
 lazy_static! {
     /// 用于有序遍历打印信息
     pub static ref ORDER_ALL_KEYS: Vec<MetricsKey> = vec![
+        //app
+        /*
+        MetricsKey::SysTotalMemory,
+        MetricsKey::AppRssMemory,
+        MetricsKey::AppVmsMemory,
+        MetricsKey::AppMemoryUsage,
+        MetricsKey::AppCpuUsage,
+         */
         //config
         MetricsKey::ConfigDataSize,
         MetricsKey::ConfigListenerClientSize,
@@ -94,6 +108,11 @@ lazy_static! {
 impl MetricsKey {
     pub fn get_key(&self) -> &'static str {
         match &self {
+            MetricsKey::SysTotalMemory => "sys_total_memory",
+            MetricsKey::AppRssMemory => "app_rss_memory",
+            MetricsKey::AppVmsMemory => "app_vms_memory",
+            MetricsKey::AppMemoryUsage => "app_memory_usage",
+            MetricsKey::AppCpuUsage => "app_cpu_usage",
             MetricsKey::ConfigDataSize => "ConfigDataSize",
             MetricsKey::ConfigListenerClientSize => "ConfigListenerClientSize",
             MetricsKey::ConfigListenerKeySize => "ConfigListenerKeySize",
