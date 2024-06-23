@@ -111,6 +111,7 @@ pub struct ConfigValue {
     pub(crate) histories: Vec<HistoryItem>,
     pub(crate) config_type: Option<Arc<String>>,
     pub(crate) desc: Option<Arc<String>>,
+    pub(crate) last_modified: i64,
 }
 
 impl ConfigValue {
@@ -123,6 +124,7 @@ impl ConfigValue {
             histories: vec![],
             config_type: None,
             desc: None,
+            last_modified: now_millis_i64(),
         }
     }
 
@@ -150,6 +152,7 @@ impl ConfigValue {
             }],
             config_type: None,
             desc: None,
+            last_modified: op_time,
         }
     }
 
@@ -178,6 +181,7 @@ impl ConfigValue {
         if self.histories.len() >= 100 {
             self.histories.remove(0);
         }
+        self.last_modified = op_time;
         self.histories.push(item);
     }
 }
@@ -675,6 +679,7 @@ pub enum ConfigResult {
         md5: Arc<String>,
         config_type: Option<Arc<String>>,
         desc: Option<Arc<String>>,
+        last_modified: i64,
     },
     NULL,
     ChangeKey(Vec<ConfigKey>),
@@ -718,6 +723,7 @@ impl Handler<ConfigCmd> for ConfigActor {
                         md5: v.md5.clone(),
                         config_type: v.config_type.clone(),
                         desc: v.desc.clone(),
+                        last_modified: v.last_modified,
                     });
                 }
             }

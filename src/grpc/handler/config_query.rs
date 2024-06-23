@@ -57,6 +57,7 @@ impl PayloadHandler for ConfigQueryRequestHandler {
                         value: content,
                         md5,
                         config_type,
+                        last_modified,
                         ..
                     } => {
                         //v.to_owned()
@@ -72,6 +73,7 @@ impl PayloadHandler for ConfigQueryRequestHandler {
                                 response.tag = Some(tag);
                             }
                         }
+                        response.last_modified = last_modified;
                         response.md5 = Some(md5);
                     }
                     _ => {

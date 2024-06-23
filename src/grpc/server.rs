@@ -75,7 +75,10 @@ impl RequestServerImpl {
                     MetricsKey::GrpcRequestHandleRtHistogram,
                     MetricsRecord::HistogramRecord(duration * 1000f64),
                 ),
-                MetricsItem::new(MetricsKey::GrpcRequestTotalCount, MetricsRecord::CounterInc(1)),
+                MetricsItem::new(
+                    MetricsKey::GrpcRequestTotalCount,
+                    MetricsRecord::CounterInc(1),
+                ),
             ]));
     }
 }
