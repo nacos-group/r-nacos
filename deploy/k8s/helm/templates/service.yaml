@@ -15,6 +15,10 @@ spec:
       targetPort: 9848
       protocol: TCP
       name: grpc
+    - port: 10848
+      targetPort: 10848
+      protocol: TCP
+      name: admin
   selector:
     {{- include "rnacos.selectorLabels" . | nindent 4 }}
 
@@ -32,14 +36,14 @@ spec:
       targetPort: 8848
       protocol: TCP
       name: http
-    - port: 10848
-      targetPort: 10848
-      protocol: TCP
-      name: admin
     - port: 9848
       targetPort: 9848
       protocol: TCP
       name: grpc
+    - port: 10848
+      targetPort: 10848
+      protocol: TCP
+      name: admin
   selector:
     {{- include "rnacos.selectorLabels" . | nindent 4 }}
 
