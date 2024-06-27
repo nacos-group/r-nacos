@@ -1,5 +1,6 @@
 use crate::common::appdata::AppShareData;
 use crate::common::model::TokenSession;
+use crate::common::web_utils::get_req_body;
 use crate::raft::cache::model::{CacheKey, CacheType, CacheValue};
 use crate::raft::cache::{CacheLimiterReq, CacheManagerReq, CacheManagerResult};
 use crate::user::{UserManagerReq, UserManagerResult};
@@ -37,8 +38,20 @@ const UNKNOWN_USER: &str = "unknown user!";
 pub async fn login(
     app: web::Data<Arc<AppShareData>>,
     web::Query(a): web::Query<LoginParams>,
-    web::Form(b): web::Form<LoginParams>,
+    payload: web::Payload,
 ) -> actix_web::Result<impl Responder> {
+    let body = match get_req_body(payload).await {
+        Ok(v) => v,
+        Err(err) => {
+            return Ok(HttpResponse::InternalServerError().body(err.to_string()));
+        }
+    };
+    let b = match serde_urlencoded::from_bytes(&body) {
+        Ok(v) => v,
+        Err(err) => {
+            return Ok(HttpResponse::InternalServerError().body(err.to_string()));
+        }
+    };
     let param = a.merge(b);
     match do_login(param, &app).await {
         Ok(v) => Ok(v),
@@ -125,6 +138,14 @@ pub(crate) async fn mock_token() -> impl Responder {
 
 pub fn login_config(config: &mut web::ServiceConfig) {
     config
-        .service(web::resource("/nacos/v1/auth/users/login").route(web::post().to(login)))
-        .service(web::resource("/nacos/v1/auth/login").route(web::post().to(login)));
+        .service(
+            web::resource("/nacos/v1/auth/users/login")
+                .route(web::post().to(login))
+                .route(web::get().to(login)),
+        )
+        .service(
+            web::resource("/nacos/v1/auth/login")
+                .route(web::post().to(login))
+                .route(web::get().to(login)),
+        );
 }
