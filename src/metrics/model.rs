@@ -6,6 +6,7 @@ pub enum MetricsType {
     Counter,
     Gauge,
     Histogram,
+    Summary,
 }
 
 impl MetricsType {
@@ -14,6 +15,7 @@ impl MetricsType {
             MetricsType::Counter => "counter",
             MetricsType::Gauge => "gauge",
             MetricsType::Histogram => "histogram",
+            MetricsType::Summary => "summary",
         }
     }
 }
@@ -179,6 +181,57 @@ impl HistogramValue {
             .collect()
     }
 
+    ///
+    /// 计算百分位的近似值
+    ///
+    pub fn approximate_quantile(&self, q: f64) -> f64 {
+        if self.count == 0 || q <= 0f64 || self.bounds.is_empty() {
+            return 0f64;
+        }
+        let buckets = self.buckets();
+        let q_value = (q * (self.count as f64)) as u64;
+        if q_value == 0 {
+            return 0f64;
+        }
+        let mut p_bound = 0f64;
+        let mut p_sum_count = 0u64;
+        let mut bound = 0f64;
+        let mut sum_count = 0u64;
+        let mut i=0;
+        while i< buckets.len() {
+            let (b,v) = buckets.get(i).unwrap();
+            bound = b.to_owned();
+            sum_count = v.to_owned();
+            if q_value < sum_count {
+                return p_bound
+                    + ((q_value - p_sum_count) as f64 / (sum_count - p_sum_count) as f64)
+                    * (bound - p_bound)
+            }
+            else if q_value == sum_count {
+                return b.to_owned();
+            }
+            else {
+                if self.count==sum_count {
+                    return bound;
+                }
+                i+=1;
+                if i< buckets.len() {
+                    p_bound = bound;
+                    p_sum_count = sum_count;
+                }
+            }
+        }
+        let interval_bound = if i > 1 {
+            (bound - p_bound) * 2f64
+        } else {
+            bound
+        };
+        bound
+            + ((q_value - sum_count) as f64
+            / (self.count - sum_count) as f64)
+            * interval_bound
+    }
+
     pub fn record(&mut self, sample: f64) {
         self.sum += sample;
         self.count += 1;
@@ -264,6 +317,87 @@ impl Display for HistogramValueFmtWrap<'_> {
     }
 }
 
+#[derive(Default, Debug, Clone)]
+pub struct SummaryValue {
+    pub(crate) count: u64,
+    pub(crate) sum: f64,
+    bounds: Vec<f64>,
+    buckets: Vec<GaugeValue>,
+}
+
+impl SummaryValue {
+    pub fn new(bounds: &[f64]) -> Option<SummaryValue> {
+        let buckets = vec![GaugeValue::default(); bounds.len()];
+
+        Some(SummaryValue {
+            count: 0,
+            bounds: Vec::from(bounds),
+            buckets,
+            sum: 0.0,
+        })
+    }
+
+    /// 每次查询前通过histogram重新计算summary
+    pub fn recalculate_from_histogram(&mut self, histogram_value: &HistogramValue) {
+        for (idx, bucket) in self.bounds.iter().enumerate() {
+            let v = histogram_value.approximate_quantile(*bucket);
+            self.buckets[idx].0 = v;
+        }
+        self.sum = histogram_value.sum;
+        self.count = histogram_value.count;
+    }
+
+    pub fn buckets(&self) -> Vec<(f64, f64)> {
+        self.bounds
+            .iter()
+            .cloned()
+            .zip(self.buckets.iter().map(|e| e.clone().into()))
+            .collect()
+    }
+}
+
+impl Display for SummaryValue {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "total_count={},total_sum={:.2}", self.count, self.sum).ok();
+        for (k, v) in self.buckets() {
+            write!(f, "|quantile={:.2}%,value={:.6}", k * 100f64, v).ok();
+        }
+        Ok(())
+    }
+}
+
+pub(crate) struct SummaryValueFmtWrap<'a> {
+    metrics_key: &'a MetricsKey,
+    value: &'a SummaryValue,
+}
+
+impl<'a> SummaryValueFmtWrap<'a> {
+    pub(crate) fn new(metrics_key: &'a MetricsKey, value: &'a SummaryValue) -> Self {
+        Self { metrics_key, value }
+    }
+}
+
+impl Display for SummaryValueFmtWrap<'_> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let key_name = self.metrics_key.get_key();
+        writeln!(
+            f,
+            "# HELP {} {}\n# TYPE {} {}",
+            key_name,
+            self.metrics_key.get_describe(),
+            key_name,
+            MetricsType::Summary.get_name(),
+        )
+        .ok();
+        for (k, v) in self.value.buckets() {
+            writeln!(f, "{}{{quantile=\"{}\"}} {:.6}", key_name, k, v).ok();
+        }
+        writeln!(f, "{}_sum {:.3}", key_name, self.value.sum).ok();
+        writeln!(f, "{}_count {}", key_name, self.value.count).ok();
+        Ok(())
+    }
+}
+
 #[derive(Message)]
 #[rtype(result = "anyhow::Result<Vec<MetricsItem>>")]
 pub struct MetricsQuery;
@@ -302,5 +436,49 @@ impl MetricsItem {
             metrics_type,
             record,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::metrics::model::{HistogramValue, SummaryValue};
+
+    #[test]
+    fn test_recalculate_from_histogram() {
+        let mut histogram_value = HistogramValue::new(&[
+            0.25f64, 0.5f64, 1f64, 3f64, 5f64, 10f64, 25f64, 50f64, 100f64, 300f64, 500f64,
+        ])
+        .unwrap();
+        for _ in 0..100 {
+            histogram_value.record(0.02f64);
+        }
+        for _ in 0..100 {
+            histogram_value.record(0.04f64);
+        }
+        for _ in 0..1000 {
+            histogram_value.record(0.08f64);
+        }
+        for _ in 0..100 {
+            histogram_value.record(1.6f64);
+        }
+        for _ in 0..100 {
+            histogram_value.record(2.6f64);
+        }
+        for _ in 0..100 {
+            histogram_value.record(7.0f64);
+        }
+        for _ in 0..50 {
+            histogram_value.record(12.0f64);
+        }
+        for _ in 0..20 {
+            histogram_value.record(120.0f64);
+        }
+        println!("histogram_value|{}", &histogram_value);
+        let mut summary_value =
+            SummaryValue::new(&[0.5f64, 0.6f64, 0.7f64, 0.8f64, 0.9f64, 0.95f64, 0.9999f64])
+                .unwrap();
+        //println!("summary_value01|{}",&summary_value);
+        summary_value.recalculate_from_histogram(&histogram_value);
+        println!("summary_value|{}", &summary_value);
     }
 }

@@ -50,9 +50,11 @@ pub enum MetricsKey {
     GrpcConnResponseTimeoutSetItemSize,
     //grpc request
     GrpcRequestHandleRtHistogram,
+    GrpcRequestHandleRtSummary,
     GrpcRequestTotalCount,
     //http api request
     HttpRequestHandleRtHistogram,
+    HttpRequestHandleRtSummary,
     HttpRequestTotalCount,
 }
 
@@ -161,8 +163,10 @@ impl MetricsKey {
                 "grpc_conn_response_timeout_set_item_size"
             }
             MetricsKey::GrpcRequestHandleRtHistogram => "grpc_request_handle_rt_histogram",
+            MetricsKey::GrpcRequestHandleRtSummary => "grpc_request_handle_rt_summary",
             MetricsKey::GrpcRequestTotalCount => "grpc_request_total_count",
             MetricsKey::HttpRequestHandleRtHistogram => "http_request_handle_rt_histogram",
+            MetricsKey::HttpRequestHandleRtSummary => "http_request_handle_rt_summary",
             MetricsKey::HttpRequestTotalCount => "http_request_total_count",
         }
     }
@@ -186,9 +190,9 @@ impl MetricsKey {
     pub fn get_describe(&self) -> &'static str {
         match &self {
             MetricsKey::ProcessStartTimeSeconds => "Process start time seconds",
-            MetricsKey::SysTotalMemory => "Sys total memory",
-            MetricsKey::AppRssMemory => "App rss memory",
-            MetricsKey::AppVmsMemory => "App vms memory",
+            MetricsKey::SysTotalMemory => "Sys total memory,unit is M",
+            MetricsKey::AppRssMemory => "App rss memory,unit is M",
+            MetricsKey::AppVmsMemory => "App vms memory,unit is M",
             MetricsKey::AppMemoryUsage => "App memory usage",
             MetricsKey::AppCpuUsage => "App cpu usage",
             MetricsKey::ConfigDataSize => "Config data size",
@@ -232,9 +236,11 @@ impl MetricsKey {
             MetricsKey::GrpcConnResponseTimeoutSetItemSize => {
                 "Grpc conn response timeout set item size"
             }
-            MetricsKey::GrpcRequestHandleRtHistogram => "Grpc request handle rt histogram",
+            MetricsKey::GrpcRequestHandleRtHistogram => "Grpc request handle rt histogram,unit is ms",
+            MetricsKey::GrpcRequestHandleRtSummary => "Grpc request handle rt summary, unit is ms",
             MetricsKey::GrpcRequestTotalCount => "Grpc request total count",
-            MetricsKey::HttpRequestHandleRtHistogram => "Http request handle rt histogram",
+            MetricsKey::HttpRequestHandleRtHistogram => "Http request handle rt histogram,unit is ms",
+            MetricsKey::HttpRequestHandleRtSummary => "Http request handle rt summary,unit is ms",
             MetricsKey::HttpRequestTotalCount => "Http request total count",
             //default describe
             //_ => "Some help info",

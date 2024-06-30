@@ -21,6 +21,10 @@ impl HistogramManager {
         }
     }
 
+    pub fn get_value(&self, key: &Key) -> Option<&HistogramValue> {
+        self.date_map.get(&key)
+    }
+
     pub fn record(&mut self, key: &Key, sample: f64) {
         if let Some(item) = self.date_map.get_mut(key) {
             item.record(sample);
@@ -69,7 +73,6 @@ impl HistogramManager {
         for (key, value) in self.date_map.iter() {
             bytes_mut.write_str(&format!("{}", &HistogramValueFmtWrap::new(key, value)))?;
         }
-        bytes_mut.write_str("\n")?;
         Ok(())
     }
 }

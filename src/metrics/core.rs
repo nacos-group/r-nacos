@@ -8,6 +8,7 @@ use crate::metrics::metrics_key::MetricsKey;
 use crate::metrics::model::{
     MetricsItem, MetricsQuery, MetricsRecord, MetricsRequest, MetricsResponse,
 };
+use crate::metrics::summary::SummaryManager;
 use crate::naming::core::NamingActor;
 use crate::now_millis;
 use actix::prelude::*;
@@ -23,6 +24,8 @@ pub struct MetricsManager {
     counter_manager: CounterManager,
     gauge_manager: GaugeManager,
     histogram_manager: HistogramManager,
+    summary_manager: SummaryManager,
+    summary_key_config: Vec<(MetricsKey, MetricsKey)>,
     naming_actor: Option<Addr<NamingActor>>,
     config_actor: Option<Addr<ConfigActor>>,
     bi_stream_manage: Option<Addr<BiStreamManage>>,
@@ -54,6 +57,8 @@ impl MetricsManager {
             counter_manager: Default::default(),
             gauge_manager,
             histogram_manager: Default::default(),
+            summary_manager: Default::default(),
+            summary_key_config: Default::default(),
             naming_actor: None,
             config_actor: None,
             bi_stream_manage: None,
@@ -76,16 +81,43 @@ impl MetricsManager {
         self.histogram_manager.init(
             MetricsKey::GrpcRequestHandleRtHistogram,
             &[
-                0.5f64, 1f64, 3f64, 5f64, 10f64, 25f64, 50f64, 100f64, 300f64, 500f64, 1000f64,
+                0.25f64, 0.5f64, 1f64, 3f64, 5f64, 10f64, 25f64, 50f64, 100f64, 300f64, 500f64,
             ],
+        );
+        self.summary_manager.init(
+            MetricsKey::GrpcRequestHandleRtSummary,
+            &[0.5f64, 0.6f64, 0.7f64, 0.8f64, 0.9f64, 0.95f64, 1f64],
         );
         // 单位毫秒ms
         self.histogram_manager.init(
             MetricsKey::HttpRequestHandleRtHistogram,
             &[
-                0.5f64, 1f64, 3f64, 5f64, 10f64, 25f64, 50f64, 100f64, 300f64, 500f64, 1000f64,
+                0.25f64, 0.5f64, 1f64, 3f64, 5f64, 10f64, 25f64, 50f64, 100f64, 300f64, 500f64,
             ],
         );
+        self.summary_manager.init(
+            MetricsKey::HttpRequestHandleRtSummary,
+            &[0.5f64, 0.6f64, 0.7f64, 0.8f64, 0.9f64, 0.95f64, 1f64],
+        );
+
+        //summary from histogram
+        self.summary_key_config.push((
+            MetricsKey::HttpRequestHandleRtSummary,
+            MetricsKey::HttpRequestHandleRtHistogram,
+        ));
+        self.summary_key_config.push((
+            MetricsKey::GrpcRequestHandleRtSummary,
+            MetricsKey::GrpcRequestHandleRtHistogram,
+        ));
+    }
+
+    fn reset_summary(&mut self) {
+        for (summary_key, histogram_key) in &self.summary_key_config {
+            if let Some(histogram_value) = self.histogram_manager.get_value(histogram_key) {
+                self.summary_manager
+                    .recalculate_from_histogram(summary_key, histogram_value);
+            }
+        }
     }
 
     async fn do_peek_metrics(
@@ -135,6 +167,7 @@ impl MetricsManager {
         self.gauge_manager.print_metrics();
         self.counter_manager.print_metrics();
         self.histogram_manager.print_metrics();
+        self.summary_manager.print_metrics();
     }
 
     fn load_sys_metrics(&mut self) {
@@ -165,6 +198,7 @@ impl MetricsManager {
             .map(|r, act, ctx| {
                 //Self::log_metrics(&r);
                 act.update_peek_metrics(r);
+                act.reset_summary();
                 act.load_sys_metrics();
                 act.print_metrics();
                 act.hb(ctx);
@@ -182,6 +216,8 @@ impl MetricsManager {
         self.counter_manager.export(&mut bytes_mut)?;
         self.gauge_manager.export(&mut bytes_mut)?;
         self.histogram_manager.export(&mut bytes_mut)?;
+        self.reset_summary();
+        self.summary_manager.export(&mut bytes_mut)?;
         Ok(String::from_utf8(bytes_mut.to_vec())?)
     }
 }
