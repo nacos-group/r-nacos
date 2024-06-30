@@ -1,5 +1,5 @@
 use crate::metrics::metrics_key::{MetricsKey, ORDER_ALL_KEYS};
-use crate::metrics::model::{CounterValueFmtWrap, GaugeValue, GaugeValueFmtWrap};
+use crate::metrics::model::{GaugeValue, GaugeValueFmtWrap};
 use bytes::BytesMut;
 use std::collections::HashMap;
 use std::fmt::Write;
@@ -49,7 +49,7 @@ impl GaugeManager {
         for (key, value) in self.date_map.iter() {
             bytes_mut.write_str(&format!("{}", &GaugeValueFmtWrap::new(key, value)))?;
         }
-        bytes_mut.write_str("\n")?;
+        //bytes_mut.write_str("\n")?;
         Ok(())
     }
 }

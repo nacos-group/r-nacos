@@ -40,7 +40,7 @@ impl CounterManager {
         for (key, value) in self.date_map.iter() {
             bytes_mut.write_str(&format!("{}", &CounterValueFmtWrap::new(key, value)))?;
         }
-        bytes_mut.write_str("\n")?;
+        //bytes_mut.write_str("\n")?;
         Ok(())
     }
 }

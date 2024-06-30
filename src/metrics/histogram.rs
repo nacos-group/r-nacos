@@ -1,5 +1,5 @@
 use crate::metrics::metrics_key::{MetricsKey, ORDER_ALL_KEYS};
-use crate::metrics::model::{GaugeValueFmtWrap, HistogramValue, HistogramValueFmtWrap};
+use crate::metrics::model::{HistogramValue, HistogramValueFmtWrap};
 use bytes::BytesMut;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;

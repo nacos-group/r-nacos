@@ -12,7 +12,7 @@ use crate::naming::core::NamingActor;
 use crate::now_millis;
 use actix::prelude::*;
 use bean_factory::{bean, BeanFactory, FactoryData, Inject};
-use bytes::{BufMut, BytesMut};
+use bytes::BytesMut;
 use std::sync::Arc;
 use std::time::Duration;
 use sysinfo::{Pid, System};

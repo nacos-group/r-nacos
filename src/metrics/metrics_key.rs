@@ -174,7 +174,7 @@ impl MetricsKey {
 
     pub fn get_key_with_label(&self) -> Cow<'static, str> {
         let key = self.get_key();
-        if let Some(labels) = self.get_labels() {
+        if let Some(_labels) = self.get_labels() {
             //todo 把key与label拼接到一起展示
             //key{label_key=label_value,label_key2=label_value2}
             Cow::Owned(key.to_string())
@@ -185,8 +185,59 @@ impl MetricsKey {
 
     pub fn get_describe(&self) -> &'static str {
         match &self {
+            MetricsKey::ProcessStartTimeSeconds => "Process start time seconds",
+            MetricsKey::SysTotalMemory => "Sys total memory",
+            MetricsKey::AppRssMemory => "App rss memory",
+            MetricsKey::AppVmsMemory => "App vms memory",
+            MetricsKey::AppMemoryUsage => "App memory usage",
+            MetricsKey::AppCpuUsage => "App cpu usage",
+            MetricsKey::ConfigDataSize => "Config data size",
+            MetricsKey::ConfigListenerClientSize => "Config listener client size",
+            MetricsKey::ConfigListenerKeySize => "Config listener key size",
+            MetricsKey::ConfigSubscriberListenerKeySize => "Config subscriber listener key size",
+            MetricsKey::ConfigSubscriberListenerValueSize => {
+                "Config subscriber listener value size"
+            }
+            MetricsKey::ConfigSubscriberClientSize => "Config subscriber client size",
+            MetricsKey::ConfigSubscriberClientValueSize => "Config subscriber client value size",
+            MetricsKey::ConfigIndexTenantSize => "Config index tenant size",
+            MetricsKey::ConfigIndexConfigSize => "Config index config size",
+            MetricsKey::NamingServiceSize => "Naming service size",
+            MetricsKey::NamingInstanceSize => "Naming instance size",
+            MetricsKey::NamingSubscriberListenerKeySize => "Naming subscriber listener key size",
+            MetricsKey::NamingSubscriberListenerValueSize => {
+                "Naming subscriber listener value size"
+            }
+            MetricsKey::NamingSubscriberClientSize => "Naming subscriber client size",
+            MetricsKey::NamingSubscriberClientValueSize => "Naming subscriber client value size",
+            MetricsKey::NamingEmptyServiceSetSize => "Naming empty service set size",
+            MetricsKey::NamingEmptyServiceSetItemSize => "Naming empty service set item size",
+            MetricsKey::NamingInstanceMetaSetSize => "Naming instance meta set size",
+            MetricsKey::NamingInstanceMetaSetItemSize => "Naming instance meta set item size",
+            MetricsKey::NamingHealthyTimeoutSetSize => "Naming healthy timeout set size",
+            MetricsKey::NamingHealthyTimeoutSetItemSize => "Naming healthy timeout set item size",
+            MetricsKey::NamingUnhealthyTimeoutSetSize => "Naming unhealthy timeout set size",
+            MetricsKey::NamingUnhealthyTimeoutSetItemSize => {
+                "Naming unhealthy timeout set item size"
+            }
+            MetricsKey::NamingClientInstanceSetKeySize => "Naming client instance set key size",
+            MetricsKey::NamingClientInstanceSetValueSize => "Naming client instance set value size",
+            MetricsKey::NamingIndexTenantSize => "Naming index tenant size",
+            MetricsKey::NamingIndexGroupSize => "Naming index group size",
+            MetricsKey::NamingIndexServiceSize => "Naming index service size",
+            MetricsKey::GrpcConnSize => "Grpc conn size",
+            MetricsKey::GrpcConnActiveTimeoutSetItemSize => {
+                "Grpc conn active timeout set item size"
+            }
+            MetricsKey::GrpcConnResponseTimeoutSetItemSize => {
+                "Grpc conn response timeout set item size"
+            }
+            MetricsKey::GrpcRequestHandleRtHistogram => "Grpc request handle rt histogram",
+            MetricsKey::GrpcRequestTotalCount => "Grpc request total count",
+            MetricsKey::HttpRequestHandleRtHistogram => "Http request handle rt histogram",
+            MetricsKey::HttpRequestTotalCount => "Http request total count",
             //default describe
-            _ => "",
+            //_ => "Some help info",
         }
     }
 }

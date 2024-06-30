@@ -67,9 +67,9 @@ impl<'a> CounterValueFmtWrap<'a> {
 impl Display for CounterValueFmtWrap<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let key_name = self.metrics_key.get_key();
-        write!(
+        writeln!(
             f,
-            "#HELP {} {}\n#TYPE {} {}\n{} {}\n",
+            "# HELP {} {}\n# TYPE {} {}\n{} {}",
             key_name,
             self.metrics_key.get_describe(),
             key_name,
@@ -126,9 +126,9 @@ impl<'a> GaugeValueFmtWrap<'a> {
 impl Display for GaugeValueFmtWrap<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let key_name = self.metrics_key.get_key();
-        write!(
+        writeln!(
             f,
-            "#HELP {} {}\n#TYPE {} {}\n{} {}\n",
+            "# HELP {} {}\n# TYPE {} {}\n{} {:.3}",
             key_name,
             self.metrics_key.get_describe(),
             key_name,
@@ -245,9 +245,9 @@ impl<'a> HistogramValueFmtWrap<'a> {
 impl Display for HistogramValueFmtWrap<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let key_name = self.metrics_key.get_key();
-        write!(
+        writeln!(
             f,
-            "#HELP {} {}\n#TYPE {} {}\n",
+            "# HELP {} {}\n# TYPE {} {}",
             key_name,
             self.metrics_key.get_describe(),
             key_name,
@@ -255,10 +255,11 @@ impl Display for HistogramValueFmtWrap<'_> {
         )
         .ok();
         for (k, v) in self.value.buckets() {
-            write!(f, "{}_bucket{{le={:.1}}} {}\n", key_name, k, v).ok();
+            writeln!(f, "{}_bucket{{le=\"{}\"}} {}", key_name, k, v).ok();
         }
-        write!(f, "{}_sum {}\n", key_name, self.value.sum).ok();
-        write!(f, "{}_count {}\n\n", key_name, self.value.count).ok();
+        writeln!(f, "{}_bucket{{le=\"+Inf\"}} {}", key_name, self.value.count).ok();
+        writeln!(f, "{}_sum {:.3}", key_name, self.value.sum).ok();
+        writeln!(f, "{}_count {}", key_name, self.value.count).ok();
         Ok(())
     }
 }
