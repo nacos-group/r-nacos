@@ -113,43 +113,51 @@ impl MetricsKey {
             MetricsKey::AppVmsMemory => "app_vms_memory",
             MetricsKey::AppMemoryUsage => "app_memory_usage",
             MetricsKey::AppCpuUsage => "app_cpu_usage",
-            MetricsKey::ConfigDataSize => "ConfigDataSize",
-            MetricsKey::ConfigListenerClientSize => "ConfigListenerClientSize",
-            MetricsKey::ConfigListenerKeySize => "ConfigListenerKeySize",
-            MetricsKey::ConfigSubscriberListenerKeySize => "ConfigSubscriberListenerKeySize",
-            MetricsKey::ConfigSubscriberListenerValueSize => "ConfigSubscriberListenerValueSize",
-            MetricsKey::ConfigSubscriberClientSize => "ConfigSubscriberClientSize",
-            MetricsKey::ConfigSubscriberClientValueSize => "ConfigSubscriberClientValueSize",
-            MetricsKey::ConfigIndexTenantSize => "ConfigIndexTenantSize",
-            MetricsKey::ConfigIndexConfigSize => "ConfigIndexConfigSize",
-            MetricsKey::NamingServiceSize => "NamingServiceSize",
-            MetricsKey::NamingInstanceSize => "NamingInstanceSize",
-            MetricsKey::NamingSubscriberListenerKeySize => "NamingSubscriberListenerKeySize",
-            MetricsKey::NamingSubscriberListenerValueSize => "NamingSubscriberListenerValueSize",
-            MetricsKey::NamingSubscriberClientSize => "NamingSubscriberClientSize",
-            MetricsKey::NamingSubscriberClientValueSize => "NamingSubscriberClientValueSize",
-            MetricsKey::NamingEmptyServiceSetSize => "NamingEmptyServiceSetSize",
-            MetricsKey::NamingEmptyServiceSetItemSize => "NamingEmptyServiceSetItemSize",
-            MetricsKey::NamingInstanceMetaSetSize => "NamingInstanceMetaSetSize",
-            MetricsKey::NamingInstanceMetaSetItemSize => "NamingInstanceMetaSetItemSize",
-            MetricsKey::NamingHealthyTimeoutSetSize => "NamingHealthyTimeoutSetSize",
-            MetricsKey::NamingHealthyTimeoutSetItemSize => "NamingHealthyTimeoutSetItemSize",
-            MetricsKey::NamingUnhealthyTimeoutSetSize => "NamingUnhealthyTimeoutSetSize",
-            MetricsKey::NamingUnhealthyTimeoutSetItemSize => "NamingUnhealthyTimeoutSetItemSize",
-            MetricsKey::NamingClientInstanceSetKeySize => "NamingClientInstanceSetKeySize",
-            MetricsKey::NamingClientInstanceSetValueSize => "NamingClientInstanceSetValueSize",
-            MetricsKey::NamingIndexTenantSize => "NamingIndexTenantSize",
-            MetricsKey::NamingIndexGroupSize => "NamingIndexGroupSize",
-            MetricsKey::NamingIndexServiceSize => "NamingIndexServiceSize",
-            MetricsKey::GrpcConnSize => "GrpcConnSize",
-            MetricsKey::GrpcConnActiveTimeoutSetItemSize => "GrpcConnActiveTimeoutSetItemSize",
-            MetricsKey::GrpcConnResponseTimeoutSetItemSize => "GrpcConnResponseTimeoutSetItemSize",
-            //grpc request
-            MetricsKey::GrpcRequestHandleRtHistogram => "GrpcRequestHandleRtHistogram",
-            MetricsKey::GrpcRequestTotalCount => "GrpcRequestTotalCount",
-            //http request
-            MetricsKey::HttpRequestHandleRtHistogram => "HttpRequestHandleRtHistogram",
-            MetricsKey::HttpRequestTotalCount => "HttpRequestTotalCount",
+            MetricsKey::ConfigDataSize => "config_data_size",
+            MetricsKey::ConfigListenerClientSize => "config_listener_client_size",
+            MetricsKey::ConfigListenerKeySize => "config_listener_key_size",
+            MetricsKey::ConfigSubscriberListenerKeySize => "config_subscriber_listener_key_size",
+            MetricsKey::ConfigSubscriberListenerValueSize => {
+                "config_subscriber_listener_value_size"
+            }
+            MetricsKey::ConfigSubscriberClientSize => "config_subscriber_client_size",
+            MetricsKey::ConfigSubscriberClientValueSize => "config_subscriber_client_value_size",
+            MetricsKey::ConfigIndexTenantSize => "config_index_tenant_size",
+            MetricsKey::ConfigIndexConfigSize => "config_index_config_size",
+            MetricsKey::NamingServiceSize => "naming_service_size",
+            MetricsKey::NamingInstanceSize => "naming_instance_size",
+            MetricsKey::NamingSubscriberListenerKeySize => "naming_subscriber_listener_key_size",
+            MetricsKey::NamingSubscriberListenerValueSize => {
+                "naming_subscriber_listener_value_size"
+            }
+            MetricsKey::NamingSubscriberClientSize => "naming_subscriber_client_size",
+            MetricsKey::NamingSubscriberClientValueSize => "naming_subscriber_client_value_size",
+            MetricsKey::NamingEmptyServiceSetSize => "naming_empty_service_set_size",
+            MetricsKey::NamingEmptyServiceSetItemSize => "naming_empty_service_set_item_size",
+            MetricsKey::NamingInstanceMetaSetSize => "naming_instance_meta_set_size",
+            MetricsKey::NamingInstanceMetaSetItemSize => "naming_instance_meta_set_item_size",
+            MetricsKey::NamingHealthyTimeoutSetSize => "naming_healthy_timeout_set_size",
+            MetricsKey::NamingHealthyTimeoutSetItemSize => "naming_healthy_timeout_set_item_size",
+            MetricsKey::NamingUnhealthyTimeoutSetSize => "naming_unhealthy_timeout_set_size",
+            MetricsKey::NamingUnhealthyTimeoutSetItemSize => {
+                "naming_unhealthy_timeout_set_item_size"
+            }
+            MetricsKey::NamingClientInstanceSetKeySize => "naming_client_instance_set_key_size",
+            MetricsKey::NamingClientInstanceSetValueSize => "naming_client_instance_set_value_size",
+            MetricsKey::NamingIndexTenantSize => "naming_index_tenant_size",
+            MetricsKey::NamingIndexGroupSize => "naming_index_group_size",
+            MetricsKey::NamingIndexServiceSize => "naming_index_service_size",
+            MetricsKey::GrpcConnSize => "grpc_conn_size",
+            MetricsKey::GrpcConnActiveTimeoutSetItemSize => {
+                "grpc_conn_active_timeout_set_item_size"
+            }
+            MetricsKey::GrpcConnResponseTimeoutSetItemSize => {
+                "grpc_conn_response_timeout_set_item_size"
+            }
+            MetricsKey::GrpcRequestHandleRtHistogram => "grpc_request_handle_rt_histogram",
+            MetricsKey::GrpcRequestTotalCount => "grpc_request_total_count",
+            MetricsKey::HttpRequestHandleRtHistogram => "http_request_handle_rt_histogram",
+            MetricsKey::HttpRequestTotalCount => "http_request_total_count",
         }
     }
 

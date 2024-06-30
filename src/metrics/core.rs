@@ -142,11 +142,12 @@ impl MetricsManager {
             let vms = process.virtual_memory() as f64 / (1024.0 * 1024.0);
             let rss_usage = rss / self.total_memory * 100.0;
             let running_seconds = (now_millis() - self.start_time_millis) / 1000;
-            log::info!("[metrics_system]|already running seconds: {}s|cpu_usage: {:.2}%|rss_usage: {:.2}%|rss: {}M|vms: {}M|total_memory: {}M|",running_seconds,&cpu_usage,&rss_usage,&rss,&vms,&self.total_memory);
+            log::info!("[metrics_system]|already running seconds: {}s|cpu_usage: {:.2}%|rss_usage: {:.2}%|rss: {:.2}M|vms: {:.2}M|total_memory: {:.2}M|",running_seconds,&cpu_usage,&rss_usage,&rss,&vms,&self.total_memory);
             self.gauge_manager.set(MetricsKey::AppCpuUsage, cpu_usage);
             self.gauge_manager.set(MetricsKey::AppRssMemory, rss);
             self.gauge_manager.set(MetricsKey::AppVmsMemory, vms);
-            self.gauge_manager.set(MetricsKey::AppRssMemory, rss_usage);
+            self.gauge_manager
+                .set(MetricsKey::AppMemoryUsage, rss_usage);
         }
     }
 

@@ -126,11 +126,12 @@ where
                 //record_req_metrics(&app_share_data.metrics_manager,duration,false);
                 //res.await.map(ServiceResponse::map_into_left_body)
                 res.await.map(move |item| {
+                    let success = item.response().status().as_u16() < 400;
                     let duration = SystemTime::now()
                         .duration_since(start)
                         .unwrap_or_default()
                         .as_secs_f64();
-                    record_req_metrics(&app_share_data.metrics_manager, duration, true);
+                    record_req_metrics(&app_share_data.metrics_manager, duration, success);
                     ServiceResponse::map_into_left_body(item)
                 })
             } else {
