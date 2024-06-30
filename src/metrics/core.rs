@@ -32,9 +32,11 @@ pub struct MetricsManager {
     system: System,
     current_process_id: u32,
     start_time_millis: u64,
-    //last_load_time: u64,
     total_memory: f64,
+    collect_interval: u64,
     log_interval: u64,
+    last_collect_time: u64,
+    last_log_time: u64,
     metrics_enable: bool,
 }
 
@@ -65,9 +67,11 @@ impl MetricsManager {
             system,
             current_process_id,
             start_time_millis,
-            //last_load_time: 0,
             total_memory,
-            log_interval: 30,
+            log_interval: 60,
+            collect_interval: 15,
+            last_collect_time: 0,
+            last_log_time: 0,
             metrics_enable: true,
         }
     }
@@ -162,12 +166,18 @@ impl MetricsManager {
         }
     }
 
-    fn print_metrics(&self) {
+    fn print_metrics(&mut self) {
+        let now = now_millis();
+        if now - self.last_log_time < (self.log_interval - 1) * 1000 {
+            return;
+        }
         //log::info!("-------------- log metrics start --------------");
+        self.print_sys_metrics();
         self.gauge_manager.print_metrics();
         self.counter_manager.print_metrics();
         self.histogram_manager.print_metrics();
         self.summary_manager.print_metrics();
+        self.last_log_time = now;
     }
 
     fn load_sys_metrics(&mut self) {
@@ -178,7 +188,7 @@ impl MetricsManager {
             let vms = process.virtual_memory() as f64 / (1024.0 * 1024.0);
             let rss_usage = rss / self.total_memory * 100.0;
             let running_seconds = (now_millis() - self.start_time_millis) / 1000;
-            log::info!("[metrics_system]|already running seconds: {}s|cpu_usage: {:.2}%|rss_usage: {:.2}%|rss: {:.2}M|vms: {:.2}M|total_memory: {:.2}M|",running_seconds,&cpu_usage,&rss_usage,&rss,&vms,&self.total_memory);
+            //log::info!("[metrics_system]|already running seconds: {}s|cpu_usage: {:.2}%|rss_usage: {:.2}%|rss: {:.2}M|vms: {:.2}M|total_memory: {:.2}M|",running_seconds,&cpu_usage,&rss_usage,&rss,&vms,&self.total_memory);
             self.gauge_manager
                 .set(MetricsKey::ProcessStartTimeSeconds, running_seconds as f64);
             self.gauge_manager.set(MetricsKey::AppCpuUsage, cpu_usage);
@@ -187,6 +197,31 @@ impl MetricsManager {
             self.gauge_manager
                 .set(MetricsKey::AppMemoryUsage, rss_usage);
         }
+        self.last_collect_time = now_millis();
+    }
+
+    fn print_sys_metrics(&self) {
+        let cpu_usage = self
+            .gauge_manager
+            .value(&MetricsKey::AppCpuUsage)
+            .unwrap_or_default();
+        let rss = self
+            .gauge_manager
+            .value(&MetricsKey::AppRssMemory)
+            .unwrap_or_default();
+        let vms = self
+            .gauge_manager
+            .value(&MetricsKey::AppVmsMemory)
+            .unwrap_or_default();
+        let rss_usage = self
+            .gauge_manager
+            .value(&MetricsKey::AppMemoryUsage)
+            .unwrap_or_default();
+        let running_seconds = self
+            .gauge_manager
+            .value(&MetricsKey::ProcessStartTimeSeconds)
+            .unwrap_or_default();
+        log::info!("[metrics_system]|already running seconds: {}s|cpu_usage: {:.2}%|rss_usage: {:.2}%|rss: {:.2}M|vms: {:.2}M|total_memory: {:.2}M|",running_seconds,&cpu_usage,&rss_usage,&rss,&vms,&self.total_memory);
     }
 
     fn load_metrics(&mut self, ctx: &mut Context<Self>) {
@@ -206,7 +241,7 @@ impl MetricsManager {
             .spawn(ctx);
     }
     fn hb(&mut self, ctx: &mut Context<Self>) {
-        ctx.run_later(Duration::from_secs(self.log_interval), |act, ctx| {
+        ctx.run_later(Duration::from_secs(self.collect_interval), |act, ctx| {
             act.load_metrics(ctx);
         });
     }
@@ -244,6 +279,7 @@ impl Inject for MetricsManager {
         let sys_config: Option<Arc<AppSysConfig>> = factory_data.get_bean();
         if let Some(sys_config) = sys_config {
             self.metrics_enable = sys_config.metrics_enable;
+            self.collect_interval = sys_config.metrics_collect_interval_second;
             self.log_interval = sys_config.metrics_log_interval_second;
             if self.metrics_enable {
                 log::info!("metrics enable! log_interval: {}s", self.log_interval);

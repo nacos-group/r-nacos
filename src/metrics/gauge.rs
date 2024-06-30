@@ -36,6 +36,14 @@ impl GaugeManager {
         }
     }
 
+    pub fn value(&self, key: &Key) -> Option<f64> {
+        if let Some(item) = self.date_map.get(&key) {
+            Some(item.0.to_owned())
+        } else {
+            None
+        }
+    }
+
     pub fn print_metrics(&self) {
         //log::info!("-------------- METRICS GAUGE --------------");
         for key in ORDER_ALL_KEYS.iter() {

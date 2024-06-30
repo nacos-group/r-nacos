@@ -76,6 +76,7 @@ pub struct AppSysConfig {
     pub init_admin_username: String,
     pub init_admin_password: String,
     pub metrics_enable: bool,
+    pub metrics_collect_interval_second: u64,
     pub metrics_log_interval_second: u64,
 }
 
@@ -160,12 +161,23 @@ impl AppSysConfig {
             .unwrap_or("true".to_owned())
             .parse()
             .unwrap_or(true);
+        let mut metrics_collect_interval_second =
+            std::env::var("RNACOS_METRICS_COLLECT_INTERVAL_SECOND")
+                .unwrap_or("15".to_owned())
+                .parse()
+                .unwrap_or(15);
+        if metrics_collect_interval_second < 1 {
+            metrics_collect_interval_second = 1;
+        }
         let mut metrics_log_interval_second = std::env::var("RNACOS_METRICS_LOG_INTERVAL_SECOND")
-            .unwrap_or("30".to_owned())
+            .unwrap_or("60".to_owned())
             .parse()
-            .unwrap_or(30);
+            .unwrap_or(60);
         if metrics_log_interval_second < 5 {
             metrics_log_interval_second = 5;
+        }
+        if metrics_log_interval_second < metrics_collect_interval_second {
+            metrics_collect_interval_second = metrics_log_interval_second;
         }
         Self {
             config_db_dir,
@@ -191,6 +203,7 @@ impl AppSysConfig {
             init_admin_username,
             init_admin_password,
             metrics_enable,
+            metrics_collect_interval_second,
             metrics_log_interval_second,
         }
     }

@@ -236,10 +236,14 @@ impl MetricsKey {
             MetricsKey::GrpcConnResponseTimeoutSetItemSize => {
                 "Grpc conn response timeout set item size"
             }
-            MetricsKey::GrpcRequestHandleRtHistogram => "Grpc request handle rt histogram,unit is ms",
+            MetricsKey::GrpcRequestHandleRtHistogram => {
+                "Grpc request handle rt histogram,unit is ms"
+            }
             MetricsKey::GrpcRequestHandleRtSummary => "Grpc request handle rt summary, unit is ms",
             MetricsKey::GrpcRequestTotalCount => "Grpc request total count",
-            MetricsKey::HttpRequestHandleRtHistogram => "Http request handle rt histogram,unit is ms",
+            MetricsKey::HttpRequestHandleRtHistogram => {
+                "Http request handle rt histogram,unit is ms"
+            }
             MetricsKey::HttpRequestHandleRtSummary => "Http request handle rt summary,unit is ms",
             MetricsKey::HttpRequestTotalCount => "Http request total count",
             //default describe

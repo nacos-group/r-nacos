@@ -197,25 +197,23 @@ impl HistogramValue {
         let mut p_sum_count = 0u64;
         let mut bound = 0f64;
         let mut sum_count = 0u64;
-        let mut i=0;
-        while i< buckets.len() {
-            let (b,v) = buckets.get(i).unwrap();
+        let mut i = 0;
+        while i < buckets.len() {
+            let (b, v) = buckets.get(i).unwrap();
             bound = b.to_owned();
             sum_count = v.to_owned();
             if q_value < sum_count {
                 return p_bound
                     + ((q_value - p_sum_count) as f64 / (sum_count - p_sum_count) as f64)
-                    * (bound - p_bound)
-            }
-            else if q_value == sum_count {
+                        * (bound - p_bound);
+            } else if q_value == sum_count {
                 return b.to_owned();
-            }
-            else {
-                if self.count==sum_count {
+            } else {
+                if self.count == sum_count {
                     return bound;
                 }
-                i+=1;
-                if i< buckets.len() {
+                i += 1;
+                if i < buckets.len() {
                     p_bound = bound;
                     p_sum_count = sum_count;
                 }
@@ -226,10 +224,7 @@ impl HistogramValue {
         } else {
             bound
         };
-        bound
-            + ((q_value - sum_count) as f64
-            / (self.count - sum_count) as f64)
-            * interval_bound
+        bound + ((q_value - sum_count) as f64 / (self.count - sum_count) as f64) * interval_bound
     }
 
     pub fn record(&mut self, sample: f64) {
