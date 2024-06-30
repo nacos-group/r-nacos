@@ -21,7 +21,7 @@ use std::time::SystemTime;
 
 lazy_static::lazy_static! {
     pub static ref IGNORE_PATH: Vec<&'static str> = vec![
-        "/nacos/v1/auth/login", "/nacos/v1/auth/users/login",
+        "/nacos/v1/auth/login", "/nacos/v1/auth/users/login","/nacos/metrics"
     ];
     pub static ref API_PATH: Regex = Regex::new(r"(?i)/nacos/.*").unwrap();
     //pub static ref PARM_AUTH_TOKEN: Regex = Regex::new(r"accessToken=(\w*)").unwrap();

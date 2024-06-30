@@ -5,11 +5,14 @@ use crate::metrics::counter::CounterManager;
 use crate::metrics::gauge::GaugeManager;
 use crate::metrics::histogram::HistogramManager;
 use crate::metrics::metrics_key::MetricsKey;
-use crate::metrics::model::{MetricsItem, MetricsQuery, MetricsRecord, MetricsRequest};
+use crate::metrics::model::{
+    MetricsItem, MetricsQuery, MetricsRecord, MetricsRequest, MetricsResponse,
+};
 use crate::naming::core::NamingActor;
 use crate::now_millis;
 use actix::prelude::*;
 use bean_factory::{bean, BeanFactory, FactoryData, Inject};
+use bytes::{BufMut, BytesMut};
 use std::sync::Arc;
 use std::time::Duration;
 use sysinfo::{Pid, System};
@@ -143,6 +146,8 @@ impl MetricsManager {
             let rss_usage = rss / self.total_memory * 100.0;
             let running_seconds = (now_millis() - self.start_time_millis) / 1000;
             log::info!("[metrics_system]|already running seconds: {}s|cpu_usage: {:.2}%|rss_usage: {:.2}%|rss: {:.2}M|vms: {:.2}M|total_memory: {:.2}M|",running_seconds,&cpu_usage,&rss_usage,&rss,&vms,&self.total_memory);
+            self.gauge_manager
+                .set(MetricsKey::ProcessStartTimeSeconds, running_seconds as f64);
             self.gauge_manager.set(MetricsKey::AppCpuUsage, cpu_usage);
             self.gauge_manager.set(MetricsKey::AppRssMemory, rss);
             self.gauge_manager.set(MetricsKey::AppVmsMemory, vms);
@@ -170,6 +175,14 @@ impl MetricsManager {
         ctx.run_later(Duration::from_secs(self.log_interval), |act, ctx| {
             act.load_metrics(ctx);
         });
+    }
+
+    fn export(&mut self) -> anyhow::Result<String> {
+        let mut bytes_mut = BytesMut::new();
+        self.counter_manager.export(&mut bytes_mut)?;
+        self.gauge_manager.export(&mut bytes_mut)?;
+        self.histogram_manager.export(&mut bytes_mut)?;
+        Ok(String::from_utf8(bytes_mut.to_vec())?)
     }
 }
 
@@ -210,22 +223,27 @@ impl Inject for MetricsManager {
 }
 
 impl Handler<MetricsRequest> for MetricsManager {
-    type Result = anyhow::Result<()>;
+    type Result = anyhow::Result<MetricsResponse>;
 
     fn handle(&mut self, msg: MetricsRequest, _ctx: &mut Self::Context) -> Self::Result {
         if !self.metrics_enable {
-            return Ok(());
+            return Ok(MetricsResponse::None);
         }
         match msg {
             MetricsRequest::Record(item) => {
                 self.update_item_record(item);
+                Ok(MetricsResponse::None)
             }
             MetricsRequest::BatchRecord(items) => {
                 for item in items {
                     self.update_item_record(item);
                 }
+                Ok(MetricsResponse::None)
+            }
+            MetricsRequest::Export => {
+                let v = self.export()?;
+                Ok(MetricsResponse::ExportInfo(v))
             }
         }
-        Ok(())
     }
 }

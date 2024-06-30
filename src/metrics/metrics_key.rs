@@ -1,9 +1,14 @@
+use std::borrow::Cow;
 //use crate::metrics::model::MetricsType;
 use lazy_static::lazy_static;
 
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]
+pub struct Label(pub Cow<'static, str>, pub Cow<'static, str>);
+
+#[derive(Debug, Eq, PartialEq, Clone, Hash)]
 pub enum MetricsKey {
     //app
+    ProcessStartTimeSeconds,
     SysTotalMemory,
     AppRssMemory,
     AppVmsMemory,
@@ -108,6 +113,7 @@ lazy_static! {
 impl MetricsKey {
     pub fn get_key(&self) -> &'static str {
         match &self {
+            MetricsKey::ProcessStartTimeSeconds => "process_start_time_seconds",
             MetricsKey::SysTotalMemory => "sys_total_memory",
             MetricsKey::AppRssMemory => "app_rss_memory",
             MetricsKey::AppVmsMemory => "app_vms_memory",
@@ -161,41 +167,26 @@ impl MetricsKey {
         }
     }
 
-    /*
-    pub fn get_metrics_type(&self) -> MetricsType {
-        match &self {
-            MetricsKey::ConfigDataSize => MetricsType::Gauge,
-            MetricsKey::ConfigListenerClientSize => MetricsType::Gauge,
-            MetricsKey::ConfigListenerKeySize => MetricsType::Gauge,
-            MetricsKey::ConfigSubscriberListenerKeySize => MetricsType::Gauge,
-            MetricsKey::ConfigSubscriberListenerValueSize => MetricsType::Gauge,
-            MetricsKey::ConfigSubscriberClientSize => MetricsType::Gauge,
-            MetricsKey::ConfigSubscriberClientValueSize => MetricsType::Gauge,
-            MetricsKey::ConfigIndexTenantSize => MetricsType::Gauge,
-            MetricsKey::ConfigIndexConfigSize => MetricsType::Gauge,
-            MetricsKey::NamingServiceSize => MetricsType::Gauge,
-            MetricsKey::NamingInstanceSize => MetricsType::Gauge,
-            MetricsKey::NamingSubscriberListenerKeySize => MetricsType::Gauge,
-            MetricsKey::NamingSubscriberListenerValueSize => MetricsType::Gauge,
-            MetricsKey::NamingSubscriberClientSize => MetricsType::Gauge,
-            MetricsKey::NamingSubscriberClientValueSize => MetricsType::Gauge,
-            MetricsKey::NamingEmptyServiceSetSize => MetricsType::Gauge,
-            MetricsKey::NamingEmptyServiceSetItemSize => MetricsType::Gauge,
-            MetricsKey::NamingInstanceMetaSetSize => MetricsType::Gauge,
-            MetricsKey::NamingInstanceMetaSetItemSize => MetricsType::Gauge,
-            MetricsKey::NamingHealthyTimeoutSetSize => MetricsType::Gauge,
-            MetricsKey::NamingHealthyTimeoutSetItemSize => MetricsType::Gauge,
-            MetricsKey::NamingUnhealthyTimeoutSetSize => MetricsType::Gauge,
-            MetricsKey::NamingUnhealthyTimeoutSetItemSize => MetricsType::Gauge,
-            MetricsKey::NamingClientInstanceSetKeySize => MetricsType::Gauge,
-            MetricsKey::NamingClientInstanceSetValueSize => MetricsType::Gauge,
-            MetricsKey::NamingIndexTenantSize => MetricsType::Gauge,
-            MetricsKey::NamingIndexGroupSize => MetricsType::Gauge,
-            MetricsKey::NamingIndexServiceSize => MetricsType::Gauge,
-            MetricsKey::GrpcConnSize => MetricsType::Gauge,
-            MetricsKey::GrpcConnActiveTimeoutSetItemSize => MetricsType::Gauge,
-            MetricsKey::GrpcConnResponseTimeoutSetItemSize => MetricsType::Gauge,
+    pub fn get_labels(&self) -> Option<Vec<&Label>> {
+        //todo 后续的指标key可以支持labels
+        None
+    }
+
+    pub fn get_key_with_label(&self) -> Cow<'static, str> {
+        let key = self.get_key();
+        if let Some(labels) = self.get_labels() {
+            //todo 把key与label拼接到一起展示
+            //key{label_key=label_value,label_key2=label_value2}
+            Cow::Owned(key.to_string())
+        } else {
+            Cow::Borrowed(key)
         }
     }
-     */
+
+    pub fn get_describe(&self) -> &'static str {
+        match &self {
+            //default describe
+            _ => "",
+        }
+    }
 }

@@ -1,7 +1,9 @@
 use crate::metrics::metrics_key::{MetricsKey, ORDER_ALL_KEYS};
-use crate::metrics::model::HistogramValue;
+use crate::metrics::model::{GaugeValueFmtWrap, HistogramValue, HistogramValueFmtWrap};
+use bytes::BytesMut;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
+use std::fmt::Write;
 
 type Key = MetricsKey;
 
@@ -61,5 +63,13 @@ impl HistogramManager {
                 log::info!("[metrics_histogram]|{}:{}|", key.get_key(), val);
             }
         }
+    }
+
+    pub fn export(&mut self, bytes_mut: &mut BytesMut) -> anyhow::Result<()> {
+        for (key, value) in self.date_map.iter() {
+            bytes_mut.write_str(&format!("{}", &HistogramValueFmtWrap::new(key, value)))?;
+        }
+        bytes_mut.write_str("\n")?;
+        Ok(())
     }
 }

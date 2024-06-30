@@ -1,6 +1,8 @@
 use crate::metrics::metrics_key::{MetricsKey, ORDER_ALL_KEYS};
-use crate::metrics::model::GaugeValue;
+use crate::metrics::model::{CounterValueFmtWrap, GaugeValue, GaugeValueFmtWrap};
+use bytes::BytesMut;
 use std::collections::HashMap;
+use std::fmt::Write;
 
 type Key = MetricsKey;
 
@@ -41,5 +43,13 @@ impl GaugeManager {
                 log::info!("[metrics_gauge]|{}:{}|", key.get_key(), val.0);
             }
         }
+    }
+
+    pub fn export(&mut self, bytes_mut: &mut BytesMut) -> anyhow::Result<()> {
+        for (key, value) in self.date_map.iter() {
+            bytes_mut.write_str(&format!("{}", &GaugeValueFmtWrap::new(key, value)))?;
+        }
+        bytes_mut.write_str("\n")?;
+        Ok(())
     }
 }

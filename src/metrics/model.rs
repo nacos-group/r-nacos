@@ -8,8 +8,24 @@ pub enum MetricsType {
     Histogram,
 }
 
+impl MetricsType {
+    pub fn get_name(&self) -> &'static str {
+        match &self {
+            MetricsType::Counter => "counter",
+            MetricsType::Gauge => "gauge",
+            MetricsType::Histogram => "histogram",
+        }
+    }
+}
+
 #[derive(Default, Debug, Clone)]
 pub struct CounterValue(pub(crate) u64);
+
+/*
+pub trait MetricsFmt: Sized {
+    fn fmt(&self,metrics_key: &MetricsKey,metrics_type:&MetricsType) -> anyhow::Result<String>;
+}
+ */
 
 impl CounterValue {
     pub fn increment(&mut self, value: u64) {
@@ -34,6 +50,33 @@ impl From<CounterValue> for u64 {
 impl From<u64> for CounterValue {
     fn from(value: u64) -> Self {
         Self(value)
+    }
+}
+
+pub(crate) struct CounterValueFmtWrap<'a> {
+    metrics_key: &'a MetricsKey,
+    value: &'a CounterValue,
+}
+
+impl<'a> CounterValueFmtWrap<'a> {
+    pub(crate) fn new(metrics_key: &'a MetricsKey, value: &'a CounterValue) -> Self {
+        Self { metrics_key, value }
+    }
+}
+
+impl Display for CounterValueFmtWrap<'_> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let key_name = self.metrics_key.get_key();
+        write!(
+            f,
+            "#HELP {} {}\n#TYPE {} {}\n{} {}\n",
+            key_name,
+            self.metrics_key.get_describe(),
+            key_name,
+            MetricsType::Counter.get_name(),
+            self.metrics_key.get_key_with_label(),
+            self.value.0
+        )
     }
 }
 
@@ -66,6 +109,33 @@ impl From<GaugeValue> for f64 {
 impl From<f64> for GaugeValue {
     fn from(value: f64) -> Self {
         Self(value)
+    }
+}
+
+pub(crate) struct GaugeValueFmtWrap<'a> {
+    metrics_key: &'a MetricsKey,
+    value: &'a GaugeValue,
+}
+
+impl<'a> GaugeValueFmtWrap<'a> {
+    pub(crate) fn new(metrics_key: &'a MetricsKey, value: &'a GaugeValue) -> Self {
+        Self { metrics_key, value }
+    }
+}
+
+impl Display for GaugeValueFmtWrap<'_> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let key_name = self.metrics_key.get_key();
+        write!(
+            f,
+            "#HELP {} {}\n#TYPE {} {}\n{} {}\n",
+            key_name,
+            self.metrics_key.get_describe(),
+            key_name,
+            MetricsType::Gauge.get_name(),
+            self.metrics_key.get_key_with_label(),
+            self.value.0
+        )
     }
 }
 
@@ -161,15 +231,54 @@ impl Display for HistogramValue {
     }
 }
 
+pub(crate) struct HistogramValueFmtWrap<'a> {
+    metrics_key: &'a MetricsKey,
+    value: &'a HistogramValue,
+}
+
+impl<'a> HistogramValueFmtWrap<'a> {
+    pub(crate) fn new(metrics_key: &'a MetricsKey, value: &'a HistogramValue) -> Self {
+        Self { metrics_key, value }
+    }
+}
+
+impl Display for HistogramValueFmtWrap<'_> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let key_name = self.metrics_key.get_key();
+        write!(
+            f,
+            "#HELP {} {}\n#TYPE {} {}\n",
+            key_name,
+            self.metrics_key.get_describe(),
+            key_name,
+            MetricsType::Histogram.get_name(),
+        )
+        .ok();
+        for (k, v) in self.value.buckets() {
+            write!(f, "{}_bucket{{le={:.1}}} {}\n", key_name, k, v).ok();
+        }
+        write!(f, "{}_sum {}\n", key_name, self.value.sum).ok();
+        write!(f, "{}_count {}\n\n", key_name, self.value.count).ok();
+        Ok(())
+    }
+}
+
 #[derive(Message)]
 #[rtype(result = "anyhow::Result<Vec<MetricsItem>>")]
 pub struct MetricsQuery;
 
 #[derive(Message, Clone, Debug)]
-#[rtype(result = "anyhow::Result<()>")]
+#[rtype(result = "anyhow::Result<MetricsResponse>")]
 pub enum MetricsRequest {
     Record(MetricsItem),
     BatchRecord(Vec<MetricsItem>),
+    Export,
+}
+
+#[derive(Clone, Debug)]
+pub enum MetricsResponse {
+    None,
+    ExportInfo(String),
 }
 
 #[derive(Clone, Debug)]
