@@ -1,6 +1,8 @@
 use crate::metrics::metrics_key::{MetricsKey, ORDER_ALL_KEYS};
-use crate::metrics::model::CounterValue;
+use crate::metrics::model::{CounterValue, CounterValueFmtWrap};
+use bytes::BytesMut;
 use std::collections::HashMap;
+use std::fmt::Write;
 
 type Key = MetricsKey;
 
@@ -32,5 +34,13 @@ impl CounterManager {
                 log::info!("[metrics_counter]|{}:{}|", key.get_key(), val.0);
             }
         }
+    }
+
+    pub fn export(&mut self, bytes_mut: &mut BytesMut) -> anyhow::Result<()> {
+        for (key, value) in self.date_map.iter() {
+            bytes_mut.write_str(&format!("{}", &CounterValueFmtWrap::new(key, value)))?;
+        }
+        //bytes_mut.write_str("\n")?;
+        Ok(())
     }
 }
