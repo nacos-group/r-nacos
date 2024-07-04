@@ -8,3 +8,9 @@ pub struct LoginParam {
     pub password: String,
     pub captcha: String,
 }
+
+#[derive(Debug, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct LoginToken {
+    pub token: String,
+}

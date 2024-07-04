@@ -68,6 +68,7 @@ rnacos 运行时支持的环境变量，如果不设置则按默认配置运行�
 |RNACOS_INIT_ADMIN_PASSWORD|初始化管理员密码，只在主节点第一次启动时生效|admin|rnacos123456|0.5.11|
 |RNACOS_ENABLE_METRICS|是否开启监控指标功能|true|true|0.5.13|
 |RNACOS_METRICS_LOG_INTERVAL_SECOND|监控指标采集打印到日志的间隔,单位秒,最小间隔为5秒|30|10|0.5.13|
+|RNACOS_CAPTCHA_SWITCH| 验证码的开关| true|true|0.5.14|
 
 
 注：从v0.3.0开始，默认参数启动的节点会被当做只有一个节点，当前节点是主节点的集群部署。支持其它新增的从节点加入。
