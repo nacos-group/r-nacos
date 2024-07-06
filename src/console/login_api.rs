@@ -30,7 +30,7 @@ pub async fn login(
     web::Form(param): web::Form<LoginParam>,
 ) -> actix_web::Result<impl Responder> {
     let captcha_token;
-    if APP_SYS_CONFIG.captcha_switch {
+    if APP_SYS_CONFIG.console_captcha_enable {
         //校验验证码
         captcha_token = if let Some(ck) = request.cookie("captcha_token") {
             ck.value().to_owned()
