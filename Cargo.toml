@@ -110,6 +110,9 @@ binrw = "0.13.3"
 binrw_derive = "0.13.3"
 sysinfo = "0.30.12"
 
+[target.'cfg(any(target_os = "linux", target_os = "macos", target_os="windows"))'.dependencies]
+fs2 = "0.4.3"
+
 [dependencies.uuid]
 version = "1.2.1"
 features = [

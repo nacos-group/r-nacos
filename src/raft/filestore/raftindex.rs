@@ -111,14 +111,51 @@ impl RaftIndexInnerManager {
 #[bean(inject)]
 pub struct RaftIndexManager {
     path: Arc<String>,
+    lock_file: std::fs::File,
     inner: Option<Box<RaftIndexInnerManager>>,
     naming_inner_node_manage: Option<Addr<InnerNodeManage>>,
 }
 
+impl Drop for RaftIndexManager {
+    fn drop(&mut self) {
+        use fs2::FileExt;
+        let _ = self.lock_file.unlock();
+    }
+}
+
 impl RaftIndexManager {
+    fn try_lock(base_path: &str) -> anyhow::Result<std::fs::File> {
+        let path = Path::new(base_path)
+            .join("db_lock")
+            .to_string_lossy()
+            .into_owned();
+        let file = std::fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .open(&path)?;
+        #[cfg(all(not(miri), any(windows, target_os = "linux", target_os = "macos")))]
+        {
+            use fs2::FileExt;
+
+            let try_lock = if cfg!(any(feature = "testing", feature = "light_testing")) {
+                file.lock_exclusive()
+            } else {
+                file.try_lock_exclusive()
+            };
+            if try_lock.is_err() {
+                log::error!("try lock db error,path:{}", &path);
+                return Err(anyhow::anyhow!("try lock db error,path:{}", &path));
+            }
+        }
+        Ok(file)
+    }
+
     pub fn new(path: Arc<String>) -> Self {
+        let lock_file = Self::try_lock(path.as_ref()).unwrap();
         Self {
             path,
+            lock_file,
             inner: None,
             naming_inner_node_manage: None,
         }
