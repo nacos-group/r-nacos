@@ -78,6 +78,7 @@ pub struct AppSysConfig {
     pub metrics_enable: bool,
     pub metrics_collect_interval_second: u64,
     pub metrics_log_interval_second: u64,
+    pub console_captcha_enable: bool,
 }
 
 impl AppSysConfig {
@@ -166,6 +167,10 @@ impl AppSysConfig {
                 .unwrap_or("15".to_owned())
                 .parse()
                 .unwrap_or(15);
+        let console_captcha_enable = std::env::var("RNACOS_CONSOLE_ENABLE_CAPTCHA")
+            .unwrap_or("true".to_owned())
+            .parse()
+            .unwrap_or(true);
         if metrics_collect_interval_second < 1 {
             metrics_collect_interval_second = 1;
         }
@@ -205,6 +210,7 @@ impl AppSysConfig {
             metrics_enable,
             metrics_collect_interval_second,
             metrics_log_interval_second,
+            console_captcha_enable,
         }
     }
 

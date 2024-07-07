@@ -5,6 +5,7 @@ use actix_web::{
     web::{self, Data},
     HttpRequest, HttpResponse, Responder,
 };
+use actix_web::http::header;
 use captcha::filters::{Grid, Noise};
 use captcha::Captcha;
 
@@ -20,48 +21,54 @@ use crate::{
     },
     user::{UserManagerReq, UserManagerResult},
 };
-
-use super::model::login_model::LoginParam;
+use crate::common::APP_SYS_CONFIG;
+use super::model::login_model::{LoginParam, LoginToken};
 
 pub async fn login(
     request: HttpRequest,
     app: Data<Arc<AppShareData>>,
     web::Form(param): web::Form<LoginParam>,
 ) -> actix_web::Result<impl Responder> {
-    //校验验证码
-    let captcha_token = if let Some(ck) = request.cookie("captcha_token") {
-        ck.value().to_owned()
-    } else {
-        return Ok(HttpResponse::Ok().json(ApiResult::<()>::error(
-            "CAPTCHA_CHECK_ERROR".to_owned(),
-            Some("captcha token is empty".to_owned()),
-        )));
-    };
-    let captcha_code = param.captcha.to_uppercase();
-    let cache_req = CacheManagerReq::Get(CacheKey::new(
-        CacheType::String,
-        Arc::new(format!("Captcha_{}", &captcha_token)),
-    ));
-    let captcha_check_result = if let Ok(Ok(CacheManagerResult::Value(CacheValue::String(v)))) =
-        app.cache_manager.send(cache_req).await
-    {
-        &captcha_code == v.as_ref()
-    } else {
-        false
-    };
-    if !captcha_check_result {
-        return Ok(HttpResponse::Ok()
-            .cookie(
-                Cookie::build("captcha_token", "")
-                    .path("/")
-                    .http_only(true)
-                    .finish(),
-            )
-            .json(ApiResult::<()>::error(
+    let captcha_token;
+    if APP_SYS_CONFIG.console_captcha_enable {
+        //校验验证码
+        captcha_token = if let Some(ck) = request.cookie("captcha_token") {
+            ck.value().to_owned()
+        } else {
+            return Ok(HttpResponse::Ok().json(ApiResult::<()>::error(
                 "CAPTCHA_CHECK_ERROR".to_owned(),
-                Some("CAPTCHA_CHECK_ERROR".to_owned()),
+                Some("captcha token is empty".to_owned()),
             )));
+        };
+        let captcha_code = param.captcha.to_uppercase();
+        let cache_req = CacheManagerReq::Get(CacheKey::new(
+            CacheType::String,
+            Arc::new(format!("Captcha_{}", &captcha_token)),
+        ));
+        let captcha_check_result = if let Ok(Ok(CacheManagerResult::Value(CacheValue::String(v)))) =
+            app.cache_manager.send(cache_req).await
+        {
+            &captcha_code == v.as_ref()
+        } else {
+            false
+        };
+        if !captcha_check_result {
+            return Ok(HttpResponse::Ok()
+                .cookie(
+                    Cookie::build("captcha_token", "")
+                        .path("/")
+                        .http_only(true)
+                        .finish(),
+                )
+                .json(ApiResult::<()>::error(
+                    "CAPTCHA_CHECK_ERROR".to_owned(),
+                    Some("CAPTCHA_CHECK_ERROR".to_owned()),
+                )));
+        }
+    } else {
+        captcha_token = String::from("")
     }
+
     let limit_key = Arc::new(format!("USER_L#{}", &param.username));
     let limit_req = CacheLimiterReq::Hour {
         key: limit_key.clone(),
@@ -119,6 +126,9 @@ pub async fn login(
             let clear_limit_req =
                 CacheManagerReq::Remove(CacheKey::new(CacheType::String, limit_key));
             app.cache_manager.do_send(clear_limit_req);
+            let login_token = LoginToken {
+                token: token.to_string(),
+            };
             return Ok(HttpResponse::Ok()
                 .cookie(
                     Cookie::build("token", token.as_str())
@@ -132,7 +142,8 @@ pub async fn login(
                         .http_only(true)
                         .finish(),
                 )
-                .json(ApiResult::success(Some(valid))));
+                .insert_header(header::ContentType(mime::APPLICATION_JSON))
+                .json(ApiResult::success(Some(login_token))));
         } else {
             return Ok(HttpResponse::Ok()
                 .json(ApiResult::<()>::error("USER_CHECK_ERROR".to_owned(), None)));
@@ -143,12 +154,17 @@ pub async fn login(
 
 fn decode_password(password: &str, captcha_token: &str) -> anyhow::Result<String> {
     let password_data = crypto_utils::decode_base64(password)?;
-    let password = String::from_utf8(crypto_utils::decrypt_aes128(
-        &captcha_token[0..16],
-        &captcha_token[16..32],
-        &password_data,
-    )?)?;
-    Ok(password)
+    if captcha_token == "" {
+        let password = String::from_utf8(password_data)?;
+        Ok(password)
+    } else {
+        let password = String::from_utf8(crypto_utils::decrypt_aes128(
+            &captcha_token[0..16],
+            &captcha_token[16..32],
+            &password_data,
+        )?)?;
+        Ok(password)
+    }
 }
 
 const WIDTH: u32 = 220;
