@@ -1,14 +1,16 @@
 use std::sync::Arc;
 
+use actix_web::http::header;
 use actix_web::{
     cookie::Cookie,
     web::{self, Data},
     HttpRequest, HttpResponse, Responder,
 };
-use actix_web::http::header;
 use captcha::filters::{Grid, Noise};
 use captcha::Captcha;
 
+use super::model::login_model::{LoginParam, LoginToken};
+use crate::common::APP_SYS_CONFIG;
 use crate::{
     common::{
         appdata::AppShareData,
@@ -21,25 +23,25 @@ use crate::{
     },
     user::{UserManagerReq, UserManagerResult},
 };
-use crate::common::APP_SYS_CONFIG;
-use super::model::login_model::{LoginParam, LoginToken};
 
 pub async fn login(
     request: HttpRequest,
     app: Data<Arc<AppShareData>>,
     web::Form(param): web::Form<LoginParam>,
 ) -> actix_web::Result<impl Responder> {
-    let captcha_token;
+    let captcha_token = if let Some(ck) = request.cookie("captcha_token") {
+        ck.value().to_owned()
+    } else {
+        String::new()
+    };
     if APP_SYS_CONFIG.console_captcha_enable {
         //校验验证码
-        captcha_token = if let Some(ck) = request.cookie("captcha_token") {
-            ck.value().to_owned()
-        } else {
+        if captcha_token.is_empty() {
             return Ok(HttpResponse::Ok().json(ApiResult::<()>::error(
                 "CAPTCHA_CHECK_ERROR".to_owned(),
                 Some("captcha token is empty".to_owned()),
             )));
-        };
+        }
         let captcha_code = param.captcha.to_uppercase();
         let cache_req = CacheManagerReq::Get(CacheKey::new(
             CacheType::String,
@@ -65,8 +67,6 @@ pub async fn login(
                     Some("CAPTCHA_CHECK_ERROR".to_owned()),
                 )));
         }
-    } else {
-        captcha_token = String::from("")
     }
 
     let limit_key = Arc::new(format!("USER_L#{}", &param.username));
@@ -154,7 +154,7 @@ pub async fn login(
 
 fn decode_password(password: &str, captcha_token: &str) -> anyhow::Result<String> {
     let password_data = crypto_utils::decode_base64(password)?;
-    if captcha_token == "" {
+    if captcha_token.is_empty() {
         let password = String::from_utf8(password_data)?;
         Ok(password)
     } else {
