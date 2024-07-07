@@ -37,11 +37,7 @@ impl GaugeManager {
     }
 
     pub fn value(&self, key: &Key) -> Option<f64> {
-        if let Some(item) = self.date_map.get(&key) {
-            Some(item.0.to_owned())
-        } else {
-            None
-        }
+        self.date_map.get(key).map(|item| item.0.to_owned())
     }
 
     pub fn print_metrics(&self) {

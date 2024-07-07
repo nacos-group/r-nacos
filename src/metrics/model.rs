@@ -1,5 +1,6 @@
 use crate::metrics::metrics_key::MetricsKey;
 use actix::prelude::*;
+use std::cmp::Ordering;
 use std::fmt::{Display, Formatter};
 
 pub enum MetricsType {
@@ -200,22 +201,26 @@ impl HistogramValue {
         let mut i = 0;
         while i < buckets.len() {
             let (b, v) = buckets.get(i).unwrap();
-            bound = b.to_owned();
-            sum_count = v.to_owned();
-            if q_value < sum_count {
-                return p_bound
-                    + ((q_value - p_sum_count) as f64 / (sum_count - p_sum_count) as f64)
-                        * (bound - p_bound);
-            } else if q_value == sum_count {
-                return b.to_owned();
-            } else {
-                if self.count == sum_count {
-                    return bound;
+            b.clone_into(&mut bound);
+            v.clone_into(&mut sum_count);
+            match q_value.cmp(&sum_count) {
+                Ordering::Less => {
+                    return p_bound
+                        + ((q_value - p_sum_count) as f64 / (sum_count - p_sum_count) as f64)
+                            * (bound - p_bound);
                 }
-                i += 1;
-                if i < buckets.len() {
-                    p_bound = bound;
-                    p_sum_count = sum_count;
+                Ordering::Equal => {
+                    return b.to_owned();
+                }
+                Ordering::Greater => {
+                    if self.count == sum_count {
+                        return bound;
+                    }
+                    i += 1;
+                    if i < buckets.len() {
+                        p_bound = bound;
+                        p_sum_count = sum_count;
+                    }
                 }
             }
         }

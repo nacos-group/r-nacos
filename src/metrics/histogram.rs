@@ -22,7 +22,7 @@ impl HistogramManager {
     }
 
     pub fn get_value(&self, key: &Key) -> Option<&HistogramValue> {
-        self.date_map.get(&key)
+        self.date_map.get(key)
     }
 
     pub fn record(&mut self, key: &Key, sample: f64) {
