@@ -10,7 +10,6 @@ use captcha::filters::{Grid, Noise};
 use captcha::Captcha;
 
 use super::model::login_model::{LoginParam, LoginToken};
-use crate::common::APP_SYS_CONFIG;
 use crate::{
     common::{
         appdata::AppShareData,
@@ -34,7 +33,7 @@ pub async fn login(
     } else {
         String::new()
     };
-    if APP_SYS_CONFIG.console_captcha_enable {
+    if app.sys_config.console_captcha_enable {
         //校验验证码
         if captcha_token.is_empty() {
             return Ok(HttpResponse::Ok().json(ApiResult::<()>::error(

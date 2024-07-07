@@ -1,6 +1,5 @@
 use crate::common::string_utils::StringUtils;
-use lazy_static::lazy_static;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use uuid::Uuid;
 
 pub mod actor_utils;
@@ -21,18 +20,14 @@ pub mod sled_utils;
 pub mod string_utils;
 pub mod web_utils;
 
+/*
+use lazy_static::lazy_static;
 lazy_static! {
+    // AppSysConfig配置数据尽量从AppShareData取
     // Global app sys config
     pub static ref APP_SYS_CONFIG: AppSysConfig = AppSysConfig::init_from_env();
-    // Global sled db
-    pub static ref DB: Arc<Mutex<sled::Db>> = Arc::new(Mutex::new(
-        sled::Config::new()
-            .path(&APP_SYS_CONFIG.config_db_dir)
-            .mode(sled::Mode::HighThroughput)
-            .open()
-            .unwrap()
-    ));
 }
+*/
 
 #[derive(Default, Clone, Debug)]
 pub struct NamingSysConfig {
@@ -83,6 +78,7 @@ pub struct AppSysConfig {
 
 impl AppSysConfig {
     pub fn init_from_env() -> Self {
+        //println!("init_from_env");
         let config_db_file =
             std::env::var("RNACOS_CONFIG_DB_FILE").unwrap_or("config.db".to_owned());
         let config_max_content = std::env::var("RNACOS_CONFIG_MAX_CONTENT")
