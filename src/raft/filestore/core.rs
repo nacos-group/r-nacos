@@ -57,7 +57,7 @@ impl FileStore {
         }
     }
 
-    async fn get_last_log_index(&self) -> anyhow::Result<LogIndexInfo> {
+    pub async fn get_last_log_index(&self) -> anyhow::Result<LogIndexInfo> {
         match self
             .log_manager
             .send(RaftLogManagerAsyncRequest::GetLastLogIndex)

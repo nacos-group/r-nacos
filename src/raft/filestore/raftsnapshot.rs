@@ -248,16 +248,18 @@ pub struct RaftSnapshotManager {
     last_header: Option<SnapshotHeaderDto>,
     building: Option<SnapshotRange>,
     index_manager: Option<Addr<RaftIndexManager>>,
+    is_init: bool,
 }
 
 impl RaftSnapshotManager {
-    pub fn new(base_path: Arc<String>) -> Self {
+    pub fn new(base_path: Arc<String>, index_manager: Option<Addr<RaftIndexManager>>) -> Self {
         Self {
             base_path,
             snapshots: Vec::default(),
             last_header: None,
             building: None,
-            index_manager: None,
+            index_manager,
+            is_init: false,
         }
     }
 
@@ -281,11 +283,15 @@ impl RaftSnapshotManager {
         }
         .into_actor(self)
         .map(|v, act, ctx| {
+            if act.is_init {
+                return;
+            }
             if let Ok(RaftIndexResponse::RaftIndexInfo {
                 raft_index,
                 last_applied_log: _last_applied_log,
             }) = v
             {
+                act.is_init = true;
                 act.snapshots = raft_index.snapshots;
                 if let Some(last) = act.snapshots.last() {
                     act.load_snapshot_header(ctx, last.id);
@@ -409,7 +415,10 @@ impl RaftSnapshotManager {
 impl Actor for RaftSnapshotManager {
     type Context = Context<Self>;
 
-    fn started(&mut self, _ctx: &mut Self::Context) {
+    fn started(&mut self, ctx: &mut Self::Context) {
+        if self.index_manager.is_some() {
+            self.init(ctx);
+        }
         log::info!("RaftSnapshotActor started");
     }
 }
@@ -423,8 +432,10 @@ impl Inject for RaftSnapshotManager {
         _factory: bean_factory::BeanFactory,
         ctx: &mut Self::Context,
     ) {
-        self.index_manager = factory_data.get_actor();
-        self.init(ctx);
+        if self.index_manager.is_none() {
+            self.index_manager = factory_data.get_actor();
+            self.init(ctx);
+        }
     }
 }
 

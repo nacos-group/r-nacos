@@ -85,9 +85,9 @@ pub async fn config_factory(sys_config: Arc<AppSysConfig>) -> anyhow::Result<Fac
     ));
     factory.register(BeanDefinition::from_obj(cluster_sender.clone()));
 
-    let log_manager = RaftLogManager::new(base_path.clone());
+    let log_manager = RaftLogManager::new(base_path.clone(), Some(index_manager.clone()));
     let log_manager = create_actor_at_thread(log_manager);
-    let snapshot_manager = RaftSnapshotManager::new(base_path.clone());
+    let snapshot_manager = RaftSnapshotManager::new(base_path.clone(), Some(index_manager.clone()));
     let apply_manager = StateApplyManager::new();
     let (snapshot_manager, apply_manager) =
         create_actor_at_thread2(snapshot_manager, apply_manager);
@@ -112,8 +112,7 @@ pub async fn config_factory(sys_config: Arc<AppSysConfig>) -> anyhow::Result<Fac
         apply_manager,
     ));
     factory.register(BeanDefinition::from_obj(store.clone()));
-
-    let raft = build_raft(&sys_config, store.clone(), cluster_sender.clone())?;
+    let raft = build_raft(&sys_config, store.clone(), cluster_sender.clone()).await?;
     factory.register(BeanDefinition::from_obj(raft.clone()));
     let table_manage = TableManager::new().start();
     factory.register(BeanDefinition::actor_with_inject_from_obj(
@@ -218,11 +217,19 @@ pub fn build_share_data(factory_data: FactoryData) -> anyhow::Result<Arc<AppShar
     Ok(app_data)
 }
 
-fn build_raft(
+async fn build_raft(
     sys_config: &Arc<AppSysConfig>,
     store: Arc<FileStore>,
     cluster_sender: Arc<RaftClusterRequestSender>,
 ) -> anyhow::Result<Arc<NacosRaft>> {
+    match store.get_last_log_index().await {
+        Ok(last_log) => log::info!(
+            "[PEEK_RAFT_LOG] raft last log,index:{} term:{}",
+            last_log.index,
+            last_log.term
+        ),
+        Err(e) => log::warn!("[PEEK_RAFT_LOG] raft last log is empty,error:{}", e),
+    };
     let config = Config::build("rnacos raft".to_owned())
         .heartbeat_interval(1000)
         .election_timeout_min(2500)

@@ -825,23 +825,26 @@ pub struct RaftLogManager {
     //last_ready_to_load_time: u64,
     pre_ready_snapshot_pointer: Option<LogRecordDto>,
     last_ready_snapshot_pointer: Option<LogRecordDto>,
+    is_init: bool,
 }
 
 impl RaftLogManager {
-    pub fn new(base_path: Arc<String>) -> Self {
+    pub fn new(base_path: Arc<String>, index_manager: Option<Addr<RaftIndexManager>>) -> Self {
         Self {
             base_path,
             current_log_actor: None,
             logs: Vec::new(),
             index_info: None,
             last_applied_log: 0,
-            index_manager: None,
+            index_manager,
             //log_cache: BTreeMap::default(),
             //last_ready_to_load_time: 0,
             pre_ready_snapshot_pointer: None,
             last_ready_snapshot_pointer: None,
+            is_init: false,
         }
     }
+
     fn init(&mut self, ctx: &mut Context<Self>) {
         self.load_index_info(ctx);
     }
@@ -862,6 +865,9 @@ impl RaftLogManager {
         }
         .into_actor(self)
         .map(|v, act, ctx| {
+            if act.is_init {
+                return;
+            }
             if let Ok(RaftIndexResponse::RaftIndexInfo {
                 raft_index,
                 last_applied_log,
@@ -873,6 +879,7 @@ impl RaftLogManager {
                 ctx.run_interval(Duration::from_millis(500), |a, _| {
                     a.send_flush();
                 });
+                act.is_init = true;
             } else {
                 log::error!("load_index_info is error");
             }
@@ -1269,7 +1276,10 @@ impl RaftLogManager {
 impl Actor for RaftLogManager {
     type Context = Context<Self>;
 
-    fn started(&mut self, _ctx: &mut Self::Context) {
+    fn started(&mut self, ctx: &mut Self::Context) {
+        if self.index_manager.is_some() {
+            self.init(ctx);
+        }
         log::info!("RaftLogManager started");
     }
 }
@@ -1316,8 +1326,10 @@ impl Inject for RaftLogManager {
         _factory: bean_factory::BeanFactory,
         ctx: &mut Self::Context,
     ) {
-        self.index_manager = factory_data.get_actor();
-        self.init(ctx);
+        if self.index_manager.is_none() {
+            self.index_manager = factory_data.get_actor();
+            self.init(ctx);
+        }
     }
 }
 
