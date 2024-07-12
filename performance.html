@@ -149,12 +149,11 @@
 <p>参考项目中的子工程 <a href="https://github.com/heqingpan/rnacos/tree/master/loadtest">loadtest</a></p>
 <h2 id="性能压测结果"><a class="header" href="#性能压测结果">性能压测结果</a></h2>
 <table><thead><tr><th>模块</th><th>场景</th><th>单节点qps/tps</th><th>集群qps/tps</th><th>总结/备注</th></tr></thead><tbody>
-<tr><td>配置中心</td><td>配置写入,单机模式</td><td>1.76万</td><td>-</td><td></td></tr>
-<tr><td>配置中心</td><td>配置写入,集群模式</td><td>1.76万</td><td>7.6千</td><td>集群写入压测是在同一台电脑运行3个节点,如果换成多个机器部署,tps应该还能有所提升。</td></tr>
-<tr><td>配置中心</td><td>配置查询</td><td>8万</td><td>n*8万</td><td>集群的查询总qps是节点的倍数</td></tr>
-<tr><td>注册中心</td><td>服务实例注册,http协议</td><td>1.2万</td><td>1.0万</td><td>注册中心单机模式与集群模式写入的性能一致</td></tr>
-<tr><td>注册中心</td><td>服务实例注册,grpc协议</td><td>1.2万</td><td>1.2万</td><td>grpc协议压测工具没有支持，目前没有实际压测，理论不会比http协议低</td></tr>
-<tr><td>注册中心</td><td>服务实例心跳,http协议</td><td>1.2万</td><td>1.0万</td><td>心跳是按实例计算和服务实例注册一致共享qps</td></tr>
+<tr><td>配置中心</td><td>配置写入,http协议</td><td>1.76万</td><td>7.6千</td><td>集群写入压测是在同一台电脑运行3个节点,如果换成多个机器部署,tps应该还能有所提升。</td></tr>
+<tr><td>配置中心</td><td>配置查询,http协议</td><td>8万</td><td>n*8万</td><td>集群的查询总qps是节点的倍数</td></tr>
+<tr><td>注册中心</td><td>服务实例注册,http协议</td><td>4.8万</td><td>2.4万</td><td>集群写入压测是在同一台电脑运行3个节点,如果换成多个机器部署,tps应该还能有所提升。</td></tr>
+<tr><td>注册中心</td><td>服务实例注册,grpc协议</td><td>4.8万</td><td>2.4万</td><td>grpc协议压测工具没有支持，目前没有实际压测，理论不会比http协议低</td></tr>
+<tr><td>注册中心</td><td>服务实例心跳,http协议</td><td>4.8万</td><td>2.4万</td><td>心跳是按实例计算和服务实例注册一致共享qps</td></tr>
 <tr><td>注册中心</td><td>服务实例心跳,grpc协议</td><td>8万以上</td><td>n*8万</td><td>心跳是按请求链接计算,且不过注册中心处理线程,每个节点只需管理当前节点的心跳，集群总心跳qps是节点的倍数</td></tr>
 <tr><td>注册中心</td><td>查询服务实例</td><td>3万</td><td>n*3万</td><td>集群的查询总qps是节点的倍数</td></tr>
 </tbody></table>
