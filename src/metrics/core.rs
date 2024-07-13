@@ -9,6 +9,8 @@ use crate::metrics::model::{
     MetricsItem, MetricsQuery, MetricsRecord, MetricsRequest, MetricsResponse,
 };
 use crate::metrics::summary::SummaryManager;
+use crate::metrics::timeline::core::MetricsTimelineManager;
+use crate::metrics::timeline::model::MetricsSnapshot;
 use crate::naming::core::NamingActor;
 use crate::now_millis;
 use actix::prelude::*;
@@ -29,6 +31,7 @@ pub struct MetricsManager {
     naming_actor: Option<Addr<NamingActor>>,
     config_actor: Option<Addr<ConfigActor>>,
     bi_stream_manage: Option<Addr<BiStreamManage>>,
+    metrics_timeline_manager: MetricsTimelineManager,
     system: System,
     current_process_id: u32,
     start_time_millis: u64,
@@ -64,6 +67,7 @@ impl MetricsManager {
             naming_actor: None,
             config_actor: None,
             bi_stream_manage: None,
+            metrics_timeline_manager: MetricsTimelineManager::new(),
             system,
             current_process_id,
             start_time_millis,
@@ -224,6 +228,15 @@ impl MetricsManager {
         log::info!("[metrics_system]|already running seconds: {}s|cpu_usage: {:.2}%|rss_usage: {:.2}%|rss: {:.2}M|vms: {:.2}M|total_memory: {:.2}M|",running_seconds,&cpu_usage,&rss_usage,&rss,&vms,&self.total_memory);
     }
 
+    fn after_peek_metrics(&mut self) {
+        self.reset_summary();
+        self.load_sys_metrics();
+        self.print_metrics();
+        let now = now_millis();
+        self.record_least_snapshot(now);
+        self.record_minute_snapshot(now);
+    }
+
     fn load_metrics(&mut self, ctx: &mut Context<Self>) {
         let naming_actor = self.naming_actor.clone();
         let config_actor = self.config_actor.clone();
@@ -233,13 +246,34 @@ impl MetricsManager {
             .map(|r, act, ctx| {
                 //Self::log_metrics(&r);
                 act.update_peek_metrics(r);
-                act.reset_summary();
-                act.load_sys_metrics();
-                act.print_metrics();
+                act.after_peek_metrics();
                 act.hb(ctx);
             })
             .spawn(ctx);
     }
+
+    fn build_snapshot(&self, now_ms: u64) -> MetricsSnapshot {
+        MetricsSnapshot {
+            gauge_data_map: self.gauge_manager.data_map.clone(),
+            counter_data_map: self.counter_manager.data_map.clone(),
+            histogram_data_map: self.histogram_manager.data_map.clone(),
+            snapshot_time: now_ms,
+        }
+    }
+
+    fn record_minute_snapshot(&mut self, now_ms: u64) {
+        //超过59.8秒 间隔后，当做已过了一分钟
+        if now_ms - 59800 > self.metrics_timeline_manager.last_minute_record_time() {
+            self.metrics_timeline_manager
+                .add_minute_record(self.build_snapshot(now_ms));
+        }
+    }
+
+    fn record_least_snapshot(&mut self, now_ms: u64) {
+        self.metrics_timeline_manager
+            .add_least_record(self.build_snapshot(now_ms));
+    }
+
     fn hb(&mut self, ctx: &mut Context<Self>) {
         ctx.run_later(Duration::from_secs(self.collect_interval), |act, ctx| {
             act.load_metrics(ctx);

@@ -42,6 +42,15 @@ impl CounterValue {
     pub fn value(&self) -> u64 {
         self.0
     }
+
+    pub fn diff(&self, old_value: &Self) -> Self {
+        let v = if self.0 < old_value.0 {
+            0
+        } else {
+            self.0 - old_value.0
+        };
+        CounterValue(v)
+    }
 }
 
 impl From<CounterValue> for u64 {
@@ -272,6 +281,27 @@ impl HistogramValue {
         self.sum += sum;
         self.count += count;
     }
+
+    pub fn diff(&self, old_value: &Self) -> Self {
+        assert_eq!(self.bounds.len(), old_value.bounds.len());
+        assert_eq!(self.buckets.len(), old_value.buckets.len());
+        let mut bounds = Vec::with_capacity(self.bounds.len());
+        for (i, v) in self.bounds.iter().enumerate() {
+            let old_v = old_value.bounds.get(i).unwrap();
+            bounds.push(*v - *old_v);
+        }
+        let mut buckets = Vec::with_capacity(self.buckets.len());
+        for (i, v) in self.buckets.iter().enumerate() {
+            let old_v = old_value.buckets.get(i).unwrap();
+            buckets.push(v.diff(old_v));
+        }
+        HistogramValue {
+            count: self.count - old_value.count,
+            sum: self.sum - old_value.sum,
+            bounds,
+            buckets,
+        }
+    }
 }
 
 impl Display for HistogramValue {
@@ -326,15 +356,15 @@ pub struct SummaryValue {
 }
 
 impl SummaryValue {
-    pub fn new(bounds: &[f64]) -> Option<SummaryValue> {
+    pub fn new(bounds: &[f64]) -> Self {
         let buckets = vec![GaugeValue::default(); bounds.len()];
 
-        Some(SummaryValue {
+        SummaryValue {
             count: 0,
             bounds: Vec::from(bounds),
             buckets,
             sum: 0.0,
-        })
+        }
     }
 
     /// 每次查询前通过histogram重新计算summary

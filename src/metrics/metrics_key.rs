@@ -1,4 +1,5 @@
 use std::borrow::Cow;
+use std::collections::HashMap;
 //use crate::metrics::model::MetricsType;
 use lazy_static::lazy_static;
 
@@ -110,6 +111,8 @@ lazy_static! {
         MetricsKey::HttpRequestHandleRtHistogram,
         MetricsKey::HttpRequestTotalCount,
     ];
+
+    pub static ref HISTOGRAM_SUMMARY_MAP: HashMap<MetricsKey,MetricsKey> = MetricsKey::build_histogram_summary_map();
 }
 
 impl MetricsKey {
@@ -249,5 +252,34 @@ impl MetricsKey {
             //default describe
             //_ => "Some help info",
         }
+    }
+
+    pub fn get_histogram_from_summary(key: &Self) -> Option<Self> {
+        HISTOGRAM_SUMMARY_MAP.get(key).cloned()
+    }
+
+    pub fn get_summary_from_histogram(key: &Self) -> Option<Self> {
+        HISTOGRAM_SUMMARY_MAP.get(key).cloned()
+    }
+
+    fn build_histogram_summary_map() -> HashMap<MetricsKey, MetricsKey> {
+        let mut map = HashMap::new();
+        map.insert(
+            MetricsKey::HttpRequestHandleRtHistogram,
+            MetricsKey::HttpRequestHandleRtSummary,
+        );
+        map.insert(
+            MetricsKey::HttpRequestHandleRtSummary,
+            MetricsKey::HttpRequestHandleRtHistogram,
+        );
+        map.insert(
+            MetricsKey::GrpcRequestHandleRtHistogram,
+            MetricsKey::GrpcRequestHandleRtSummary,
+        );
+        map.insert(
+            MetricsKey::GrpcRequestHandleRtSummary,
+            MetricsKey::GrpcRequestHandleRtHistogram,
+        );
+        map
     }
 }
