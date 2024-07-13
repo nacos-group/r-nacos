@@ -63,13 +63,11 @@ lazy_static! {
     /// 用于有序遍历打印信息
     pub static ref ORDER_ALL_KEYS: Vec<MetricsKey> = vec![
         //app
-        /*
         MetricsKey::SysTotalMemory,
         MetricsKey::AppRssMemory,
         MetricsKey::AppVmsMemory,
         MetricsKey::AppMemoryUsage,
         MetricsKey::AppCpuUsage,
-         */
         //config
         MetricsKey::ConfigDataSize,
         MetricsKey::ConfigListenerClientSize,
@@ -106,13 +104,17 @@ lazy_static! {
         MetricsKey::GrpcConnResponseTimeoutSetItemSize,
         //grpc request
         MetricsKey::GrpcRequestHandleRtHistogram,
+        MetricsKey::GrpcRequestHandleRtSummary,
         MetricsKey::GrpcRequestTotalCount,
         //http request
         MetricsKey::HttpRequestHandleRtHistogram,
+        MetricsKey::HttpRequestHandleRtSummary,
         MetricsKey::HttpRequestTotalCount,
     ];
 
     pub static ref HISTOGRAM_SUMMARY_MAP: HashMap<MetricsKey,MetricsKey> = MetricsKey::build_histogram_summary_map();
+
+    pub static ref STR_TO_METRICS_KEY_MAP: HashMap<&'static str,MetricsKey> = MetricsKey::build_str_to_key_map();
 }
 
 impl MetricsKey {
@@ -255,73 +257,7 @@ impl MetricsKey {
     }
 
     pub fn of_key(key: &str) -> Option<Self> {
-        match key {
-            "sys_total_memory" => Some(MetricsKey::SysTotalMemory),
-            "app_rss_memory" => Some(MetricsKey::AppRssMemory),
-            "app_vms_memory" => Some(MetricsKey::AppVmsMemory),
-            "app_memory_usage" => Some(MetricsKey::AppMemoryUsage),
-            "app_cpu_usage" => Some(MetricsKey::AppCpuUsage),
-            "config_data_size" => Some(MetricsKey::ConfigDataSize),
-            "config_listener_client_size" => Some(MetricsKey::ConfigListenerClientSize),
-            "config_listener_key_size" => Some(MetricsKey::ConfigListenerKeySize),
-            "config_subscriber_listener_key_size" => {
-                Some(MetricsKey::ConfigSubscriberListenerKeySize)
-            }
-            "config_subscriber_listener_value_size" => {
-                Some(MetricsKey::ConfigSubscriberListenerValueSize)
-            }
-            "config_subscriber_client_size" => Some(MetricsKey::ConfigSubscriberClientSize),
-            "config_subscriber_client_value_size" => {
-                Some(MetricsKey::ConfigSubscriberClientValueSize)
-            }
-            "config_index_tenant_size" => Some(MetricsKey::ConfigIndexTenantSize),
-            "config_index_config_size" => Some(MetricsKey::ConfigIndexConfigSize),
-            "naming_service_size" => Some(MetricsKey::NamingServiceSize),
-            "naming_instance_size" => Some(MetricsKey::NamingInstanceSize),
-            "naming_subscriber_listener_key_size" => {
-                Some(MetricsKey::NamingSubscriberListenerKeySize)
-            }
-            "naming_subscriber_listener_value_size" => {
-                Some(MetricsKey::NamingSubscriberListenerValueSize)
-            }
-            "naming_subscriber_client_size" => Some(MetricsKey::NamingSubscriberClientSize),
-            "naming_subscriber_client_value_size" => {
-                Some(MetricsKey::NamingSubscriberClientValueSize)
-            }
-            "naming_empty_service_set_size" => Some(MetricsKey::NamingEmptyServiceSetSize),
-            "naming_empty_service_set_item_size" => Some(MetricsKey::NamingEmptyServiceSetItemSize),
-            "naming_instance_meta_set_size" => Some(MetricsKey::NamingInstanceMetaSetSize),
-            "naming_instance_meta_set_item_size" => Some(MetricsKey::NamingInstanceMetaSetItemSize),
-            "naming_healthy_timeout_set_size" => Some(MetricsKey::NamingHealthyTimeoutSetSize),
-            "naming_healthy_timeout_set_item_size" => {
-                Some(MetricsKey::NamingHealthyTimeoutSetItemSize)
-            }
-            "naming_unhealthy_timeout_set_size" => Some(MetricsKey::NamingUnhealthyTimeoutSetSize),
-            "naming_unhealthy_timeout_set_item_size" => {
-                Some(MetricsKey::NamingUnhealthyTimeoutSetItemSize)
-            }
-            "naming_client_instance_set_key_size" => {
-                Some(MetricsKey::NamingClientInstanceSetKeySize)
-            }
-            "naming_client_instance_set_value_size" => {
-                Some(MetricsKey::NamingClientInstanceSetValueSize)
-            }
-            "naming_index_tenant_size" => Some(MetricsKey::NamingIndexTenantSize),
-            "naming_index_group_size" => Some(MetricsKey::NamingIndexGroupSize),
-            "naming_index_service_size" => Some(MetricsKey::NamingIndexServiceSize),
-            "grpc_conn_size" => Some(MetricsKey::GrpcConnSize),
-            "grpc_conn_active_timeout_set_item_size" => {
-                Some(MetricsKey::GrpcConnActiveTimeoutSetItemSize)
-            }
-            "grpc_conn_response_timeout_set_item_size" => {
-                Some(MetricsKey::GrpcConnResponseTimeoutSetItemSize)
-            }
-            "grpc_request_handle_rt_histogram" => Some(MetricsKey::GrpcRequestHandleRtHistogram),
-            "grpc_request_total_count" => Some(MetricsKey::GrpcRequestTotalCount),
-            "http_request_handle_rt_histogram" => Some(MetricsKey::HttpRequestHandleRtHistogram),
-            "http_request_total_count" => Some(MetricsKey::HttpRequestTotalCount),
-            _ => None,
-        }
+        STR_TO_METRICS_KEY_MAP.get(key).cloned()
     }
 
     pub fn get_histogram_from_summary(key: &Self) -> Option<Self> {
@@ -350,6 +286,14 @@ impl MetricsKey {
             MetricsKey::GrpcRequestHandleRtSummary,
             MetricsKey::GrpcRequestHandleRtHistogram,
         );
+        map
+    }
+
+    fn build_str_to_key_map() -> HashMap<&'static str, MetricsKey> {
+        let mut map = HashMap::new();
+        for key in ORDER_ALL_KEYS.iter() {
+            map.insert(key.get_key(), key.to_owned());
+        }
         map
     }
 }

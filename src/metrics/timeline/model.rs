@@ -1,8 +1,8 @@
 use crate::metrics::metrics_key::MetricsKey;
 use crate::metrics::model::{CounterValue, GaugeValue, HistogramValue, SummaryValue};
 use crate::metrics::summary::DEFAULT_SUMMARY_BOUNDS;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-//use crate::metrics::timeline::timeline_key::MetricsTimeLineKey;
 
 #[derive(Debug, Default, Clone)]
 pub struct MetricsSnapshot {
@@ -47,10 +47,37 @@ impl MetricsSnapshot {
 }
 
 #[derive(Debug, Default, Clone)]
+pub struct SummaryWrapValue {
+    pub(crate) value: SummaryValue,
+    pub(crate) rps: f64,
+    pub(crate) average: f64,
+}
+
+impl SummaryWrapValue {
+    pub fn new(value: SummaryValue, diff_ms: u64) -> Self {
+        let rps = if diff_ms > 0 {
+            value.count as f64 / (diff_ms as f64 / 1000f64)
+        } else {
+            value.count as f64
+        };
+        let average = if value.count > 0 {
+            value.sum / value.count as f64
+        } else {
+            0f64
+        };
+        Self {
+            value,
+            rps,
+            average,
+        }
+    }
+}
+
+#[derive(Debug, Default, Clone)]
 pub struct TimelineValue {
     pub(crate) snapshot: MetricsSnapshot,
     pub(crate) section_gauge: HashMap<MetricsKey, f64>,
-    pub(crate) section_summary: HashMap<MetricsKey, SummaryValue>,
+    pub(crate) section_summary: HashMap<MetricsKey, SummaryWrapValue>,
 }
 
 impl TimelineValue {
@@ -75,22 +102,29 @@ impl TimelineValue {
             {
                 self.section_gauge.insert(key.to_owned(), item.0 as f64);
             }
+            let diff_ms = self.snapshot.snapshot_time - last_snapshot.snapshot.snapshot_time;
             for (key, item) in self
                 .snapshot
                 .diff_histogram(&last_snapshot.snapshot.histogram_data_map)
             {
+                let summary_key = MetricsKey::get_summary_from_histogram(&key).unwrap_or(key);
                 let mut summary = SummaryValue::new(&DEFAULT_SUMMARY_BOUNDS);
                 summary.recalculate_from_histogram(&item);
-                self.section_summary.insert(key, summary);
+                self.section_summary
+                    .insert(summary_key, SummaryWrapValue::new(summary, diff_ms));
             }
         } else {
             for (key, item) in &self.snapshot.counter_data_map {
                 self.section_gauge.insert(key.to_owned(), item.0 as f64);
             }
+            let diff_ms = 5000u64;
             for (key, item) in &self.snapshot.histogram_data_map {
+                let summary_key =
+                    MetricsKey::get_summary_from_histogram(key).unwrap_or(key.to_owned());
                 let mut summary = SummaryValue::new(&DEFAULT_SUMMARY_BOUNDS);
                 summary.recalculate_from_histogram(&item);
-                self.section_summary.insert(key.to_owned(), summary);
+                self.section_summary
+                    .insert(summary_key, SummaryWrapValue::new(summary, diff_ms));
             }
         }
     }
@@ -106,11 +140,23 @@ pub struct TimelineQueryParam {
     pub node_id: u64,
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TimelineSummary {
+    pub bound_keys: Vec<String>,
+    pub bounds: Vec<f64>,
+    pub rps_data: Vec<f64>,
+    pub average_data: Vec<f64>,
+    pub count_data: Vec<u64>,
+    pub items_data: HashMap<String, Vec<f64>>,
+}
+
+#[derive(Debug, Default, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TimelineQueryResponse {
     pub last_time: u64,
     pub from_node_id: u64,
     pub time_index: Vec<u64>,
     pub gauge_data: HashMap<String, Vec<f64>>,
-    pub summery_keys: HashMap<String, Vec<String>>,
+    pub summery_data: HashMap<String, TimelineSummary>,
 }

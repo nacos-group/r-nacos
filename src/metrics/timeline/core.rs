@@ -1,9 +1,9 @@
 use crate::metrics::metrics_key::MetricsKey;
-use crate::metrics::model::SummaryValue;
 use crate::metrics::timeline::model::{
-    MetricsSnapshot, TimelineQueryParam, TimelineQueryResponse, TimelineValue,
+    MetricsSnapshot, SummaryWrapValue, TimelineQueryParam, TimelineQueryResponse, TimelineSummary,
+    TimelineValue,
 };
-use std::collections::{HashMap, LinkedList};
+use std::collections::{HashMap, HashSet, LinkedList};
 
 #[derive(Debug, Default, Clone)]
 pub struct TimelineGroup {
@@ -38,64 +38,58 @@ impl TimelineGroup {
             }
             item_list.push(item);
         }
-        if item_list.is_empty() {
+        if item_list.is_empty() || param.keys.is_empty() {
             return TimelineQueryResponse::default();
         }
-        let mut keys = Vec::with_capacity(param.keys.len());
+        let mut keys = HashSet::with_capacity(param.keys.len());
         for str_key in param.keys.iter() {
             if let Some(key) = MetricsKey::of_key(str_key) {
-                keys.push(key);
+                keys.insert(key);
+            } else {
+                log::warn!("MetricsKey::of_key is null,key:{}", &str_key);
             }
         }
         let mut time_index: Vec<u64> = Vec::with_capacity(item_list.len());
         let mut gauge_data: HashMap<String, Vec<f64>> = HashMap::new();
-        let mut summery_keys: HashMap<String, Vec<String>> = HashMap::new();
-        for item in item_list {
+        let mut summery_data: HashMap<String, TimelineSummary> = HashMap::new();
+        let index_len = time_index.len();
+        for (i, item) in item_list.iter().enumerate() {
             time_index.push(item.snapshot.snapshot_time);
             for key in keys.iter() {
                 if let Some(v) = item.section_gauge.get(key) {
-                    Self::fill_gauge_value(&mut gauge_data, key.get_key(), *v, time_index.len());
+                    Self::fill_gauge_value(&mut gauge_data, key.get_key(), *v, index_len);
                 } else if let Some(v) = item.section_summary.get(key) {
                     let str_key = key.get_key();
-                    let sub_keys = if let Some(sub_keys) = summery_keys.get(str_key) {
-                        sub_keys
-                    } else {
-                        let sub_keys = Self::build_summary_sub_keys(v, str_key);
-                        summery_keys.insert(str_key.to_owned(), sub_keys);
-                        summery_keys.get(str_key).unwrap()
-                    };
-                    for (i, sub_key) in sub_keys.iter().enumerate() {
-                        if let Some(sub_v) = v.buckets.get(i) {
+                    let timeline_summary =
+                        if let Some(timeline_summary) = summery_data.get_mut(str_key) {
+                            timeline_summary
+                        } else {
+                            let timeline_summary = Self::build_timeline_summary(&v, index_len);
+                            summery_data.insert(str_key.to_owned(), timeline_summary);
+                            summery_data.get_mut(str_key).unwrap()
+                        };
+                    timeline_summary.rps_data.push(v.rps);
+                    timeline_summary.average_data.push(v.average);
+                    timeline_summary.count_data.push(v.value.count);
+                    for (i, sub_key) in timeline_summary.bound_keys.iter().enumerate() {
+                        if let Some(sub_v) = v.value.buckets.get(i) {
                             Self::fill_gauge_value(
-                                &mut gauge_data,
+                                &mut timeline_summary.items_data,
                                 sub_key,
                                 sub_v.0,
                                 time_index.len(),
                             );
                         } else {
                             Self::fill_gauge_value(
-                                &mut gauge_data,
+                                &mut timeline_summary.items_data,
                                 sub_key,
                                 0f64,
                                 time_index.len(),
                             );
                         }
                     }
-                    if v.count > 0 {
-                        Self::fill_gauge_value(
-                            &mut gauge_data,
-                            &format!("{}__average", str_key),
-                            v.sum / v.count as f64,
-                            time_index.len(),
-                        );
-                    } else {
-                        Self::fill_gauge_value(
-                            &mut gauge_data,
-                            &format!("{}__average", str_key),
-                            0f64,
-                            time_index.len(),
-                        );
-                    }
+                } else if i == 0 {
+                    log::warn!("not found key data,key: {:?}", &key);
                 }
             }
         }
@@ -105,7 +99,7 @@ impl TimelineGroup {
             from_node_id: 0,
             time_index,
             gauge_data,
-            summery_keys,
+            summery_data,
         }
     }
 
@@ -124,12 +118,15 @@ impl TimelineGroup {
         }
     }
 
-    fn build_summary_sub_keys(summary_value: &SummaryValue, prefix_key: &str) -> Vec<String> {
-        summary_value
-            .bounds
-            .iter()
-            .map(|e| format!("{}@{}", prefix_key, e))
-            .collect()
+    fn build_timeline_summary(wrap: &SummaryWrapValue, len: usize) -> TimelineSummary {
+        TimelineSummary {
+            bounds: wrap.value.bounds.clone(),
+            bound_keys: wrap.value.bounds.iter().map(|e| e.to_string()).collect(),
+            rps_data: Vec::with_capacity(len),
+            average_data: Vec::with_capacity(len),
+            count_data: Vec::with_capacity(len),
+            items_data: Default::default(),
+        }
     }
 }
 

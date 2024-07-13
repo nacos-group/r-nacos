@@ -4,6 +4,7 @@ use actix_web::HttpResponse;
 pub mod cluster_api;
 pub mod config_api;
 pub mod login_api;
+pub mod metrics_api;
 pub mod namespace_api;
 pub mod naming_api;
 pub mod user_api;
