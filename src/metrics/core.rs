@@ -350,6 +350,10 @@ impl Handler<MetricsRequest> for MetricsManager {
                 let v = self.export()?;
                 Ok(MetricsResponse::ExportInfo(v))
             }
+            MetricsRequest::TimelineQuery(param) => {
+                let response = self.metrics_timeline_manager.query(param);
+                Ok(MetricsResponse::TimelineResponse(response))
+            }
         }
     }
 }

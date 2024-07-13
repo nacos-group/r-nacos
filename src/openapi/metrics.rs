@@ -7,9 +7,7 @@ pub(crate) async fn metrics_info(appdata: web::Data<Arc<AppShareData>>) -> impl 
     if let Ok(Ok(v)) = appdata.metrics_manager.send(MetricsRequest::Export).await {
         match v {
             MetricsResponse::ExportInfo(v) => HttpResponse::Ok().body(v),
-            MetricsResponse::None => {
-                HttpResponse::InternalServerError().body("metrics module disable")
-            }
+            _ => HttpResponse::InternalServerError().body("metrics module disable"),
         }
     } else {
         HttpResponse::InternalServerError().body("request metrics_manager error")

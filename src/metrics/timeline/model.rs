@@ -1,34 +1,8 @@
 use crate::metrics::metrics_key::MetricsKey;
 use crate::metrics::model::{CounterValue, GaugeValue, HistogramValue, SummaryValue};
 use crate::metrics::summary::DEFAULT_SUMMARY_BOUNDS;
-use std::collections::{HashMap, LinkedList};
+use std::collections::HashMap;
 //use crate::metrics::timeline::timeline_key::MetricsTimeLineKey;
-
-#[derive(Debug, Default, Clone)]
-pub struct TimelineGroup {
-    timelines: LinkedList<TimelineValue>,
-    pub(crate) limit_count: usize,
-    pub(crate) last_time: u64,
-}
-
-impl TimelineGroup {
-    pub fn new(limit_count: usize) -> Self {
-        Self {
-            timelines: LinkedList::new(),
-            limit_count,
-            last_time: 0,
-        }
-    }
-
-    pub fn add_record(&mut self, snapshot: MetricsSnapshot) {
-        self.last_time = snapshot.snapshot_time;
-        let record = TimelineValue::new(snapshot, self.timelines.iter().last());
-        self.timelines.push_back(record);
-        while self.timelines.len() > self.limit_count {
-            self.timelines.pop_front();
-        }
-    }
-}
 
 #[derive(Debug, Default, Clone)]
 pub struct MetricsSnapshot {
@@ -74,9 +48,9 @@ impl MetricsSnapshot {
 
 #[derive(Debug, Default, Clone)]
 pub struct TimelineValue {
-    snapshot: MetricsSnapshot,
-    section_gauge: HashMap<MetricsKey, f64>,
-    section_summary: HashMap<MetricsKey, SummaryValue>,
+    pub(crate) snapshot: MetricsSnapshot,
+    pub(crate) section_gauge: HashMap<MetricsKey, f64>,
+    pub(crate) section_summary: HashMap<MetricsKey, SummaryValue>,
 }
 
 impl TimelineValue {
@@ -120,4 +94,23 @@ impl TimelineValue {
             }
         }
     }
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct TimelineQueryParam {
+    pub start_time: u64,
+    // LEAST | MINUTE
+    pub timeline_group_name: String,
+    //pub query_all_key: bool,
+    pub keys: Vec<String>,
+    pub node_id: u64,
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct TimelineQueryResponse {
+    pub last_time: u64,
+    pub from_node_id: u64,
+    pub time_index: Vec<u64>,
+    pub gauge_data: HashMap<String, Vec<f64>>,
+    pub summery_keys: HashMap<String, Vec<String>>,
 }

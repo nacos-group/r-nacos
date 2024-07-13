@@ -1,4 +1,5 @@
 use crate::metrics::metrics_key::MetricsKey;
+use crate::metrics::timeline::model::{TimelineQueryParam, TimelineQueryResponse};
 use actix::prelude::*;
 use std::cmp::Ordering;
 use std::fmt::{Display, Formatter};
@@ -351,8 +352,8 @@ impl Display for HistogramValueFmtWrap<'_> {
 pub struct SummaryValue {
     pub(crate) count: u64,
     pub(crate) sum: f64,
-    bounds: Vec<f64>,
-    buckets: Vec<GaugeValue>,
+    pub(crate) bounds: Vec<f64>,
+    pub(crate) buckets: Vec<GaugeValue>,
 }
 
 impl SummaryValue {
@@ -437,6 +438,7 @@ pub struct MetricsQuery;
 pub enum MetricsRequest {
     Record(MetricsItem),
     BatchRecord(Vec<MetricsItem>),
+    TimelineQuery(TimelineQueryParam),
     Export,
 }
 
@@ -444,6 +446,7 @@ pub enum MetricsRequest {
 pub enum MetricsResponse {
     None,
     ExportInfo(String),
+    TimelineResponse(TimelineQueryResponse),
 }
 
 #[derive(Clone, Debug)]
