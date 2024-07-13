@@ -1,8 +1,8 @@
+use crate::metrics::timeline::model::{TimelineQueryParam, TimelineQueryResponse};
+use crate::naming::model::{Instance, InstanceUpdateTag, ServiceDetailDto};
 use actix::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{convert::TryFrom, sync::Arc};
-
-use crate::naming::model::{Instance, InstanceUpdateTag, ServiceDetailDto};
 
 #[derive(Clone, Debug)]
 pub enum NamingRouteAddr {
@@ -43,11 +43,13 @@ pub enum NamingRouteRequest {
         len: usize,
     },
     Snapshot(Vec<u8>),
+    MetricsTimelineQuery(TimelineQueryParam),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum NamingRouterResponse {
     None,
+    MetricsTimeLineResponse(TimelineQueryResponse),
 }
 
 #[derive(Message, Debug, Clone)]

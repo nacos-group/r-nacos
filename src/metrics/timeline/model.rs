@@ -130,7 +130,8 @@ impl TimelineValue {
     }
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TimelineQueryParam {
     pub start_time: u64,
     // LEAST | MINUTE

@@ -6,18 +6,18 @@ use std::{
     sync::Arc,
 };
 
-use crate::naming::model::Instance;
-use crate::{
-    common::appdata::AppShareData,
-    naming::core::{NamingCmd, NamingResult},
-};
-
 use self::{
     model::{
         NamingRouteRequest, NamingRouterResponse, ProcessRange, SnapshotDataInfo,
         SnapshotForReceive, SyncBatchDataInfo, SyncBatchForReceive,
     },
     node_manage::{NodeManageRequest, NodeManageResponse},
+};
+use crate::metrics::model::{MetricsRequest, MetricsResponse};
+use crate::naming::model::Instance;
+use crate::{
+    common::appdata::AppShareData,
+    naming::core::{NamingCmd, NamingResult},
 };
 
 pub mod instance_delay_notify;
@@ -142,6 +142,16 @@ pub async fn handle_naming_route(
                 .do_send(NodeManageRequest::AddClientIds(cluster_id, client_sets));
             app.naming_addr
                 .do_send(NamingCmd::ReceiveSnapshot(snapshot_receive));
+        }
+        NamingRouteRequest::MetricsTimelineQuery(param) => {
+            let resp = app
+                .metrics_manager
+                .send(MetricsRequest::TimelineQuery(param))
+                .await??;
+            if let MetricsResponse::TimelineResponse(mut resp) = resp {
+                resp.from_node_id = app.sys_config.raft_node_id;
+                return Ok(NamingRouterResponse::MetricsTimeLineResponse(resp));
+            }
         }
     };
     Ok(NamingRouterResponse::None)
