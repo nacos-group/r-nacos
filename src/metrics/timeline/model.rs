@@ -122,7 +122,7 @@ impl TimelineValue {
                 let summary_key =
                     MetricsKey::get_summary_from_histogram(key).unwrap_or(key.to_owned());
                 let mut summary = SummaryValue::new(&DEFAULT_SUMMARY_BOUNDS);
-                summary.recalculate_from_histogram(&item);
+                summary.recalculate_from_histogram(item);
                 self.section_summary
                     .insert(summary_key, SummaryWrapValue::new(summary, diff_ms));
             }

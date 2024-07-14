@@ -22,7 +22,7 @@ impl From<TimelineQueryRequest> for TimelineQueryParam {
             keys = value
                 .string_key
                 .unwrap_or_default()
-                .split(",")
+                .split(',')
                 .filter(|e| !e.is_empty())
                 .map(|e| e.to_string())
                 .collect();

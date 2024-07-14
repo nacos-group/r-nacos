@@ -302,6 +302,16 @@ lazy_static::lazy_static! {
         R::Path("/rnacos/api/console/v2/instance/remove",HTTP_METHOD_ALL),
     ]);
 
+    static ref M_METRICS_VISITOR: ModuleResource = ModuleResource::new(vec![
+        //WebResource
+        R::WebResource("/manage/appmonitor"),
+        //path
+        R::Path("/rnacos/manage/appmonitor",HTTP_METHOD_GET),
+        R::Path("/rnacos/api/console/v2/metrics/timeline",HTTP_METHOD_ALL),
+        R::Path("/rnacos/api/console/cluster/cluster_node_list",HTTP_METHOD_GET),
+        R::Path("/rnacos/api/console/v2/cluster/cluster_node_list",HTTP_METHOD_GET),
+    ]);
+
     static ref R_VISITOR: Arc<GroupResource> = Arc::new(GroupResource::new(vec![
         &M_BASE,
         //&M_CLUSTER_VISITOR,
@@ -316,6 +326,7 @@ lazy_static::lazy_static! {
         &M_NAMESPACE_MANAGE,
         &M_CONFIG_MANAGE,
         &M_NAMING_MANAGE,
+        &M_METRICS_VISITOR,
     ]));
 
     static ref R_MANAGER: Arc<GroupResource> = Arc::new(GroupResource::new(vec![
@@ -325,6 +336,7 @@ lazy_static::lazy_static! {
         &M_CONFIG_MANAGE,
         &M_NAMING_MANAGE,
         &M_USER_MANAGE,
+        &M_METRICS_VISITOR,
     ]));
 
 }

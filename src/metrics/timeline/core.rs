@@ -66,7 +66,7 @@ impl TimelineGroup {
                         if let Some(timeline_summary) = summery_data.get_mut(str_key) {
                             timeline_summary
                         } else {
-                            let timeline_summary = Self::build_timeline_summary(&v, index_len);
+                            let timeline_summary = Self::build_timeline_summary(v, index_len);
                             summery_data.insert(str_key.to_owned(), timeline_summary);
                             summery_data.get_mut(str_key).unwrap()
                         };
@@ -156,7 +156,7 @@ impl MetricsTimelineManager {
     }
 
     pub fn add_least_record(&mut self, snapshot: MetricsSnapshot) {
-        self.minute_timeline_group.add_record(snapshot);
+        self.least_timeline_group.add_record(snapshot);
     }
 
     pub fn query(&self, param: TimelineQueryParam) -> TimelineQueryResponse {

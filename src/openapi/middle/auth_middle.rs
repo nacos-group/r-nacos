@@ -24,6 +24,9 @@ lazy_static::lazy_static! {
         "/nacos/v1/auth/login", "/nacos/v1/auth/users/login","/nacos/metrics"
     ];
     pub static ref API_PATH: Regex = Regex::new(r"(?i)/nacos/.*").unwrap();
+    pub static ref IGNORE_METRICS_PATH: Vec<&'static str> = vec![
+        "/nacos/v1/cs/configs/listener"
+    ];
     //pub static ref PARM_AUTH_TOKEN: Regex = Regex::new(r"accessToken=(\w*)").unwrap();
 }
 
@@ -86,6 +89,7 @@ where
         } else {
             true
         };
+        let ignore_metrics = IGNORE_METRICS_PATH.contains(&path);
         let app_share_data = self.app_share_data.clone();
         let service = self.service.clone();
         Box::pin(async move {
@@ -131,7 +135,9 @@ where
                         .duration_since(start)
                         .unwrap_or_default()
                         .as_secs_f64();
-                    record_req_metrics(&app_share_data.metrics_manager, duration, success);
+                    if !ignore_metrics {
+                        record_req_metrics(&app_share_data.metrics_manager, duration, success);
+                    }
                     ServiceResponse::map_into_left_body(item)
                 })
             } else {
