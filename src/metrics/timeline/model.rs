@@ -158,6 +158,7 @@ pub struct TimelineQueryResponse {
     pub last_time: u64,
     pub from_node_id: u64,
     pub time_index: Vec<u64>,
+    pub interval_second: u64,
     pub gauge_data: HashMap<String, Vec<f64>>,
     pub summery_data: HashMap<String, TimelineSummary>,
 }

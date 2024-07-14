@@ -24,6 +24,20 @@ pub async fn query_metrics_timeline(
     }
 }
 
+pub async fn query_metrics_timeline_json(
+    app: Data<Arc<AppShareData>>,
+    web::Json(req): web::Json<TimelineQueryRequest>,
+) -> actix_web::Result<impl Responder> {
+    let param: TimelineQueryParam = req.into();
+    match do_query_metrics_timeline(app, param).await {
+        Ok(v) => Ok(v),
+        Err(err) => Ok(HttpResponse::Ok().json(ApiResult::<()>::error(
+            "SYSTEM_ERROR".to_owned(),
+            Some(err.to_string()),
+        ))),
+    }
+}
+
 async fn do_query_metrics_timeline(
     app: Data<Arc<AppShareData>>,
     param: TimelineQueryParam,

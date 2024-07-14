@@ -10,14 +10,16 @@ pub struct TimelineGroup {
     timelines: LinkedList<TimelineValue>,
     pub(crate) limit_count: usize,
     pub(crate) last_time: u64,
+    pub(crate) interval_second: u64,
 }
 
 impl TimelineGroup {
-    pub fn new(limit_count: usize) -> Self {
+    pub fn new(limit_count: usize, interval: u64) -> Self {
         Self {
             timelines: LinkedList::new(),
             limit_count,
             last_time: 0,
+            interval_second: interval,
         }
     }
 
@@ -98,6 +100,7 @@ impl TimelineGroup {
             last_time,
             from_node_id: 0,
             time_index,
+            interval_second: self.interval_second,
             gauge_data,
             summery_data,
         }
@@ -139,9 +142,13 @@ pub struct MetricsTimelineManager {
 impl MetricsTimelineManager {
     pub fn new() -> Self {
         Self {
-            minute_timeline_group: TimelineGroup::new(360),
-            least_timeline_group: TimelineGroup::new(360),
+            minute_timeline_group: TimelineGroup::new(360, 60),
+            least_timeline_group: TimelineGroup::new(360, 15),
         }
+    }
+
+    pub fn set_least_interval(&mut self, least_interval: u64) {
+        self.least_timeline_group.interval_second = least_interval;
     }
 
     pub fn add_minute_record(&mut self, snapshot: MetricsSnapshot) {

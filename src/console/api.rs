@@ -314,7 +314,8 @@ pub fn console_api_config_v2(config: &mut web::ServiceConfig) {
             )
             .service(
                 web::resource("/metrics/timeline")
-                    .route(web::get().to(v2::metrics_api::query_metrics_timeline)),
+                    .route(web::get().to(v2::metrics_api::query_metrics_timeline))
+                    .route(web::post().to(v2::metrics_api::query_metrics_timeline_json)),
             ),
     );
 }

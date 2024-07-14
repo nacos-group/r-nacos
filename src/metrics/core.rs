@@ -314,6 +314,8 @@ impl Inject for MetricsManager {
         if let Some(sys_config) = sys_config {
             self.metrics_enable = sys_config.metrics_enable;
             self.collect_interval = sys_config.metrics_collect_interval_second;
+            self.metrics_timeline_manager
+                .set_least_interval(self.collect_interval);
             self.log_interval = sys_config.metrics_log_interval_second;
             if self.metrics_enable {
                 log::info!("metrics enable! log_interval: {}s", self.log_interval);
