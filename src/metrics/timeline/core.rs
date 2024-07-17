@@ -1,7 +1,7 @@
 use crate::metrics::metrics_key::MetricsKey;
 use crate::metrics::timeline::model::{
-    MetricsSnapshot, SummaryWrapValue, TimelineQueryParam, TimelineQueryResponse, TimelineSummary,
-    TimelineValue,
+    MetricsSnapshot, SummaryWrapValue, TimelineGroupType, TimelineQueryParam,
+    TimelineQueryResponse, TimelineSummary, TimelineValue,
 };
 use std::collections::{HashMap, HashSet, LinkedList};
 
@@ -135,15 +135,17 @@ impl TimelineGroup {
 
 #[derive(Debug, Clone, Default)]
 pub struct MetricsTimelineManager {
-    minute_timeline_group: TimelineGroup,
     least_timeline_group: TimelineGroup,
+    minute_timeline_group: TimelineGroup,
+    hour_timeline_group: TimelineGroup,
 }
 
 impl MetricsTimelineManager {
     pub fn new() -> Self {
         Self {
+            least_timeline_group: TimelineGroup::new(180, 15),
             minute_timeline_group: TimelineGroup::new(360, 60),
-            least_timeline_group: TimelineGroup::new(360, 15),
+            hour_timeline_group: TimelineGroup::new(180, 3600),
         }
     }
 
@@ -151,23 +153,36 @@ impl MetricsTimelineManager {
         self.least_timeline_group.interval_second = least_interval;
     }
 
-    pub fn add_minute_record(&mut self, snapshot: MetricsSnapshot) {
-        self.minute_timeline_group.add_record(snapshot);
+    fn get_timeline_group_mut(&mut self, group_type: &TimelineGroupType) -> &mut TimelineGroup {
+        match group_type {
+            TimelineGroupType::Least => &mut self.least_timeline_group,
+            TimelineGroupType::Minute => &mut self.minute_timeline_group,
+            TimelineGroupType::Hour => &mut self.hour_timeline_group,
+        }
     }
 
-    pub fn add_least_record(&mut self, snapshot: MetricsSnapshot) {
-        self.least_timeline_group.add_record(snapshot);
+    fn get_timeline_group(&self, group_type: &TimelineGroupType) -> &TimelineGroup {
+        match group_type {
+            TimelineGroupType::Least => &self.least_timeline_group,
+            TimelineGroupType::Minute => &self.minute_timeline_group,
+            TimelineGroupType::Hour => &self.hour_timeline_group,
+        }
+    }
+
+    pub fn add_record(&mut self, group_type: &TimelineGroupType, snapshot: MetricsSnapshot) {
+        let time_line_group = self.get_timeline_group_mut(group_type);
+        time_line_group.add_record(snapshot);
     }
 
     pub fn query(&self, param: TimelineQueryParam) -> TimelineQueryResponse {
-        if param.timeline_group_name == "LEAST" {
-            self.least_timeline_group.query(param)
+        if let Some(group_type) = TimelineGroupType::from_key(&param.timeline_group_name) {
+            self.get_timeline_group(&group_type).query(param)
         } else {
             self.minute_timeline_group.query(param)
         }
     }
 
-    pub fn last_minute_record_time(&self) -> u64 {
-        self.minute_timeline_group.last_time
+    pub fn get_last_record_time(&self, group_type: &TimelineGroupType) -> u64 {
+        self.get_timeline_group(group_type).last_time
     }
 }

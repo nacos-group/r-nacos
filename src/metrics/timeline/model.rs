@@ -4,6 +4,59 @@ use crate::metrics::summary::DEFAULT_SUMMARY_BOUNDS;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+#[derive(Debug, Eq, PartialEq, Clone, Hash)]
+pub enum TimelineGroupType {
+    Least, //可由配置控制，默认15秒
+    Minute,
+    Hour,
+}
+
+/*
+lazy_static::lazy_static! {
+    /// 用于有序遍历打印信息
+    pub static ref TIMELINE_GROUP_ALL_KEYS: Vec<TimelineGroupType> = vec![
+        TimelineGroupType::Least,
+        TimelineGroupType::Minute,
+        TimelineGroupType::Hour,
+    ];
+}
+*/
+
+impl TimelineGroupType {
+    pub fn get_key(&self) -> &'static str {
+        match self {
+            TimelineGroupType::Least => "LEAST",
+            TimelineGroupType::Minute => "MINUTE",
+            TimelineGroupType::Hour => "HOUR",
+        }
+    }
+
+    pub fn get_interval_second(&self) -> u64 {
+        match self {
+            TimelineGroupType::Least => 0,
+            TimelineGroupType::Minute => 60,
+            TimelineGroupType::Hour => 3600,
+        }
+    }
+
+    pub fn get_interval_millis(&self) -> u64 {
+        match self {
+            TimelineGroupType::Least => 0,
+            TimelineGroupType::Minute => 60_000,
+            TimelineGroupType::Hour => 3600_000,
+        }
+    }
+
+    pub fn from_key(name: &str) -> Option<Self> {
+        match name {
+            "LEAST" => Some(Self::Least),
+            "MINUTE" => Some(Self::Minute),
+            "HOUR" => Some(Self::Hour),
+            _ => None,
+        }
+    }
+}
+
 #[derive(Debug, Default, Clone)]
 pub struct MetricsSnapshot {
     pub(crate) gauge_data_map: HashMap<MetricsKey, GaugeValue>,

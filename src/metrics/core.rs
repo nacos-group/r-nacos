@@ -10,7 +10,7 @@ use crate::metrics::model::{
 };
 use crate::metrics::summary::SummaryManager;
 use crate::metrics::timeline::core::MetricsTimelineManager;
-use crate::metrics::timeline::model::MetricsSnapshot;
+use crate::metrics::timeline::model::{MetricsSnapshot, TimelineGroupType};
 use crate::naming::core::NamingActor;
 use crate::now_millis;
 use actix::prelude::*;
@@ -233,8 +233,9 @@ impl MetricsManager {
         self.load_sys_metrics();
         self.print_metrics();
         let now = now_millis();
-        self.record_least_snapshot(now);
-        self.record_minute_snapshot(now);
+        self.record_timeline_snapshot(now, TimelineGroupType::Least);
+        self.record_timeline_snapshot(now, TimelineGroupType::Minute);
+        self.record_timeline_snapshot(now, TimelineGroupType::Hour);
     }
 
     fn load_metrics(&mut self, ctx: &mut Context<Self>) {
@@ -261,17 +262,16 @@ impl MetricsManager {
         }
     }
 
-    fn record_minute_snapshot(&mut self, now_ms: u64) {
-        //超过59.8秒 间隔后，当做已过了一分钟
-        if now_ms - 59800 > self.metrics_timeline_manager.last_minute_record_time() {
+    fn record_timeline_snapshot(&mut self, now_ms: u64, group_type: TimelineGroupType) {
+        //增加200ms超过间隔后，增加记录
+        if now_ms + 200 - group_type.get_interval_millis()
+            > self
+                .metrics_timeline_manager
+                .get_last_record_time(&group_type)
+        {
             self.metrics_timeline_manager
-                .add_minute_record(self.build_snapshot(now_ms));
+                .add_record(&group_type, self.build_snapshot(now_ms));
         }
-    }
-
-    fn record_least_snapshot(&mut self, now_ms: u64) {
-        self.metrics_timeline_manager
-            .add_least_record(self.build_snapshot(now_ms));
     }
 
     fn hb(&mut self, ctx: &mut Context<Self>) {
