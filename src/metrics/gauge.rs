@@ -12,7 +12,7 @@ pub struct GaugeManager {
 }
 
 impl GaugeManager {
-    pub fn increment(&mut self, key: Key, value: f64) {
+    pub fn increment(&mut self, key: Key, value: f32) {
         if let Some(item) = self.data_map.get_mut(&key) {
             item.increment(value);
         } else {
@@ -20,15 +20,15 @@ impl GaugeManager {
         }
     }
 
-    pub fn decrement(&mut self, key: Key, value: f64) {
+    pub fn decrement(&mut self, key: Key, value: f32) {
         if let Some(item) = self.data_map.get_mut(&key) {
             item.increment(value);
         } else {
-            self.data_map.insert(key, 0f64.into());
+            self.data_map.insert(key, 0f32.into());
         }
     }
 
-    pub fn set(&mut self, key: Key, value: f64) {
+    pub fn set(&mut self, key: Key, value: f32) {
         if let Some(item) = self.data_map.get_mut(&key) {
             item.set(value);
         } else {
@@ -36,7 +36,7 @@ impl GaugeManager {
         }
     }
 
-    pub fn value(&self, key: &Key) -> Option<f64> {
+    pub fn value(&self, key: &Key) -> Option<f32> {
         self.data_map.get(key).map(|item| item.0.to_owned())
     }
 

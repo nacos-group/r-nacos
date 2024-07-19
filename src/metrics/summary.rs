@@ -10,7 +10,7 @@ type Key = MetricsKey;
 
 lazy_static! {
     /// 用于有序遍历打印信息
-    pub static ref DEFAULT_SUMMARY_BOUNDS: Vec<f64> = vec![0.5f64, 0.6f64, 0.7f64, 0.8f64, 0.9f64, 0.95f64, 1f64];
+    pub static ref DEFAULT_SUMMARY_BOUNDS: Vec<f32> = vec![0.5f32, 0.6f32, 0.7f32, 0.8f32, 0.9f32, 0.95f32, 1f32];
 }
 
 #[derive(Default, Debug)]
@@ -19,7 +19,7 @@ pub struct SummaryManager {
 }
 
 impl SummaryManager {
-    pub fn init(&mut self, key: Key, bounds: &[f64]) {
+    pub fn init(&mut self, key: Key, bounds: &[f32]) {
         if let Entry::Vacant(e) = self.data_map.entry(key) {
             e.insert(SummaryValue::new(bounds));
         }

@@ -102,21 +102,21 @@ impl MetricsSnapshot {
 #[derive(Debug, Default, Clone)]
 pub struct SummaryWrapValue {
     pub(crate) value: SummaryValue,
-    pub(crate) rps: f64,
-    pub(crate) average: f64,
+    pub(crate) rps: f32,
+    pub(crate) average: f32,
 }
 
 impl SummaryWrapValue {
     pub fn new(value: SummaryValue, diff_ms: u64) -> Self {
         let rps = if diff_ms > 0 {
-            value.count as f64 / (diff_ms as f64 / 1000f64)
+            value.count as f32 / (diff_ms as f32 / 1000f32)
         } else {
-            value.count as f64
+            value.count as f32
         };
         let average = if value.count > 0 {
-            value.sum / value.count as f64
+            value.sum / value.count as f32
         } else {
-            0f64
+            0f32
         };
         Self {
             value,
@@ -129,7 +129,7 @@ impl SummaryWrapValue {
 #[derive(Debug, Default, Clone)]
 pub struct TimelineValue {
     pub(crate) snapshot: MetricsSnapshot,
-    pub(crate) section_gauge: HashMap<MetricsKey, f64>,
+    pub(crate) section_gauge: HashMap<MetricsKey, f32>,
     pub(crate) section_summary: HashMap<MetricsKey, SummaryWrapValue>,
 }
 
@@ -153,7 +153,7 @@ impl TimelineValue {
                 .snapshot
                 .diff_counter(&last_snapshot.snapshot.counter_data_map)
             {
-                self.section_gauge.insert(key.to_owned(), item.0 as f64);
+                self.section_gauge.insert(key.to_owned(), item.0 as f32);
             }
             let diff_ms = self.snapshot.snapshot_time - last_snapshot.snapshot.snapshot_time;
             for (key, item) in self
@@ -168,7 +168,7 @@ impl TimelineValue {
             }
         } else {
             for (key, item) in &self.snapshot.counter_data_map {
-                self.section_gauge.insert(key.to_owned(), item.0 as f64);
+                self.section_gauge.insert(key.to_owned(), item.0 as f32);
             }
             let diff_ms = 5000u64;
             for (key, item) in &self.snapshot.histogram_data_map {
@@ -198,11 +198,11 @@ pub struct TimelineQueryParam {
 #[serde(rename_all = "camelCase")]
 pub struct TimelineSummary {
     pub bound_keys: Vec<String>,
-    pub bounds: Vec<f64>,
-    pub rps_data: Vec<f64>,
-    pub average_data: Vec<f64>,
+    pub bounds: Vec<f32>,
+    pub rps_data: Vec<f32>,
+    pub average_data: Vec<f32>,
     pub count_data: Vec<u64>,
-    pub items_data: HashMap<String, Vec<f64>>,
+    pub items_data: HashMap<String, Vec<f32>>,
 }
 
 #[derive(Debug, Default, Clone, Deserialize, Serialize)]
@@ -212,6 +212,6 @@ pub struct TimelineQueryResponse {
     pub from_node_id: u64,
     pub time_index: Vec<u64>,
     pub interval_second: u64,
-    pub gauge_data: HashMap<String, Vec<f64>>,
+    pub gauge_data: HashMap<String, Vec<f32>>,
     pub summery_data: HashMap<String, TimelineSummary>,
 }

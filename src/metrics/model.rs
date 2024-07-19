@@ -94,33 +94,33 @@ impl Display for CounterValueFmtWrap<'_> {
 }
 
 #[derive(Default, Debug, Clone)]
-pub struct GaugeValue(pub(crate) f64);
+pub struct GaugeValue(pub(crate) f32);
 
 impl GaugeValue {
     /// Increments the gauge by the given amount.
-    pub fn increment(&mut self, value: f64) {
+    pub fn increment(&mut self, value: f32) {
         self.0 += value;
     }
 
     /// Decrements the gauge by the given amount.
-    pub fn decrement(&mut self, value: f64) {
+    pub fn decrement(&mut self, value: f32) {
         self.0 -= value;
     }
 
     /// Sets the gauge to the given amount.
-    pub fn set(&mut self, value: f64) {
+    pub fn set(&mut self, value: f32) {
         self.0 = value;
     }
 }
 
-impl From<GaugeValue> for f64 {
+impl From<GaugeValue> for f32 {
     fn from(value: GaugeValue) -> Self {
         value.0
     }
 }
 
-impl From<f64> for GaugeValue {
-    fn from(value: f64) -> Self {
+impl From<f32> for GaugeValue {
+    fn from(value: f32) -> Self {
         Self(value)
     }
 }
@@ -155,13 +155,13 @@ impl Display for GaugeValueFmtWrap<'_> {
 #[derive(Default, Debug, Clone)]
 pub struct HistogramValue {
     pub(crate) count: u64,
-    pub(crate) sum: f64,
-    bounds: Vec<f64>,
+    pub(crate) sum: f32,
+    bounds: Vec<f32>,
     buckets: Vec<CounterValue>,
 }
 
 impl HistogramValue {
-    pub fn new(bounds: &[f64]) -> Option<HistogramValue> {
+    pub fn new(bounds: &[f32]) -> Option<HistogramValue> {
         if bounds.is_empty() {
             return None;
         }
@@ -176,7 +176,7 @@ impl HistogramValue {
         })
     }
 
-    pub fn sum(&self) -> f64 {
+    pub fn sum(&self) -> f32 {
         self.sum
     }
 
@@ -184,7 +184,7 @@ impl HistogramValue {
         self.count
     }
 
-    pub fn buckets(&self) -> Vec<(f64, u64)> {
+    pub fn buckets(&self) -> Vec<(f32, u64)> {
         self.bounds
             .iter()
             .cloned()
@@ -195,18 +195,18 @@ impl HistogramValue {
     ///
     /// 计算百分位的近似值
     ///
-    pub fn approximate_quantile(&self, q: f64) -> f64 {
-        if self.count == 0 || q <= 0f64 || self.bounds.is_empty() {
-            return 0f64;
+    pub fn approximate_quantile(&self, q: f32) -> f32 {
+        if self.count == 0 || q <= 0f32 || self.bounds.is_empty() {
+            return 0f32;
         }
         let buckets = self.buckets();
-        let q_value = (q * (self.count as f64)) as u64;
+        let q_value = (q * (self.count as f32)) as u64;
         if q_value == 0 {
-            return 0f64;
+            return 0f32;
         }
-        let mut p_bound = 0f64;
+        let mut p_bound = 0f32;
         let mut p_sum_count = 0u64;
-        let mut bound = 0f64;
+        let mut bound = 0f32;
         let mut sum_count = 0u64;
         let mut i = 0;
         while i < buckets.len() {
@@ -216,7 +216,7 @@ impl HistogramValue {
             match q_value.cmp(&sum_count) {
                 Ordering::Less => {
                     return p_bound
-                        + ((q_value - p_sum_count) as f64 / (sum_count - p_sum_count) as f64)
+                        + ((q_value - p_sum_count) as f32 / (sum_count - p_sum_count) as f32)
                             * (bound - p_bound);
                 }
                 Ordering::Equal => {
@@ -235,14 +235,14 @@ impl HistogramValue {
             }
         }
         let interval_bound = if i > 1 {
-            (bound - p_bound) * 2f64
+            (bound - p_bound) * 2f32
         } else {
             bound
         };
-        bound + ((q_value - sum_count) as f64 / (self.count - sum_count) as f64) * interval_bound
+        bound + ((q_value - sum_count) as f32 / (self.count - sum_count) as f32) * interval_bound
     }
 
-    pub fn record(&mut self, sample: f64) {
+    pub fn record(&mut self, sample: f32) {
         self.sum += sample;
         self.count += 1;
 
@@ -253,7 +253,7 @@ impl HistogramValue {
         }
     }
 
-    pub fn record_many(&mut self, samples: &[f64]) {
+    pub fn record_many(&mut self, samples: &[f32]) {
         let mut bucketed = vec![0u64; self.buckets.len()];
 
         let mut sum = 0.0;
@@ -351,13 +351,13 @@ impl Display for HistogramValueFmtWrap<'_> {
 #[derive(Default, Debug, Clone)]
 pub struct SummaryValue {
     pub(crate) count: u64,
-    pub(crate) sum: f64,
-    pub(crate) bounds: Vec<f64>,
+    pub(crate) sum: f32,
+    pub(crate) bounds: Vec<f32>,
     pub(crate) buckets: Vec<GaugeValue>,
 }
 
 impl SummaryValue {
-    pub fn new(bounds: &[f64]) -> Self {
+    pub fn new(bounds: &[f32]) -> Self {
         let buckets = vec![GaugeValue::default(); bounds.len()];
 
         SummaryValue {
@@ -378,7 +378,7 @@ impl SummaryValue {
         self.count = histogram_value.count;
     }
 
-    pub fn buckets(&self) -> Vec<(f64, f64)> {
+    pub fn buckets(&self) -> Vec<(f32, f32)> {
         self.bounds
             .iter()
             .cloned()
@@ -391,7 +391,7 @@ impl Display for SummaryValue {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "total_count={},total_sum={:.2}", self.count, self.sum).ok();
         for (k, v) in self.buckets() {
-            write!(f, "|quantile={:.2}%,value={:.6}", k * 100f64, v).ok();
+            write!(f, "|quantile={:.2}%,value={:.6}", k * 100f32, v).ok();
         }
         Ok(())
     }
@@ -452,9 +452,9 @@ pub enum MetricsResponse {
 #[derive(Clone, Debug)]
 pub enum MetricsRecord {
     CounterInc(u64),
-    Gauge(f64),
-    HistogramRecord(f64),
-    HistogramRecords(Vec<f64>),
+    Gauge(f32),
+    HistogramRecord(f32),
+    HistogramRecords(Vec<f32>),
 }
 
 #[derive(Clone, Debug)]
@@ -479,36 +479,36 @@ mod tests {
     #[test]
     fn test_recalculate_from_histogram() {
         let mut histogram_value = HistogramValue::new(&[
-            0.25f64, 0.5f64, 1f64, 3f64, 5f64, 10f64, 25f64, 50f64, 100f64, 300f64, 500f64,
+            0.25f32, 0.5f32, 1f32, 3f32, 5f32, 10f32, 25f32, 50f32, 100f32, 300f32, 500f32,
         ])
         .unwrap();
         for _ in 0..100 {
-            histogram_value.record(0.02f64);
+            histogram_value.record(0.02f32);
         }
         for _ in 0..100 {
-            histogram_value.record(0.04f64);
+            histogram_value.record(0.04f32);
         }
         for _ in 0..1000 {
-            histogram_value.record(0.08f64);
+            histogram_value.record(0.08f32);
         }
         for _ in 0..100 {
-            histogram_value.record(1.6f64);
+            histogram_value.record(1.6f32);
         }
         for _ in 0..100 {
-            histogram_value.record(2.6f64);
+            histogram_value.record(2.6f32);
         }
         for _ in 0..100 {
-            histogram_value.record(7.0f64);
+            histogram_value.record(7.0f32);
         }
         for _ in 0..50 {
-            histogram_value.record(12.0f64);
+            histogram_value.record(12.0f32);
         }
         for _ in 0..20 {
-            histogram_value.record(120.0f64);
+            histogram_value.record(120.0f32);
         }
         println!("histogram_value|{}", &histogram_value);
         let mut summary_value =
-            SummaryValue::new(&[0.5f64, 0.6f64, 0.7f64, 0.8f64, 0.9f64, 0.95f64, 0.9999f64])
+            SummaryValue::new(&[0.5f32, 0.6f32, 0.7f32, 0.8f32, 0.9f32, 0.95f32, 0.9999f32])
                 .unwrap();
         //println!("summary_value01|{}",&summary_value);
         summary_value.recalculate_from_histogram(&histogram_value);

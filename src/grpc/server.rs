@@ -73,7 +73,7 @@ impl RequestServerImpl {
             .do_send(MetricsRequest::BatchRecord(vec![
                 MetricsItem::new(
                     MetricsKey::GrpcRequestHandleRtHistogram,
-                    MetricsRecord::HistogramRecord(duration * 1000f64),
+                    MetricsRecord::HistogramRecord(duration as f32 * 1000f32),
                 ),
                 MetricsItem::new(
                     MetricsKey::GrpcRequestTotalCount,

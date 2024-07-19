@@ -35,7 +35,7 @@ pub struct MetricsManager {
     system: System,
     current_process_id: u32,
     start_time_millis: u64,
-    total_memory: f64,
+    total_memory: f32,
     collect_interval: u64,
     log_interval: u64,
     last_collect_time: u64,
@@ -55,7 +55,7 @@ impl MetricsManager {
         let start_time_millis = now_millis();
         let mut system = System::new();
         system.refresh_memory();
-        let total_memory = system.total_memory() as f64 / (1024.0 * 1024.0);
+        let total_memory = system.total_memory() as f32 / (1024.0 * 1024.0);
         let mut gauge_manager = GaugeManager::default();
         gauge_manager.set(MetricsKey::SysTotalMemory, total_memory);
         Self {
@@ -89,23 +89,23 @@ impl MetricsManager {
         self.histogram_manager.init(
             MetricsKey::GrpcRequestHandleRtHistogram,
             &[
-                0.25f64, 0.5f64, 1f64, 3f64, 5f64, 10f64, 25f64, 50f64, 100f64, 300f64, 500f64,
+                0.25f32, 0.5f32, 1f32, 3f32, 5f32, 10f32, 25f32, 50f32, 100f32, 300f32, 500f32,
             ],
         );
         self.summary_manager.init(
             MetricsKey::GrpcRequestHandleRtSummary,
-            &[0.5f64, 0.6f64, 0.7f64, 0.8f64, 0.9f64, 0.95f64, 1f64],
+            &[0.5f32, 0.6f32, 0.7f32, 0.8f32, 0.9f32, 0.95f32, 1f32],
         );
         // 单位毫秒ms
         self.histogram_manager.init(
             MetricsKey::HttpRequestHandleRtHistogram,
             &[
-                0.25f64, 0.5f64, 1f64, 3f64, 5f64, 10f64, 25f64, 50f64, 100f64, 300f64, 500f64,
+                0.25f32, 0.5f32, 1f32, 3f32, 5f32, 10f32, 25f32, 50f32, 100f32, 300f32, 500f32,
             ],
         );
         self.summary_manager.init(
             MetricsKey::HttpRequestHandleRtSummary,
-            &[0.5f64, 0.6f64, 0.7f64, 0.8f64, 0.9f64, 0.95f64, 1f64],
+            &[0.5f32, 0.6f32, 0.7f32, 0.8f32, 0.9f32, 0.95f32, 1f32],
         );
 
         //summary from histogram
@@ -187,14 +187,14 @@ impl MetricsManager {
     fn load_sys_metrics(&mut self) {
         self.system.refresh_all();
         if let Some(process) = self.system.process(Pid::from_u32(self.current_process_id)) {
-            let cpu_usage = process.cpu_usage() as f64;
-            let rss = process.memory() as f64 / (1024.0 * 1024.0);
-            let vms = process.virtual_memory() as f64 / (1024.0 * 1024.0);
+            let cpu_usage = process.cpu_usage() as f32;
+            let rss = process.memory() as f32 / (1024.0 * 1024.0);
+            let vms = process.virtual_memory() as f32 / (1024.0 * 1024.0);
             let rss_usage = rss / self.total_memory * 100.0;
             let running_seconds = (now_millis() - self.start_time_millis) / 1000;
             //log::info!("[metrics_system]|already running seconds: {}s|cpu_usage: {:.2}%|rss_usage: {:.2}%|rss: {:.2}M|vms: {:.2}M|total_memory: {:.2}M|",running_seconds,&cpu_usage,&rss_usage,&rss,&vms,&self.total_memory);
             self.gauge_manager
-                .set(MetricsKey::ProcessStartTimeSeconds, running_seconds as f64);
+                .set(MetricsKey::ProcessStartTimeSeconds, running_seconds as f32);
             self.gauge_manager.set(MetricsKey::AppCpuUsage, cpu_usage);
             self.gauge_manager.set(MetricsKey::AppRssMemory, rss);
             self.gauge_manager.set(MetricsKey::AppVmsMemory, vms);

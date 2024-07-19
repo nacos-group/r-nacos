@@ -13,7 +13,7 @@ pub struct HistogramManager {
 }
 
 impl HistogramManager {
-    pub fn init(&mut self, key: Key, bounds: &[f64]) {
+    pub fn init(&mut self, key: Key, bounds: &[f32]) {
         if let Entry::Vacant(e) = self.data_map.entry(key) {
             if let Some(item) = HistogramValue::new(bounds) {
                 e.insert(item);
@@ -25,23 +25,23 @@ impl HistogramManager {
         self.data_map.get(key)
     }
 
-    pub fn record(&mut self, key: &Key, sample: f64) {
+    pub fn record(&mut self, key: &Key, sample: f32) {
         if let Some(item) = self.data_map.get_mut(key) {
             item.record(sample);
         }
     }
 
-    pub fn record_many(&mut self, key: &Key, samples: &[f64]) {
+    pub fn record_many(&mut self, key: &Key, samples: &[f32]) {
         if let Some(item) = self.data_map.get_mut(key) {
             item.record_many(samples);
         }
     }
 
-    pub fn sum(&self, key: &Key) -> f64 {
+    pub fn sum(&self, key: &Key) -> f32 {
         if let Some(item) = self.data_map.get(key) {
             item.sum
         } else {
-            0f64
+            0f32
         }
     }
 
@@ -53,7 +53,7 @@ impl HistogramManager {
         }
     }
 
-    pub fn buckets(&self, key: &Key) -> Vec<(f64, u64)> {
+    pub fn buckets(&self, key: &Key) -> Vec<(f32, u64)> {
         if let Some(item) = self.data_map.get(key) {
             item.buckets()
         } else {

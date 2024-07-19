@@ -206,7 +206,7 @@ fn record_req_metrics(metrics_manager: &Addr<MetricsManager>, duration: f64, _su
     metrics_manager.do_send(MetricsRequest::BatchRecord(vec![
         MetricsItem::new(
             MetricsKey::HttpRequestHandleRtHistogram,
-            MetricsRecord::HistogramRecord(duration * 1000f64),
+            MetricsRecord::HistogramRecord(duration as f32 * 1000f32),
         ),
         MetricsItem::new(
             MetricsKey::HttpRequestTotalCount,

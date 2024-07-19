@@ -52,7 +52,7 @@ impl TimelineGroup {
             }
         }
         let mut time_index: Vec<u64> = Vec::with_capacity(item_list.len());
-        let mut gauge_data: HashMap<String, Vec<f64>> = HashMap::new();
+        let mut gauge_data: HashMap<String, Vec<f32>> = HashMap::new();
         let mut summery_data: HashMap<String, TimelineSummary> = HashMap::new();
         let index_len = time_index.len();
         for (i, item) in item_list.iter().enumerate() {
@@ -85,7 +85,7 @@ impl TimelineGroup {
                             Self::fill_gauge_value(
                                 &mut timeline_summary.items_data,
                                 sub_key,
-                                0f64,
+                                0f32,
                                 time_index.len(),
                             );
                         }
@@ -107,9 +107,9 @@ impl TimelineGroup {
     }
 
     fn fill_gauge_value(
-        gauge_data: &mut HashMap<String, Vec<f64>>,
+        gauge_data: &mut HashMap<String, Vec<f32>>,
         str_key: &str,
-        v: f64,
+        v: f32,
         list_len: usize,
     ) {
         if let Some(list) = gauge_data.get_mut(str_key) {
