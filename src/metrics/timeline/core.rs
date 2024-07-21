@@ -145,7 +145,7 @@ impl MetricsTimelineManager {
         Self {
             least_timeline_group: TimelineGroup::new(180, 15),
             minute_timeline_group: TimelineGroup::new(360, 60),
-            hour_timeline_group: TimelineGroup::new(180, 3600),
+            hour_timeline_group: TimelineGroup::new(360, 3600),
         }
     }
 

@@ -41,7 +41,7 @@ pub async fn login(
                 Some("captcha token is empty".to_owned()),
             )));
         }
-        let captcha_code = param.captcha.to_uppercase();
+        let captcha_code = param.captcha.unwrap_or_default().to_uppercase();
         let cache_req = CacheManagerReq::Get(CacheKey::new(
             CacheType::String,
             Arc::new(format!("Captcha_{}", &captcha_token)),
