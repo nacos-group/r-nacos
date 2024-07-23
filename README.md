@@ -13,6 +13,9 @@ r-nacos相较于java nacos来说，是一个提供相同功能，启动更快、
 
 详细说明可以看 [r-nacos docs](https://r-nacos.github.io/docs/)
 
+![Docker Pulls](https://img.shields.io/docker/pulls/qingpan/rnacos)  
+![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/r-nacos/r-nacos/total)
+
 ## 适用场景
 
 1. 开发测试环境使用nacos，nacos服务可以换成r-nacos。启动更快，秒启动。
@@ -331,6 +334,10 @@ nacos_rust_client = "0.3.0"
 > 6、命名空间管理
 
 ![](https://user-images.githubusercontent.com/1174480/268299574-4947b9f8-79e1-48e2-97fe-e9767e26ddc0.png)
+
+> 7、系统监控
+
+![](https://github.com/r-nacos/r-nacos/raw/master/doc/assets/imgs/20240722075241.png)
 
 
 
