@@ -5,6 +5,7 @@ use crate::openapi::RouteConf;
 
 mod catalog;
 pub(crate) mod instance;
+pub mod model;
 mod operator;
 pub(crate) mod service;
 mod v2;

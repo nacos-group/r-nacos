@@ -7,7 +7,7 @@ use crate::naming::core::{NamingActor, NamingCmd, NamingResult};
 use crate::naming::model::ServiceKey;
 use crate::naming::NamingUtils;
 use crate::openapi::constant::EMPTY;
-use crate::openapi::naming::instance::{ServiceQueryListRequest, ServiceQueryListResponce};
+use crate::openapi::naming::model::{ServiceQueryListRequest, ServiceQueryListResponce};
 
 pub(super) fn service() -> Scope {
     web::scope("/service")
