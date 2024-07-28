@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 pub mod api_model;
 pub mod core;
 pub(crate) mod filter;
@@ -86,5 +88,35 @@ impl NamingUtils {
         } else {
             val
         }
+    }
+
+    ///
+    /// 解析metadata
+    /// 兼容支持json与nacos自定义格式
+    pub fn parse_metadata(metadata_str: &str) -> anyhow::Result<HashMap<String, String>> {
+        if metadata_str.is_empty() {
+            return Err(anyhow::anyhow!("metadata is empty"));
+        }
+        if let Ok(metadata) = serde_json::from_str::<HashMap<String, String>>(metadata_str) {
+            return Ok(metadata);
+        }
+        let mut metadata = HashMap::new();
+        for item in metadata_str.split(',') {
+            if item.is_empty() {
+                continue;
+            }
+            let kv: Vec<&str> = item.split('=').collect();
+            if kv.len() != 2 {
+                return Err(anyhow::anyhow!(
+                    "metadata format incorrect:{}",
+                    &metadata_str
+                ));
+            }
+            metadata.insert(
+                kv.get(0).unwrap().to_string(),
+                kv.get(1).unwrap().to_string(),
+            );
+        }
+        Ok(metadata)
     }
 }

@@ -27,6 +27,7 @@ pub(super) fn service() -> Scope {
                 .route(web::get().to(get_instance))
                 .route(web::post().to(update_instance))
                 .route(web::put().to(update_instance))
+                .route(web::patch.to(update_instance))
                 .route(web::delete().to(del_instance)),
         )
         .service(beat_instance)
@@ -108,7 +109,7 @@ impl InstanceWebParams {
             .as_ref()
             .unwrap_or(&"{}".to_owned())
             .to_owned();
-        if let Ok(metadata) = serde_json::from_str::<HashMap<String, String>>(&metadata_str) {
+        if let Ok(metadata) = NamingUtils::parse_metadata(&metadata_str) {
             instance.metadata = Arc::new(metadata);
         };
         instance.generate_key();

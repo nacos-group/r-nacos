@@ -161,7 +161,7 @@ impl ServiceInfoParam {
                 return Err(anyhow::anyhow!("service_name is vaild"));
             }
             let metadata = if let Some(metadata_str) = self.metadata {
-                match serde_json::from_str::<HashMap<String, String>>(&metadata_str) {
+                match NamingUtils::parse_metadata(&metadata_str) {
                     Ok(metadata) => Some(Arc::new(metadata)),
                     Err(_) => None,
                 }
