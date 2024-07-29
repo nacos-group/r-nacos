@@ -286,11 +286,12 @@ impl HistogramValue {
     pub fn diff(&self, old_value: &Self) -> Self {
         assert_eq!(self.bounds.len(), old_value.bounds.len());
         assert_eq!(self.buckets.len(), old_value.buckets.len());
-        let mut bounds = Vec::with_capacity(self.bounds.len());
+        /*
         for (i, v) in self.bounds.iter().enumerate() {
             let old_v = old_value.bounds.get(i).unwrap();
-            bounds.push(*v - *old_v);
+            assert_eq!(*v, *old_v);
         }
+        */
         let mut buckets = Vec::with_capacity(self.buckets.len());
         for (i, v) in self.buckets.iter().enumerate() {
             let old_v = old_value.buckets.get(i).unwrap();
@@ -299,7 +300,7 @@ impl HistogramValue {
         HistogramValue {
             count: self.count - old_value.count,
             sum: self.sum - old_value.sum,
-            bounds,
+            bounds: self.bounds.clone(),
             buckets,
         }
     }
@@ -508,8 +509,7 @@ mod tests {
         }
         println!("histogram_value|{}", &histogram_value);
         let mut summary_value =
-            SummaryValue::new(&[0.5f32, 0.6f32, 0.7f32, 0.8f32, 0.9f32, 0.95f32, 0.9999f32])
-                .unwrap();
+            SummaryValue::new(&[0.5f32, 0.6f32, 0.7f32, 0.8f32, 0.9f32, 0.95f32, 0.9999f32]);
         //println!("summary_value01|{}",&summary_value);
         summary_value.recalculate_from_histogram(&histogram_value);
         println!("summary_value|{}", &summary_value);

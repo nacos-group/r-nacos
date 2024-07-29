@@ -1,0 +1,18 @@
+# 集群部署样例,数据目录: ./data
+version: '3.8'
+
+services:
+  nacos:
+    image: qingpan/rnacos:stable
+    container_name: nacos
+    ports:
+      - "8848:8848"
+      - "9848:9848"
+      - "10848:10848"
+    volumes:
+      - ./data:/io:rw
+    environment:
+      - RNACOS_INIT_ADMIN_USERNAME=admin
+      - RNACOS_INIT_ADMIN_PASSWORD=admin
+      - RNACOS_HTTP_PORT=8848
+    restart: always

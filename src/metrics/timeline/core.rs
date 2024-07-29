@@ -41,7 +41,10 @@ impl TimelineGroup {
             item_list.push(item);
         }
         if item_list.is_empty() || param.keys.is_empty() {
-            return TimelineQueryResponse::default();
+            return TimelineQueryResponse {
+                interval_second: self.interval_second,
+                ..Default::default()
+            };
         }
         let mut keys = HashSet::with_capacity(param.keys.len());
         for str_key in param.keys.iter() {

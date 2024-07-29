@@ -1,0 +1,70 @@
+# 集群部署样例,数据目录: ./data1 ./data2 ./data3
+version: '3.8' # 指定版本号
+
+services: # 所有需要启动的服务
+  r-nacos-master: # 主节点
+    image: qingpan/rnacos:stable
+    container_name: r-nacos-master
+    environment: # 环境变量
+      - RUST_LOG=warn
+      - RNACOS_HTTP_PORT=8848
+      - RNACOS_RAFT_NODE_ADDR=r-nacos-master:9848
+      - RNACOS_CONFIG_DB_DIR=db
+      - RNACOS_RAFT_NODE_ID=1
+      - RNACOS_RAFT_AUTO_INIT=true
+      - TZ=Asia/Shanghai
+    volumes:
+      - ./data1:/io:rw
+#      - /etc/localtime:/etc/localtime:ro
+    ports: # 宿主机和容器的端口映射关系
+      # 左边宿主机端口:右边容器端口
+      - "8848:8848" 
+      - "9848:9848" 
+      - "10848:10848" 
+    networks: # 配置容器连接的网络，引用顶级networks下的条目
+      - rnacos
+    restart: always
+  r-nacos-slave1: # 从节点
+    image: qingpan/rnacos:stable
+    container_name: r-nacos-slave1
+    environment: # 环境变量
+      - RUST_LOG=warn
+      - RNACOS_HTTP_PORT=8848
+      - RNACOS_RAFT_NODE_ADDR=r-nacos-slave1:9848
+      - RNACOS_CONFIG_DB_DIR=db
+      - RNACOS_RAFT_NODE_ID=2
+      - RNACOS_RAFT_JOIN_ADDR=r-nacos-master:9848
+      - TZ=Asia/Shanghai
+    volumes:
+      - ./data2:/io:rw
+#      - /etc/localtime:/etc/localtime:ro  
+    networks: 
+      - rnacos
+    restart: always
+    depends_on:
+      - r-nacos-master
+  r-nacos-slave2: # 从节点
+    image: qingpan/rnacos:stable
+    container_name: r-nacos-slave2
+    environment: # 环境变量
+      - RUST_LOG=warn
+      - RNACOS_HTTP_PORT=8848
+      - RNACOS_RAFT_NODE_ADDR=r-nacos-slave2:9848
+      - RNACOS_CONFIG_DB_DIR=db
+      - RNACOS_RAFT_NODE_ID=3
+      - RNACOS_RAFT_JOIN_ADDR=r-nacos-master:9848
+      - TZ=Asia/Shanghai
+    volumes:
+      - ./data3:/io:rw
+#      - /etc/localtime:/etc/localtime:ro  
+    networks: 
+      - rnacos
+    restart: always
+    depends_on:
+      - r-nacos-master 
+      - r-nacos-slave1
+# 定义网络，可以多个，如果不声明，默认会创建一个网络名称为“工程名称_default”的bridge网络
+networks:
+  rnacos: # 一个具体网络的条目名称
+    name: rnacos # 网络名称，默认为“工程名称_网络条目名称”
+    driver: bridge # 网络模式，默认为bridge

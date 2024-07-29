@@ -1,5 +1,8 @@
 use crate::metrics::metrics_key::MetricsKey;
-use crate::metrics::model::{CounterValue, GaugeValue, HistogramValue, SummaryValue};
+use crate::metrics::model::{
+    CounterValue, GaugeValue, HistogramValue, HistogramValueFmtWrap, SummaryValue,
+    SummaryValueFmtWrap,
+};
 use crate::metrics::summary::DEFAULT_SUMMARY_BOUNDS;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -160,9 +163,28 @@ impl TimelineValue {
                 .snapshot
                 .diff_histogram(&last_snapshot.snapshot.histogram_data_map)
             {
-                let summary_key = MetricsKey::get_summary_from_histogram(&key).unwrap_or(key);
+                let summary_key =
+                    MetricsKey::get_summary_from_histogram(&key).unwrap_or(key.to_owned());
                 let mut summary = SummaryValue::new(&DEFAULT_SUMMARY_BOUNDS);
                 summary.recalculate_from_histogram(&item);
+                /*
+                if item.count > 0 {
+                    let mut is_empty = true;
+                    for item in &summary.buckets {
+                        if item.0 != 0f32 {
+                            is_empty = false;
+                            break;
+                        }
+                    }
+                    if is_empty {
+                        log::warn!(
+                            "summary result is error,histogram:{},summary:{}",
+                            HistogramValueFmtWrap::new(&key, &item),
+                            SummaryValueFmtWrap::new(&summary_key, &summary)
+                        );
+                    }
+                }
+                 */
                 self.section_summary
                     .insert(summary_key, SummaryWrapValue::new(summary, diff_ms));
             }
