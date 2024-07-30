@@ -43,7 +43,9 @@ r-nacos相较于java nacos来说，是一个提供相同功能，启动更快、
 
 【单机部署】
 
-方式1：从 [github release](https://github.com/r-nacos/r-nacos/releases) 下载对应系统的应用包，解压后即可运行。
+#### 方式1：下载二进制包运行
+
+从 [github release](https://github.com/r-nacos/r-nacos/releases) 下载对应系统的应用包，解压后即可运行。
 
 linux 或 MacOS
 
@@ -56,7 +58,8 @@ tar -xvf rnacos-x86_64-apple-darwin.tar.gz
 
 windows 解压后直接运行 rnacos.exe 即可。
 
-方式2:  通过docker 运行
+#### 方式2: 通过docker 运行
+
 
 ```
 #stable是最新正式版本号，也可以指定镜像版本号，如： qingpan/rnacos:v0.4.0
@@ -66,7 +69,7 @@ docker run --name mynacos -p 8848:8848 -p 9848:9848 -p 10848:10848 -d qingpan/rn
 
 docker 的容器运行目录是 /io，会从这个目录读写配置文件
 
-#### docker 版本说明
+##### docker 版本说明
 
 应用每次打包都会同时打对应版本的docker包 ，qingpan/rnacos:$tag 。
 
@@ -84,7 +87,37 @@ docker 的容器运行目录是 /io，会从这个目录读写配置文件
 + 最新的alpine正式版本: `qingpan/rnacos:stable-alpine`
 
 
-方式3：通过 cargo 编译安装
+#### 方式3: 通过docker-compose 运行
+
+单机部署样列:
+
+[docker-compose.yaml](https://github.com/nacos-group/r-nacos/blob/master/docker/docker-compose/r-nacos-simple/docker-compose.yaml)
+
+```yaml
+# 集群部署样例,数据目录: ./data
+version: '3.8'
+
+services:
+  nacos:
+    image: qingpan/rnacos:stable
+    container_name: nacos
+    ports:
+      - "8848:8848"
+      - "9848:9848"
+      - "10848:10848"
+    volumes:
+      - ./data:/io:rw
+    environment:
+      - RNACOS_INIT_ADMIN_USERNAME=admin
+      - RNACOS_INIT_ADMIN_PASSWORD=admin
+      - RNACOS_HTTP_PORT=8848
+    restart: always
+
+```
+
+集群部署样列: [docker-compose.yaml](https://github.com/nacos-group/r-nacos/blob/master/docker/docker-compose/r-nacos-cluster/docker-compose.yaml)
+
+#### 方式4：通过 cargo 编译安装
 
 ```
 # 安装
@@ -93,7 +126,7 @@ cargo install rnacos
 rnacos
 ```
 
-方式4: 下载源码编译运行
+#### 方式5: 下载源码编译运行
 
 ```
 git clone https://github.com/r-nacos/r-nacos.git
@@ -102,7 +135,7 @@ cargo build --release
 cargo run --release
 ```
 
-方式5: MacOS支持通过brew安装
+#### 方式6: MacOS支持通过brew安装
 
 ```shell
 # 把r-nacos加入taps
@@ -118,12 +151,16 @@ rnacos
 # brew upgrade r-nacos 
 ```
 
+#### 方式7: 部署到k8s
 
-测试、试用推荐使用第1、第2种方式，直接下载就可以使用。
+k8s支持使用 [helm](https://github.com/nacos-group/r-nacos/tree/master/deploy/k8s/helm) 部署。
 
-在linux下第1种方式默认是musl版本(性能比gnu版本差一些)，在生产服务对性能有要求的可以考虑使用第2、第3、第4种在对应环境编译gnu版本部署。
 
-启动配置: 
+测试、试用推荐使用第1、第2、第3种方式，直接下载运行就可以使用。
+
+在linux下第1种方式默认是musl版本(性能比gnu版本差一些)，在生产服务对性能有要求的可以考虑使用第2、第3、第4、第5种在对应环境编译gnu版本部署。
+
+#### 启动配置: 
 
 | 参数KEY|内容描述|默认值|示例|开始支持的版本|
 |--|--|--|--|--|
