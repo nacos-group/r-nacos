@@ -23,6 +23,8 @@ pub struct UserDo {
     #[prost(map = "string, string", tag = "8")]
     pub extend_info:
         ::std::collections::HashMap<::prost::alloc::string::String, ::prost::alloc::string::String>,
+    #[prost(string, tag = "9")]
+    pub password_hash: Option<String>,
 }
 
 impl UserDo {
@@ -43,6 +45,7 @@ pub struct UserDto {
     pub username: Arc<String>,
     pub nickname: Option<String>,
     pub password: Option<String>,
+    pub password_hash: Option<String>,
     pub gmt_create: Option<i64>,
     pub gmt_modified: Option<i64>,
     pub enable: Option<bool>,
@@ -61,6 +64,7 @@ impl From<UserDo> for UserDto {
             nickname: Some(value.nickname),
             //password: Some(value.password),
             //不直接返回密码
+            password_hash: value.password_hash,
             password: None,
             gmt_create: Some(value.gmt_create as i64 * 1000),
             gmt_modified: Some(value.gmt_modified as i64 * 1000),
