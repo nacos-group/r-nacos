@@ -187,7 +187,7 @@ impl MetricsManager {
     fn load_sys_metrics(&mut self) {
         self.system.refresh_all();
         if let Some(process) = self.system.process(Pid::from_u32(self.current_process_id)) {
-            let cpu_usage = process.cpu_usage() as f32;
+            let cpu_usage = process.cpu_usage();
             let rss = process.memory() as f32 / (1024.0 * 1024.0);
             let vms = process.virtual_memory() as f32 / (1024.0 * 1024.0);
             let rss_usage = rss / self.total_memory * 100.0;

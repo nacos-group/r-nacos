@@ -614,7 +614,11 @@ impl NamingActor {
         page_index: usize,
         key: &ServiceKey,
     ) -> (usize, Vec<Arc<String>>) {
-        let offset = page_size * max(page_index - 1, 0);
+        let offset = if page_index == 0 {
+            0
+        } else {
+            page_size * (page_index - 1)
+        };
         let param = ServiceQueryParam {
             offset,
             limit: page_size,

@@ -113,7 +113,7 @@ impl NamingUtils {
                 ));
             }
             metadata.insert(
-                kv.get(0).unwrap().to_string(),
+                kv.first().unwrap().to_string(),
                 kv.get(1).unwrap().to_string(),
             );
         }

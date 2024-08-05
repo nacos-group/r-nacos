@@ -1,8 +1,5 @@
 use crate::metrics::metrics_key::MetricsKey;
-use crate::metrics::model::{
-    CounterValue, GaugeValue, HistogramValue, HistogramValueFmtWrap, SummaryValue,
-    SummaryValueFmtWrap,
-};
+use crate::metrics::model::{CounterValue, GaugeValue, HistogramValue, SummaryValue};
 use crate::metrics::summary::DEFAULT_SUMMARY_BOUNDS;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -46,7 +43,7 @@ impl TimelineGroupType {
         match self {
             TimelineGroupType::Least => 0,
             TimelineGroupType::Minute => 60_000,
-            TimelineGroupType::Hour => 3600_000,
+            TimelineGroupType::Hour => 3_600_000,
         }
     }
 
