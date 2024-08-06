@@ -101,13 +101,13 @@ pub fn app_config(conf_data: AppSysConfig) -> impl FnOnce(&mut ServiceConfig) {
                 );
             login_config(config);
             metrics_config(config);
-            config.configure(openapi_config(conf_data));
             raft_config(config);
+            config.configure(openapi_config(conf_data));
         } else {
             login_config(config);
             metrics_config(config);
-            config.configure(openapi_config(conf_data));
             raft_config(config);
+            config.configure(openapi_config(conf_data));
             console_api_config(config);
             console_api_config_v2(config);
             console_api_config_v1(config);
