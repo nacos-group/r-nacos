@@ -15,7 +15,7 @@
 6. 访问api: `curl "http://127.0.0.1:20795/hi?name=r-nacos"`
 
 ```sh
-curl "http://127.0.0.1:20785/hi?name=r-nacos"
+curl "http://127.0.0.1:20795/hi?name=r-nacos"
 [dubbo-demo-service] : Hello, r-nacos
 ```
 
