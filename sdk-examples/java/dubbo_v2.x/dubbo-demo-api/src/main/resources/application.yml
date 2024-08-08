@@ -1,0 +1,18 @@
+server:
+    port: 20795
+spring:
+  application:
+    name: dubbo-demo-api
+
+dubbo:
+  application:
+    logger: slf4j
+    name: ${spring.application.name}
+    qos-enable: false
+    check-serializable: false
+  registry:
+    address: nacos://${nacos.address:127.0.0.1}:8848?username=nacos&password=nacos
+  protocol:
+    port: 20895
+    name: dubbo
+
