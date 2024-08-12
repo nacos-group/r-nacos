@@ -23,7 +23,7 @@ pub struct UserDo {
     #[prost(map = "string, string", tag = "8")]
     pub extend_info:
         ::std::collections::HashMap<::prost::alloc::string::String, ::prost::alloc::string::String>,
-    #[prost(string, tag = "9")]
+    #[prost(string, optional, tag = "9")]
     pub password_hash: Option<String>,
 }
 

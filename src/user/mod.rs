@@ -5,7 +5,12 @@ use actix::prelude::*;
 use bean_factory::{bean, Inject};
 //use inner_mem_cache::MemCache;
 
+use self::{
+    model::{UserDo, UserDto},
+    permission::USER_ROLE_MANAGER,
+};
 use crate::common::constant::USER_TREE_NAME;
+use crate::common::string_utils::StringUtils;
 use crate::{
     now_millis,
     raft::{
@@ -17,14 +22,28 @@ use crate::{
     },
 };
 
-use self::{
-    model::{UserDo, UserDto},
-    permission::USER_ROLE_MANAGER,
-};
-
 pub mod api;
 pub mod model;
 pub mod permission;
+
+pub(crate) fn build_password_hash(password: &str) -> anyhow::Result<String> {
+    Ok(bcrypt::hash(password, 10u32)?)
+}
+
+pub(crate) fn verify_password_hash(password: &str, password_hash: &str) -> anyhow::Result<bool> {
+    Ok(bcrypt::verify(password, password_hash)?)
+}
+
+pub(crate) fn verify_password_hash_option(
+    password: &str,
+    password_hash: &Option<String>,
+) -> anyhow::Result<bool> {
+    if let Some(password_hash) = password_hash {
+        verify_password_hash(password, password_hash)
+    } else {
+        Err(anyhow::anyhow!("password_hash is empty"))
+    }
+}
 
 #[bean(inject)]
 pub struct UserManager {
@@ -193,9 +212,16 @@ impl Handler<UserManagerReq> for UserManager {
             match msg {
                 UserManagerReq::AddUser { user } => {
                     let now = (now_millis() / 1000) as u32;
+                    let password_hash = if let Some(password) = &user.password {
+                        build_password_hash(password).ok()
+                    } else {
+                        None
+                    };
                     let user_do = UserDo {
                         username: user.username.as_ref().to_owned(),
-                        password: user.password.unwrap_or_default(),
+                        // 新版本不存储原密码,启用后新版数据不支持降级回去使用
+                        password: String::new(),
+                        password_hash,
                         nickname: user.nickname.unwrap_or_default(),
                         gmt_create: now,
                         gmt_modified: now,
@@ -245,7 +271,9 @@ impl Handler<UserManagerReq> for UserManager {
                     }
                     if let Some(password) = user.password {
                         if !password.is_empty() {
-                            last_user.password = password;
+                            last_user.password_hash = build_password_hash(&password).ok();
+                            // 新版本不存储原密码
+                            last_user.password = String::new();
                         }
                     }
                     if let Some(enable) = user.enable {
@@ -294,9 +322,26 @@ impl Handler<UserManagerReq> for UserManager {
                     } else {
                         return Err(anyhow::anyhow!("raft_table_route is none "));
                     };
+                    let mut check_success = last_user.enable;
+                    if !StringUtils::is_none_or_empty(&last_user.password_hash) {
+                        check_success = check_success
+                            && verify_password_hash_option(&password, &last_user.password_hash)
+                                .unwrap_or(false);
+                        //debug info
+                        /*
+                        println!(
+                            "login CheckUser use password_hash,hash:{},check_result:{}",
+                            last_user.password_hash.as_ref().unwrap(),
+                            &check_success
+                        );
+                        */
+                    } else {
+                        //兼容老版本数据比较,以支持平滑从老版本升级到新版本
+                        check_success = check_success && last_user.password == password;
+                    }
                     Ok(UserManagerInnerCtx::CheckUserResult(
                         name,
-                        last_user.enable && last_user.password == password,
+                        check_success,
                         last_user,
                     ))
                 }
