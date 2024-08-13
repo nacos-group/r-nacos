@@ -3,6 +3,7 @@ pub mod config;
 pub mod console;
 pub mod grpc;
 pub mod metrics;
+pub mod namespace;
 pub mod naming;
 pub mod openapi;
 pub mod raft;
