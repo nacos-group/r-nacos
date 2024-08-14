@@ -76,6 +76,10 @@ pub async fn handle_route(
             let result = app.cache_manager.send(req).await??;
             return Ok(RouterResponse::CacheManagerResult { result });
         }
+        RouterRequest::NamespaceReq { req } => {
+            let result = app.namespace_addr.send(req).await??;
+            return Ok(RouterResponse::NamespaceResult { result });
+        }
     };
     Ok(RouterResponse::None)
 }

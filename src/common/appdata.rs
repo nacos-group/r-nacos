@@ -2,12 +2,13 @@ use crate::common::AppSysConfig;
 use crate::config::core::ConfigActor;
 use crate::grpc::bistream_manage::BiStreamManage;
 use crate::metrics::core::MetricsManager;
+use crate::namespace::NamespaceActor;
 use crate::naming::cluster::node_manage::{InnerNodeManage, NodeManage};
 use crate::naming::cluster::route::NamingRoute;
 use crate::naming::core::NamingActor;
 use crate::raft::cache::route::CacheRoute;
 use crate::raft::cache::CacheManager;
-use crate::raft::cluster::route::ConfigRoute;
+use crate::raft::cluster::route::{ConfigRoute, RaftRequestRoute};
 use crate::raft::db::route::TableRoute;
 use crate::raft::db::table::TableManager;
 use crate::raft::filestore::core::FileStore;
@@ -39,4 +40,6 @@ pub struct AppShareData {
     pub cache_manager: Addr<CacheManager>,
     pub timezone_offset: Arc<FixedOffset>,
     pub metrics_manager: Addr<MetricsManager>,
+    pub namespace_addr: Addr<NamespaceActor>,
+    pub raft_request_route: Arc<RaftRequestRoute>,
 }

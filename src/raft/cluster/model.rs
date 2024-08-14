@@ -3,6 +3,7 @@ use std::{collections::HashMap, sync::Arc};
 use serde::{Deserialize, Serialize};
 
 use crate::config::config_type::ConfigType;
+use crate::namespace::model::{NamespaceRaftReq, NamespaceRaftResult};
 use crate::{
     config::core::ConfigKey,
     raft::{
@@ -106,6 +107,9 @@ pub enum RouterRequest {
     CacheLimiterReq {
         req: CacheLimiterReq,
     },
+    NamespaceReq {
+        req: NamespaceRaftReq,
+    },
 }
 
 impl From<SetConfigReq> for RouterRequest {
@@ -136,9 +140,16 @@ impl From<CacheLimiterReq> for RouterRequest {
     }
 }
 
+impl From<NamespaceRaftReq> for RouterRequest {
+    fn from(req: NamespaceRaftReq) -> Self {
+        Self::NamespaceReq { req }
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum RouterResponse {
     None,
     TableManagerResult { result: TableManagerResult },
     CacheManagerResult { result: CacheManagerResult },
+    NamespaceResult { result: NamespaceRaftResult },
 }

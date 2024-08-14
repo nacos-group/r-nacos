@@ -2,15 +2,17 @@ use std::{fmt::Debug, sync::Arc};
 
 use actix::prelude::*;
 
+use super::model::{DelConfigReq, RouteAddr, RouterRequest, RouterResponse, SetConfigReq};
 use crate::grpc::handler::RAFT_ROUTE_REQUEST;
+use crate::namespace::model::{NamespaceRaftReq, NamespaceRaftResult};
+use crate::namespace::NamespaceActor;
+use crate::raft::cache::{CacheLimiterReq, CacheManagerResult};
 use crate::raft::filestore::core::FileStore;
 use crate::{
     config::core::{ConfigActor, ConfigAsyncCmd, ConfigCmd},
     grpc::PayloadUtils,
     raft::{network::factory::RaftClusterRequestSender, NacosRaft},
 };
-
-use super::model::{DelConfigReq, RouteAddr, RouterRequest, RouterResponse, SetConfigReq};
 
 #[derive(Clone)]
 pub struct RaftAddrRouter {
@@ -126,5 +128,56 @@ impl ConfigRoute {
             }
         }
         Ok(())
+    }
+}
+
+///
+/// raft 请求路由
+/// 之前不同raft类型请求路由分别用不同的对象处理；
+/// 后续考虑都使用这个对象统一处理；
+#[derive(Clone, Debug)]
+pub struct RaftRequestRoute {
+    raft_addr_route: Arc<RaftAddrRouter>,
+    cluster_sender: Arc<RaftClusterRequestSender>,
+    namespace_actor: Addr<NamespaceActor>,
+}
+
+impl RaftRequestRoute {
+    pub fn new(
+        raft_addr_route: Arc<RaftAddrRouter>,
+        cluster_sender: Arc<RaftClusterRequestSender>,
+        namespace_actor: Addr<NamespaceActor>,
+    ) -> Self {
+        Self {
+            raft_addr_route,
+            cluster_sender,
+            namespace_actor,
+        }
+    }
+
+    fn unknown_err(&self) -> anyhow::Error {
+        anyhow::anyhow!("unknown the raft leader addr!")
+    }
+
+    pub async fn request_namespace(
+        &self,
+        req: NamespaceRaftReq,
+    ) -> anyhow::Result<NamespaceRaftResult> {
+        match self.raft_addr_route.get_route_addr().await? {
+            RouteAddr::Local => self.namespace_actor.send(req).await?,
+            RouteAddr::Remote(_, addr) => {
+                let req: RouterRequest = req.into();
+                let request = serde_json::to_string(&req).unwrap_or_default();
+                let payload = PayloadUtils::build_payload(RAFT_ROUTE_REQUEST, request);
+                let resp_payload = self.cluster_sender.send_request(addr, payload).await?;
+                let body_vec = resp_payload.body.unwrap_or_default().value;
+                let resp: RouterResponse = serde_json::from_slice(&body_vec)?;
+                match resp {
+                    RouterResponse::NamespaceResult { result } => Ok(result),
+                    _ => Err(anyhow::anyhow!("response type is error!")),
+                }
+            }
+            RouteAddr::Unknown => Err(self.unknown_err()),
+        }
     }
 }
