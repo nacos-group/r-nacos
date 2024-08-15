@@ -3,13 +3,13 @@
 
 use std::sync::Arc;
 
+use super::db::table::TableManagerReq;
+use crate::namespace::model::NamespaceRaftReq;
 use async_raft_ext::AppData;
 use async_raft_ext::AppDataResponse;
 use serde::Deserialize;
 use serde::Serialize;
 use thiserror::Error;
-
-use super::db::table::TableManagerReq;
 
 pub type NodeId = u64;
 
@@ -34,6 +34,7 @@ pub enum ClientRequest {
         key: String,
     },
     TableManagerReq(TableManagerReq),
+    NamespaceReq(NamespaceRaftReq),
 }
 
 impl AppData for ClientRequest {}

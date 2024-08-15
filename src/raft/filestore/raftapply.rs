@@ -85,6 +85,9 @@ impl LogRecordLoader for LogRecordLoaderInstance {
                 ClientRequest::TableManagerReq(req) => {
                     self.data_wrap.table.do_send(req);
                 }
+                ClientRequest::NamespaceReq(req) => {
+                    self.data_wrap.namespace.do_send(req);
+                }
             },
             _ => {}
         }
@@ -338,6 +341,11 @@ impl StateApplyManager {
                     raft_data_wrap.table.do_send(req);
                 }
             }
+            ClientRequest::NamespaceReq(req) => {
+                if let Some(raft_data_wrap) = &self.data_wrap {
+                    raft_data_wrap.namespace.do_send(req);
+                }
+            }
         };
         Ok(())
     }
@@ -391,6 +399,10 @@ impl StateApplyManager {
             }
             ClientRequest::TableManagerReq(req) => {
                 raft_data_wrap.table.send(req).await??;
+                Ok(ClientResponse::Success)
+            }
+            ClientRequest::NamespaceReq(req) => {
+                raft_data_wrap.namespace.send(req).await??;
                 Ok(ClientResponse::Success)
             }
         };

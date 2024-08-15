@@ -175,12 +175,6 @@ pub async fn config_factory(sys_config: Arc<AppSysConfig>) -> anyhow::Result<Fac
         cluster_sender.clone(),
     ));
     factory.register(BeanDefinition::from_obj(cache_route));
-    let raft_data_wrap = Arc::new(RaftDataWrap {
-        config: config_addr.clone(),
-        table: table_manage.clone(),
-        //cache: cache_manager.clone(),
-    });
-    factory.register(BeanDefinition::from_obj(raft_data_wrap));
     let metrics_manager = MetricsManager::new().start();
     factory.register(BeanDefinition::actor_with_inject_from_obj(metrics_manager));
     let namespace_addr = NamespaceActor::new().start();
@@ -190,9 +184,16 @@ pub async fn config_factory(sys_config: Arc<AppSysConfig>) -> anyhow::Result<Fac
     let raft_request_route = Arc::new(RaftRequestRoute::new(
         raft_addr_router.clone(),
         cluster_sender.clone(),
-        namespace_addr.clone(),
+        raft.clone(),
     ));
     factory.register(BeanDefinition::from_obj(raft_request_route));
+    let raft_data_wrap = Arc::new(RaftDataWrap {
+        config: config_addr.clone(),
+        table: table_manage.clone(),
+        namespace: namespace_addr.clone(),
+        //cache: cache_manager.clone(),
+    });
+    factory.register(BeanDefinition::from_obj(raft_data_wrap));
 
     Ok(factory.init().await)
 }

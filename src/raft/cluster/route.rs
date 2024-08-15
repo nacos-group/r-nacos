@@ -1,18 +1,17 @@
 use std::{fmt::Debug, sync::Arc};
 
-use actix::prelude::*;
-
 use super::model::{DelConfigReq, RouteAddr, RouterRequest, RouterResponse, SetConfigReq};
 use crate::grpc::handler::RAFT_ROUTE_REQUEST;
 use crate::namespace::model::{NamespaceRaftReq, NamespaceRaftResult};
-use crate::namespace::NamespaceActor;
-use crate::raft::cache::{CacheLimiterReq, CacheManagerResult};
 use crate::raft::filestore::core::FileStore;
+use crate::raft::store::{ClientRequest, ClientResponse};
 use crate::{
     config::core::{ConfigActor, ConfigAsyncCmd, ConfigCmd},
     grpc::PayloadUtils,
     raft::{network::factory::RaftClusterRequestSender, NacosRaft},
 };
+use actix::prelude::*;
+use async_raft_ext::raft::ClientWriteRequest;
 
 #[derive(Clone)]
 pub struct RaftAddrRouter {
@@ -135,23 +134,23 @@ impl ConfigRoute {
 /// raft 请求路由
 /// 之前不同raft类型请求路由分别用不同的对象处理；
 /// 后续考虑都使用这个对象统一处理；
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct RaftRequestRoute {
     raft_addr_route: Arc<RaftAddrRouter>,
     cluster_sender: Arc<RaftClusterRequestSender>,
-    namespace_actor: Addr<NamespaceActor>,
+    raft: Arc<NacosRaft>,
 }
 
 impl RaftRequestRoute {
     pub fn new(
         raft_addr_route: Arc<RaftAddrRouter>,
         cluster_sender: Arc<RaftClusterRequestSender>,
-        namespace_actor: Addr<NamespaceActor>,
+        raft: Arc<NacosRaft>,
     ) -> Self {
         Self {
             raft_addr_route,
             cluster_sender,
-            namespace_actor,
+            raft,
         }
     }
 
@@ -164,7 +163,17 @@ impl RaftRequestRoute {
         req: NamespaceRaftReq,
     ) -> anyhow::Result<NamespaceRaftResult> {
         match self.raft_addr_route.get_route_addr().await? {
-            RouteAddr::Local => self.namespace_actor.send(req).await?,
+            RouteAddr::Local => {
+                let resp = self
+                    .raft
+                    .client_write(ClientWriteRequest::new(ClientRequest::NamespaceReq(req)))
+                    .await?;
+                if let ClientResponse::Success = resp.data {
+                    Ok(NamespaceRaftResult::None)
+                } else {
+                    Err(anyhow::anyhow!("response type is error!"))
+                }
+            }
             RouteAddr::Remote(_, addr) => {
                 let req: RouterRequest = req.into();
                 let request = serde_json::to_string(&req).unwrap_or_default();

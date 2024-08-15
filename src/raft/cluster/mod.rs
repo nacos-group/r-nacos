@@ -2,12 +2,13 @@ use std::sync::Arc;
 
 use async_raft_ext::raft::ClientWriteRequest;
 
+use self::model::{RouterRequest, RouterResponse};
+use crate::namespace::model::NamespaceRaftResult;
+use crate::raft::store::ClientResponse;
 use crate::{
     common::appdata::AppShareData,
     config::core::{ConfigAsyncCmd, ConfigKey},
 };
-
-use self::model::{RouterRequest, RouterResponse};
 
 use super::{db::table::TableManagerAsyncReq, join_node, store::ClientRequest};
 
@@ -77,8 +78,15 @@ pub async fn handle_route(
             return Ok(RouterResponse::CacheManagerResult { result });
         }
         RouterRequest::NamespaceReq { req } => {
-            let result = app.namespace_addr.send(req).await??;
-            return Ok(RouterResponse::NamespaceResult { result });
+            let resp = app
+                .raft
+                .client_write(ClientWriteRequest::new(ClientRequest::NamespaceReq(req)))
+                .await?;
+            if let ClientResponse::Success = resp.data {
+                return Ok(RouterResponse::NamespaceResult {
+                    result: NamespaceRaftResult::None,
+                });
+            }
         }
     };
     Ok(RouterResponse::None)

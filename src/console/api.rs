@@ -1,10 +1,9 @@
 use std::sync::Arc;
 
-use actix::prelude::*;
+//use actix::prelude::*;
 use actix_web::{http::header, web, HttpResponse, Responder};
 
 use crate::common::appdata::AppShareData;
-use crate::config::core::ConfigActor;
 
 use crate::naming::ops::ops_api::query_opt_service_list;
 use crate::openapi::naming::instance::{del_instance, get_instance, update_instance};
