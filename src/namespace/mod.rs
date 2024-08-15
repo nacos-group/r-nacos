@@ -2,11 +2,14 @@ pub mod model;
 
 use crate::common::constant::EMPTY_ARC_STRING;
 use crate::config::core::ConfigActor;
-use crate::namespace::model::{Namespace, NamespaceParam, NamespaceRaftReq, NamespaceRaftResult};
+use crate::namespace::model::{
+    Namespace, NamespaceParam, NamespaceQueryReq, NamespaceQueryResult, NamespaceRaftReq,
+    NamespaceRaftResult,
+};
 use crate::naming::core::NamingActor;
 use actix::prelude::*;
 use bean_factory::{bean, BeanFactory, FactoryData, Inject};
-use std::collections::{HashMap, LinkedList};
+use std::collections::HashMap;
 use std::sync::Arc;
 
 pub const DEFAULT_NAMESPACE: &str = "public";
@@ -15,7 +18,7 @@ pub const DEFAULT_NAMESPACE: &str = "public";
 #[derive(Default, Clone)]
 pub struct NamespaceActor {
     data: HashMap<Arc<String>, Arc<Namespace>>,
-    id_order_list: LinkedList<Arc<String>>,
+    id_order_list: Vec<Arc<String>>,
     config_addr: Option<Addr<ConfigActor>>,
     naming_addr: Option<Addr<NamingActor>>,
 }
@@ -82,6 +85,7 @@ impl NamespaceActor {
             };
             value
         } else {
+            self.id_order_list.push(param.namespace_id.clone());
             Namespace {
                 namespace_id: param.namespace_id,
                 namespace_name: param.namespace_name.unwrap_or_default(),
@@ -92,8 +96,35 @@ impl NamespaceActor {
             .insert(value.namespace_id.clone(), Arc::new(value));
     }
 
+    fn remove_id(&mut self, id: &Arc<String>) {
+        for (i, item) in self.id_order_list.iter().enumerate() {
+            if id == item {
+                self.id_order_list.remove(i);
+                break;
+            }
+        }
+    }
+
     fn delete(&mut self, id: &Arc<String>) -> bool {
-        self.data.remove(id).is_some()
+        if id.is_empty() {
+            return false;
+        }
+        if self.data.remove(id).is_some() {
+            self.remove_id(id);
+            true
+        } else {
+            false
+        }
+    }
+
+    fn query_list(&mut self) -> Vec<Arc<Namespace>> {
+        let mut list = Vec::with_capacity(self.id_order_list.len());
+        for id in self.id_order_list.iter() {
+            if let Some(v) = self.data.get(id) {
+                list.push(v.clone());
+            }
+        }
+        list
     }
 }
 
@@ -102,7 +133,7 @@ impl Handler<NamespaceRaftReq> for NamespaceActor {
 
     fn handle(&mut self, msg: NamespaceRaftReq, _ctx: &mut Self::Context) -> Self::Result {
         match msg {
-            NamespaceRaftReq::AddIfNotExist(v) => {
+            NamespaceRaftReq::Update(v) => {
                 self.set_namespace(v, true);
                 Ok(NamespaceRaftResult::None)
             }
@@ -113,6 +144,18 @@ impl Handler<NamespaceRaftReq> for NamespaceActor {
             NamespaceRaftReq::Delete { id } => {
                 self.delete(&id);
                 Ok(NamespaceRaftResult::None)
+            }
+        }
+    }
+}
+
+impl Handler<NamespaceQueryReq> for NamespaceActor {
+    type Result = anyhow::Result<NamespaceQueryResult>;
+    fn handle(&mut self, msg: NamespaceQueryReq, _ctx: &mut Self::Context) -> Self::Result {
+        match msg {
+            NamespaceQueryReq::List => {
+                let list = self.query_list();
+                Ok(NamespaceQueryResult::List(list))
             }
         }
     }

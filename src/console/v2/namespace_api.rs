@@ -7,8 +7,10 @@ use actix::Addr;
 use actix_web::{web, HttpResponse, Responder};
 use std::sync::Arc;
 
-pub async fn query_namespace_list(config_addr: web::Data<Addr<ConfigActor>>) -> impl Responder {
-    let namespaces = NamespaceUtils::get_namespaces(&config_addr).await;
+pub async fn query_namespace_list(app_data: web::Data<Arc<AppShareData>>) -> impl Responder {
+    let namespaces = NamespaceUtils::get_namespaces(&app_data)
+        .await
+        .unwrap_or_default();
     HttpResponse::Ok().json(ApiResult::success(Some(namespaces)))
 }
 

@@ -22,12 +22,24 @@ pub struct NamespaceParam {
 #[derive(Message, Clone, Debug, Serialize, Deserialize)]
 #[rtype(result = "anyhow::Result<NamespaceRaftResult>")]
 pub enum NamespaceRaftReq {
-    AddIfNotExist(NamespaceParam),
+    Update(NamespaceParam),
     Set(NamespaceParam),
     Delete { id: Arc<String> },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum NamespaceRaftResult {
+    None,
+}
+
+#[derive(Message, Clone, Debug, Serialize, Deserialize)]
+#[rtype(result = "anyhow::Result<NamespaceQueryResult>")]
+pub enum NamespaceQueryReq {
+    List,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum NamespaceQueryResult {
+    List(Vec<Arc<Namespace>>),
     None,
 }

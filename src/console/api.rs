@@ -24,9 +24,11 @@ use super::{login_api, user_api};
 
 use super::v2;
 
-pub async fn query_namespace_list(config_addr: web::Data<Addr<ConfigActor>>) -> impl Responder {
+pub async fn query_namespace_list(app_data: web::Data<Arc<AppShareData>>) -> impl Responder {
     //HttpResponse::InternalServerError().body("system error")
-    let namespaces = NamespaceUtils::get_namespaces(&config_addr).await;
+    let namespaces = NamespaceUtils::get_namespaces(&app_data)
+        .await
+        .unwrap_or_default();
     let result = ConsoleResult::success(namespaces);
     let v = serde_json::to_string(&result).unwrap();
     HttpResponse::Ok()

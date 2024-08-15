@@ -12,6 +12,8 @@ pub mod v2;
 
 use std::sync::Arc;
 
+use self::model::NamespaceInfo;
+use crate::namespace::model::{NamespaceQueryReq, NamespaceQueryResult, NamespaceRaftReq};
 use crate::{
     common::appdata::AppShareData,
     config::core::{ConfigActor, ConfigCmd, ConfigKey, ConfigResult},
@@ -19,9 +21,7 @@ use crate::{
 };
 use actix::prelude::*;
 
-use self::model::NamespaceInfo;
-
-pub struct NamespaceUtils;
+pub struct NamespaceUtilsOld;
 
 pub const DEFAULT_NAMESPACE: &str = "public";
 pub const SYSCONFIG_NAMESPACE: &str = "__INNER_SYSTEM__";
@@ -30,13 +30,13 @@ pub const SYSCONFIG_NAMESPACE_KEY: &str = "namespaces";
 
 lazy_static::lazy_static! {
     static ref DEFAULT_NAMESPACE_INFO:Arc<NamespaceInfo> = Arc::new(NamespaceInfo {
-            namespace_id: Some("".to_owned()),
+            namespace_id: Some(Arc::new("".to_owned())),
             namespace_name: Some(DEFAULT_NAMESPACE.to_owned()),
             r#type: Some("0".to_owned()),
     });
 }
 
-impl NamespaceUtils {
+impl NamespaceUtilsOld {
     pub async fn get_namespaces(config_addr: &Addr<ConfigActor>) -> Vec<Arc<NamespaceInfo>> {
         let cmd = ConfigCmd::GET(ConfigKey::new(
             SYSCONFIG_NAMESPACE_KEY,
@@ -118,12 +118,12 @@ impl NamespaceUtils {
     ) -> anyhow::Result<()> {
         if let (Some(namespace_id), Some(namespace_name)) = (info.namespace_id, info.namespace_name)
         {
-            if namespace_id.is_empty() || namespace_id.eq(DEFAULT_NAMESPACE) {
+            if namespace_id.is_empty() || namespace_id.as_ref().eq(DEFAULT_NAMESPACE) {
                 return Err(anyhow::anyhow!("namespace is exist"));
             }
             let mut infos = Self::load_namespace_from_config(&app_data.config_addr).await;
             for item in &infos {
-                if namespace_id.eq(item.namespace_id.as_ref().unwrap() as &str) {
+                if namespace_id.eq(item.namespace_id.as_ref().unwrap()) {
                     return Err(anyhow::anyhow!("namespace is exist"));
                 }
             }
@@ -145,14 +145,14 @@ impl NamespaceUtils {
     ) -> anyhow::Result<()> {
         if let (Some(namespace_id), Some(namespace_name)) = (info.namespace_id, info.namespace_name)
         {
-            if namespace_id.is_empty() || namespace_id.eq(DEFAULT_NAMESPACE) {
+            if namespace_id.is_empty() || namespace_id.as_ref().eq(DEFAULT_NAMESPACE) {
                 return Err(anyhow::anyhow!("namespace can't update"));
             }
             let infos = Self::load_namespace_from_config(&app_data.config_addr).await;
             let mut new_infos = Vec::with_capacity(infos.len());
             let mut update_mark = false;
             for mut item in infos {
-                if namespace_id.eq(item.namespace_id.as_ref().unwrap() as &str) {
+                if namespace_id.eq(item.namespace_id.as_ref().unwrap()) {
                     item.namespace_name = Some(namespace_name.clone());
                     update_mark = true;
                 }
@@ -191,5 +191,60 @@ impl NamespaceUtils {
         } else {
             Err(anyhow::anyhow!("params is empty"))
         }
+    }
+}
+
+pub struct NamespaceUtils;
+impl NamespaceUtils {
+    pub async fn get_namespaces(
+        app_share_data: &Arc<AppShareData>,
+    ) -> anyhow::Result<Vec<NamespaceInfo>> {
+        let res = app_share_data
+            .namespace_addr
+            .send(NamespaceQueryReq::List)
+            .await??;
+        if let NamespaceQueryResult::List(list) = res {
+            Ok(list
+                .into_iter()
+                .map(|e| e.as_ref().to_owned().into())
+                .collect())
+        } else {
+            Err(anyhow::anyhow!("NamespaceQueryResult is error"))
+        }
+    }
+
+    pub async fn add_namespace(
+        app_data: &Arc<AppShareData>,
+        info: NamespaceInfo,
+    ) -> anyhow::Result<()> {
+        app_data
+            .raft_request_route
+            .request_namespace(NamespaceRaftReq::Set(info.into()))
+            .await?;
+        Ok(())
+    }
+
+    pub async fn update_namespace(
+        app_data: &Arc<AppShareData>,
+        info: NamespaceInfo,
+    ) -> anyhow::Result<()> {
+        app_data
+            .raft_request_route
+            .request_namespace(NamespaceRaftReq::Update(info.into()))
+            .await?;
+        Ok(())
+    }
+
+    pub async fn remove_namespace(
+        app_data: &Arc<AppShareData>,
+        namespace_id: Option<Arc<String>>,
+    ) -> anyhow::Result<()> {
+        app_data
+            .raft_request_route
+            .request_namespace(NamespaceRaftReq::Delete {
+                id: namespace_id.unwrap_or_default(),
+            })
+            .await?;
+        Ok(())
     }
 }

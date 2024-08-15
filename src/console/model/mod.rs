@@ -6,14 +6,36 @@ pub mod naming_model;
 pub mod raft_model;
 pub mod user_model;
 
+use crate::namespace::model::{Namespace, NamespaceParam};
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct NamespaceInfo {
-    pub namespace_id: Option<String>,
+    pub namespace_id: Option<Arc<String>>,
     pub namespace_name: Option<String>,
     pub r#type: Option<String>,
+}
+
+impl From<Namespace> for NamespaceInfo {
+    fn from(value: Namespace) -> Self {
+        Self {
+            namespace_id: Some(value.namespace_id),
+            namespace_name: Some(value.namespace_name),
+            r#type: Some(value.r#type),
+        }
+    }
+}
+
+impl From<NamespaceInfo> for NamespaceParam {
+    fn from(value: NamespaceInfo) -> Self {
+        Self {
+            namespace_id: value.namespace_id.unwrap_or_default(),
+            namespace_name: value.namespace_name,
+            r#type: value.r#type,
+        }
+    }
 }
 
 #[derive(Clone, Serialize, Deserialize, Default)]
