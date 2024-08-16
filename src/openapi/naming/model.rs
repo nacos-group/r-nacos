@@ -1,4 +1,5 @@
 #![allow(unused_imports, unused_assignments, unused_variables)]
+use crate::common::option_utils::OptionUtils;
 use crate::naming::model::{Instance, ServiceKey};
 use crate::naming::NamingUtils;
 use crate::utils::{get_bool_from_string, select_option_by_clone};
@@ -24,19 +25,19 @@ pub struct InstanceWebParams {
 }
 
 impl InstanceWebParams {
-    pub(crate) fn select_option(&self, o: &Self) -> Self {
+    pub(crate) fn merge(self, o: Self) -> Self {
         Self {
-            ip: select_option_by_clone(&self.ip, &o.ip),
-            port: select_option_by_clone(&self.port, &o.port),
-            namespace_id: select_option_by_clone(&self.namespace_id, &o.namespace_id),
-            weight: select_option_by_clone(&self.weight, &o.weight),
-            enabled: select_option_by_clone(&self.enabled, &o.enabled),
-            healthy: select_option_by_clone(&self.healthy, &o.healthy),
-            ephemeral: select_option_by_clone(&self.ephemeral, &o.ephemeral),
-            metadata: select_option_by_clone(&self.metadata, &o.metadata),
-            cluster_name: select_option_by_clone(&self.cluster_name, &o.cluster_name),
-            service_name: select_option_by_clone(&self.service_name, &o.service_name),
-            group_name: select_option_by_clone(&self.group_name, &o.group_name),
+            ip: OptionUtils::select(self.ip, o.ip),
+            port: OptionUtils::select(self.port, o.port),
+            namespace_id: OptionUtils::select(self.namespace_id, o.namespace_id),
+            weight: OptionUtils::select(self.weight, o.weight),
+            enabled: OptionUtils::select(self.enabled, o.enabled),
+            healthy: OptionUtils::select(self.healthy, o.healthy),
+            ephemeral: OptionUtils::select(self.ephemeral, o.ephemeral),
+            metadata: OptionUtils::select(self.metadata, o.metadata),
+            cluster_name: OptionUtils::select(self.cluster_name, o.cluster_name),
+            service_name: OptionUtils::select(self.service_name, o.service_name),
+            group_name: OptionUtils::select(self.group_name, o.group_name),
         }
     }
 
@@ -175,16 +176,16 @@ pub struct BeatRequest {
 }
 
 impl BeatRequest {
-    pub(crate) fn select_option(&self, o: &Self) -> Self {
+    pub(crate) fn merge(self, o: Self) -> Self {
         Self {
-            namespace_id: select_option_by_clone(&self.namespace_id, &o.namespace_id),
-            cluster_name: select_option_by_clone(&self.cluster_name, &o.cluster_name),
-            service_name: select_option_by_clone(&self.service_name, &o.service_name),
-            group_name: select_option_by_clone(&self.group_name, &o.group_name),
-            ephemeral: select_option_by_clone(&self.ephemeral, &o.ephemeral),
-            beat: select_option_by_clone(&self.beat, &o.beat),
-            ip: select_option_by_clone(&self.ip, &o.ip),
-            port: select_option_by_clone(&self.port, &o.port),
+            namespace_id: OptionUtils::select(self.namespace_id, o.namespace_id),
+            cluster_name: OptionUtils::select(self.cluster_name, o.cluster_name),
+            service_name: OptionUtils::select(self.service_name, o.service_name),
+            group_name: OptionUtils::select(self.group_name, o.group_name),
+            ephemeral: OptionUtils::select(self.ephemeral, o.ephemeral),
+            beat: OptionUtils::select(self.beat, o.beat),
+            ip: OptionUtils::select(self.ip, o.ip),
+            port: OptionUtils::select(self.port, o.port),
         }
     }
 

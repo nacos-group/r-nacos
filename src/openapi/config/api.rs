@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::common::appdata::AppShareData;
 use crate::common::model::ApiResult;
+use crate::common::option_utils::OptionUtils;
 use crate::common::string_utils::StringUtils;
 use crate::common::web_utils::get_req_body;
 use crate::config::config_index::ConfigQueryParam;
@@ -19,6 +20,7 @@ use crate::config::core::{
 use crate::config::utils::param_utils;
 use crate::config::ConfigUtils;
 use crate::console::v2::ERROR_CODE_SYSTEM_ERROR;
+use crate::merge_web_param;
 use crate::openapi::constant::EMPTY;
 use crate::raft::cluster::model::{DelConfigReq, SetConfigReq};
 use crate::utils::select_option_by_clone;
@@ -87,17 +89,17 @@ impl From<ConfigInfoDto> for ConfigInfo {
 }
 
 impl ConfigWebParams {
-    pub fn select_option(&self, o: &Self) -> Self {
+    pub fn merge(self, other: Self) -> Self {
         Self {
-            data_id: select_option_by_clone(&self.data_id, &o.data_id),
-            group: select_option_by_clone(&self.group, &o.group),
-            tenant: select_option_by_clone(&self.tenant, &o.tenant),
-            content: select_option_by_clone(&self.content, &o.content),
-            desc: select_option_by_clone(&self.desc, &o.desc),
-            r#type: select_option_by_clone(&self.r#type, &o.r#type),
-            search: select_option_by_clone(&self.search, &o.search),
-            page_no: select_option_by_clone(&self.page_no, &o.page_no),
-            page_size: select_option_by_clone(&self.page_size, &o.page_size),
+            data_id: OptionUtils::select(self.data_id, other.data_id),
+            group: OptionUtils::select(self.group, other.group),
+            tenant: OptionUtils::select(self.tenant, other.tenant),
+            content: OptionUtils::select(self.content, other.content),
+            desc: OptionUtils::select(self.desc, other.desc),
+            r#type: OptionUtils::select(self.r#type, other.r#type),
+            search: OptionUtils::select(self.search, other.search),
+            page_no: OptionUtils::select(self.page_no, other.page_no),
+            page_size: OptionUtils::select(self.page_size, other.page_size),
         }
     }
 
@@ -177,19 +179,7 @@ pub(crate) async fn add_config(
     payload: web::Payload,
     appdata: web::Data<Arc<AppShareData>>,
 ) -> impl Responder {
-    let body = match get_req_body(payload).await {
-        Ok(v) => v,
-        Err(err) => {
-            return HttpResponse::InternalServerError().body(err.to_string());
-        }
-    };
-    let b = match serde_urlencoded::from_bytes(&body) {
-        Ok(v) => v,
-        Err(err) => {
-            return HttpResponse::InternalServerError().body(err.to_string());
-        }
-    };
-    let selected_param = a.select_option(&b);
+    let selected_param = merge_web_param!(a.0, payload);
     match param_utils::check_tenant(&selected_param.tenant) {
         Ok(v) => v,
         Err(err) => {
@@ -236,20 +226,7 @@ pub(crate) async fn del_config(
     payload: web::Payload,
     appdata: web::Data<Arc<AppShareData>>,
 ) -> impl Responder {
-    let body = match get_req_body(payload).await {
-        Ok(v) => v,
-        Err(err) => {
-            return HttpResponse::InternalServerError().body(err.to_string());
-        }
-    };
-    let b = match serde_urlencoded::from_bytes(&body) {
-        Ok(v) => v,
-        Err(err) => {
-            return HttpResponse::InternalServerError().body(err.to_string());
-        }
-    };
-
-    let selected_param = a.select_option(&b);
+    let selected_param = merge_web_param!(a.0, payload);
     match param_utils::check_tenant(&selected_param.tenant) {
         Ok(v) => v,
         Err(err) => {
