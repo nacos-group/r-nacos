@@ -100,51 +100,6 @@ pub async fn remove_namespace(
     }
 }
 
-pub fn console_api_config(config: &mut web::ServiceConfig) {
-    config.service(
-        web::scope("/nacos/v1/console")
-            .service(
-                web::resource("/namespaces")
-                    .route(web::get().to(query_namespace_list))
-                    .route(web::post().to(add_namespace))
-                    .route(web::put().to(update_namespace))
-                    .route(web::delete().to(remove_namespace)),
-            )
-            .service(web::resource("/configs").route(web::get().to(query_config_list)))
-            .service(web::resource("/config/import").route(web::post().to(import_config)))
-            .service(web::resource("/config/download").route(web::get().to(download_config)))
-            .service(
-                web::resource("/config/history").route(web::get().to(query_history_config_page)),
-            )
-            .service(web::resource("/instances").route(web::get().to(query_ops_instances_list)))
-            .service(
-                web::resource("/naming/client_instance_count")
-                    .route(web::get().to(query_grpc_client_instance_count)),
-            )
-            .service(
-                web::resource("/cluster/cluster_node_list")
-                    .route(web::get().to(query_cluster_info)),
-            )
-            .service(web::resource("/connections").route(web::get().to(query_grpc_connection)))
-            .service(web::resource("/login/login").route(web::post().to(login_api::login)))
-            .service(web::resource("/login/captcha").route(web::get().to(login_api::gen_captcha)))
-            .service(web::resource("/login/logout").route(web::post().to(login_api::logout)))
-            .service(web::resource("/user/info").route(web::get().to(user_api::get_user_info)))
-            .service(
-                web::resource("/user/web_resources")
-                    .route(web::get().to(user_api::get_user_web_resources)),
-            )
-            .service(web::resource("/user/list").route(web::get().to(user_api::get_user_page_list)))
-            .service(web::resource("/user/add").route(web::post().to(user_api::add_user)))
-            .service(web::resource("/user/update").route(web::post().to(user_api::update_user)))
-            .service(web::resource("/user/remove").route(web::post().to(user_api::remove_user)))
-            .service(
-                web::resource("/user/reset_password")
-                    .route(web::post().to(user_api::reset_password)),
-            ),
-    );
-}
-
 pub fn console_api_config_v1(config: &mut web::ServiceConfig) {
     config.service(
         web::scope("/rnacos/api/console")

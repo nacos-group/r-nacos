@@ -1,0 +1,129 @@
+use crate::common::appdata::AppShareData;
+use crate::common::option_utils::OptionUtils;
+use crate::common::string_utils::StringUtils;
+use crate::config::core::ConfigActor;
+use crate::console::model::{ConsoleResult, NamespaceInfo};
+use crate::console::NamespaceUtils;
+use actix::Addr;
+use actix_web::{web, HttpResponse, Responder};
+use serde::{Deserialize, Serialize};
+use std::sync::Arc;
+use uuid::Uuid;
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct NamespaceVO {
+    pub namespace: Option<String>,
+    pub namespace_show_name: Option<String>,
+    pub namespace_desc: Option<String>,
+    pub quota: u32,
+    pub config_count: u32,
+    pub r#type: u32,
+}
+
+impl From<NamespaceInfo> for NamespaceVO {
+    fn from(value: NamespaceInfo) -> Self {
+        Self {
+            namespace: value.namespace_id,
+            namespace_show_name: value.namespace_name,
+            namespace_desc: None,
+            quota: 200,
+            config_count: 0,
+            r#type: value
+                .r#type
+                .unwrap_or("2".to_string())
+                .parse()
+                .unwrap_or_default(),
+        }
+    }
+}
+
+///
+/// 命名空间接口参数
+/// 这里参数字段需要与nacos对应接口完全兼容
+///
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct NamespaceParam {
+    /// custom_namespace_id,创建时的id
+    pub custom_namespace_id: Option<String>,
+    /// namespace,更新时的id
+    pub namespace: Option<String>,
+    /// namespace_id,删除时的id
+    pub namespace_id: Option<String>,
+    /// namespace_name,创建时的名称
+    pub namespace_name: Option<String>,
+    /// namespace_show_name,更新时的名称
+    pub namespace_show_name: Option<String>,
+    pub namespace_desc: Option<String>,
+}
+
+impl From<NamespaceParam> for NamespaceInfo {
+    fn from(value: NamespaceParam) -> Self {
+        Self {
+            namespace_id: OptionUtils::select(
+                OptionUtils::select(value.custom_namespace_id, value.namespace),
+                value.namespace_id,
+            ),
+            namespace_name: OptionUtils::select(value.namespace_show_name, value.namespace_name),
+            r#type: None,
+        }
+    }
+}
+
+pub async fn query_namespace_list(config_addr: web::Data<Addr<ConfigActor>>) -> impl Responder {
+    //HttpResponse::InternalServerError().body("system error")
+    let namespaces = NamespaceUtils::get_namespaces(&config_addr).await;
+    let list: Vec<NamespaceVO> = namespaces
+        .iter()
+        .map(|e| e.as_ref().to_owned().into())
+        .collect();
+    let result = ConsoleResult::success(list);
+    HttpResponse::Ok().json(result)
+}
+
+pub async fn add_namespace(
+    param: web::Form<NamespaceParam>,
+    app_data: web::Data<Arc<AppShareData>>,
+) -> impl Responder {
+    let mut param: NamespaceInfo = param.0.into();
+    if StringUtils::is_option_empty(&param.namespace_id) {
+        param.namespace_id = Some(Uuid::new_v4().to_string());
+    }
+    match NamespaceUtils::add_namespace(&app_data, param).await {
+        Ok(_) => HttpResponse::Ok()
+            .content_type("text/html; charset=utf-8")
+            .body("true"),
+        Err(e) => HttpResponse::InternalServerError()
+            .content_type("text/html; charset=utf-8")
+            .body(e.to_string()),
+    }
+}
+
+pub async fn update_namespace(
+    param: web::Form<NamespaceParam>,
+    app_data: web::Data<Arc<AppShareData>>,
+) -> impl Responder {
+    match NamespaceUtils::update_namespace(&app_data, param.0.into()).await {
+        Ok(_) => HttpResponse::Ok()
+            .content_type("text/html; charset=utf-8")
+            .body("true"),
+        Err(e) => HttpResponse::InternalServerError()
+            .content_type("text/html; charset=utf-8")
+            .body(e.to_string()),
+    }
+}
+
+pub async fn remove_namespace(
+    param: web::Form<NamespaceParam>,
+    app_data: web::Data<Arc<AppShareData>>,
+) -> impl Responder {
+    match NamespaceUtils::remove_namespace(&app_data, param.0.namespace_id).await {
+        Ok(_) => HttpResponse::Ok()
+            .content_type("text/html; charset=utf-8")
+            .body("true"),
+        Err(e) => HttpResponse::InternalServerError()
+            .content_type("text/html; charset=utf-8")
+            .body(e.to_string()),
+    }
+}
