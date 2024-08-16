@@ -12,6 +12,7 @@ pub mod datetime_utils;
 pub mod delay_notify;
 pub mod hash_utils;
 pub mod limiter_utils;
+pub mod macros;
 pub mod model;
 pub mod option_utils;
 pub mod protobuf_utils;

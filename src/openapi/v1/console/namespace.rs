@@ -4,6 +4,7 @@ use crate::common::string_utils::StringUtils;
 use crate::config::core::ConfigActor;
 use crate::console::model::{ConsoleResult, NamespaceInfo};
 use crate::console::NamespaceUtils;
+use crate::merge_web_param;
 use actix::Addr;
 use actix_web::{web, HttpResponse, Responder};
 use serde::{Deserialize, Serialize};
@@ -58,6 +59,25 @@ pub struct NamespaceParam {
     pub namespace_desc: Option<String>,
 }
 
+impl NamespaceParam {
+    pub fn merge(self, other: Self) -> Self {
+        Self {
+            custom_namespace_id: OptionUtils::select(
+                self.custom_namespace_id,
+                other.custom_namespace_id,
+            ),
+            namespace: OptionUtils::select(self.namespace, other.namespace),
+            namespace_id: OptionUtils::select(self.namespace_id, other.namespace_id),
+            namespace_name: OptionUtils::select(self.namespace_name, other.namespace_name),
+            namespace_show_name: OptionUtils::select(
+                self.namespace_show_name,
+                other.namespace_show_name,
+            ),
+            namespace_desc: OptionUtils::select(self.namespace_desc, other.namespace_desc),
+        }
+    }
+}
+
 impl From<NamespaceParam> for NamespaceInfo {
     fn from(value: NamespaceParam) -> Self {
         Self {
@@ -83,10 +103,12 @@ pub async fn query_namespace_list(config_addr: web::Data<Addr<ConfigActor>>) -> 
 }
 
 pub async fn add_namespace(
-    param: web::Form<NamespaceParam>,
+    web::Query(param): web::Query<NamespaceParam>,
+    payload: web::Payload,
     app_data: web::Data<Arc<AppShareData>>,
 ) -> impl Responder {
-    let mut param: NamespaceInfo = param.0.into();
+    let param = merge_web_param!(param, payload);
+    let mut param: NamespaceInfo = param.into();
     if StringUtils::is_option_empty(&param.namespace_id) {
         param.namespace_id = Some(Uuid::new_v4().to_string());
     }
@@ -101,10 +123,12 @@ pub async fn add_namespace(
 }
 
 pub async fn update_namespace(
-    param: web::Form<NamespaceParam>,
+    web::Query(param): web::Query<NamespaceParam>,
+    payload: web::Payload,
     app_data: web::Data<Arc<AppShareData>>,
 ) -> impl Responder {
-    match NamespaceUtils::update_namespace(&app_data, param.0.into()).await {
+    let param = merge_web_param!(param, payload);
+    match NamespaceUtils::update_namespace(&app_data, param.into()).await {
         Ok(_) => HttpResponse::Ok()
             .content_type("text/html; charset=utf-8")
             .body("true"),
@@ -115,10 +139,12 @@ pub async fn update_namespace(
 }
 
 pub async fn remove_namespace(
-    param: web::Form<NamespaceParam>,
+    web::Query(param): web::Query<NamespaceParam>,
+    payload: web::Payload,
     app_data: web::Data<Arc<AppShareData>>,
 ) -> impl Responder {
-    match NamespaceUtils::remove_namespace(&app_data, param.0.namespace_id).await {
+    let param = merge_web_param!(param, payload);
+    match NamespaceUtils::remove_namespace(&app_data, param.namespace_id).await {
         Ok(_) => HttpResponse::Ok()
             .content_type("text/html; charset=utf-8")
             .body("true"),
