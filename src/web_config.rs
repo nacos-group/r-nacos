@@ -30,7 +30,7 @@ fn handle_embedded_file_with_cache(path: &str) -> HttpResponse {
     match get_embedded_file(path) {
         Some(content) => HttpResponse::Ok()
             .content_type(from_path(path).first_or_octet_stream().as_ref())
-            .insert_header(("Cache-Control", "max-age=86400, public"))
+            .insert_header(("Cache-Control", "max-age=604800, public"))
             .body(content.data.into_owned()),
         None => HttpResponse::NotFound().body("404 Not Found"),
     }
