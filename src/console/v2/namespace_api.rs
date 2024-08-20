@@ -1,11 +1,13 @@
 use crate::common::appdata::AppShareData;
 use crate::common::model::ApiResult;
-//use crate::config::core::ConfigActor;
+use crate::common::string_utils::StringUtils;
+use crate::config::core::ConfigActor;
 use crate::console::model::NamespaceInfo;
 use crate::console::NamespaceUtils;
 //use actix::Addr;
 use actix_web::{web, HttpResponse, Responder};
 use std::sync::Arc;
+use uuid::Uuid;
 
 pub async fn query_namespace_list(app_data: web::Data<Arc<AppShareData>>) -> impl Responder {
     let namespaces = NamespaceUtils::get_namespaces(&app_data)
@@ -18,7 +20,11 @@ pub async fn add_namespace(
     param: web::Json<NamespaceInfo>,
     app_data: web::Data<Arc<AppShareData>>,
 ) -> impl Responder {
-    match NamespaceUtils::add_namespace(&app_data, param.0).await {
+    let mut param = param.0;
+    if StringUtils::is_option_empty(&param.namespace_id) {
+        param.namespace_id = Some(Arc::new(Uuid::new_v4().to_string()));
+    }
+    match NamespaceUtils::add_namespace(&app_data, param).await {
         Ok(_) => HttpResponse::Ok().json(ApiResult::success(Some(true))),
         Err(e) => HttpResponse::Ok().json(ApiResult::<()>::error(
             "SYSTEM_ERROR".to_string(),

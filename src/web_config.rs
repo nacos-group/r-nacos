@@ -4,10 +4,10 @@ use mime_guess::from_path;
 use rnacos_web_dist_wrap::get_embedded_file;
 
 use crate::common::AppSysConfig;
-use crate::console::api::{console_api_config, console_api_config_v1, console_api_config_v2};
+use crate::console::api::{console_api_config_v1, console_api_config_v2};
 use crate::openapi::auth::{login_config, mock_token};
 use crate::openapi::metrics::metrics_config;
-use crate::openapi::openapi_config;
+use crate::openapi::{openapi_config, v1::console as nacos_console};
 use crate::raft::network::raft_config;
 
 /*
@@ -30,7 +30,7 @@ fn handle_embedded_file_with_cache(path: &str) -> HttpResponse {
     match get_embedded_file(path) {
         Some(content) => HttpResponse::Ok()
             .content_type(from_path(path).first_or_octet_stream().as_ref())
-            .insert_header(("Cache-Control", "max-age=86400, public"))
+            .insert_header(("Cache-Control", "max-age=604800, public"))
             .body(content.data.into_owned()),
         None => HttpResponse::NotFound().body("404 Not Found"),
     }
@@ -102,13 +102,14 @@ pub fn app_config(conf_data: AppSysConfig) -> impl FnOnce(&mut ServiceConfig) {
             login_config(config);
             metrics_config(config);
             raft_config(config);
+            nacos_console_api_config(config);
             config.configure(openapi_config(conf_data));
         } else {
             login_config(config);
             metrics_config(config);
             raft_config(config);
+            nacos_console_api_config(config);
             config.configure(openapi_config(conf_data));
-            console_api_config(config);
             console_api_config_v2(config);
             console_api_config_v1(config);
             console_page_config(config);
@@ -129,6 +130,18 @@ pub fn app_without_no_auth_console_config(config: &mut web::ServiceConfig) {
         .service(web::resource("/nacos/v1/auth/login").route(web::post().to(mock_token)))
         .service(web::resource("/nacos/v1/auth/users/login").route(web::post().to(mock_token)));
     raft_config(config);
+}
+
+pub fn nacos_console_api_config(config: &mut web::ServiceConfig) {
+    config.service(
+        web::scope("/nacos/v1/console").service(
+            web::resource("/namespaces")
+                .route(web::get().to(nacos_console::namespace::query_namespace_list))
+                .route(web::post().to(nacos_console::namespace::add_namespace))
+                .route(web::put().to(nacos_console::namespace::update_namespace))
+                .route(web::delete().to(nacos_console::namespace::remove_namespace)),
+        ),
+    );
 }
 
 /// 独立控制台服务

@@ -10,3 +10,5 @@
 // pub fn openapi_route<F>(conf: &RouteConf) -> F where F: HttpServiceFactory + 'static {
 //
 // }
+
+pub mod console;

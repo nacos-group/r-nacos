@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::common::appdata::AppShareData;
 use crate::common::web_utils::get_req_body;
+use crate::merge_web_param;
 use crate::naming::api_model::InstanceVO;
 use crate::naming::core::{NamingActor, NamingCmd, NamingResult};
 use crate::naming::model::{Instance, InstanceUpdateTag, ServiceKey};
@@ -61,23 +62,11 @@ pub async fn get_instance(
 }
 
 pub async fn update_instance(
-    a: web::Query<InstanceWebParams>,
+    param: web::Query<InstanceWebParams>,
     payload: web::Payload,
     appdata: web::Data<Arc<AppShareData>>,
 ) -> impl Responder {
-    let body = match get_req_body(payload).await {
-        Ok(v) => v,
-        Err(err) => {
-            return HttpResponse::InternalServerError().body(err.to_string());
-        }
-    };
-    let b = match serde_urlencoded::from_bytes(&body) {
-        Ok(v) => v,
-        Err(err) => {
-            return HttpResponse::InternalServerError().body(err.to_string());
-        }
-    };
-    let param = a.select_option(&b);
+    let param = merge_web_param!(param.0, payload);
     let update_tag = InstanceUpdateTag {
         weight: match &param.weight {
             Some(v) => *v != 1.0f32,
@@ -118,23 +107,11 @@ pub async fn update_instance(
 }
 
 pub async fn del_instance(
-    a: web::Query<InstanceWebParams>,
+    param: web::Query<InstanceWebParams>,
     payload: web::Payload,
     appdata: web::Data<Arc<AppShareData>>,
 ) -> impl Responder {
-    let body = match get_req_body(payload).await {
-        Ok(v) => v,
-        Err(err) => {
-            return HttpResponse::InternalServerError().body(err.to_string());
-        }
-    };
-    let b = match serde_urlencoded::from_bytes(&body) {
-        Ok(v) => v,
-        Err(err) => {
-            return HttpResponse::InternalServerError().body(err.to_string());
-        }
-    };
-    let param = a.select_option(&b);
+    let param = merge_web_param!(param.0, payload);
     let instance = param.convert_to_instance();
     match instance {
         Ok(instance) => {
@@ -153,18 +130,11 @@ pub async fn del_instance(
 
 #[put("/beat")]
 pub async fn beat_instance(
-    a: web::Query<BeatRequest>,
+    param: web::Query<BeatRequest>,
     payload: web::Payload,
     appdata: web::Data<Arc<AppShareData>>,
 ) -> impl Responder {
-    let body = get_req_body(payload).await.unwrap_or_default();
-    let b = match serde_urlencoded::from_bytes(&body) {
-        Ok(v) => v,
-        Err(err) => {
-            return HttpResponse::InternalServerError().body(err.to_string());
-        }
-    };
-    let param = a.select_option(&b);
+    let param = merge_web_param!(param.0, payload);
     //debug
     //log::info!("beat request param:{}",serde_json::to_string(&param).unwrap());
     let instance = param.convert_to_instance();

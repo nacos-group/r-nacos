@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 pub struct StringUtils;
 
 impl StringUtils {
@@ -13,13 +15,17 @@ impl StringUtils {
         a.rfind(b)
     }
 
-    pub fn is_none_or_empty(v: &Option<String>) -> bool {
+    pub fn is_option_empty_arc(v: &Option<Arc<String>>) -> bool {
         if let Some(v) = &v {
-            if v.is_empty() {
-                true
-            } else {
-                false
-            }
+            v.is_empty()
+        } else {
+            true
+        }
+    }
+
+    pub fn is_option_empty(v: &Option<String>) -> bool {
+        if let Some(v) = &v {
+            v.is_empty()
         } else {
             true
         }

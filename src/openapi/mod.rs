@@ -9,8 +9,8 @@ mod constant;
 pub(crate) mod metrics;
 pub mod middle;
 pub(crate) mod naming;
-mod v1;
-mod v2;
+pub(crate) mod v1;
+pub(crate) mod v2;
 
 /// r-nacos openapi packages
 

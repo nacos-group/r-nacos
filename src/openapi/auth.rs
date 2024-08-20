@@ -1,10 +1,10 @@
 use crate::common::appdata::AppShareData;
 use crate::common::model::TokenSession;
-use crate::common::web_utils::get_req_body;
+use crate::common::option_utils::OptionUtils;
+use crate::merge_web_param_with_result;
 use crate::raft::cache::model::{CacheKey, CacheType, CacheValue};
 use crate::raft::cache::{CacheLimiterReq, CacheManagerReq, CacheManagerResult};
 use crate::user::{UserManagerReq, UserManagerResult};
-use crate::utils;
 use actix_web::{web, HttpResponse, Responder};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -19,8 +19,8 @@ pub struct LoginParams {
 impl LoginParams {
     pub fn merge(self, other: Self) -> Self {
         Self {
-            username: utils::merge_option(self.username, other.username),
-            password: utils::merge_option(self.password, other.password),
+            username: OptionUtils::select(self.username, other.username),
+            password: OptionUtils::select(self.password, other.password),
         }
     }
 }
@@ -37,22 +37,10 @@ const UNKNOWN_USER: &str = "unknown user!";
 
 pub async fn login(
     app: web::Data<Arc<AppShareData>>,
-    web::Query(a): web::Query<LoginParams>,
+    web::Query(param): web::Query<LoginParams>,
     payload: web::Payload,
 ) -> actix_web::Result<impl Responder> {
-    let body = match get_req_body(payload).await {
-        Ok(v) => v,
-        Err(err) => {
-            return Ok(HttpResponse::InternalServerError().body(err.to_string()));
-        }
-    };
-    let b = match serde_urlencoded::from_bytes(&body) {
-        Ok(v) => v,
-        Err(err) => {
-            return Ok(HttpResponse::InternalServerError().body(err.to_string()));
-        }
-    };
-    let param = a.merge(b);
+    let param = merge_web_param_with_result!(param, payload);
     match do_login(param, &app).await {
         Ok(v) => Ok(v),
         Err(e) => {
