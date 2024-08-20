@@ -42,8 +42,8 @@ pub async fn add_namespace(
     app_data: web::Data<Arc<AppShareData>>,
 ) -> impl Responder {
     let mut param = param.0;
-    if StringUtils::is_option_empty(&param.namespace_id) {
-        param.namespace_id = Some(Uuid::new_v4().to_string());
+    if StringUtils::is_option_empty_arc(&param.namespace_id) {
+        param.namespace_id = Some(Arc::new(Uuid::new_v4().to_string()));
     }
     match NamespaceUtils::add_namespace(&app_data, param).await {
         Ok(_) => {

@@ -1,11 +1,9 @@
 use crate::common::appdata::AppShareData;
 use crate::common::option_utils::OptionUtils;
 use crate::common::string_utils::StringUtils;
-use crate::config::core::ConfigActor;
 use crate::console::model::{ConsoleResult, NamespaceInfo};
 use crate::console::NamespaceUtils;
 use crate::merge_web_param;
-use actix::Addr;
 use actix_web::{web, HttpResponse, Responder};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -14,7 +12,7 @@ use uuid::Uuid;
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct NamespaceVO {
-    pub namespace: Option<String>,
+    pub namespace: Option<Arc<String>>,
     pub namespace_show_name: Option<String>,
     pub namespace_desc: Option<String>,
     pub quota: u32,
@@ -47,11 +45,11 @@ impl From<NamespaceInfo> for NamespaceVO {
 #[serde(rename_all = "camelCase")]
 pub struct NamespaceParam {
     /// custom_namespace_id,创建时的id
-    pub custom_namespace_id: Option<String>,
+    pub custom_namespace_id: Option<Arc<String>>,
     /// namespace,更新时的id
-    pub namespace: Option<String>,
+    pub namespace: Option<Arc<String>>,
     /// namespace_id,删除时的id
-    pub namespace_id: Option<String>,
+    pub namespace_id: Option<Arc<String>>,
     /// namespace_name,创建时的名称
     pub namespace_name: Option<String>,
     /// namespace_show_name,更新时的名称
@@ -91,13 +89,13 @@ impl From<NamespaceParam> for NamespaceInfo {
     }
 }
 
-pub async fn query_namespace_list(config_addr: web::Data<Addr<ConfigActor>>) -> impl Responder {
-    //HttpResponse::InternalServerError().body("system error")
-    let namespaces = NamespaceUtils::get_namespaces(&config_addr).await;
-    let list: Vec<NamespaceVO> = namespaces
-        .iter()
-        .map(|e| e.as_ref().to_owned().into())
-        .collect();
+pub async fn query_namespace_list(app_data: web::Data<Arc<AppShareData>>) -> impl Responder {
+    let namespaces = if let Ok(namespaces) = NamespaceUtils::get_namespaces(&app_data).await {
+        namespaces
+    } else {
+        return HttpResponse::InternalServerError().body("system error");
+    };
+    let list: Vec<NamespaceVO> = namespaces.iter().map(|e| e.clone().into()).collect();
     let result = ConsoleResult::success(list);
     HttpResponse::Ok().json(result)
 }
@@ -109,8 +107,8 @@ pub async fn add_namespace(
 ) -> impl Responder {
     let param = merge_web_param!(param, payload);
     let mut param: NamespaceInfo = param.into();
-    if StringUtils::is_option_empty(&param.namespace_id) {
-        param.namespace_id = Some(Uuid::new_v4().to_string());
+    if StringUtils::is_option_empty_arc(&param.namespace_id) {
+        param.namespace_id = Some(Arc::new(Uuid::new_v4().to_string()));
     }
     match NamespaceUtils::add_namespace(&app_data, param).await {
         Ok(_) => HttpResponse::Ok()

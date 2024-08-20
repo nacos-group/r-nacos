@@ -323,7 +323,7 @@ impl Handler<UserManagerReq> for UserManager {
                         return Err(anyhow::anyhow!("raft_table_route is none "));
                     };
                     let mut check_success = last_user.enable;
-                    if !StringUtils::is_none_or_empty(&last_user.password_hash) {
+                    if !StringUtils::is_option_empty(&last_user.password_hash) {
                         check_success = check_success
                             && verify_password_hash_option(&password, &last_user.password_hash)
                                 .unwrap_or(false);
