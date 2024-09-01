@@ -36,21 +36,13 @@ pub struct MetricsManager {
     current_process_id: u32,
     start_time_millis: u64,
     total_memory: f32,
-    collect_interval: u64,
-    log_interval: u64,
     last_collect_time: u64,
     last_log_time: u64,
-    metrics_enable: bool,
-}
-
-impl Default for MetricsManager {
-    fn default() -> Self {
-        Self::new()
-    }
+    app_sys_config: Arc<AppSysConfig>,
 }
 
 impl MetricsManager {
-    pub fn new() -> Self {
+    pub fn new(app_sys_config: Arc<AppSysConfig>) -> Self {
         let current_process_id = std::process::id();
         let start_time_millis = now_millis();
         let mut system = System::new();
@@ -72,11 +64,9 @@ impl MetricsManager {
             current_process_id,
             start_time_millis,
             total_memory,
-            log_interval: 60,
-            collect_interval: 15,
             last_collect_time: 0,
             last_log_time: 0,
-            metrics_enable: true,
+            app_sys_config,
         }
     }
     fn init(&mut self, ctx: &mut Context<Self>) {
@@ -171,8 +161,12 @@ impl MetricsManager {
     }
 
     fn print_metrics(&mut self) {
+        //不打印监控指标
+        if !self.app_sys_config.metrics_log_enable {
+            return;
+        }
         let now = now_millis();
-        if now - self.last_log_time < (self.log_interval - 1) * 1000 {
+        if now - self.last_log_time < (self.app_sys_config.metrics_log_interval_second - 1) * 1000 {
             return;
         }
         //log::info!("-------------- log metrics start --------------");
@@ -275,9 +269,12 @@ impl MetricsManager {
     }
 
     fn hb(&mut self, ctx: &mut Context<Self>) {
-        ctx.run_later(Duration::from_secs(self.collect_interval), |act, ctx| {
-            act.load_metrics(ctx);
-        });
+        ctx.run_later(
+            Duration::from_secs(self.app_sys_config.metrics_collect_interval_second),
+            |act, ctx| {
+                act.load_metrics(ctx);
+            },
+        );
     }
 
     fn export(&mut self) -> anyhow::Result<String> {
@@ -310,22 +307,16 @@ impl Inject for MetricsManager {
         self.naming_actor = factory_data.get_actor();
         self.config_actor = factory_data.get_actor();
         self.bi_stream_manage = factory_data.get_actor();
-        let sys_config: Option<Arc<AppSysConfig>> = factory_data.get_bean();
-        if let Some(sys_config) = sys_config {
-            self.metrics_enable = sys_config.metrics_enable;
-            self.collect_interval = sys_config.metrics_collect_interval_second;
-            self.metrics_timeline_manager
-                .set_least_interval(self.collect_interval);
-            self.log_interval = sys_config.metrics_log_interval_second;
-            if self.metrics_enable {
-                log::info!("metrics enable! log_interval: {}s", self.log_interval);
-                self.init(ctx);
-            } else {
-                log::info!("metrics disable!");
-            }
-        } else {
-            log::warn!("MetricsManager, get AppSysConfig bean is empty!");
+        self.metrics_timeline_manager
+            .set_least_interval(self.app_sys_config.metrics_collect_interval_second);
+        if self.app_sys_config.metrics_enable {
+            log::info!(
+                "metrics enable! log_interval: {}s",
+                self.app_sys_config.metrics_log_interval_second
+            );
             self.init(ctx);
+        } else {
+            log::info!("metrics disable!");
         }
     }
 }
@@ -334,7 +325,7 @@ impl Handler<MetricsRequest> for MetricsManager {
     type Result = anyhow::Result<MetricsResponse>;
 
     fn handle(&mut self, msg: MetricsRequest, _ctx: &mut Self::Context) -> Self::Result {
-        if !self.metrics_enable {
+        if !self.app_sys_config.metrics_enable {
             return Ok(MetricsResponse::None);
         }
         match msg {
