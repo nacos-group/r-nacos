@@ -3,9 +3,12 @@ use rusqlite::{Connection, Row};
 use serde::{Deserialize, Serialize};
 use std::rc::Rc;
 
-use crate::common::rusqlite_utils::{
-    get_row_value, sqlite_execute, sqlite_fetch, sqlite_fetch_count,
+use crate::{
+    common::rusqlite_utils::{get_row_value, sqlite_execute, sqlite_fetch, sqlite_fetch_count},
+    console::model::paginate::PaginateQuery,
 };
+
+use super::core::{ConfigKey, ConfigListenerInfo};
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct ConfigDO {
@@ -417,4 +420,16 @@ impl ConfigHistoryDao {
         let (sql, args) = self.inner.query_count_prepare(param);
         self.fetch_count(&sql, &args)
     }
+}
+
+pub struct QueryListeners {
+    pub config_key: ConfigKey,
+    pub paginate: PaginateQuery,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ConfigListenerDo {
+    pub id: u64,
+    #[serde(flatten)]
+    pub info: ConfigListenerInfo,
 }

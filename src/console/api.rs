@@ -12,7 +12,7 @@ use crate::openapi::naming::service::{query_service, remove_service, update_serv
 //use crate::console::raft_api::{raft_add_learner, raft_change_membership, raft_init, raft_metrics, raft_read, raft_write};
 
 use super::cluster_api::query_cluster_info;
-use super::config_api::query_config_list;
+use super::config_api::{query_config_list, query_config_listener_list};
 use super::{
     config_api::{download_config, import_config, query_history_config_page},
     connection_api::query_grpc_connection,
@@ -111,6 +111,10 @@ pub fn console_api_config(config: &mut web::ServiceConfig) {
                     .route(web::delete().to(remove_namespace)),
             )
             .service(web::resource("/configs").route(web::get().to(query_config_list)))
+            .service(
+                web::resource("/configs/:id/listeners")
+                    .route(web::get().to(query_config_listener_list)),
+            )
             .service(web::resource("/config/import").route(web::post().to(import_config)))
             .service(web::resource("/config/download").route(web::get().to(download_config)))
             .service(

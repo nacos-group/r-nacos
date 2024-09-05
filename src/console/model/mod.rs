@@ -3,6 +3,7 @@ pub mod config_model;
 pub mod login_model;
 pub mod metrics_model;
 pub mod naming_model;
+pub mod paginate;
 pub mod raft_model;
 pub mod user_model;
 

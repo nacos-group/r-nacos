@@ -8,13 +8,14 @@ use actix_multipart::form::tempfile::TempFile;
 use actix_multipart::form::text::Text;
 use actix_multipart::form::MultipartForm;
 use actix_multipart::Multipart;
-use actix_web::{http::header, web, Error, HttpRequest, HttpResponse, Responder};
+use actix_web::{error, http::header, web, Error, HttpRequest, HttpResponse, Responder, Result};
 use zip::write::FileOptions;
 
 use crate::common::appdata::AppShareData;
 use crate::config::core::{
     ConfigActor, ConfigAsyncCmd, ConfigCmd, ConfigInfoDto, ConfigKey, ConfigResult,
 };
+use crate::config::dal::QueryListeners;
 use crate::config::ConfigUtils;
 use crate::console::model::config_model::{
     OpsConfigOptQueryListResponse, OpsConfigQueryListRequest,
@@ -27,6 +28,7 @@ use uuid::Uuid;
 use zip::{ZipArchive, ZipWriter};
 
 use super::model::config_model::OpsConfigImportInfo;
+use super::model::paginate::{PaginateQuery, PaginateResponse};
 use super::model::PageResult;
 
 pub async fn query_config_list(
@@ -165,7 +167,7 @@ fn zip_file(mut zip: ZipWriter<&mut File>, list: Vec<ConfigInfoDto>) -> anyhow::
             .compression_method(zip::CompressionMethod::Stored)
             .unix_permissions(0o755);
         zip.start_file(
-            &format!("{}/{}", &item.group.as_str(), &item.data_id.as_str()),
+            format!("{}/{}", item.group.as_str(), item.data_id.as_str()),
             options,
         )?;
         zip.write_all(item.content.as_ref().unwrap().as_bytes())?;
@@ -210,5 +212,36 @@ pub async fn download_config(
             }
         }
         Err(err) => HttpResponse::InternalServerError().body(err.to_string()),
+    }
+}
+
+pub async fn query_config_listener_list(
+    query: web::Query<PaginateQuery>,
+    path: web::Path<String>,
+    config_addr: web::Data<Addr<ConfigActor>>,
+) -> Result<impl Responder> {
+    let config_key = ConfigKey::from(path.as_str());
+
+    config_key.is_valid().map_err(error::ErrorBadRequest)?;
+
+    let cmd = ConfigCmd::QueryListeners(QueryListeners {
+        config_key,
+        paginate: query.into_inner(),
+    });
+
+    let result = config_addr
+        .send(cmd)
+        .await
+        .map_err(error::ErrorInternalServerError)?
+        .map_err(error::ErrorInternalServerError)?;
+
+    match result {
+        ConfigResult::ConfigListenerInfoPage(count, subscribers) => {
+            Ok(web::Json(PaginateResponse {
+                count,
+                list: subscribers,
+            }))
+        }
+        _ => Err(error::ErrorInternalServerError("config result error")),
     }
 }

@@ -1,4 +1,3 @@
-use std::cmp::{max, min};
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -14,7 +13,8 @@ use crate::common::web_utils::get_req_body;
 use crate::config::config_index::ConfigQueryParam;
 use crate::config::config_type::ConfigType;
 use crate::config::core::{
-    ConfigActor, ConfigCmd, ConfigInfoDto, ConfigKey, ConfigResult, ListenerItem, ListenerResult,
+    AppName, ConfigActor, ConfigCmd, ConfigInfoDto, ConfigKey, ConfigListenerInfo, ConfigResult,
+    ListenerItem, ListenerResult,
 };
 use crate::config::utils::param_utils;
 use crate::config::ConfigUtils;
@@ -363,15 +363,19 @@ async fn do_search_config(
 }
 
 #[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ListenerParams {
     #[serde(rename(serialize = "Listening-Configs", deserialize = "Listening-Configs"))]
     configs: Option<String>,
+    #[serde(default)]
+    app_name: AppName,
 }
 
 impl ListenerParams {
     pub fn select_option(&self, o: &Self) -> Self {
         Self {
             configs: select_option_by_clone(&self.configs, &o.configs),
+            app_name: self.app_name.clone(),
         }
     }
 
@@ -386,25 +390,21 @@ pub(super) async fn listener_config(
     a: web::Query<ListenerParams>,
     payload: web::Payload,
     config_addr: web::Data<Addr<ConfigActor>>,
-) -> impl Responder {
+) -> Result<HttpResponse, actix_web::Error> {
     let body = match get_req_body(payload).await {
         Ok(v) => v,
-        Err(err) => {
-            return HttpResponse::InternalServerError().body(err.to_string());
-        }
+        Err(err) => return Err(actix_web::error::ErrorInternalServerError(err.to_string())),
     };
     let b = match serde_urlencoded::from_bytes(&body) {
         Ok(v) => v,
-        Err(err) => {
-            return HttpResponse::InternalServerError().body(err.to_string());
-        }
+        Err(err) => return Err(actix_web::error::ErrorInternalServerError(err.to_string())),
     };
     let list = a.select_option(&b).to_items();
     if list.is_empty() {
         //println!("listener_config error: listener item len == 0");
-        return HttpResponse::NoContent()
+        return Ok(HttpResponse::NoContent()
             .content_type("text/html; charset=utf-8")
-            .body("error:listener empty");
+            .body("error:listener empty"));
     }
     let (tx, rx) = tokio::sync::oneshot::channel();
     let current_time = Local::now().timestamp_millis();
@@ -412,15 +412,39 @@ pub(super) async fn listener_config(
     if let Some(_timeout) = _req.headers().get("Long-Pulling-Timeout") {
         match _timeout.to_str().unwrap().parse::<i64>() {
             Ok(v) => {
-                time_out = current_time + min(max(10000, v), 120000) - 500;
+                time_out = current_time + v.clamp(10000, 120000) - 500;
             }
             Err(_) => {
                 time_out = 0;
             }
         }
     }
+
+    let version = _req
+        .headers()
+        .get("User-Agent")
+        .and_then(|x| x.to_str().ok())
+        .ok_or(actix_web::error::ErrorNotAcceptable(
+            "error:User-Agent required",
+        ))?
+        .to_string();
+
+    let ip = _req
+        .connection_info()
+        .realip_remote_addr()
+        .ok_or(actix_web::error::ErrorNotAcceptable(
+            "error:parse ip failed",
+        ))?
+        .to_string();
+
+    let subscribe_info = ConfigListenerInfo {
+        name: b.app_name,
+        ip,
+        version,
+    };
+
     //println!("timeout header:{:?},time_out:{}",_req.headers().get("Long-Pulling-Timeout") ,time_out);
-    let cmd = ConfigCmd::LISTENER(list, tx, time_out);
+    let cmd = ConfigCmd::Listener(list, tx, subscribe_info, time_out);
     let _ = config_addr.send(cmd).await;
     let res = rx.await.unwrap();
     let v = match res {
@@ -437,7 +461,10 @@ pub(super) async fn listener_config(
         }
         ListenerResult::NULL => "".to_owned(),
     };
-    HttpResponse::Ok()
+
+    let res = HttpResponse::Ok()
         .content_type("text/html; charset=utf-8")
-        .body(v)
+        .body(v);
+
+    Ok(res)
 }
