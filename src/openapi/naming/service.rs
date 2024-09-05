@@ -1,7 +1,7 @@
 use actix::Addr;
 use actix_web::{web, HttpResponse, Responder, Scope};
 
-use crate::common::web_utils::get_req_body;
+use crate::merge_web_param;
 use crate::naming::api_model::ServiceInfoParam;
 use crate::naming::core::{NamingActor, NamingCmd, NamingResult};
 use crate::naming::model::ServiceKey;
@@ -29,23 +29,11 @@ pub async fn query_service(
 }
 
 pub async fn update_service(
-    a: web::Query<ServiceInfoParam>,
+    param: web::Query<ServiceInfoParam>,
     payload: web::Payload,
     naming_addr: web::Data<Addr<NamingActor>>,
 ) -> impl Responder {
-    let body = match get_req_body(payload).await {
-        Ok(v) => v,
-        Err(err) => {
-            return HttpResponse::InternalServerError().body(err.to_string());
-        }
-    };
-    let b = match serde_urlencoded::from_bytes(&body) {
-        Ok(v) => v,
-        Err(err) => {
-            return HttpResponse::InternalServerError().body(err.to_string());
-        }
-    };
-    let param = ServiceInfoParam::merge_value(a.0, b);
+    let param = merge_web_param!(param.0, payload);
     match param.build_service_info() {
         Ok(service_info) => {
             let _ = naming_addr
@@ -58,23 +46,11 @@ pub async fn update_service(
 }
 
 pub async fn remove_service(
-    a: web::Query<ServiceInfoParam>,
+    param: web::Query<ServiceInfoParam>,
     payload: web::Payload,
     naming_addr: web::Data<Addr<NamingActor>>,
 ) -> impl Responder {
-    let body = match get_req_body(payload).await {
-        Ok(v) => v,
-        Err(err) => {
-            return HttpResponse::InternalServerError().body(err.to_string());
-        }
-    };
-    let b = match serde_urlencoded::from_bytes(&body) {
-        Ok(v) => v,
-        Err(err) => {
-            return HttpResponse::InternalServerError().body(err.to_string());
-        }
-    };
-    let param = ServiceInfoParam::merge_value(a.0, b);
+    let param = merge_web_param!(param.0, payload);
     match param.build_service_info() {
         Ok(service_info) => {
             let key = service_info.to_service_key();

@@ -2,6 +2,7 @@ use crate::now_millis_i64;
 
 use super::model::{Instance, ServiceDetailDto, ServiceKey};
 use super::NamingUtils;
+use crate::common::option_utils::OptionUtils;
 use chrono::Local;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -133,25 +134,15 @@ pub struct ServiceInfoParam {
     pub selector: Option<String>,
 }
 
-pub fn select_option<T>(a: Option<T>, b: Option<T>) -> Option<T>
-where
-    T: Clone,
-{
-    match a {
-        Some(v) => Some(v),
-        None => b,
-    }
-}
-
 impl ServiceInfoParam {
-    pub(crate) fn merge_value(a: Self, b: Self) -> Self {
+    pub(crate) fn merge(self, b: Self) -> Self {
         Self {
-            namespace_id: select_option(a.namespace_id, b.namespace_id),
-            group_name: select_option(a.group_name, b.group_name),
-            service_name: select_option(a.service_name, b.service_name),
-            protect_threshold: select_option(a.protect_threshold, b.protect_threshold),
-            metadata: select_option(a.metadata, b.metadata),
-            selector: select_option(a.selector, b.selector),
+            namespace_id: OptionUtils::select(self.namespace_id, b.namespace_id),
+            group_name: OptionUtils::select(self.group_name, b.group_name),
+            service_name: OptionUtils::select(self.service_name, b.service_name),
+            protect_threshold: OptionUtils::select(self.protect_threshold, b.protect_threshold),
+            metadata: OptionUtils::select(self.metadata, b.metadata),
+            selector: OptionUtils::select(self.selector, b.selector),
         }
     }
 

@@ -1,0 +1,12 @@
+server:
+    port: 20885
+spring:
+  application:
+    name: springcloud-demo-api
+  cloud:
+    nacos:
+      discovery:
+        username: nacos # nacos 登录用户名
+        password: nacos # 密码
+        server-addr: 127.0.0.1:8848 # nacos 服务端地址
+

@@ -13,6 +13,14 @@ impl StringUtils {
         a.rfind(b)
     }
 
+    pub fn is_option_empty(v: &Option<String>) -> bool {
+        if let Some(v) = &v {
+            v.is_empty()
+        } else {
+            true
+        }
+    }
+
     ///
     /// 空字符串转为None
     pub fn map_not_empty(v: Option<String>) -> Option<String> {

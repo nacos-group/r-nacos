@@ -12,14 +12,15 @@ pub mod datetime_utils;
 pub mod delay_notify;
 pub mod hash_utils;
 pub mod limiter_utils;
+pub mod macros;
 pub mod model;
+pub mod option_utils;
 pub mod protobuf_utils;
 pub mod rusqlite_utils;
 pub mod sequence_utils;
 pub mod sled_utils;
 pub mod string_utils;
 pub mod web_utils;
-
 /*
 use lazy_static::lazy_static;
 lazy_static! {
@@ -73,6 +74,7 @@ pub struct AppSysConfig {
     pub metrics_enable: bool,
     pub metrics_collect_interval_second: u64,
     pub metrics_log_interval_second: u64,
+    pub metrics_log_enable: bool,
     pub console_captcha_enable: bool,
 }
 
@@ -170,6 +172,10 @@ impl AppSysConfig {
         if metrics_collect_interval_second < 1 {
             metrics_collect_interval_second = 1;
         }
+        let metrics_log_enable = std::env::var("RNACOS_METRICS_ENABLE_LOG")
+            .unwrap_or("false".to_owned())
+            .parse()
+            .unwrap_or(false);
         let mut metrics_log_interval_second = std::env::var("RNACOS_METRICS_LOG_INTERVAL_SECOND")
             .unwrap_or("60".to_owned())
             .parse()
@@ -204,6 +210,7 @@ impl AppSysConfig {
             init_admin_username,
             init_admin_password,
             metrics_enable,
+            metrics_log_enable,
             metrics_collect_interval_second,
             metrics_log_interval_second,
             console_captcha_enable,
