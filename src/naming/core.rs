@@ -826,7 +826,7 @@ impl NamingActor {
 #[rtype(result = "anyhow::Result<NamingResult>")]
 pub enum NamingCmd {
     Update(Instance, Option<InstanceUpdateTag>),
-    SyncUpdate(Instance, Option<InstanceUpdateTag>),
+    UpdateFromSync(Instance, Option<InstanceUpdateTag>),
     UpdateBatch(Vec<Instance>),
     Delete(Instance),
     DeleteBatch(Vec<Instance>),
@@ -887,7 +887,7 @@ impl Handler<NamingCmd> for NamingActor {
                     Ok(NamingResult::NULL)
                 }
             }
-            NamingCmd::SyncUpdate(instance, tag) => {
+            NamingCmd::UpdateFromSync(instance, tag) => {
                 let tag = self.update_instance(&instance.get_service_key(), instance, tag, true);
                 if let UpdateInstanceType::UpdateOtherClusterMetaData(node_id, instance) = tag {
                     Ok(NamingResult::RewriteToCluster(node_id, instance))
