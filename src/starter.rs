@@ -175,8 +175,6 @@ pub async fn config_factory(sys_config: Arc<AppSysConfig>) -> anyhow::Result<Fac
         cluster_sender.clone(),
     ));
     factory.register(BeanDefinition::from_obj(cache_route));
-    let metrics_manager = MetricsManager::new().start();
-    factory.register(BeanDefinition::actor_with_inject_from_obj(metrics_manager));
     let namespace_addr = NamespaceActor::new().start();
     factory.register(BeanDefinition::actor_with_inject_from_obj(
         namespace_addr.clone(),
@@ -194,6 +192,8 @@ pub async fn config_factory(sys_config: Arc<AppSysConfig>) -> anyhow::Result<Fac
         //cache: cache_manager.clone(),
     });
     factory.register(BeanDefinition::from_obj(raft_data_wrap));
+    let metrics_manager = MetricsManager::new(sys_config.clone()).start();
+    factory.register(BeanDefinition::actor_with_inject_from_obj(metrics_manager));
 
     Ok(factory.init().await)
 }

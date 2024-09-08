@@ -72,7 +72,7 @@ impl NamingRoute {
         let req = if is_update {
             NamingRouteRequest::UpdateInstance {
                 instance: instance.clone(),
-                tag,
+                tag: tag.clone(),
             }
         } else {
             NamingRouteRequest::RemoveInstance {
@@ -97,7 +97,7 @@ impl NamingRoute {
                     instance.client_id.clone(),
                 ));
             instance.from_cluster = cluster_id;
-            let cmd = NamingCmd::Update(instance, None);
+            let cmd = NamingCmd::UpdateFromSync(instance, tag);
             self.naming_addr.do_send(cmd);
         } else {
             instance.from_cluster = cluster_id;
