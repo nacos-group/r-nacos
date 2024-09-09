@@ -67,6 +67,7 @@ impl From<Namespace> for NamespaceDO {
 #[derive(Message, Clone, Debug, Serialize, Deserialize)]
 #[rtype(result = "anyhow::Result<NamespaceRaftResult>")]
 pub enum NamespaceRaftReq {
+    AddOnly(NamespaceParam),
     Update(NamespaceParam),
     Set(NamespaceParam),
     Delete { id: Arc<String> },

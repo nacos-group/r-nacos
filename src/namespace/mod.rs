@@ -25,6 +25,16 @@ use std::time::Duration;
 
 pub const DEFAULT_NAMESPACE: &str = "public";
 
+pub const ALREADY_SYNC_FROM_CONFIG_KEY: &str = "__already_sync";
+
+pub fn build_already_mark_param() -> NamespaceParam {
+    NamespaceParam {
+        namespace_id: Arc::new(ALREADY_SYNC_FROM_CONFIG_KEY.to_string()),
+        namespace_name: None,
+        r#type: None,
+    }
+}
+
 #[bean(inject)]
 #[derive(Default, Clone)]
 pub struct NamespaceActor {
@@ -32,6 +42,7 @@ pub struct NamespaceActor {
     id_order_list: Vec<Arc<String>>,
     config_addr: Option<Addr<ConfigActor>>,
     naming_addr: Option<Addr<NamingActor>>,
+    already_sync_from_config: bool,
 }
 
 impl Actor for NamespaceActor {
@@ -63,6 +74,7 @@ impl NamespaceActor {
             id_order_list: Default::default(),
             config_addr: None,
             naming_addr: None,
+            already_sync_from_config: false,
         }
     }
 
@@ -74,12 +86,19 @@ impl NamespaceActor {
                 r#type: Some("0".to_owned()),
             },
             false,
+            false,
         )
     }
 
-    fn set_namespace(&mut self, param: NamespaceParam, add_if_not_exist: bool) {
+    fn set_namespace(&mut self, param: NamespaceParam, only_add: bool, only_update: bool) {
+        if !self.already_sync_from_config
+            && param.namespace_id.as_str() == ALREADY_SYNC_FROM_CONFIG_KEY
+        {
+            //标记已同步旧版本数据
+            self.already_sync_from_config = true;
+        }
         let value = if let Some(v) = self.data.get(&param.namespace_id) {
-            if add_if_not_exist {
+            if only_add {
                 return;
             }
             let mut value = Namespace::default();
@@ -96,6 +115,9 @@ impl NamespaceActor {
             };
             value
         } else {
+            if only_update {
+                return;
+            }
             self.id_order_list.push(param.namespace_id.clone());
             Namespace {
                 namespace_id: param.namespace_id,
@@ -152,6 +174,23 @@ impl NamespaceActor {
             };
             writer.do_send(SnapshotWriterRequest::Record(record));
         }
+        if self.already_sync_from_config {
+            let param = build_already_mark_param();
+            let value = Namespace {
+                namespace_id: param.namespace_id,
+                namespace_name: param.namespace_name.unwrap_or_default(),
+                r#type: param.r#type.unwrap_or_default(),
+            };
+            let key = value.namespace_id.clone();
+            let value_db: NamespaceDO = value.into();
+            let record = SnapshotRecordDto {
+                tree: NAMESPACE_TREE_NAME.clone(),
+                key: key.as_bytes().to_vec(),
+                value: value_db.to_bytes()?,
+                op_type: 0,
+            };
+            writer.do_send(SnapshotWriterRequest::Record(record));
+        }
         Ok(())
     }
 
@@ -165,11 +204,15 @@ impl NamespaceActor {
                 r#type: Some(value.r#type),
             },
             false,
+            false,
         );
         Ok(())
     }
 
     fn load_completed(&mut self, ctx: &mut Context<Self>) -> anyhow::Result<()> {
+        if self.already_sync_from_config {
+            return Ok(());
+        }
         let config_addr = self.config_addr.clone();
         async move {
             tokio::time::sleep(Duration::from_millis(1000)).await;
@@ -195,9 +238,11 @@ impl NamespaceActor {
                             r#type: item.r#type,
                         },
                         true,
+                        false,
                     );
                 }
             }
+            act.already_sync_from_config = true;
         })
         .wait(ctx);
         Ok(())
@@ -209,12 +254,16 @@ impl Handler<NamespaceRaftReq> for NamespaceActor {
 
     fn handle(&mut self, msg: NamespaceRaftReq, _ctx: &mut Self::Context) -> Self::Result {
         match msg {
+            NamespaceRaftReq::AddOnly(v) => {
+                self.set_namespace(v, true, true);
+                Ok(NamespaceRaftResult::None)
+            }
             NamespaceRaftReq::Update(v) => {
-                self.set_namespace(v, true);
+                self.set_namespace(v, false, true);
                 Ok(NamespaceRaftResult::None)
             }
             NamespaceRaftReq::Set(v) => {
-                self.set_namespace(v, false);
+                self.set_namespace(v, false, false);
                 Ok(NamespaceRaftResult::None)
             }
             NamespaceRaftReq::Delete { id } => {
