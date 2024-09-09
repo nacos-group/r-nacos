@@ -1,16 +1,27 @@
 pub mod model;
 
-use crate::common::constant::EMPTY_ARC_STRING;
+use crate::common::byte_utils::id_to_bin;
+use crate::common::constant::{
+    CONFIG_TREE_NAME, EMPTY_ARC_STRING, NAMESPACE_TREE_NAME, SEQUENCE_TREE_NAME, SEQ_KEY_CONFIG,
+};
+use crate::common::string_utils::StringUtils;
 use crate::config::core::ConfigActor;
+use crate::config::model::ConfigValueDO;
+use crate::console::model::NamespaceInfo;
+use crate::console::NamespaceUtilsOld;
 use crate::namespace::model::{
-    Namespace, NamespaceParam, NamespaceQueryReq, NamespaceQueryResult, NamespaceRaftReq,
-    NamespaceRaftResult,
+    Namespace, NamespaceDO, NamespaceParam, NamespaceQueryReq, NamespaceQueryResult,
+    NamespaceRaftReq, NamespaceRaftResult,
 };
 use crate::naming::core::NamingActor;
+use crate::raft::filestore::model::SnapshotRecordDto;
+use crate::raft::filestore::raftapply::{RaftApplyDataRequest, RaftApplyDataResponse};
+use crate::raft::filestore::raftsnapshot::{SnapshotWriterActor, SnapshotWriterRequest};
 use actix::prelude::*;
 use bean_factory::{bean, BeanFactory, FactoryData, Inject};
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::Duration;
 
 pub const DEFAULT_NAMESPACE: &str = "public";
 
@@ -126,6 +137,71 @@ impl NamespaceActor {
         }
         list
     }
+
+    fn build_snapshot(&self, writer: Addr<SnapshotWriterActor>) -> anyhow::Result<()> {
+        for (key, value) in &self.data {
+            if key.is_empty() {
+                continue;
+            }
+            let value_db: NamespaceDO = value.as_ref().to_owned().into();
+            let record = SnapshotRecordDto {
+                tree: NAMESPACE_TREE_NAME.clone(),
+                key: key.as_bytes().to_vec(),
+                value: value_db.to_bytes()?,
+                op_type: 0,
+            };
+            writer.do_send(SnapshotWriterRequest::Record(record));
+        }
+        Ok(())
+    }
+
+    fn load_snapshot_record(&mut self, record: SnapshotRecordDto) -> anyhow::Result<()> {
+        let value_do: NamespaceDO = NamespaceDO::from_bytes(&record.value)?;
+        let value: Namespace = value_do.into();
+        self.set_namespace(
+            NamespaceParam {
+                namespace_id: value.namespace_id,
+                namespace_name: Some(value.namespace_name),
+                r#type: Some(value.r#type),
+            },
+            false,
+        );
+        Ok(())
+    }
+
+    fn load_completed(&mut self, ctx: &mut Context<Self>) -> anyhow::Result<()> {
+        let config_addr = self.config_addr.clone();
+        async move {
+            tokio::time::sleep(Duration::from_millis(1000)).await;
+            if let Some(config_addr) = config_addr {
+                let list = NamespaceUtilsOld::get_namespaces(&config_addr).await;
+                Some(list)
+            } else {
+                None
+            }
+        }
+        .into_actor(self)
+        .map(|r: Option<Vec<Arc<NamespaceInfo>>>, act, _ctx| {
+            if let Some(list) = r {
+                for item in list {
+                    if StringUtils::is_option_empty_arc(&item.namespace_id) {
+                        continue;
+                    }
+                    let item = item.as_ref().to_owned();
+                    act.set_namespace(
+                        NamespaceParam {
+                            namespace_id: item.namespace_id.unwrap_or_default(),
+                            namespace_name: item.namespace_name,
+                            r#type: item.r#type,
+                        },
+                        true,
+                    );
+                }
+            }
+        })
+        .wait(ctx);
+        Ok(())
+    }
 }
 
 impl Handler<NamespaceRaftReq> for NamespaceActor {
@@ -158,5 +234,24 @@ impl Handler<NamespaceQueryReq> for NamespaceActor {
                 Ok(NamespaceQueryResult::List(list))
             }
         }
+    }
+}
+
+impl Handler<RaftApplyDataRequest> for NamespaceActor {
+    type Result = anyhow::Result<RaftApplyDataResponse>;
+
+    fn handle(&mut self, msg: RaftApplyDataRequest, ctx: &mut Self::Context) -> Self::Result {
+        match msg {
+            RaftApplyDataRequest::BuildSnapshot(writer) => {
+                self.build_snapshot(writer)?;
+            }
+            RaftApplyDataRequest::LoadSnapshotRecord(record) => {
+                self.load_snapshot_record(record)?;
+            }
+            RaftApplyDataRequest::LoadCompleted => {
+                self.load_completed(ctx)?;
+            }
+        };
+        Ok(RaftApplyDataResponse::None)
     }
 }

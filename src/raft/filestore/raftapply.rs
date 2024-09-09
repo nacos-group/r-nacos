@@ -1,20 +1,6 @@
 #![allow(clippy::single_match)]
 use std::sync::Arc;
 
-use crate::common::byte_utils::bin_to_id;
-use crate::common::constant::{
-    CACHE_TREE_NAME, CONFIG_TREE_NAME, SEQUENCE_TREE_NAME, SEQ_KEY_CONFIG, USER_TREE_NAME,
-};
-use crate::config::core::{ConfigCmd, ConfigKey};
-use crate::config::model::{ConfigRaftCmd, ConfigValueDO};
-use crate::raft::db::table::{TableManagerInnerReq, TableManagerReq};
-use crate::raft::filestore::raftdata::RaftDataWrap;
-use crate::raft::store::{ClientRequest, ClientResponse};
-use actix::prelude::*;
-use async_raft::raft::EntryPayload;
-use async_raft_ext as async_raft;
-use bean_factory::{bean, Inject};
-
 use super::{
     log::SnapshotRange,
     model::{ApplyRequestDto, LogRecordLoader, MemberShip, SnapshotHeaderDto},
@@ -25,6 +11,23 @@ use super::{
     },
     StoreUtils,
 };
+use crate::common::byte_utils::bin_to_id;
+use crate::common::constant::{
+    CACHE_TREE_NAME, CONFIG_TREE_NAME, NAMESPACE_TREE_NAME, SEQUENCE_TREE_NAME, SEQ_KEY_CONFIG,
+    USER_TREE_NAME,
+};
+use crate::config::core::{ConfigCmd, ConfigKey};
+use crate::config::model::{ConfigRaftCmd, ConfigValueDO};
+use crate::namespace::model::{NamespaceParam, NamespaceRaftReq};
+use crate::raft::db::table::{TableManagerInnerReq, TableManagerReq};
+use crate::raft::filestore::model::SnapshotRecordDto;
+use crate::raft::filestore::raftdata::RaftDataWrap;
+use crate::raft::filestore::raftsnapshot::SnapshotWriterActor;
+use crate::raft::store::{ClientRequest, ClientResponse};
+use actix::prelude::*;
+use async_raft::raft::EntryPayload;
+use async_raft_ext as async_raft;
+use bean_factory::{bean, Inject};
 
 pub struct LogRecordLoaderInstance {
     pub(crate) data_wrap: Arc<RaftDataWrap>,
@@ -257,6 +260,14 @@ impl StateApplyManager {
                     last_seq_id: None,
                 };
                 data_wrap.table.send(req).await??;
+            } else if record.tree.as_str() == NAMESPACE_TREE_NAME.as_str() {
+                let req = RaftApplyDataRequest::LoadSnapshotRecord(record);
+                data_wrap.namespace.send(req).await??;
+            } else {
+                log::warn!(
+                    "do_load_snapshot ignore data,table name:{}",
+                    record.tree.as_str()
+                );
             }
         }
         Ok(())
@@ -284,8 +295,19 @@ impl StateApplyManager {
             Ok(())
         }
         .into_actor(self)
-        .map(|_r: anyhow::Result<()>, _act, _ctx| {})
+        .map(|_r: anyhow::Result<()>, act, ctx| {
+            act.load_complete(ctx);
+        })
         .wait(ctx);
+    }
+
+    /// raft数据加载完成通知
+    fn load_complete(&mut self, _ctx: &mut Context<Self>) {
+        if let Some(data_wrap) = self.data_wrap.as_ref() {
+            data_wrap
+                .namespace
+                .do_send(RaftApplyDataRequest::LoadCompleted);
+        }
     }
 
     fn apply_request_to_state_machine(&mut self, request: ApplyRequestDto) -> anyhow::Result<()> {
@@ -470,6 +492,10 @@ impl StateApplyManager {
             .table
             .send(TableManagerInnerReq::BuildSnapshot(writer.clone()))
             .await??;
+        data_wrap
+            .namespace
+            .send(RaftApplyDataRequest::BuildSnapshot(writer.clone()))
+            .await??;
 
         //5. flush to file
         writer
@@ -535,6 +561,23 @@ pub enum StateApplyResponse {
     Snapshot(SnapshotHeaderDto, Arc<String>, u64),
     LastAppliedLog(u64),
     RaftResponse(ClientResponse),
+}
+
+/// raft 数据实施请求
+/// 每个类型表数据管理actor都要监听些消息，以支持数据持久化或加载数据
+#[derive(Message, Debug)]
+#[rtype(result = "anyhow::Result<RaftApplyDataResponse>")]
+pub enum RaftApplyDataRequest {
+    /// 把镜像数据持久化到指定writer
+    BuildSnapshot(Addr<SnapshotWriterActor>),
+    /// 把镜像数据加载到对应业务数据管理actor
+    LoadSnapshotRecord(SnapshotRecordDto),
+    /// 数据加载完成
+    LoadCompleted,
+}
+
+pub enum RaftApplyDataResponse {
+    None,
 }
 
 impl Handler<StateApplyRequest> for StateApplyManager {
