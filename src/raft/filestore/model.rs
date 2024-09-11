@@ -1,6 +1,7 @@
 use std::{borrow::Cow, collections::HashMap, sync::Arc};
 
 use async_raft_ext::raft::InstallSnapshotRequest;
+use async_trait::async_trait;
 use binrw::prelude::*;
 use prost::Message;
 
@@ -241,8 +242,9 @@ impl RaftIndexDto {
     }
 }
 
+#[async_trait]
 pub trait LogRecordLoader {
-    fn load(&self, dto: LogRecordDto) -> anyhow::Result<()>;
+    async fn load(&self, dto: LogRecordDto) -> anyhow::Result<()>;
 }
 
 #[derive(Debug, Default, Clone)]

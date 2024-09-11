@@ -27,6 +27,7 @@ use crate::raft::store::{ClientRequest, ClientResponse};
 use actix::prelude::*;
 use async_raft::raft::EntryPayload;
 use async_raft_ext as async_raft;
+use async_trait::async_trait;
 use bean_factory::{bean, Inject};
 
 pub struct LogRecordLoaderInstance {
@@ -43,21 +44,27 @@ impl LogRecordLoaderInstance {
     }
 }
 
+#[async_trait]
 impl LogRecordLoader for LogRecordLoaderInstance {
-    fn load(&self, record: super::model::LogRecordDto) -> anyhow::Result<()> {
+    async fn load(&self, record: super::model::LogRecordDto) -> anyhow::Result<()> {
         let entry = StoreUtils::log_record_to_entry(record)?;
         match entry.payload {
             EntryPayload::Normal(req) => match req.data {
                 ClientRequest::NodeAddr { id, addr } => {
                     self.index_manager
-                        .do_send(RaftIndexRequest::AddNodeAddr(id, addr));
+                        .send(RaftIndexRequest::AddNodeAddr(id, addr))
+                        .await
+                        .ok();
                 }
                 ClientRequest::Members(member) => {
-                    self.index_manager.do_send(RaftIndexRequest::SaveMember {
-                        member: member.clone(),
-                        member_after_consensus: None,
-                        node_addr: None,
-                    });
+                    self.index_manager
+                        .send(RaftIndexRequest::SaveMember {
+                            member: member.clone(),
+                            member_after_consensus: None,
+                            node_addr: None,
+                        })
+                        .await
+                        .ok();
                 }
                 ClientRequest::ConfigSet {
                     key,
@@ -79,17 +86,17 @@ impl LogRecordLoader for LogRecordLoaderInstance {
                         op_time,
                         op_user,
                     };
-                    self.data_wrap.config.do_send(cmd);
+                    self.data_wrap.config.send(cmd).await.ok();
                 }
                 ClientRequest::ConfigRemove { key } => {
                     let cmd = ConfigRaftCmd::ConfigRemove { key };
-                    self.data_wrap.config.do_send(cmd);
+                    self.data_wrap.config.send(cmd).await.ok();
                 }
                 ClientRequest::TableManagerReq(req) => {
-                    self.data_wrap.table.do_send(req);
+                    self.data_wrap.table.send(req).await.ok();
                 }
                 ClientRequest::NamespaceReq(req) => {
-                    self.data_wrap.namespace.do_send(req);
+                    self.data_wrap.namespace.send(req).await.ok();
                 }
             },
             _ => {}
@@ -286,7 +293,7 @@ impl StateApplyManager {
         let loader = Arc::new(LogRecordLoaderInstance::new(data_wrap, index_manager));
         async move {
             log_manager
-                .send(RaftLogManagerRequest::Load {
+                .send(RaftLogManagerAsyncRequest::Load {
                     start: start_index,
                     end: end_index,
                     loader,
@@ -303,6 +310,7 @@ impl StateApplyManager {
 
     /// raft数据加载完成通知
     fn load_complete(&mut self, _ctx: &mut Context<Self>) {
+        log::info!("raft data load finished.");
         if let Some(data_wrap) = self.data_wrap.as_ref() {
             data_wrap
                 .namespace

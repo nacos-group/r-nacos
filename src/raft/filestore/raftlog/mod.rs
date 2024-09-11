@@ -524,7 +524,7 @@ impl LogInnerManager {
                 let item: LogRecord = reader.read_message(v)?;
                 let dto = item.into();
                 //rlist.push(dto);
-                loader.load(dto)?;
+                loader.load(dto).await?;
                 c -= 1;
                 if c == 0 {
                     break;
@@ -950,6 +950,42 @@ impl RaftLogManager {
         }
     }
 
+    fn get_load_log_actors(&mut self, start: u64, end: u64) -> Vec<Addr<RaftLogActor>> {
+        let mut list = vec![];
+        for item in &mut self.logs {
+            if start < item.get_log_range_end_index() || end >= item.log_range.start_index {
+                let log_actor = if let Some(log_actor) = item.log_actor.as_ref() {
+                    log_actor.clone()
+                } else {
+                    let log_actor_addr = Self::create_log_actor(&self.base_path, &item.log_range);
+                    item.log_actor = Some(log_actor_addr.clone());
+                    log_actor_addr
+                };
+                list.push(log_actor);
+            }
+        }
+        list
+    }
+
+    async fn async_load_record(
+        log_actors: Vec<Addr<RaftLogActor>>,
+        start: u64,
+        end: u64,
+        loader: Arc<dyn LogRecordLoader + Sync + Send + 'static>,
+    ) -> anyhow::Result<()> {
+        for log_actor in &log_actors {
+            log_actor
+                .send(RaftLogRequest::Load {
+                    start,
+                    end,
+                    loader: loader.clone(),
+                })
+                .await?
+                .ok();
+        }
+        Ok(())
+    }
+
     fn get_query_log_actors(
         &mut self,
         _ctx: &mut Context<Self>,
@@ -1304,8 +1340,16 @@ pub enum RaftLogManagerRequest {
 #[derive(Message)]
 #[rtype(result = "anyhow::Result<RaftLogResponse>")]
 pub enum RaftLogManagerAsyncRequest {
-    Query { start: u64, end: u64 },
+    Query {
+        start: u64,
+        end: u64,
+    },
     GetLastLogIndex,
+    Load {
+        start: u64,
+        end: u64,
+        loader: Arc<dyn LogRecordLoader + Sync + Send + 'static>,
+    },
 }
 
 pub enum RaftLogManagerInnerCtx {
@@ -1315,6 +1359,12 @@ pub enum RaftLogManagerInnerCtx {
         log_actors: Vec<Addr<RaftLogActor>>,
     },
     GetLastLogIndex(Option<Addr<RaftLogActor>>),
+    Load {
+        start: u64,
+        end: u64,
+        loader: Arc<dyn LogRecordLoader + Sync + Send + 'static>,
+        log_actors: Vec<Addr<RaftLogActor>>,
+    },
 }
 
 impl Inject for RaftLogManager {
@@ -1386,6 +1436,15 @@ impl Handler<RaftLogManagerAsyncRequest> for RaftLogManager {
             RaftLogManagerAsyncRequest::GetLastLogIndex => {
                 RaftLogManagerInnerCtx::GetLastLogIndex(self.current_log_actor.clone())
             }
+            RaftLogManagerAsyncRequest::Load { start, end, loader } => {
+                let log_actors = self.get_load_log_actors(start, end);
+                RaftLogManagerInnerCtx::Load {
+                    start,
+                    end,
+                    loader,
+                    log_actors,
+                }
+            }
         };
 
         let fut = async move {
@@ -1401,6 +1460,15 @@ impl Handler<RaftLogManagerAsyncRequest> for RaftLogManager {
                 RaftLogManagerInnerCtx::GetLastLogIndex(log_actor) => {
                     let index = Self::get_last_index(log_actor).await?;
                     Ok(RaftLogResponse::LastLogIndex(index))
+                }
+                RaftLogManagerInnerCtx::Load {
+                    start,
+                    end,
+                    loader,
+                    log_actors,
+                } => {
+                    Self::async_load_record(log_actors, start, end, loader).await?;
+                    Ok(RaftLogResponse::None)
                 }
             }
         }

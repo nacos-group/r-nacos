@@ -215,7 +215,7 @@ impl NamespaceActor {
         }
         let config_addr = self.config_addr.clone();
         async move {
-            tokio::time::sleep(Duration::from_millis(1000)).await;
+            //tokio::time::sleep(Duration::from_millis(1000)).await;
             if let Some(config_addr) = config_addr {
                 let list = NamespaceUtilsOld::get_namespaces(&config_addr).await;
                 Some(list)
