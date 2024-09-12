@@ -116,7 +116,7 @@ impl NamespaceActor {
             } else {
                 v.namespace_name.to_owned()
             };
-            value.namespace_name = if let Some(r#type) = param.r#type {
+            value.r#type = if let Some(r#type) = param.r#type {
                 r#type
             } else {
                 v.r#type.to_owned()

@@ -299,7 +299,7 @@ async fn auto_init_raft(
         .ok();
     } else if state.membership.all_nodes().len() < 2 {
         // 单节点支持更新集群ip地址
-        tokio::time::sleep(Duration::from_millis(500)).await;
+        tokio::time::sleep(Duration::from_millis(5000)).await;
         if let Some(node_id) = raft.current_leader().await {
             if node_id == sys_config.raft_node_id {
                 if let Ok(addr) = store.get_target_addr(node_id).await {
