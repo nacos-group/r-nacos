@@ -17,7 +17,10 @@ use crate::naming::core::NamingActor;
 use crate::raft::filestore::model::SnapshotRecordDto;
 use crate::raft::filestore::raftapply::{RaftApplyDataRequest, RaftApplyDataResponse};
 use crate::raft::filestore::raftsnapshot::{SnapshotWriterActor, SnapshotWriterRequest};
+use crate::raft::store::ClientRequest;
+use crate::raft::NacosRaft;
 use actix::prelude::*;
+use async_raft_ext::raft::ClientWriteRequest;
 use bean_factory::{bean, BeanFactory, FactoryData, Inject};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -36,12 +39,14 @@ pub fn build_already_mark_param() -> NamespaceParam {
 }
 
 #[bean(inject)]
-#[derive(Default, Clone)]
+#[derive(Clone)]
 pub struct NamespaceActor {
     data: HashMap<Arc<String>, Arc<Namespace>>,
     id_order_list: Vec<Arc<String>>,
     config_addr: Option<Addr<ConfigActor>>,
     naming_addr: Option<Addr<NamingActor>>,
+    raft: Option<Arc<NacosRaft>>,
+    raft_node_id: u64,
     already_sync_from_config: bool,
 }
 
@@ -63,18 +68,21 @@ impl Inject for NamespaceActor {
     ) {
         self.config_addr = factory_data.get_actor();
         self.naming_addr = factory_data.get_actor();
+        self.raft = factory_data.get_bean();
         self.init(ctx);
     }
 }
 
 impl NamespaceActor {
-    pub(crate) fn new() -> Self {
+    pub(crate) fn new(raft_node_id: u64) -> Self {
         Self {
             data: Default::default(),
             id_order_list: Default::default(),
             config_addr: None,
             naming_addr: None,
+            raft: None,
             already_sync_from_config: false,
+            raft_node_id,
         }
     }
 
@@ -209,43 +217,86 @@ impl NamespaceActor {
         Ok(())
     }
 
+    fn init_from_old_value(&mut self, namespace_source: Arc<String>) {
+        if namespace_source.is_empty() {
+            return;
+        }
+        let list = NamespaceUtilsOld::get_namespaces_from_source(namespace_source);
+        for item in list {
+            if StringUtils::is_option_empty_arc(&item.namespace_id) {
+                continue;
+            }
+            let item = item.as_ref().to_owned();
+            self.set_namespace(
+                NamespaceParam {
+                    namespace_id: item.namespace_id.unwrap_or_default(),
+                    namespace_name: item.namespace_name,
+                    r#type: item.r#type,
+                },
+                true,
+                false,
+            );
+        }
+    }
+
     fn load_completed(&mut self, ctx: &mut Context<Self>) -> anyhow::Result<()> {
         if self.already_sync_from_config {
             return Ok(());
         }
         let config_addr = self.config_addr.clone();
         async move {
-            //tokio::time::sleep(Duration::from_millis(1000)).await;
             if let Some(config_addr) = config_addr {
-                let list = NamespaceUtilsOld::get_namespaces(&config_addr).await;
-                Some(list)
+                NamespaceUtilsOld::get_namespace_source(&config_addr).await
             } else {
-                None
+                Arc::new("".to_owned())
             }
         }
         .into_actor(self)
-        .map(|r: Option<Vec<Arc<NamespaceInfo>>>, act, _ctx| {
-            if let Some(list) = r {
-                for item in list {
-                    if StringUtils::is_option_empty_arc(&item.namespace_id) {
-                        continue;
-                    }
-                    let item = item.as_ref().to_owned();
-                    act.set_namespace(
-                        NamespaceParam {
-                            namespace_id: item.namespace_id.unwrap_or_default(),
-                            namespace_name: item.namespace_name,
-                            r#type: item.r#type,
-                        },
-                        true,
-                        false,
-                    );
-                }
-            }
-            act.already_sync_from_config = true;
+        .map(|r: Arc<String>, act, ctx| {
+            act.init_from_old_value(r);
+            act.delay_init_from_old_value(ctx);
         })
         .wait(ctx);
         Ok(())
+    }
+
+    fn delay_init_from_old_value(&mut self, ctx: &mut Context<Self>) {
+        if self.already_sync_from_config {
+            return;
+        }
+        log::info!("delay_init_from_old_value");
+        ctx.run_later(Duration::from_secs(5), |act, ctx| {
+            if let (Some(raft), Some(config_addr)) = (act.raft.clone(), act.config_addr.clone()) {
+                let node_id = act.raft_node_id.to_owned();
+                async move { Self::try_init(raft, config_addr, node_id).await }
+                    .into_actor(act)
+                    .map(|r, act, ctx| {
+                        if let Ok(true) = r {
+                        } else {
+                            act.delay_init_from_old_value(ctx);
+                        }
+                    })
+                    .spawn(ctx);
+            }
+        });
+    }
+
+    async fn try_init(
+        raft: Arc<NacosRaft>,
+        config_addr: Addr<ConfigActor>,
+        local_id: u64,
+    ) -> anyhow::Result<bool> {
+        if let Some(node_id) = raft.current_leader().await {
+            if node_id == local_id {
+                let v = NamespaceUtilsOld::get_namespace_source(&config_addr).await;
+                raft.client_write(ClientWriteRequest::new(ClientRequest::NamespaceReq(
+                    NamespaceRaftReq::InitFromOldValue(v),
+                )))
+                .await?;
+                return Ok(true);
+            }
+        }
+        Ok(false)
     }
 }
 
@@ -268,6 +319,12 @@ impl Handler<NamespaceRaftReq> for NamespaceActor {
             }
             NamespaceRaftReq::Delete { id } => {
                 self.delete(&id);
+                Ok(NamespaceRaftResult::None)
+            }
+            NamespaceRaftReq::InitFromOldValue(value) => {
+                self.init_from_old_value(value);
+                self.already_sync_from_config = true;
+                log::info!("namespace InitFromOldValue done");
                 Ok(NamespaceRaftResult::None)
             }
         }

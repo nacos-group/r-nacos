@@ -37,13 +37,13 @@ lazy_static::lazy_static! {
 }
 
 impl NamespaceUtilsOld {
-    pub async fn get_namespaces(config_addr: &Addr<ConfigActor>) -> Vec<Arc<NamespaceInfo>> {
+    pub async fn get_namespace_source(config_addr: &Addr<ConfigActor>) -> Arc<String> {
         let cmd = ConfigCmd::GET(ConfigKey::new(
             SYSCONFIG_NAMESPACE_KEY,
             SYSCONFIG_GROUP,
             SYSCONFIG_NAMESPACE,
         ));
-        let namespace_str = match config_addr.send(cmd).await {
+        match config_addr.send(cmd).await {
             Ok(res) => {
                 let r: ConfigResult = res.unwrap();
                 match r {
@@ -52,7 +52,9 @@ impl NamespaceUtilsOld {
                 }
             }
             Err(_) => Arc::new("".to_string()),
-        };
+        }
+    }
+    pub fn get_namespaces_from_source(namespace_str: Arc<String>) -> Vec<Arc<NamespaceInfo>> {
         if namespace_str.is_empty() {
             return vec![DEFAULT_NAMESPACE_INFO.clone()];
         }
@@ -67,22 +69,13 @@ impl NamespaceUtilsOld {
         }
     }
 
+    pub async fn get_namespaces(config_addr: &Addr<ConfigActor>) -> Vec<Arc<NamespaceInfo>> {
+        let namespace_str = Self::get_namespace_source(config_addr).await;
+        Self::get_namespaces_from_source(namespace_str)
+    }
+
     pub async fn load_namespace_from_config(config_addr: &Addr<ConfigActor>) -> Vec<NamespaceInfo> {
-        let cmd = ConfigCmd::GET(ConfigKey::new(
-            SYSCONFIG_NAMESPACE_KEY,
-            SYSCONFIG_GROUP,
-            SYSCONFIG_NAMESPACE,
-        ));
-        let namespace_str = match config_addr.send(cmd).await {
-            Ok(res) => {
-                let r: ConfigResult = res.unwrap();
-                match r {
-                    ConfigResult::Data { value: v, .. } => v,
-                    _ => Arc::new("".to_string()),
-                }
-            }
-            Err(_) => Arc::new("".to_string()),
-        };
+        let namespace_str = Self::get_namespace_source(config_addr).await;
         if namespace_str.is_empty() {
             return vec![];
         }

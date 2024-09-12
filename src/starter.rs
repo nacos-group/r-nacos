@@ -175,7 +175,7 @@ pub async fn config_factory(sys_config: Arc<AppSysConfig>) -> anyhow::Result<Fac
         cluster_sender.clone(),
     ));
     factory.register(BeanDefinition::from_obj(cache_route));
-    let namespace_addr = NamespaceActor::new().start();
+    let namespace_addr = NamespaceActor::new(sys_config.raft_node_id).start();
     factory.register(BeanDefinition::actor_with_inject_from_obj(
         namespace_addr.clone(),
     ));
@@ -302,6 +302,12 @@ async fn auto_init_raft(
         tokio::time::sleep(Duration::from_millis(500)).await;
         if let Some(node_id) = raft.current_leader().await {
             if node_id == sys_config.raft_node_id {
+                if let Ok(addr) = store.get_target_addr(node_id).await {
+                    if addr.as_str() == sys_config.raft_node_addr.as_str() {
+                        // 如果当前节点与集群ip相同则不用更新
+                        return Ok(());
+                    }
+                }
                 raft.client_write(ClientWriteRequest::new(ClientRequest::NodeAddr {
                     id: sys_config.raft_node_id,
                     addr: Arc::new(sys_config.raft_node_addr.to_owned()),

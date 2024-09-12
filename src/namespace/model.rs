@@ -70,7 +70,11 @@ pub enum NamespaceRaftReq {
     AddOnly(NamespaceParam),
     Update(NamespaceParam),
     Set(NamespaceParam),
-    Delete { id: Arc<String> },
+    Delete {
+        id: Arc<String>,
+    },
+    /// 从原配置中心旧的数据初始化
+    InitFromOldValue(Arc<String>),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
