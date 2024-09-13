@@ -1,0 +1,27 @@
+// 用于生成 transfer.rs
+// pb-rs transfer.proto
+
+syntax = "proto3";
+
+
+package transfer;
+
+message SnapshotHeader{
+    uint64 version=1;
+    uint64 modify_time=2;
+    string from_sys=3;
+    repeated TableNameMapEntity table_name_map_entities= 4;
+    bytes extend=5;
+}
+
+message TableNameMapEntity {
+    uint32 id=1;
+    string name=2;
+}
+
+message SnapshotItem {
+    string table_name = 1;
+    uint32 table_id = 2;
+    bytes key = 3;
+    bytes value = 4;
+}
