@@ -201,7 +201,7 @@ impl Handler<UserManagerReq> for UserManager {
                         gmt_modified: now,
                         roles: user
                             .roles
-                            .unwrap()
+                            .unwrap_or_default()
                             .into_iter()
                             .map(|e| e.as_ref().to_owned())
                             .collect(),
