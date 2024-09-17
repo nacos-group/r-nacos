@@ -18,7 +18,7 @@ pub struct CacheItemDo {
 impl CacheItemDo {
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut v = Vec::new();
-        prost::Message::encode(self, &mut v).unwrap();
+        prost::Message::encode(self, &mut v).unwrap_or_default();
         v
     }
 
@@ -141,9 +141,9 @@ impl CacheValue {
     pub fn to_bytes(&self) -> Vec<u8> {
         match self {
             CacheValue::String(v) => v.as_bytes().to_owned(),
-            CacheValue::Map(m) => serde_json::to_vec(m).unwrap(),
-            CacheValue::UserSession(v) => serde_json::to_vec(v).unwrap(),
-            CacheValue::ApiTokenSession(v) => serde_json::to_vec(v).unwrap(),
+            CacheValue::Map(m) => serde_json::to_vec(m).unwrap_or_default(),
+            CacheValue::UserSession(v) => serde_json::to_vec(v).unwrap_or_default(),
+            CacheValue::ApiTokenSession(v) => serde_json::to_vec(v).unwrap_or_default(),
         }
     }
 

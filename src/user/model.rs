@@ -30,7 +30,7 @@ pub struct UserDo {
 impl UserDo {
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut v = Vec::new();
-        prost::Message::encode(self, &mut v).unwrap();
+        prost::Message::encode(self, &mut v).unwrap_or_default();
         v
     }
 

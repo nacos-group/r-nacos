@@ -1,6 +1,6 @@
 [package]
 name = "rnacos"
-version = "0.5.22"
+version = "0.5.23"
 authors = ["heqingpan <heqingpan@126.com>"]
 edition = "2018"
 license = "Apache-2.0"
@@ -48,6 +48,7 @@ actix = "0.13"
 actix-rt = "2"
 actix-multipart = "0.6"
 actix-multipart-derive = "0.6"
+parse-size = "=1.0.0"
 log = "0.4"
 env_logger = "0.11"
 env_logger_timezone_fmt = "0.1.1"
@@ -70,7 +71,7 @@ mime_guess = { version = "2" }
 rusqlite = { version = "0.25", features = ["bundled"] }
 rsql_builder = "0.1.5"
 inner-mem-cache = "0.1.7"
-rnacos-web-dist-wrap = "=0.3.20"
+rnacos-web-dist-wrap = "=0.3.21"
 nacos_rust_client = "0.2"
 zip = "0.6"
 tempfile = "3"
