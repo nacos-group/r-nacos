@@ -289,7 +289,8 @@ impl Handler<UserManagerReq> for UserManager {
                         };
                         match raft_table_route.get_leader_data(query_req).await? {
                             TableManagerResult::Value(old_value) => UserDo::from_bytes(&old_value)?,
-                            _ => return Err(anyhow::anyhow!("not found user {}", &name)),
+                            //_ => return Err(anyhow::anyhow!("not found user {}", &name)),
+                            _ => return Ok(UserManagerInnerCtx::None),
                         }
                     } else {
                         return Err(anyhow::anyhow!("raft_table_route is none "));

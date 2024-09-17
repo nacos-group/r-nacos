@@ -100,53 +100,53 @@ pub async fn login(
         name: param.username,
         password,
     };
-    if let Ok(Ok(UserManagerResult::CheckUserResult(valid, user))) =
-        app.user_manager.send(msg).await
-    {
-        if valid {
-            //增加长度避免遍历
-            let token = Arc::new(
-                uuid::Uuid::new_v4().to_string().replace('-', "")
-                    + &uuid::Uuid::new_v4().to_string().replace('-', ""),
-            );
-            let session = Arc::new(UserSession {
-                username: user.username,
-                nickname: user.nickname,
-                roles: user.roles.unwrap_or_default(),
-                extend_infos: user.extend_info.unwrap_or_default(),
-            });
-            let cache_req = CacheManagerReq::Set {
-                key: CacheKey::new(CacheType::UserSession, token.clone()),
-                value: CacheValue::UserSession(session),
-                ttl: app.sys_config.console_login_timeout,
-            };
-            app.cache_manager.do_send(cache_req);
-            //登录成功后清除登陆限流计数
-            let clear_limit_req =
-                CacheManagerReq::Remove(CacheKey::new(CacheType::String, limit_key));
-            app.cache_manager.do_send(clear_limit_req);
-            let login_token = LoginToken {
-                token: token.to_string(),
-            };
-            return Ok(HttpResponse::Ok()
-                .cookie(
-                    Cookie::build("token", token.as_str())
-                        .path("/")
-                        .http_only(true)
-                        .finish(),
-                )
-                .cookie(
-                    Cookie::build("captcha_token", "")
-                        .path("/")
-                        .http_only(true)
-                        .finish(),
-                )
-                .insert_header(header::ContentType(mime::APPLICATION_JSON))
-                .json(ApiResult::success(Some(login_token))));
-        } else {
-            return Ok(HttpResponse::Ok()
-                .json(ApiResult::<()>::error("USER_CHECK_ERROR".to_owned(), None)));
+    if let Ok(Ok(res)) = app.user_manager.send(msg).await {
+        if let UserManagerResult::CheckUserResult(valid, user) = res {
+            if valid {
+                //增加长度避免遍历
+                let token = Arc::new(
+                    uuid::Uuid::new_v4().to_string().replace('-', "")
+                        + &uuid::Uuid::new_v4().to_string().replace('-', ""),
+                );
+                let session = Arc::new(UserSession {
+                    username: user.username,
+                    nickname: user.nickname,
+                    roles: user.roles.unwrap_or_default(),
+                    extend_infos: user.extend_info.unwrap_or_default(),
+                });
+                let cache_req = CacheManagerReq::Set {
+                    key: CacheKey::new(CacheType::UserSession, token.clone()),
+                    value: CacheValue::UserSession(session),
+                    ttl: app.sys_config.console_login_timeout,
+                };
+                app.cache_manager.do_send(cache_req);
+                //登录成功后清除登陆限流计数
+                let clear_limit_req =
+                    CacheManagerReq::Remove(CacheKey::new(CacheType::String, limit_key));
+                app.cache_manager.do_send(clear_limit_req);
+                let login_token = LoginToken {
+                    token: token.to_string(),
+                };
+                return Ok(HttpResponse::Ok()
+                    .cookie(
+                        Cookie::build("token", token.as_str())
+                            .path("/")
+                            .http_only(true)
+                            .finish(),
+                    )
+                    .cookie(
+                        Cookie::build("captcha_token", "")
+                            .path("/")
+                            .http_only(true)
+                            .finish(),
+                    )
+                    .insert_header(header::ContentType(mime::APPLICATION_JSON))
+                    .json(ApiResult::success(Some(login_token))));
+            }
         }
+        return Ok(
+            HttpResponse::Ok().json(ApiResult::<()>::error("USER_CHECK_ERROR".to_owned(), None))
+        );
     }
     Ok(HttpResponse::Ok().json(ApiResult::<()>::error("SYSTEM_ERROR".to_owned(), None)))
 }
