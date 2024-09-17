@@ -138,7 +138,7 @@ impl ListenerValue {
             instances,
         );
         response.insert("data", res);
-        let msg_str = serde_json::to_string(&response).unwrap();
+        let msg_str = serde_json::to_string(&response).unwrap_or_default();
         gz_encode(msg_str.as_bytes(), 1024)
     }
 

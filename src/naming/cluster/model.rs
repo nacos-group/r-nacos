@@ -132,12 +132,12 @@ impl From<SyncBatchForSend> for SyncBatchDataInfo {
             update_instances: v
                 .update_instances
                 .iter()
-                .map(|e| serde_json::to_string(e).unwrap())
+                .map(|e| serde_json::to_string(e).unwrap_or_default())
                 .collect(),
             remove_instances: v
                 .remove_instances
                 .iter()
-                .map(|e| serde_json::to_string(e).unwrap())
+                .map(|e| serde_json::to_string(e).unwrap_or_default())
                 .collect(),
         }
     }
@@ -201,12 +201,12 @@ impl From<SnapshotForSend> for SnapshotDataInfo {
             services: v
                 .services
                 .iter()
-                .map(|e| serde_json::to_string(e).unwrap())
+                .map(|e| serde_json::to_string(e).unwrap_or_default())
                 .collect(),
             instances: v
                 .instances
                 .iter()
-                .map(|e| serde_json::to_string(e).unwrap())
+                .map(|e| serde_json::to_string(e).unwrap_or_default())
                 .collect(),
         }
     }

@@ -284,14 +284,14 @@ impl HistogramValue {
     }
 
     pub fn diff(&self, old_value: &Self) -> Self {
-        assert_eq!(self.bounds.len(), old_value.bounds.len());
-        assert_eq!(self.buckets.len(), old_value.buckets.len());
-        /*
-        for (i, v) in self.bounds.iter().enumerate() {
-            let old_v = old_value.bounds.get(i).unwrap();
-            assert_eq!(*v, *old_v);
+        if self.bounds.len() != old_value.bounds.len() {
+            log::warn!("HistogramValue diff,self.bounds.len() != old_value.bounds.len()");
+            return self.to_owned();
         }
-        */
+        if self.buckets.len() != old_value.buckets.len() {
+            log::warn!("HistogramValue diff,self.buckets.len() != old_value.buckets.len()");
+            return self.to_owned();
+        }
         let mut buckets = Vec::with_capacity(self.buckets.len());
         for (i, v) in self.buckets.iter().enumerate() {
             let old_v = old_value.buckets.get(i).unwrap();

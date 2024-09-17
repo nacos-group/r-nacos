@@ -358,7 +358,12 @@ impl NamingActor {
             instance.client_id = EMPTY_ARC_STRING.clone();
         }
         //let cluster_name = instance.cluster_name.clone();
-        let service = self.service_map.get_mut(key).unwrap();
+        let service = if let Some(service) = self.service_map.get_mut(key) {
+            service
+        } else {
+            log::warn!("update_instance not found service,{:?}", &key);
+            return UpdateInstanceType::None;
+        };
         let client_id = instance.client_id.clone();
         let instance_key =
             InstanceKey::new_by_service_key(key, instance.ip.clone(), instance.port.to_owned());
