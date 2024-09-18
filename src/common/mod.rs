@@ -15,13 +15,13 @@ pub mod limiter_utils;
 pub mod macros;
 pub mod model;
 pub mod option_utils;
+pub mod pb;
 pub mod protobuf_utils;
 pub mod rusqlite_utils;
 pub mod sequence_utils;
 pub mod sled_utils;
 pub mod string_utils;
 pub mod web_utils;
-pub mod pb;
 /*
 use lazy_static::lazy_static;
 lazy_static! {
