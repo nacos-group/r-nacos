@@ -123,6 +123,7 @@ impl<'a> From<&'a TransferHeaderDto> for SnapshotHeader<'a> {
 }
 
 ///中间文件-数据项
+#[derive(Debug, Clone, Default)]
 pub struct TransferRecordDto {
     pub table_name: Option<Arc<String>>,
     pub table_id: u32,
