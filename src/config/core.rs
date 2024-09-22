@@ -30,6 +30,10 @@ use crate::config::utils::param_utils;
 use crate::now_millis_i64;
 use crate::raft::filestore::model::SnapshotRecordDto;
 use crate::raft::filestore::raftsnapshot::{SnapshotWriterActor, SnapshotWriterRequest};
+use crate::transfer::model::{
+    TransferDataRequest, TransferDataResponse, TransferRecordDto, TransferWriterRequest,
+};
+use crate::transfer::writer::TransferWriterActor;
 
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]
 pub struct ConfigKey {
@@ -634,6 +638,29 @@ impl ConfigActor {
         Ok(())
     }
 
+    ///
+    /// 迁移数据备件
+    fn transfer_backup(&self, writer: Addr<TransferWriterActor>) -> anyhow::Result<()> {
+        for (key, value) in &self.cache {
+            let value_db: ConfigValueDO = value.clone().into();
+            let record = TransferRecordDto {
+                table_name: Some(CONFIG_TREE_NAME.clone()),
+                key: key.build_key().as_bytes().to_vec(),
+                value: value_db.to_bytes()?,
+                table_id: 0,
+            };
+            writer.do_send(TransferWriterRequest::AddRecord(record));
+        }
+        let seq_record = TransferRecordDto {
+            table_name: Some(SEQUENCE_TREE_NAME.clone()),
+            key: SEQ_KEY_CONFIG.as_bytes().to_vec(),
+            value: id_to_bin(self.sequence.get_end_id()),
+            table_id: 0,
+        };
+        writer.do_send(TransferWriterRequest::AddRecord(seq_record));
+        Ok(())
+    }
+
     pub fn hb(&self, ctx: &mut actix::Context<Self>) {
         ctx.run_later(Duration::from_millis(500), |act, ctx| {
             act.listener.timeout();
@@ -873,5 +900,20 @@ impl Handler<ConfigRaftCmd> for ConfigActor {
             }
         }
         Ok(ConfigRaftResult::None)
+    }
+}
+
+impl Handler<TransferDataRequest> for ConfigActor {
+    type Result = anyhow::Result<TransferDataResponse>;
+
+    fn handle(&mut self, msg: TransferDataRequest, _ctx: &mut Self::Context) -> Self::Result {
+        match msg {
+            TransferDataRequest::Backup(writer_actor, param) => {
+                if param.config {
+                    self.transfer_backup(writer_actor)?;
+                }
+                Ok(TransferDataResponse::None)
+            }
+        }
     }
 }

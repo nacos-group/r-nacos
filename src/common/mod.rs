@@ -21,6 +21,7 @@ pub mod rusqlite_utils;
 pub mod sequence_utils;
 pub mod sled_utils;
 pub mod string_utils;
+pub mod tempfile;
 pub mod web_utils;
 /*
 use lazy_static::lazy_static;

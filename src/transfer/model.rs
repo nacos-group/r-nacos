@@ -1,10 +1,14 @@
 ///导入导出中间文件对象
 use crate::common::constant;
 use crate::common::pb::transfer::{SnapshotHeader, SnapshotItem, TableNameMapEntity};
+use crate::common::tempfile::TempFile;
 use crate::now_millis;
+use crate::transfer::writer::TransferWriterActor;
+use actix::{Addr, Message};
 use binrw_derive::binrw;
 use std::borrow::Cow;
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::sync::Arc;
 
 #[binrw]
@@ -167,4 +171,60 @@ impl<'a> From<SnapshotItem<'a>> for TransferRecordDto {
             value: value.value.to_vec(),
         }
     }
+}
+
+#[derive(Message, Debug)]
+#[rtype(result = "anyhow::Result<TransferWriterResponse>")]
+pub enum TransferWriterRequest {
+    AddTableNameMap(Arc<String>),
+    InitHeader,
+    AddRecord(TransferRecordDto),
+}
+
+#[derive(Message, Debug)]
+#[rtype(result = "anyhow::Result<TransferWriterResponse>")]
+pub enum TransferWriterAsyncRequest {
+    Flush,
+}
+
+pub enum TransferWriterResponse {
+    Path(PathBuf),
+    None,
+}
+
+#[derive(Debug, Clone)]
+pub struct TransferBackupParam {
+    pub config: bool,
+    pub user: bool,
+    pub cache: bool,
+}
+
+impl TransferBackupParam {
+    pub fn all() -> Self {
+        Self {
+            config: true,
+            user: true,
+            cache: true,
+        }
+    }
+}
+
+#[derive(Message, Debug)]
+#[rtype(result = "anyhow::Result<TransferManagerResponse>")]
+pub enum TransferManagerAsyncRequest {
+    Backup(TransferBackupParam),
+}
+
+pub enum TransferManagerResponse {
+    BackupFile(TempFile),
+}
+
+#[derive(Message)]
+#[rtype(result = "anyhow::Result<TransferDataResponse>")]
+pub enum TransferDataRequest {
+    Backup(Addr<TransferWriterActor>, TransferBackupParam),
+}
+
+pub enum TransferDataResponse {
+    None,
 }

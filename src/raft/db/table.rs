@@ -10,10 +10,17 @@ use serde::{Deserialize, Serialize};
 
 use actix::prelude::*;
 
-use crate::common::constant::CACHE_TREE_NAME;
+use crate::common::constant::{CACHE_TREE_NAME, NAMESPACE_TREE_NAME, USER_TREE_NAME};
 use crate::common::sequence_utils::SimpleSequence;
 use crate::raft::filestore::model::SnapshotRecordDto;
 use crate::raft::filestore::raftsnapshot::{SnapshotWriterActor, SnapshotWriterRequest};
+use crate::transfer::model::{
+    TransferBackupParam, TransferDataRequest, TransferDataResponse, TransferRecordDto,
+    TransferWriterRequest,
+};
+use crate::transfer::writer::TransferWriterActor;
+use crate::user::build_password_hash;
+use crate::user::model::UserDo;
 use crate::{
     common::string_utils::StringUtils,
     raft::{
@@ -272,6 +279,45 @@ impl TableManager {
         }
         Ok(())
     }
+
+    ///
+    /// 迁移数据备件
+    fn transfer_backup(
+        &self,
+        writer: Addr<TransferWriterActor>,
+        param: TransferBackupParam,
+    ) -> anyhow::Result<()> {
+        for (key, table_info) in &self.table_map {
+            if param.user && key.as_str() == USER_TREE_NAME.as_str() {
+                for (key, value) in &table_info.table_data {
+                    let value = Self::convert_user_password(value)?;
+                    let record = TransferRecordDto {
+                        table_name: Some(table_info.name.clone()),
+                        key: key.to_owned(),
+                        value,
+                        table_id: 0,
+                    };
+                    writer.do_send(TransferWriterRequest::AddRecord(record));
+                }
+            }
+        }
+        Ok(())
+    }
+
+    ///
+    /// 把旧版明文密码转化为bcrypt hash值
+    fn convert_user_password(value: &Vec<u8>) -> anyhow::Result<Vec<u8>> {
+        let mut user = UserDo::from_bytes(value)?;
+        if user.password.is_empty() {
+            Ok(value.to_owned())
+        } else {
+            if StringUtils::is_option_empty(&user.password_hash) {
+                user.password_hash = build_password_hash(&user.password).ok();
+            }
+            user.password = String::new();
+            Ok(user.to_bytes())
+        }
+    }
 }
 
 impl Actor for TableManager {
@@ -515,6 +561,19 @@ impl Handler<TableManagerQueryReq> for TableManager {
                 let (size, list) =
                     self.query_page_list(table_name, like_key, offset, limit, is_rev);
                 Ok(TableManagerResult::PageListResult(size, list))
+            }
+        }
+    }
+}
+
+impl Handler<TransferDataRequest> for TableManager {
+    type Result = anyhow::Result<TransferDataResponse>;
+
+    fn handle(&mut self, msg: TransferDataRequest, _ctx: &mut Self::Context) -> Self::Result {
+        match msg {
+            TransferDataRequest::Backup(writer_actor, param) => {
+                self.transfer_backup(writer_actor, param)?;
+                Ok(TransferDataResponse::None)
             }
         }
     }

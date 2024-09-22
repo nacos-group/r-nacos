@@ -19,6 +19,10 @@ use crate::raft::filestore::raftapply::{RaftApplyDataRequest, RaftApplyDataRespo
 use crate::raft::filestore::raftsnapshot::{SnapshotWriterActor, SnapshotWriterRequest};
 use crate::raft::store::ClientRequest;
 use crate::raft::NacosRaft;
+use crate::transfer::model::{
+    TransferDataRequest, TransferDataResponse, TransferRecordDto, TransferWriterRequest,
+};
+use crate::transfer::writer::TransferWriterActor;
 use actix::prelude::*;
 use async_raft_ext::raft::ClientWriteRequest;
 use bean_factory::{bean, BeanFactory, FactoryData, Inject};
@@ -202,6 +206,25 @@ impl NamespaceActor {
         Ok(())
     }
 
+    ///
+    /// 迁移数据备件
+    fn transfer_backup(&self, writer: Addr<TransferWriterActor>) -> anyhow::Result<()> {
+        for (key, value) in &self.data {
+            if key.is_empty() {
+                continue;
+            }
+            let value_db: NamespaceDO = value.as_ref().to_owned().into();
+            let record = TransferRecordDto {
+                table_name: Some(NAMESPACE_TREE_NAME.clone()),
+                key: key.as_bytes().to_vec(),
+                value: value_db.to_bytes()?,
+                table_id: 0,
+            };
+            writer.do_send(TransferWriterRequest::AddRecord(record));
+        }
+        Ok(())
+    }
+
     fn load_snapshot_record(&mut self, record: SnapshotRecordDto) -> anyhow::Result<()> {
         let value_do: NamespaceDO = NamespaceDO::from_bytes(&record.value)?;
         let value: Namespace = value_do.into();
@@ -359,5 +382,20 @@ impl Handler<RaftApplyDataRequest> for NamespaceActor {
             }
         };
         Ok(RaftApplyDataResponse::None)
+    }
+}
+
+impl Handler<TransferDataRequest> for NamespaceActor {
+    type Result = anyhow::Result<TransferDataResponse>;
+
+    fn handle(&mut self, msg: TransferDataRequest, _ctx: &mut Self::Context) -> Self::Result {
+        match msg {
+            TransferDataRequest::Backup(writer_actor, param) => {
+                if param.config {
+                    self.transfer_backup(writer_actor)?;
+                }
+                Ok(TransferDataResponse::None)
+            }
+        }
     }
 }

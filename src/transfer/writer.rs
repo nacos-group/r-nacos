@@ -1,10 +1,23 @@
-use crate::transfer::model::{TransferHeaderDto, TransferPrefix, TransferRecordDto};
+use crate::common::constant::{
+    CACHE_TREE_NAME, CONFIG_TREE_NAME, EMPTY_STR, NAMESPACE_TREE_NAME, SEQUENCE_TREE_NAME,
+    USER_TREE_NAME,
+};
+use crate::common::tempfile::TempFile;
+use crate::raft::filestore::raftdata::RaftDataWrap;
+use crate::transfer::model::{
+    TransferBackupParam, TransferDataRequest, TransferHeaderDto, TransferManagerAsyncRequest,
+    TransferManagerResponse, TransferPrefix, TransferRecordDto, TransferWriterAsyncRequest,
+    TransferWriterRequest, TransferWriterResponse,
+};
 use actix::prelude::*;
+use bean_factory::{bean, BeanFactory, FactoryData, Inject};
 use binrw::BinWriterExt;
 use quick_protobuf::Writer;
 use std::io::Cursor;
+use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::{fs::OpenOptions, io::AsyncWriteExt};
+use uuid::Uuid;
 
 #[derive(Debug)]
 pub struct TransferWriter {
@@ -54,13 +67,13 @@ impl TransferWriter {
 }
 
 pub struct TransferWriterActor {
-    path: Arc<String>,
+    path: PathBuf,
     header: TransferHeaderDto,
     inner_writer: Option<TransferWriter>,
 }
 
 impl TransferWriterActor {
-    pub fn new(path: Arc<String>, version: u64) -> Self {
+    pub fn new(path: PathBuf, version: u64) -> Self {
         Self {
             path,
             header: TransferHeaderDto::new(version),
@@ -74,6 +87,21 @@ impl TransferWriterActor {
             return;
         }
         self.header.add_name(name);
+    }
+
+    fn init(&mut self, ctx: &mut Context<Self>) {
+        let path = self.path.clone();
+        let header = self.header.clone();
+        async move { TransferWriter::init(path.to_str().unwrap_or(EMPTY_STR), header).await }
+            .into_actor(self)
+            .map(|v: anyhow::Result<TransferWriter>, act, ctx| {
+                if let Ok(v) = v {
+                    act.inner_writer = Some(v);
+                } else {
+                    ctx.stop()
+                }
+            })
+            .wait(ctx);
     }
 
     fn add_record(&mut self, record: TransferRecordDto, ctx: &mut Context<Self>) {
@@ -104,28 +132,9 @@ impl TransferWriterActor {
 impl Actor for TransferWriterActor {
     type Context = Context<Self>;
     fn stopped(&mut self, _ctx: &mut Self::Context) {
-        log::info!("TransferWriterActor stopped,file path:{}", &self.path);
+        log::info!("TransferWriterActor stopped,file path:{:?}", &self.path);
     }
 }
-
-#[derive(Message, Debug)]
-#[rtype(result = "anyhow::Result<TransferWriterResponse>")]
-pub enum TransferWriterRequest {
-    AddTableNameMap(Arc<String>),
-    AddRecord(TransferRecordDto),
-}
-
-#[derive(Message, Debug)]
-#[rtype(result = "anyhow::Result<TransferWriterResponse>")]
-pub enum TransferWriterAsyncRequest {
-    Flush,
-}
-
-pub enum TransferWriterResponse {
-    Path(Arc<String>),
-    None,
-}
-
 impl Handler<TransferWriterRequest> for TransferWriterActor {
     type Result = anyhow::Result<TransferWriterResponse>;
 
@@ -133,6 +142,9 @@ impl Handler<TransferWriterRequest> for TransferWriterActor {
         match msg {
             TransferWriterRequest::AddTableNameMap(table_name) => {
                 self.add_table_name_map(table_name);
+            }
+            TransferWriterRequest::InitHeader => {
+                self.init(ctx);
             }
             TransferWriterRequest::AddRecord(record) => {
                 self.add_record(record, ctx);
@@ -159,6 +171,132 @@ impl Handler<TransferWriterAsyncRequest> for TransferWriterActor {
         .map(|r: anyhow::Result<()>, act, _ctx| {
             r?;
             Ok(TransferWriterResponse::Path(act.path.clone()))
+        });
+        Box::pin(fut)
+    }
+}
+
+#[bean(inject)]
+pub struct TransferWriterManager {
+    data_wrap: Option<Arc<RaftDataWrap>>,
+    tmp_dir: PathBuf,
+    version: u64,
+}
+
+impl TransferWriterManager {
+    pub fn new(tmp_dir: PathBuf, version: u64) -> Self {
+        Self {
+            tmp_dir,
+            version,
+            data_wrap: None,
+        }
+    }
+
+    fn build_writer_actor(&self) -> Addr<TransferWriterActor> {
+        let mut path = self.tmp_dir.clone();
+        path.push(format!("{}.bak", Uuid::new_v4().simple().to_string()));
+        let writer_actor = TransferWriterActor::new(path, self.version).start();
+        writer_actor.do_send(TransferWriterRequest::AddTableNameMap(
+            CONFIG_TREE_NAME.clone(),
+        ));
+        writer_actor.do_send(TransferWriterRequest::AddTableNameMap(
+            SEQUENCE_TREE_NAME.clone(),
+        ));
+        writer_actor.do_send(TransferWriterRequest::AddTableNameMap(
+            NAMESPACE_TREE_NAME.clone(),
+        ));
+        writer_actor.do_send(TransferWriterRequest::AddTableNameMap(
+            USER_TREE_NAME.clone(),
+        ));
+        writer_actor.do_send(TransferWriterRequest::AddTableNameMap(
+            CACHE_TREE_NAME.clone(),
+        ));
+        writer_actor.do_send(TransferWriterRequest::InitHeader);
+        writer_actor
+    }
+
+    async fn do_backup(
+        data_wrap: Option<Arc<RaftDataWrap>>,
+        backup_param: TransferBackupParam,
+        writer_actor: Addr<TransferWriterActor>,
+    ) -> anyhow::Result<PathBuf> {
+        if let Some(data_wrap) = data_wrap {
+            data_wrap
+                .config
+                .send(TransferDataRequest::Backup(
+                    writer_actor.clone(),
+                    backup_param.clone(),
+                ))
+                .await??;
+            data_wrap
+                .namespace
+                .send(TransferDataRequest::Backup(
+                    writer_actor.clone(),
+                    backup_param.clone(),
+                ))
+                .await??;
+            data_wrap
+                .table
+                .send(TransferDataRequest::Backup(
+                    writer_actor.clone(),
+                    backup_param.clone(),
+                ))
+                .await??;
+        } else {
+            return Err(anyhow::anyhow!("data_wrap is empty"));
+        }
+        let res = writer_actor
+            .send(TransferWriterAsyncRequest::Flush)
+            .await??;
+        match res {
+            TransferWriterResponse::Path(p) => Ok(p),
+            TransferWriterResponse::None => Err(anyhow::anyhow!("backup error")),
+        }
+    }
+}
+
+impl Actor for TransferWriterManager {
+    type Context = Context<Self>;
+
+    fn started(&mut self, ctx: &mut Self::Context) {
+        log::info!("TransferWriterManager started");
+    }
+}
+
+impl Inject for TransferWriterManager {
+    type Context = Context<Self>;
+
+    fn inject(
+        &mut self,
+        factory_data: FactoryData,
+        _factory: BeanFactory,
+        _ctx: &mut Self::Context,
+    ) {
+        self.data_wrap = factory_data.get_bean();
+    }
+}
+
+impl Handler<TransferManagerAsyncRequest> for TransferWriterManager {
+    type Result = ResponseActFuture<Self, anyhow::Result<TransferManagerResponse>>;
+
+    fn handle(
+        &mut self,
+        msg: TransferManagerAsyncRequest,
+        _ctx: &mut Self::Context,
+    ) -> Self::Result {
+        let writer_actor = self.build_writer_actor();
+        let data_warp = self.data_wrap.clone();
+        let fut = async move {
+            match msg {
+                TransferManagerAsyncRequest::Backup(param) => {
+                    Self::do_backup(data_warp, param, writer_actor).await
+                }
+            }
+        }
+        .into_actor(self)
+        .map(|r, act, _ctx| {
+            let path = r?;
+            Ok(TransferManagerResponse::BackupFile(TempFile::new(path)))
         });
         Box::pin(fut)
     }
