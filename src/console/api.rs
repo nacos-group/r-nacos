@@ -19,7 +19,7 @@ use super::{
     connection_api::query_grpc_connection,
     model::{ConsoleResult, NamespaceInfo},
     naming_api::{query_grpc_client_instance_count, query_ops_instances_list},
-    NamespaceUtils,
+    transfer_api, NamespaceUtils,
 };
 use super::{login_api, user_api};
 
@@ -170,6 +170,10 @@ pub fn console_api_config_v1(config: &mut web::ServiceConfig) {
             .service(
                 web::resource("/user/reset_password")
                     .route(web::post().to(user_api::reset_password)),
+            )
+            .service(
+                web::resource("/transfer/export")
+                    .route(web::get().to(transfer_api::download_transfer_file)),
             ),
     );
 }
@@ -273,6 +277,10 @@ pub fn console_api_config_v2(config: &mut web::ServiceConfig) {
             .service(
                 web::resource("/instance/remove")
                     .route(web::post().to(v2::naming_api::remove_instance)),
+            )
+            .service(
+                web::resource("/transfer/export")
+                    .route(web::get().to(transfer_api::download_transfer_file)),
             )
             .service(
                 web::resource("/metrics/timeline")
