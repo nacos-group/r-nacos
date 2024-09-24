@@ -1,6 +1,6 @@
 ///导入导出中间文件对象
 use crate::common::constant;
-use crate::common::pb::transfer::{SnapshotHeader, SnapshotItem, TableNameMapEntity};
+use crate::common::pb::transfer::{TableNameMapEntity, TransferHeader, TransferItem};
 use crate::common::tempfile::TempFile;
 use crate::now_millis;
 use crate::transfer::writer::TransferWriterActor;
@@ -60,7 +60,7 @@ impl TransferHeaderDto {
         }
     }
 
-    pub fn to_do(&self) -> SnapshotHeader {
+    pub fn to_do(&self) -> TransferHeader {
         self.into()
     }
 
@@ -75,8 +75,8 @@ impl TransferHeaderDto {
     }
 }
 
-impl<'a> From<SnapshotHeader<'a>> for TransferHeaderDto {
-    fn from(value: SnapshotHeader<'a>) -> Self {
+impl<'a> From<TransferHeader<'a>> for TransferHeaderDto {
+    fn from(value: TransferHeader<'a>) -> Self {
         let mut name_to_id = HashMap::new();
         let mut id_to_name = HashMap::new();
         let mut max_id = 0;
@@ -101,7 +101,7 @@ impl<'a> From<SnapshotHeader<'a>> for TransferHeaderDto {
     }
 }
 
-impl<'a> From<&'a TransferHeaderDto> for SnapshotHeader<'a> {
+impl<'a> From<&'a TransferHeaderDto> for TransferHeader<'a> {
     fn from(value: &'a TransferHeaderDto) -> Self {
         let from_sys = if let Some(v) = value.from_sys.as_ref() {
             v
@@ -136,12 +136,12 @@ pub struct TransferRecordDto {
 }
 
 impl TransferRecordDto {
-    pub fn to_do(&self) -> SnapshotItem {
+    pub fn to_do(&self) -> TransferItem {
         self.into()
     }
 }
 
-impl<'a> From<&'a TransferRecordDto> for SnapshotItem<'a> {
+impl<'a> From<&'a TransferRecordDto> for TransferItem<'a> {
     fn from(value: &'a TransferRecordDto) -> Self {
         let table_name = if let Some(v) = value.table_name.as_ref() {
             v
@@ -157,8 +157,8 @@ impl<'a> From<&'a TransferRecordDto> for SnapshotItem<'a> {
     }
 }
 
-impl<'a> From<SnapshotItem<'a>> for TransferRecordDto {
-    fn from(value: SnapshotItem<'a>) -> Self {
+impl<'a> From<TransferItem<'a>> for TransferRecordDto {
+    fn from(value: TransferItem<'a>) -> Self {
         let table_name = if value.table_name.as_ref().is_empty() {
             None
         } else {
@@ -169,6 +169,22 @@ impl<'a> From<SnapshotItem<'a>> for TransferRecordDto {
             table_id: value.table_id,
             key: value.key.to_vec(),
             value: value.value.to_vec(),
+        }
+    }
+}
+
+pub struct TransferRecordRef<'a> {
+    pub table_name: Arc<String>,
+    pub key: Cow<'a, [u8]>,
+    pub value: Cow<'a, [u8]>,
+}
+
+impl<'a> TransferRecordRef<'a> {
+    pub fn new(table_name: Arc<String>, item: TransferItem<'a>) -> Self {
+        Self {
+            table_name,
+            key: item.key,
+            value: item.value,
         }
     }
 }
@@ -217,6 +233,17 @@ pub enum TransferManagerAsyncRequest {
 
 pub enum TransferManagerResponse {
     BackupFile(TempFile),
+}
+
+#[derive(Message)]
+#[rtype(result = "anyhow::Result<TransferImportResponse>")]
+pub enum TransferImportRequest {
+    Import(Vec<u8>),
+}
+
+pub enum TransferImportResponse {
+    None,
+    Running,
 }
 
 #[derive(Message)]

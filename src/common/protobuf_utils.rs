@@ -144,7 +144,7 @@ fn copy_data(form: &[u8], to: &mut [u8], start: usize) {
 
 #[derive(Debug)]
 pub struct MessageBufReader {
-    buf: Vec<u8>,
+    pub(crate) buf: Vec<u8>,
     start: usize,
     end: usize,
     //enough_next: bool,
@@ -165,6 +165,17 @@ impl MessageBufReader {
             end: 0,
             //enough_next: false,
             next_len: 0,
+        }
+    }
+
+    pub fn new_with_data(buf: Vec<u8>, start: usize) -> Self {
+        let end = buf.len();
+        let next_len = end - start;
+        Self {
+            buf,
+            start,
+            end,
+            next_len,
         }
     }
 

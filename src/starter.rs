@@ -11,6 +11,7 @@ use crate::raft::filestore::raftdata::RaftDataWrap;
 use crate::raft::filestore::raftindex::RaftIndexManager;
 use crate::raft::filestore::raftlog::RaftLogManager;
 use crate::raft::filestore::raftsnapshot::RaftSnapshotManager;
+use crate::transfer::reader::TransferImportManager;
 use crate::transfer::writer::TransferWriterManager;
 use crate::{
     common::{appdata::AppShareData, AppSysConfig},
@@ -199,6 +200,10 @@ pub async fn config_factory(sys_config: Arc<AppSysConfig>) -> anyhow::Result<Fac
     factory.register(BeanDefinition::actor_with_inject_from_obj(
         transfer_writer_addr,
     ));
+    let transfer_import_addr = TransferImportManager::new().start();
+    factory.register(BeanDefinition::actor_with_inject_from_obj(
+        transfer_import_addr,
+    ));
 
     Ok(factory.init().await)
 }
@@ -233,6 +238,7 @@ pub fn build_share_data(factory_data: FactoryData) -> anyhow::Result<Arc<AppShar
         namespace_addr: factory_data.get_actor().unwrap(),
         raft_request_route: factory_data.get_bean().unwrap(),
         transfer_writer_manager: factory_data.get_actor().unwrap(),
+        transfer_import_manager: factory_data.get_actor().unwrap(),
         factory_data,
     });
     Ok(app_data)

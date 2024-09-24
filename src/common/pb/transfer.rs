@@ -16,7 +16,7 @@ use super::*;
 
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Debug, Default, PartialEq, Clone)]
-pub struct SnapshotHeader<'a> {
+pub struct TransferHeader<'a> {
     pub version: u64,
     pub modify_time: u64,
     pub from_sys: Cow<'a, str>,
@@ -24,7 +24,7 @@ pub struct SnapshotHeader<'a> {
     pub extend: Cow<'a, [u8]>,
 }
 
-impl<'a> MessageRead<'a> for SnapshotHeader<'a> {
+impl<'a> MessageRead<'a> for TransferHeader<'a> {
     fn from_reader(r: &mut BytesReader, bytes: &'a [u8]) -> Result<Self> {
         let mut msg = Self::default();
         while !r.is_eof() {
@@ -42,7 +42,7 @@ impl<'a> MessageRead<'a> for SnapshotHeader<'a> {
     }
 }
 
-impl<'a> MessageWrite for SnapshotHeader<'a> {
+impl<'a> MessageWrite for TransferHeader<'a> {
     fn get_size(&self) -> usize {
         0
         + if self.version == 0u64 { 0 } else { 1 + sizeof_varint(*(&self.version) as u64) }
@@ -100,14 +100,14 @@ impl<'a> MessageWrite for TableNameMapEntity<'a> {
 
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Debug, Default, PartialEq, Clone)]
-pub struct SnapshotItem<'a> {
+pub struct TransferItem<'a> {
     pub table_name: Cow<'a, str>,
     pub table_id: u32,
     pub key: Cow<'a, [u8]>,
     pub value: Cow<'a, [u8]>,
 }
 
-impl<'a> MessageRead<'a> for SnapshotItem<'a> {
+impl<'a> MessageRead<'a> for TransferItem<'a> {
     fn from_reader(r: &mut BytesReader, bytes: &'a [u8]) -> Result<Self> {
         let mut msg = Self::default();
         while !r.is_eof() {
@@ -124,7 +124,7 @@ impl<'a> MessageRead<'a> for SnapshotItem<'a> {
     }
 }
 
-impl<'a> MessageWrite for SnapshotItem<'a> {
+impl<'a> MessageWrite for TransferItem<'a> {
     fn get_size(&self) -> usize {
         0
         + if self.table_name == "" { 0 } else { 1 + sizeof_len((&self.table_name).len()) }

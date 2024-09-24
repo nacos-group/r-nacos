@@ -174,6 +174,10 @@ pub fn console_api_config_v1(config: &mut web::ServiceConfig) {
             .service(
                 web::resource("/transfer/export")
                     .route(web::get().to(transfer_api::download_transfer_file)),
+            )
+            .service(
+                web::resource("/transfer/import")
+                    .route(web::post().to(transfer_api::import_transfer_file)),
             ),
     );
 }
@@ -281,6 +285,10 @@ pub fn console_api_config_v2(config: &mut web::ServiceConfig) {
             .service(
                 web::resource("/transfer/export")
                     .route(web::get().to(transfer_api::download_transfer_file)),
+            )
+            .service(
+                web::resource("/transfer/import")
+                    .route(web::post().to(transfer_api::import_transfer_file)),
             )
             .service(
                 web::resource("/metrics/timeline")

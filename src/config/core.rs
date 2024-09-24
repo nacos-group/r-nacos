@@ -651,6 +651,7 @@ impl ConfigActor {
             };
             writer.do_send(TransferWriterRequest::AddRecord(record));
         }
+        /*
         let seq_record = TransferRecordDto {
             table_name: Some(SEQUENCE_TREE_NAME.clone()),
             key: SEQ_KEY_CONFIG.as_bytes().to_vec(),
@@ -658,6 +659,7 @@ impl ConfigActor {
             table_id: 0,
         };
         writer.do_send(TransferWriterRequest::AddRecord(seq_record));
+         */
         Ok(())
     }
 
@@ -685,6 +687,7 @@ pub enum ConfigCmd {
     RemoveSubscribe(Vec<ListenerItem>, Arc<String>),
     RemoveSubscribeClient(Arc<String>),
     BuildSnapshot(Addr<SnapshotWriterActor>),
+    GetSequenceSection(u64),
 }
 
 #[derive(Message)]
@@ -712,6 +715,12 @@ pub enum ConfigResult {
     ChangeKey(Vec<ConfigKey>),
     ConfigInfoPage(usize, Vec<ConfigInfoDto>),
     ConfigHistoryInfoPage(usize, Vec<ConfigHistoryInfoDto>),
+    SequenceSection {
+        //id包含start值
+        start: u64,
+        //id包含end值
+        end: u64,
+    },
 }
 
 impl Actor for ConfigActor {
@@ -805,6 +814,10 @@ impl Handler<ConfigCmd> for ConfigActor {
             }
             ConfigCmd::BuildSnapshot(writer) => {
                 self.build_snapshot(writer).ok();
+            }
+            ConfigCmd::GetSequenceSection(size) => {
+                let (start, end) = self.sequence.next_section(size)?;
+                return Ok(ConfigResult::SequenceSection { start, end });
             }
         }
         Ok(ConfigResult::NULL)

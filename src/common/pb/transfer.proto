@@ -6,7 +6,7 @@ syntax = "proto3";
 
 package transfer;
 
-message SnapshotHeader{
+message TransferHeader{
     uint64 version=1;
     uint64 modify_time=2;
     string from_sys=3;
@@ -19,7 +19,7 @@ message TableNameMapEntity {
     string name=2;
 }
 
-message SnapshotItem {
+message TransferItem {
     string table_name = 1;
     uint32 table_id = 2;
     bytes key = 3;

@@ -47,7 +47,46 @@ impl SimpleSequence {
         Ok((self.last_id, update_table_id))
     }
 
+    /// 获取下个连续号段
+    /// 返回值：[start,end]
+    pub fn next_section(&mut self, batch_size: u64) -> anyhow::Result<(u64, u64)> {
+        if batch_size == 0 {
+            return Ok((0, 0));
+        }
+        let start = self.last_id + 1;
+        let end = start + batch_size - 1;
+        self.last_id = end;
+        self.cache_size = 0;
+        Ok((start, end))
+    }
+
     pub fn get_end_id(&self) -> u64 {
         self.last_id + self.cache_size
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct CacheSequence {
+    start_id: u64,
+    cache_size: u64,
+}
+
+impl CacheSequence {
+    pub fn new(start_id: u64, cache_size: u64) -> Self {
+        Self {
+            start_id,
+            cache_size,
+        }
+    }
+
+    pub fn next_id(&mut self) -> Option<u64> {
+        if self.cache_size == 0 {
+            None
+        } else {
+            let id = self.start_id;
+            self.start_id += 1;
+            self.cache_size -= 1;
+            Some(id)
+        }
     }
 }

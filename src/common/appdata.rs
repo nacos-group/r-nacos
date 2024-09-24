@@ -14,6 +14,7 @@ use crate::raft::db::table::TableManager;
 use crate::raft::filestore::core::FileStore;
 use crate::raft::network::factory::RaftClusterRequestSender;
 use crate::raft::NacosRaft;
+use crate::transfer::reader::TransferImportManager;
 use crate::transfer::writer::TransferWriterManager;
 use crate::user::UserManager;
 use actix::Addr;
@@ -44,4 +45,5 @@ pub struct AppShareData {
     pub namespace_addr: Addr<NamespaceActor>,
     pub raft_request_route: Arc<RaftRequestRoute>,
     pub transfer_writer_manager: Addr<TransferWriterManager>,
+    pub transfer_import_manager: Addr<TransferImportManager>,
 }
