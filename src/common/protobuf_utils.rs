@@ -180,7 +180,12 @@ impl MessageBufReader {
     }
 
     pub fn is_empty(&self) -> bool {
-        self.buf[self.start] == 0
+        if self.start >= self.buf.len() {
+            true
+        }
+        else{
+            self.buf[self.start] == 0
+        }
     }
 
     pub fn append_next_buf(&mut self, next_buf: &[u8]) {
