@@ -4,6 +4,7 @@
 use std::sync::Arc;
 
 use super::db::table::TableManagerReq;
+use crate::config::core::{ConfigKey, ConfigValue};
 use crate::namespace::model::NamespaceRaftReq;
 use async_raft_ext::AppData;
 use async_raft_ext::AppDataResponse;
@@ -29,6 +30,11 @@ pub enum ClientRequest {
         history_table_id: Option<u64>,
         op_time: i64,
         op_user: Option<Arc<String>>,
+    },
+    ConfigFullValue {
+        key: Vec<u8>,
+        value: Vec<u8>,
+        last_seq_id: Option<u64>,
     },
     ConfigRemove {
         key: String,

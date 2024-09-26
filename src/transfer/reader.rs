@@ -198,20 +198,21 @@ impl TransferImportManager {
         config_seq: &mut ConfigCacheSequence,
         record: TransferRecordRef<'_>,
     ) -> anyhow::Result<()> {
-        let (id, update_last_id) = config_seq.next_state().await?;
-        //let key = ConfigKey::from(&String::from_utf8_lossy(&record.key)? as &str);
-        let key = String::from_utf8_lossy(&record.key).to_string();
         let value_do = ConfigValueDO::from_bytes(&record.value)?;
-        let config_value: ConfigValue = value_do.into();
-        let req = ClientRequest::ConfigSet {
-            key,
-            value: config_value.content,
-            config_type: config_value.config_type,
-            desc: config_value.desc,
-            history_id: id,
-            history_table_id: update_last_id,
-            op_time: now_millis_i64(),
-            op_user: None,
+        let mut config_value: ConfigValue = value_do.into();
+        let mut update_last_id = None;
+        for item in &mut config_value.histories {
+            let (id, last_id) = config_seq.next_state().await?;
+            if let Some(v) = last_id {
+                update_last_id = Some(v);
+            }
+            item.id = id;
+        }
+        let save_do: ConfigValueDO = config_value.into();
+        let req = ClientRequest::ConfigFullValue {
+            key: record.key.into_owned(),
+            value: save_do.to_bytes()?,
+            last_seq_id: update_last_id,
         };
         Self::send_raft_request(&raft, req).await?;
         Ok(())

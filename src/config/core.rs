@@ -677,7 +677,7 @@ pub enum ConfigCmd {
     //ADD(ConfigKey, Arc<String>),
     //DELETE(ConfigKey),
     SetTmpValue(ConfigKey, Arc<String>),
-    InnerSet(ConfigKey, ConfigValue),
+    SetFullValue(ConfigKey, ConfigValue),
     InnerSetLastId(u64),
     GET(ConfigKey),
     QueryPageInfo(Box<ConfigQueryParam>),
@@ -746,7 +746,7 @@ impl Handler<ConfigCmd> for ConfigActor {
             ConfigCmd::SetTmpValue(key, value) => {
                 self.set_tmp_config(key, value);
             }
-            ConfigCmd::InnerSet(key, value) => {
+            ConfigCmd::SetFullValue(key, value) => {
                 self.inner_set_config(key, value);
             }
             ConfigCmd::InnerSetLastId(last_id) => {
@@ -904,12 +904,19 @@ impl Handler<ConfigRaftCmd> for ConfigActor {
                 };
                 self.set_config(param).ok();
             }
+            ConfigRaftCmd::SetFullValue {
+                key,
+                value,
+                last_id,
+            } => {
+                self.inner_set_config(key, value);
+                if let Some(last_id) = last_id {
+                    self.sequence.set_valid_last_id(last_id);
+                }
+            }
             ConfigRaftCmd::ConfigRemove { key } => {
                 let config_key: ConfigKey = (&key as &str).into();
                 self.del_config(config_key).ok();
-            }
-            ConfigRaftCmd::ApplySnaphot => {
-                //self.load_config();
             }
         }
         Ok(ConfigRaftResult::None)

@@ -16,7 +16,7 @@ use crate::common::constant::{
     CACHE_TREE_NAME, CONFIG_TREE_NAME, NAMESPACE_TREE_NAME, SEQUENCE_TREE_NAME, SEQ_KEY_CONFIG,
     USER_TREE_NAME,
 };
-use crate::config::core::{ConfigCmd, ConfigKey};
+use crate::config::core::{ConfigCmd, ConfigKey, ConfigValue};
 use crate::config::model::{ConfigRaftCmd, ConfigValueDO};
 use crate::namespace::model::{NamespaceParam, NamespaceRaftReq};
 use crate::raft::db::table::{TableManagerInnerReq, TableManagerReq};
@@ -85,6 +85,22 @@ impl LogRecordLoader for LogRecordLoaderInstance {
                         history_table_id,
                         op_time,
                         op_user,
+                    };
+                    self.data_wrap.config.send(cmd).await.ok();
+                }
+                ClientRequest::ConfigFullValue {
+                    key,
+                    value,
+                    last_seq_id: last_id,
+                } => {
+                    let key = String::from_utf8_lossy(&key).to_string();
+                    let key: ConfigKey = (&key as &str).into();
+                    let value_do = ConfigValueDO::from_bytes(&value)?;
+                    let config_value: ConfigValue = value_do.into();
+                    let cmd = ConfigRaftCmd::SetFullValue {
+                        key,
+                        value: config_value,
+                        last_id,
                     };
                     self.data_wrap.config.send(cmd).await.ok();
                 }
@@ -236,7 +252,7 @@ impl StateApplyManager {
                 let value_do = ConfigValueDO::from_bytes(&record.value)?;
                 data_wrap
                     .config
-                    .send(ConfigCmd::InnerSet(config_key, value_do.into()))
+                    .send(ConfigCmd::SetFullValue(config_key, value_do.into()))
                     .await??;
             } else if record.tree.as_str() == SEQUENCE_TREE_NAME.as_str() {
                 let key = String::from_utf8(record.key)?;
@@ -360,6 +376,24 @@ impl StateApplyManager {
                     raft_data_wrap.config.do_send(cmd);
                 }
             }
+            ClientRequest::ConfigFullValue {
+                key,
+                value,
+                last_seq_id: last_id,
+            } => {
+                if let Some(raft_data_wrap) = &self.data_wrap {
+                    let key = String::from_utf8_lossy(&key).to_string();
+                    let key: ConfigKey = (&key as &str).into();
+                    let value_do = ConfigValueDO::from_bytes(&value)?;
+                    let config_value: ConfigValue = value_do.into();
+                    let cmd = ConfigRaftCmd::SetFullValue {
+                        key,
+                        value: config_value,
+                        last_id,
+                    };
+                    raft_data_wrap.config.do_send(cmd);
+                }
+            }
             ClientRequest::ConfigRemove { key } => {
                 if let Some(raft_data_wrap) = &self.data_wrap {
                     let cmd = ConfigRaftCmd::ConfigRemove { key };
@@ -418,6 +452,23 @@ impl StateApplyManager {
                     history_table_id,
                     op_time,
                     op_user,
+                };
+                raft_data_wrap.config.send(cmd).await??;
+                Ok(ClientResponse::Success)
+            }
+            ClientRequest::ConfigFullValue {
+                key,
+                value,
+                last_seq_id: last_id,
+            } => {
+                let key = String::from_utf8_lossy(&key).to_string();
+                let key: ConfigKey = (&key as &str).into();
+                let value_do = ConfigValueDO::from_bytes(&value)?;
+                let config_value: ConfigValue = value_do.into();
+                let cmd = ConfigRaftCmd::SetFullValue {
+                    key,
+                    value: config_value,
+                    last_id,
                 };
                 raft_data_wrap.config.send(cmd).await??;
                 Ok(ClientResponse::Success)

@@ -21,7 +21,11 @@ pub enum ConfigRaftCmd {
     ConfigRemove {
         key: String,
     },
-    ApplySnaphot,
+    SetFullValue {
+        key: ConfigKey,
+        value: ConfigValue,
+        last_id: Option<u64>,
+    },
 }
 
 #[derive(Debug)]

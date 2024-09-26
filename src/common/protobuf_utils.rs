@@ -182,8 +182,7 @@ impl MessageBufReader {
     pub fn is_empty(&self) -> bool {
         if self.start >= self.buf.len() {
             true
-        }
-        else{
+        } else {
             self.buf[self.start] == 0
         }
     }
