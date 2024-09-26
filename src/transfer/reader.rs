@@ -13,8 +13,8 @@ use crate::raft::filestore::raftdata::RaftDataWrap;
 use crate::raft::store::ClientRequest;
 use crate::raft::NacosRaft;
 use crate::transfer::model::{
-    TransferHeaderDto, TransferImportRequest, TransferImportResponse, TransferPrefix,
-    TransferRecordDto, TransferRecordRef,
+    TransferHeaderDto, TransferImportParam, TransferImportRequest, TransferImportResponse,
+    TransferPrefix, TransferRecordDto, TransferRecordRef,
 };
 use actix::prelude::*;
 use anyhow::anyhow;
@@ -135,6 +135,7 @@ impl TransferImportManager {
 
     async fn read_then_import(
         data: Vec<u8>,
+        param: TransferImportParam,
         raft: Option<Arc<NacosRaft>>,
         data_wrap: Option<Arc<RaftDataWrap>>,
     ) -> anyhow::Result<()> {
@@ -145,13 +146,14 @@ impl TransferImportManager {
             let mut config_seq = ConfigCacheSequence::new(data_wrap.config.clone());
             while let Ok(Some(record)) = reader.read_record() {
                 count += 1;
-                if record.table_name.as_str() == CONFIG_TREE_NAME.as_str() {
+                if param.config && record.table_name.as_str() == CONFIG_TREE_NAME.as_str() {
                     Self::apply_config(&raft, &mut config_seq, record).await?;
-                } else if record.table_name.as_str() == NAMESPACE_TREE_NAME.as_str() {
+                } else if param.config && record.table_name.as_str() == NAMESPACE_TREE_NAME.as_str()
+                {
                     Self::apply_namespace(&raft, record).await?;
-                } else if record.table_name.as_str() == USER_TREE_NAME.as_str() {
+                } else if param.user && record.table_name.as_str() == USER_TREE_NAME.as_str() {
                     Self::apply_table(&raft, record).await?;
-                } else if record.table_name.as_str() == CACHE_TREE_NAME.as_str() {
+                } else if param.cache && record.table_name.as_str() == CACHE_TREE_NAME.as_str() {
                     Self::apply_table(&raft, record).await?;
                 } else {
                     ignore += 1;
@@ -223,12 +225,16 @@ impl TransferImportManager {
         Ok(())
     }
 
-    fn import(&mut self, data: Vec<u8>, ctx: &mut Context<Self>) {
-        log::info!("starting transfer import data,len:{}", data.len());
+    fn import(&mut self, data: Vec<u8>, param: TransferImportParam, ctx: &mut Context<Self>) {
+        log::info!(
+            "starting transfer import data,len:{},import param:{:?}",
+            data.len(),
+            &param
+        );
         self.importing = true;
         let data_wrap = self.data_wrap.clone();
         let raft = self.raft.clone();
-        async move { Self::read_then_import(data, raft, data_wrap).await }
+        async move { Self::read_then_import(data, param, raft, data_wrap).await }
             .into_actor(self)
             .map(|v: anyhow::Result<()>, act, _ctx| {
                 match v {
@@ -237,7 +243,7 @@ impl TransferImportManager {
                 }
                 act.importing = false;
             })
-            .wait(ctx);
+            .spawn(ctx);
     }
 }
 
@@ -268,11 +274,11 @@ impl Handler<TransferImportRequest> for TransferImportManager {
 
     fn handle(&mut self, msg: TransferImportRequest, ctx: &mut Self::Context) -> Self::Result {
         match msg {
-            TransferImportRequest::Import(data) => {
+            TransferImportRequest::Import(data, param) => {
                 if self.importing {
                     Ok(TransferImportResponse::Running)
                 } else {
-                    self.import(data, ctx);
+                    self.import(data, param, ctx);
                     Ok(TransferImportResponse::None)
                 }
             }

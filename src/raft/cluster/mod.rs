@@ -3,14 +3,14 @@ use std::sync::Arc;
 use async_raft_ext::raft::ClientWriteRequest;
 
 use self::model::{RouterRequest, RouterResponse};
+use super::{db::table::TableManagerAsyncReq, join_node, store::ClientRequest};
 use crate::namespace::model::NamespaceRaftResult;
 use crate::raft::store::ClientResponse;
+use crate::transfer::model::TransferImportRequest;
 use crate::{
     common::appdata::AppShareData,
     config::core::{ConfigAsyncCmd, ConfigKey},
 };
-
-use super::{db::table::TableManagerAsyncReq, join_node, store::ClientRequest};
 
 pub mod model;
 pub mod route;
@@ -87,6 +87,13 @@ pub async fn handle_route(
                     result: NamespaceRaftResult::None,
                 });
             }
+        }
+        RouterRequest::ImportData { data, param } => {
+            let result = app
+                .transfer_import_manager
+                .send(TransferImportRequest::Import(data, param))
+                .await??;
+            return Ok(RouterResponse::ImportResult { result });
         }
     };
     Ok(RouterResponse::None)

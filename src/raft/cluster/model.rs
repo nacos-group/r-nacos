@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::config::config_type::ConfigType;
 use crate::namespace::model::{NamespaceRaftReq, NamespaceRaftResult};
+use crate::transfer::model::{TransferImportParam, TransferImportResponse};
 use crate::{
     config::core::ConfigKey,
     raft::{
@@ -110,6 +111,10 @@ pub enum RouterRequest {
     NamespaceReq {
         req: NamespaceRaftReq,
     },
+    ImportData {
+        data: Vec<u8>,
+        param: TransferImportParam,
+    },
 }
 
 impl From<SetConfigReq> for RouterRequest {
@@ -152,4 +157,5 @@ pub enum RouterResponse {
     TableManagerResult { result: TableManagerResult },
     CacheManagerResult { result: CacheManagerResult },
     NamespaceResult { result: NamespaceRaftResult },
+    ImportResult { result: TransferImportResponse },
 }

@@ -5,6 +5,8 @@ use crate::grpc::handler::RAFT_ROUTE_REQUEST;
 use crate::namespace::model::{NamespaceRaftReq, NamespaceRaftResult};
 use crate::raft::filestore::core::FileStore;
 use crate::raft::store::{ClientRequest, ClientResponse};
+use crate::transfer::model::{TransferImportParam, TransferImportRequest, TransferImportResponse};
+use crate::transfer::reader::TransferImportManager;
 use crate::{
     config::core::{ConfigActor, ConfigAsyncCmd, ConfigCmd},
     grpc::PayloadUtils,
@@ -139,6 +141,7 @@ pub struct RaftRequestRoute {
     raft_addr_route: Arc<RaftAddrRouter>,
     cluster_sender: Arc<RaftClusterRequestSender>,
     raft: Arc<NacosRaft>,
+    import_reader: Addr<TransferImportManager>,
 }
 
 impl RaftRequestRoute {
@@ -146,11 +149,13 @@ impl RaftRequestRoute {
         raft_addr_route: Arc<RaftAddrRouter>,
         cluster_sender: Arc<RaftClusterRequestSender>,
         raft: Arc<NacosRaft>,
+        import_reader: Addr<TransferImportManager>,
     ) -> Self {
         Self {
             raft_addr_route,
             cluster_sender,
             raft,
+            import_reader,
         }
     }
 
@@ -183,6 +188,33 @@ impl RaftRequestRoute {
                 let resp: RouterResponse = serde_json::from_slice(&body_vec)?;
                 match resp {
                     RouterResponse::NamespaceResult { result } => Ok(result),
+                    _ => Err(anyhow::anyhow!("response type is error!")),
+                }
+            }
+            RouteAddr::Unknown => Err(self.unknown_err()),
+        }
+    }
+
+    pub async fn request_import(
+        &self,
+        data: Vec<u8>,
+        param: TransferImportParam,
+    ) -> anyhow::Result<TransferImportResponse> {
+        match self.raft_addr_route.get_route_addr().await? {
+            RouteAddr::Local => {
+                self.import_reader
+                    .send(TransferImportRequest::Import(data, param))
+                    .await?
+            }
+            RouteAddr::Remote(_, addr) => {
+                let req = RouterRequest::ImportData { data, param };
+                let request = serde_json::to_string(&req).unwrap_or_default();
+                let payload = PayloadUtils::build_payload(RAFT_ROUTE_REQUEST, request);
+                let resp_payload = self.cluster_sender.send_request(addr, payload).await?;
+                let body_vec = resp_payload.body.unwrap_or_default().value;
+                let resp: RouterResponse = serde_json::from_slice(&body_vec)?;
+                match resp {
+                    RouterResponse::ImportResult { result } => Ok(result),
                     _ => Err(anyhow::anyhow!("response type is error!")),
                 }
             }

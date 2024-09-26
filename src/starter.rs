@@ -181,10 +181,15 @@ pub async fn config_factory(sys_config: Arc<AppSysConfig>) -> anyhow::Result<Fac
     factory.register(BeanDefinition::actor_with_inject_from_obj(
         namespace_addr.clone(),
     ));
+    let transfer_import_addr = TransferImportManager::new().start();
+    factory.register(BeanDefinition::actor_with_inject_from_obj(
+        transfer_import_addr.clone(),
+    ));
     let raft_request_route = Arc::new(RaftRequestRoute::new(
         raft_addr_router.clone(),
         cluster_sender.clone(),
         raft.clone(),
+        transfer_import_addr.clone(),
     ));
     factory.register(BeanDefinition::from_obj(raft_request_route));
     let raft_data_wrap = Arc::new(RaftDataWrap {
@@ -200,11 +205,6 @@ pub async fn config_factory(sys_config: Arc<AppSysConfig>) -> anyhow::Result<Fac
     factory.register(BeanDefinition::actor_with_inject_from_obj(
         transfer_writer_addr,
     ));
-    let transfer_import_addr = TransferImportManager::new().start();
-    factory.register(BeanDefinition::actor_with_inject_from_obj(
-        transfer_import_addr,
-    ));
-
     Ok(factory.init().await)
 }
 

@@ -6,6 +6,7 @@ use crate::now_millis;
 use crate::transfer::writer::TransferWriterActor;
 use actix::{Addr, Message};
 use binrw_derive::binrw;
+use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -235,12 +236,30 @@ pub enum TransferManagerResponse {
     BackupFile(TempFile),
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TransferImportParam {
+    pub config: bool,
+    pub user: bool,
+    pub cache: bool,
+}
+
+impl TransferImportParam {
+    pub fn all() -> Self {
+        Self {
+            config: true,
+            user: true,
+            cache: true,
+        }
+    }
+}
+
 #[derive(Message)]
 #[rtype(result = "anyhow::Result<TransferImportResponse>")]
 pub enum TransferImportRequest {
-    Import(Vec<u8>),
+    Import(Vec<u8>, TransferImportParam),
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum TransferImportResponse {
     None,
     Running,

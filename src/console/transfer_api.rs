@@ -1,13 +1,14 @@
 use crate::common::appdata::AppShareData;
+use crate::config::ConfigUtils;
 use crate::console::config_api::UploadForm;
 use crate::now_millis;
 use crate::transfer::model::{
-    TransferBackupParam, TransferImportRequest, TransferManagerAsyncRequest,
-    TransferManagerResponse,
+    TransferBackupParam, TransferImportParam, TransferImportRequest, TransferImportResponse,
+    TransferManagerAsyncRequest, TransferManagerResponse,
 };
 use actix_multipart::form::MultipartForm;
 use actix_web::http::header;
-use actix_web::{web, Error, HttpResponse, Responder};
+use actix_web::{error, web, Error, HttpRequest, HttpResponse, Responder};
 use std::io::Read;
 use std::sync::Arc;
 use tokio::fs::OpenOptions;
@@ -44,17 +45,33 @@ pub async fn download_transfer_file(
 }
 
 pub async fn import_transfer_file(
+    req: HttpRequest,
     MultipartForm(form): MultipartForm<UploadForm>,
     app_share_data: web::Data<Arc<AppShareData>>,
 ) -> Result<impl Responder, Error> {
+    let mut param = TransferImportParam::all();
+    if let Some(v) = req.headers().get("import-config") {
+        param.config = String::from_utf8_lossy(v.as_bytes()).as_ref() == "1";
+    };
+    if let Some(v) = req.headers().get("import-user") {
+        param.user = String::from_utf8_lossy(v.as_bytes()).as_ref() == "1";
+    };
+    if let Some(v) = req.headers().get("import-cache") {
+        param.cache = String::from_utf8_lossy(v.as_bytes()).as_ref() == "1";
+    };
     for mut f in form.files {
         let mut data = Vec::new();
         f.file.read_to_end(&mut data).unwrap();
-        app_share_data
-            .transfer_import_manager
-            .send(TransferImportRequest::Import(data))
+        let r = app_share_data
+            .raft_request_route
+            .request_import(data, param.clone())
             .await
-            .ok();
+            .map_err(error::ErrorInternalServerError)?;
+        if let TransferImportResponse::Running = r {
+            return Err(error::ErrorInternalServerError(
+                "This import is terminated because other imports are not processed",
+            ));
+        }
     }
     Ok(HttpResponse::Ok())
 }
