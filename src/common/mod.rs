@@ -1,4 +1,5 @@
 use crate::common::string_utils::StringUtils;
+use std::env;
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -236,7 +237,10 @@ impl AppSysConfig {
         } else {
             #[cfg(any(target_os = "linux", target_os = "macos"))]
             {
-                return "~/.local/share/r-nacos/nacos_db".to_string();
+                if let Some(mut home) = env::home_dir() {
+                    home.push(".local/share/r-nacos/nacos_db");
+                    return home.to_string_lossy().to_string();
+                }
             }
             // windows系统默认值保持一致
             "nacos_db".to_owned()
