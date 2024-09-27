@@ -312,6 +312,17 @@ lazy_static::lazy_static! {
         R::Path("/rnacos/api/console/v2/cluster/cluster_node_list",HTTP_METHOD_GET),
     ]);
 
+    static ref M_TRASFER_DATE_MANAGE: ModuleResource = ModuleResource::new(vec![
+        //WebResource
+        R::WebResource("/manage/transfer"),
+        R::WebResource("/rnacos/api/console/transfer/export"),
+        R::WebResource("/rnacos/api/console/transfer/import"),
+        //path
+        R::Path("/manage/transfer",HTTP_METHOD_GET),
+        R::Path("/rnacos/api/console/transfer/export",HTTP_METHOD_GET),
+        R::Path("/rnacos/api/console/transfer/import",HTTP_METHOD_ALL),
+    ]);
+
     static ref R_VISITOR: Arc<GroupResource> = Arc::new(GroupResource::new(vec![
         &M_BASE,
         //&M_CLUSTER_VISITOR,
@@ -337,6 +348,7 @@ lazy_static::lazy_static! {
         &M_NAMING_MANAGE,
         &M_USER_MANAGE,
         &M_METRICS_VISITOR,
+        &M_TRASFER_DATE_MANAGE,
     ]));
 
 }
