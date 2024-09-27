@@ -27,6 +27,7 @@ RUN cd /rnacos && \
 FROM alpine
 ENV PATH /root/.cargo/bin:$PATH
 ENV USER root
+ENV RNACOS_RUN_IN_DOCKER=true
 RUN mkdir /io
 COPY --from=builder /usr/bin/rnacos /usr/bin/rnacos
 WORKDIR /io

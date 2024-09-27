@@ -52,7 +52,7 @@ impl NamingSysConfig {
 #[derive(Default, Clone, Debug)]
 pub struct AppSysConfig {
     pub config_db_file: String,
-    pub config_db_dir: String,
+    pub local_db_dir: String,
     pub config_max_content: usize,
     pub http_port: u16,
     pub http_console_port: u16,
@@ -78,6 +78,7 @@ pub struct AppSysConfig {
     pub metrics_log_interval_second: u64,
     pub metrics_log_enable: bool,
     pub console_captcha_enable: bool,
+    pub run_in_docker: bool,
 }
 
 impl AppSysConfig {
@@ -105,7 +106,10 @@ impl AppSysConfig {
             .unwrap_or("".to_owned())
             .parse()
             .unwrap_or(http_port + 2000);
-        let config_db_dir = std::env::var("RNACOS_CONFIG_DB_DIR").unwrap_or("nacos_db".to_owned());
+        let run_in_docker = std::env::var("RNACOS_RUN_IN_DOCKER")
+            .unwrap_or("".to_owned())
+            .eq_ignore_ascii_case("true");
+        let local_db_dir = Self::get_data_dir(run_in_docker);
         let raft_node_id = std::env::var("RNACOS_RAFT_NODE_ID")
             .unwrap_or("1".to_owned())
             .parse()
@@ -189,7 +193,7 @@ impl AppSysConfig {
             metrics_collect_interval_second = metrics_log_interval_second;
         }
         Self {
-            config_db_dir,
+            local_db_dir,
             config_db_file,
             config_max_content,
             http_port,
@@ -216,6 +220,26 @@ impl AppSysConfig {
             metrics_collect_interval_second,
             metrics_log_interval_second,
             console_captcha_enable,
+            run_in_docker,
+        }
+    }
+
+    /// 获取数据目录
+    fn get_data_dir(run_in_docker: bool) -> String {
+        if let Ok(v) = std::env::var("RNACOS_DATA_DIR") {
+            v
+        } else if let Ok(v) = std::env::var("RNACOS_CONFIG_DB_DIR") {
+            v
+        } else if run_in_docker {
+            // 运行在docker，默认值保持一致
+            "nacos_db".to_owned()
+        } else {
+            #[cfg(any(target_os = "linux", target_os = "macos"))]
+            {
+                return "~/.local/share/r-nacos/nacos_db".to_string();
+            }
+            // windows系统默认值保持一致
+            "nacos_db".to_owned()
         }
     }
 

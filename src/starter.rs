@@ -50,20 +50,8 @@ use bean_factory::{BeanDefinition, BeanFactory, FactoryData};
 use chrono::{FixedOffset, Local, Offset};
 
 pub async fn config_factory(sys_config: Arc<AppSysConfig>) -> anyhow::Result<FactoryData> {
-    /*
-    let db = Arc::new(
-        sled::Config::new()
-            .path(&sys_config.config_db_dir)
-            .mode(sled::Mode::LowSpace)
-            .cache_capacity(10 * 1024 * 1024)
-            //.flush_every_ms(Some(1000))
-            .open()
-            .unwrap(),
-    );
-    factory.register(BeanDefinition::from_obj(db.clone()));
-     */
-    std::fs::create_dir_all(sys_config.config_db_dir.as_str())?;
-    let base_path = Arc::new(sys_config.config_db_dir.clone());
+    std::fs::create_dir_all(sys_config.local_db_dir.as_str())?;
+    let base_path = Arc::new(sys_config.local_db_dir.clone());
     let factory = BeanFactory::new();
     factory.register(BeanDefinition::from_obj(sys_config.clone()));
 
