@@ -170,20 +170,32 @@ const WIDTH: u32 = 220;
 const HEIGHT: u32 = 120;
 
 pub async fn gen_captcha(app: Data<Arc<AppShareData>>) -> actix_web::Result<impl Responder> {
+    let token = uuid::Uuid::new_v4().to_string().replace('-', "");
+    let captcha_cookie = Cookie::build("captcha_token", token.as_str())
+        .path("/")
+        .http_only(true)
+        .finish();
+    let captcha_header = ("Captcha-Token", token.as_str());
+
+    // 如果验证码功能被禁用，data 为 null
+    if !app.sys_config.console_captcha_enable {
+            return Ok(HttpResponse::Ok()
+                .cookie(captcha_cookie)
+                .insert_header(captcha_header)
+                .json(ApiResult::<String>::success(None)));
+    }
+
     //let obj = gen(Difficulty::Easy);
     let mut obj = Captcha::new();
     obj.add_chars(4)
         .apply_filter(Noise::new(0.1))
         .apply_filter(Grid::new(8, 8))
         .view(WIDTH, HEIGHT);
-    let mut code = "".to_owned();
-    for c in obj.chars() {
-        code.push(c);
-    }
-    let code = Arc::new(code.to_ascii_uppercase());
+
+    let code: String = obj.chars().iter().collect::<String>().to_uppercase();
+    let code = Arc::new(code);
 
     let img = obj.as_base64().unwrap_or_default();
-    let token = uuid::Uuid::new_v4().to_string().replace('-', "");
     //log::info!("gen_captcha code:{}", &code);
     let cache_req = CacheManagerReq::Set {
         key: CacheKey::new(CacheType::String, Arc::new(format!("Captcha_{}", &token))),
@@ -192,13 +204,8 @@ pub async fn gen_captcha(app: Data<Arc<AppShareData>>) -> actix_web::Result<impl
     };
     app.cache_manager.send(cache_req).await.ok();
     Ok(HttpResponse::Ok()
-        .cookie(
-            Cookie::build("captcha_token", token.as_str())
-                .path("/")
-                .http_only(true)
-                .finish(),
-        )
-        .insert_header(("Captcha-Token", token.as_str()))
+        .cookie(captcha_cookie)
+        .insert_header(captcha_header)
         .json(ApiResult::success(Some(img))))
 }
 
