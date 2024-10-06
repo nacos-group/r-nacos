@@ -9,6 +9,7 @@ use std::sync::Arc;
 use std::sync::Weak;
 use std::time::Duration;
 
+use crate::console::model::paginate::PaginateQuery;
 use crate::raft::store::ClientRequest;
 use crate::raft::NacosRaft;
 use crate::utils::get_md5;
@@ -21,6 +22,8 @@ use actix::prelude::*;
 
 use super::config_subscribe::Subscriber;
 use super::dal::ConfigHistoryParam;
+use super::dal::ConfigListenerDo;
+use super::dal::QueryListeners;
 use crate::config::config_index::{ConfigQueryParam, TenantIndex};
 use crate::config::config_type::ConfigType;
 use crate::config::model::{
@@ -297,14 +300,48 @@ pub enum ListenerResult {
     DATA(Vec<ConfigKey>),
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct AppName(String);
+
+impl AppName {
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl Default for AppName {
+    fn default() -> Self {
+        Self("unknown".to_owned())
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ConfigListenerInfo {
+    /// 客户端设置的应用名字，默认值为 unknown
+    ///  appName  set by the client, the default value is unknown
+    pub name: AppName,
+    /// 客户端 ip 地址
+    /// client remote ip address
+    pub ip: String,
+    /// 客户端订阅的版本，当前取值为请求 User-Agent
+    /// The client version. The current value is user agent
+    pub version: String,
+}
+
 type ListenerSenderType = tokio::sync::oneshot::Sender<ListenerResult>;
 //type ListenerReceiverType = tokio::sync::oneshot::Receiver<ListenerResult>;
+
+pub struct ConfigListenerChannel {
+    sender: ListenerSenderType,
+    info: ConfigListenerInfo,
+}
 
 pub(crate) struct ConfigListener {
     version: u64,
     listener: HashMap<ConfigKey, Vec<u64>>,
     time_listener: BTreeMap<i64, Vec<OnceListener>>,
-    sender_map: HashMap<u64, ListenerSenderType>,
+    channels: HashMap<u64, ConfigListenerChannel>,
 }
 
 impl ConfigListener {
@@ -313,11 +350,11 @@ impl ConfigListener {
             version: 0,
             listener: Default::default(),
             time_listener: Default::default(),
-            sender_map: Default::default(),
+            channels: Default::default(),
         }
     }
 
-    fn add(&mut self, items: Vec<ListenerItem>, sender: ListenerSenderType, time: i64) {
+    fn add(&mut self, items: Vec<ListenerItem>, channel: ConfigListenerChannel, time: i64) {
         self.version += 1;
         for item in &items {
             let key = item.key.clone();
@@ -330,7 +367,7 @@ impl ConfigListener {
                 }
             };
         }
-        self.sender_map.insert(self.version, sender);
+        self.channels.insert(self.version, channel);
         let once_listener = OnceListener {
             version: self.version,
             //time,
@@ -349,8 +386,11 @@ impl ConfigListener {
     fn notify(&mut self, key: ConfigKey) {
         if let Some(list) = self.listener.remove(&key) {
             for v in list {
-                if let Some(sender) = self.sender_map.remove(&v) {
-                    sender.send(ListenerResult::DATA(vec![key.clone()])).ok();
+                if let Some(sender) = self.channels.remove(&v) {
+                    sender
+                        .sender
+                        .send(ListenerResult::DATA(vec![key.clone()]))
+                        .ok();
                 }
             }
         }
@@ -364,8 +404,8 @@ impl ConfigListener {
                 keys.push(*key);
                 for item in list {
                     let v = item.version;
-                    if let Some(sender) = self.sender_map.remove(&v) {
-                        sender.send(ListenerResult::NULL).ok();
+                    if let Some(channel) = self.channels.remove(&v) {
+                        channel.sender.send(ListenerResult::NULL).ok();
                     }
                 }
             } else {
@@ -378,7 +418,7 @@ impl ConfigListener {
     }
 
     pub(crate) fn get_listener_client_size(&self) -> usize {
-        self.sender_map.len()
+        self.channels.len()
     }
 
     pub(crate) fn get_listener_key_size(&self) -> usize {
@@ -531,6 +571,31 @@ impl ConfigActor {
         Ok(())
     }
 
+    pub fn get_config_listeners(
+        &self,
+        config_key: &ConfigKey,
+        pagiante: &PaginateQuery,
+    ) -> (usize, Vec<ConfigListenerDo>) {
+        let ids = self.listener.listener.get(config_key).unwrap();
+        let cursors = &ids[pagiante.page_no - 1..pagiante.page_size];
+
+        let subscribers = cursors
+            .iter()
+            .copied()
+            .filter_map(|id| {
+                self.listener
+                    .channels
+                    .get(&id)
+                    .map(|channel| ConfigListenerDo {
+                        id,
+                        info: channel.info.clone(),
+                    })
+            })
+            .collect::<Vec<ConfigListenerDo>>();
+
+        (ids.len(), subscribers)
+    }
+
     pub fn get_config_info_page(&self, param: &ConfigQueryParam) -> (usize, Vec<ConfigInfoDto>) {
         let (size, list) = self.tenant_index.query_config_page(param);
 
@@ -653,7 +718,13 @@ pub enum ConfigCmd {
     GET(ConfigKey),
     QueryPageInfo(Box<ConfigQueryParam>),
     QueryHistoryPageInfo(Box<ConfigHistoryParam>),
-    LISTENER(Vec<ListenerItem>, ListenerSenderType, i64),
+    Listener(
+        Vec<ListenerItem>,
+        ListenerSenderType,
+        ConfigListenerInfo,
+        i64,
+    ),
+    QueryListeners(QueryListeners),
     Subscribe(Vec<ListenerItem>, Arc<String>),
     RemoveSubscribe(Vec<ListenerItem>, Arc<String>),
     RemoveSubscribeClient(Arc<String>),
@@ -685,6 +756,7 @@ pub enum ConfigResult {
     ChangeKey(Vec<ConfigKey>),
     ConfigInfoPage(usize, Vec<ConfigInfoDto>),
     ConfigHistoryInfoPage(usize, Vec<ConfigHistoryInfoDto>),
+    ConfigListenerInfoPage(usize, Vec<ConfigListenerDo>),
 }
 
 impl Actor for ConfigActor {
@@ -727,7 +799,13 @@ impl Handler<ConfigCmd> for ConfigActor {
                     });
                 }
             }
-            ConfigCmd::LISTENER(items, sender, time) => {
+            ConfigCmd::QueryListeners(cmd) => {
+                let (total, subscribers) =
+                    self.get_config_listeners(&cmd.config_key, &cmd.paginate);
+
+                return Ok(ConfigResult::ConfigListenerInfoPage(total, subscribers));
+            }
+            ConfigCmd::Listener(items, sender, subscribe_info, time) => {
                 let mut changes = vec![];
                 for item in &items {
                     if let Some(v) = self.cache.get(&item.key) {
@@ -742,7 +820,14 @@ impl Handler<ConfigCmd> for ConfigActor {
                     sender.send(ListenerResult::DATA(changes)).ok();
                     return Ok(ConfigResult::NULL);
                 } else {
-                    self.listener.add(items, sender, time);
+                    self.listener.add(
+                        items,
+                        ConfigListenerChannel {
+                            sender,
+                            info: subscribe_info,
+                        },
+                        time,
+                    );
                     return Ok(ConfigResult::NULL);
                 }
             }
