@@ -84,7 +84,8 @@ impl Service {
         let old_instance = self.instances.get(&key);
         let mut replace_old_client_id = None;
         if let Some(old_instance) = old_instance {
-            if !instance.from_grpc {
+            if !instance.from_grpc && old_instance.from_grpc {
+                /*
                 match (old_instance.from_grpc, old_instance.is_from_cluster()) {
                     (true, true) => {
                         //需要路由到远程服务更新
@@ -102,6 +103,10 @@ impl Service {
                     //直接更新
                     (false, _) => {}
                 };
+                 */
+                instance.from_grpc = old_instance.from_grpc;
+                instance.client_id = old_instance.client_id.clone();
+                //instance.from_cluster = old_instance.from_cluster;
             }
             if !old_instance.client_id.is_empty() && instance.client_id != old_instance.client_id {
                 replace_old_client_id = Some(old_instance.client_id.clone());

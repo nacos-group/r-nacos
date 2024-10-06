@@ -342,24 +342,28 @@ impl NamingActor {
         key: &ServiceKey,
         mut instance: Instance,
         tag: Option<InstanceUpdateTag>,
+        from_sync: bool,
     ) -> UpdateInstanceType {
         instance.init();
         //assert!(instance.check_vaild());
         self.create_empty_service(key);
-        let is_from_from_cluster = instance.is_from_cluster();
-        let at_process_range = if instance.from_grpc || !is_from_from_cluster {
-            false
-        } else if let Some(range) = &self.current_range {
+        //let is_from_from_cluster = instance.is_from_cluster();
+        let at_process_range = if let Some(range) = &self.current_range {
             range.is_range(get_hash_value(&key) as usize)
         } else {
             false
         };
-        if at_process_range {
+        if at_process_range && !instance.from_grpc {
             instance.from_cluster = 0;
             instance.client_id = EMPTY_ARC_STRING.clone();
         }
         //let cluster_name = instance.cluster_name.clone();
-        let service = self.service_map.get_mut(key).unwrap();
+        let service = if let Some(service) = self.service_map.get_mut(key) {
+            service
+        } else {
+            log::warn!("update_instance not found service,{:?}", &key);
+            return UpdateInstanceType::None;
+        };
         let client_id = instance.client_id.clone();
         let instance_key =
             InstanceKey::new_by_service_key(key, instance.ip.clone(), instance.port.to_owned());
@@ -383,11 +387,9 @@ impl NamingActor {
                 set.remove(&instance_key);
             }
         }
-        if !is_from_from_cluster {
+        if !from_sync {
             //change notify
-            let instance = service
-                .get_instance(&instance_short_key)
-                .filter(|e| !e.is_from_cluster());
+            let instance = service.get_instance(&instance_short_key);
             self.do_notify(&tag, key.clone(), instance);
         }
         tag
@@ -763,7 +765,7 @@ impl NamingActor {
             self.update_service(service_detail);
         }
         for mut instance in snapshot.instances {
-            self.update_instance(&instance.get_service_key(), instance, None);
+            self.update_instance(&instance.get_service_key(), instance, None, true);
         }
     }
 
@@ -829,6 +831,7 @@ impl NamingActor {
 #[rtype(result = "anyhow::Result<NamingResult>")]
 pub enum NamingCmd {
     Update(Instance, Option<InstanceUpdateTag>),
+    UpdateFromSync(Instance, Option<InstanceUpdateTag>),
     UpdateBatch(Vec<Instance>),
     Delete(Instance),
     DeleteBatch(Vec<Instance>),
@@ -882,7 +885,15 @@ impl Handler<NamingCmd> for NamingActor {
     fn handle(&mut self, msg: NamingCmd, ctx: &mut Context<Self>) -> Self::Result {
         match msg {
             NamingCmd::Update(instance, tag) => {
-                let tag = self.update_instance(&instance.get_service_key(), instance, tag);
+                let tag = self.update_instance(&instance.get_service_key(), instance, tag, false);
+                if let UpdateInstanceType::UpdateOtherClusterMetaData(node_id, instance) = tag {
+                    Ok(NamingResult::RewriteToCluster(node_id, instance))
+                } else {
+                    Ok(NamingResult::NULL)
+                }
+            }
+            NamingCmd::UpdateFromSync(instance, tag) => {
+                let tag = self.update_instance(&instance.get_service_key(), instance, tag, true);
                 if let UpdateInstanceType::UpdateOtherClusterMetaData(node_id, instance) = tag {
                     Ok(NamingResult::RewriteToCluster(node_id, instance))
                 } else {
@@ -891,7 +902,7 @@ impl Handler<NamingCmd> for NamingActor {
             }
             NamingCmd::UpdateBatch(instances) => {
                 for mut instance in instances {
-                    self.update_instance(&instance.get_service_key(), instance, None);
+                    self.update_instance(&instance.get_service_key(), instance, None, true);
                 }
                 Ok(NamingResult::NULL)
             }
@@ -1132,7 +1143,7 @@ fn test_remove_has_instance_service() {
     instance.cluster_name = "DEFUALT".to_owned();
     instance.init();
     let service_key = instance.get_service_key();
-    naming.update_instance(&service_key, instance.clone(), None);
+    naming.update_instance(&service_key, instance.clone(), None, false);
     let service_info = ServiceDetailDto {
         namespace_id: service_key.namespace_id.clone(),
         service_name: service_key.service_name.clone(),

@@ -1,7 +1,7 @@
 #[macro_export]
 macro_rules! merge_web_param {
     ($param:expr,$payload:expr) => {{
-        let _body = match crate::common::web_utils::get_req_body($payload).await {
+        let _body = match $crate::common::web_utils::get_req_body($payload).await {
             Ok(v) => v,
             Err(err) => {
                 return actix_web::HttpResponse::InternalServerError().body(err.to_string());
@@ -20,7 +20,7 @@ macro_rules! merge_web_param {
 #[macro_export]
 macro_rules! merge_web_param_with_result {
     ($param:expr,$payload:expr) => {{
-        let _body = match crate::common::web_utils::get_req_body($payload).await {
+        let _body = match $crate::common::web_utils::get_req_body($payload).await {
             Ok(v) => v,
             Err(err) => {
                 return Ok(actix_web::HttpResponse::InternalServerError().body(err.to_string()));

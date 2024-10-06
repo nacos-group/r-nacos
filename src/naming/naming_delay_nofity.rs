@@ -72,8 +72,7 @@ impl DelayNotifyActor {
 
     pub fn notify_heartbeat(&self, ctx: &mut actix::Context<Self>) {
         ctx.run_later(Duration::from_millis(500), |act, ctx| {
-            //act.inner_delay_notify.notify_timeout().unwrap();
-            let events = act.inner_delay_notify.timeout().unwrap();
+            let events = act.inner_delay_notify.timeout().unwrap_or_default();
             let naming_addr = act.naming_addr.clone();
             async move {
                 Self::fill_event_data_and_notify(naming_addr, events).await;
@@ -96,21 +95,17 @@ impl DelayNotifyActor {
                 let cmd = NamingCmd::QueryServiceInfo(event.key.clone(), "".to_owned(), true);
                 match naming_addr.send(cmd).await {
                     Ok(res) => {
-                        let result: NamingResult = res.unwrap();
-                        match result {
-                            NamingResult::ServiceInfo(service_info) => {
-                                event.service_info = Some(service_info);
-                            }
-                            _ => {
-                                log::error!("fill_event_data_and_notify service_info is empty");
-                            }
-                        };
+                        if let Ok(NamingResult::ServiceInfo(service_info)) = res {
+                            event.service_info = Some(service_info);
+                        } else {
+                            log::error!("fill_event_data_and_notify service_info is empty");
+                        }
                     }
                     Err(_err) => {
                         log::error!("fill_event_data_and_notify error");
                     }
                 };
-                event.on_event().unwrap();
+                event.on_event().ok();
             }
         }
     }

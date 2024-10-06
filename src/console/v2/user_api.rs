@@ -85,6 +85,12 @@ pub async fn add_user(
     web::Json(user_param): web::Json<UpdateUserInfoParam>,
 ) -> actix_web::Result<impl Responder> {
     let user: UserDto = user_param.into();
+    if user.roles.is_none() {
+        return Ok(HttpResponse::Ok().json(ApiResult::<()>::error(
+            "USER_ROLE_IS_EMPTY".to_string(),
+            Some("user roles is empty".to_owned()),
+        )));
+    }
     let msg = UserManagerReq::AddUser {
         user: UserDto {
             username: user.username,
