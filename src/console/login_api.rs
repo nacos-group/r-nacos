@@ -179,10 +179,10 @@ pub async fn gen_captcha(app: Data<Arc<AppShareData>>) -> actix_web::Result<impl
 
     // 如果验证码功能被禁用，data 为 null
     if !app.sys_config.console_captcha_enable {
-            return Ok(HttpResponse::Ok()
-                .cookie(captcha_cookie)
-                .insert_header(captcha_header)
-                .json(ApiResult::<String>::success(None)));
+        return Ok(HttpResponse::Ok()
+            .cookie(captcha_cookie)
+            .insert_header(captcha_header)
+            .json(ApiResult::<String>::success(None)));
     }
 
     //let obj = gen(Difficulty::Easy);

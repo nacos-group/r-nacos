@@ -1,8 +1,6 @@
 pub mod model;
 
-use crate::common::constant::{
-    EMPTY_ARC_STRING, NAMESPACE_TREE_NAME,
-};
+use crate::common::constant::{EMPTY_ARC_STRING, NAMESPACE_TREE_NAME};
 use crate::common::string_utils::StringUtils;
 use crate::config::core::ConfigActor;
 use crate::console::NamespaceUtilsOld;
@@ -110,7 +108,7 @@ impl NamespaceActor {
             if only_add {
                 return;
             }
-            let mut value = Namespace{
+            let mut value = Namespace {
                 namespace_id: param.namespace_id,
                 ..Namespace::default()
             };

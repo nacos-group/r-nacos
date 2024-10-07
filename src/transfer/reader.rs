@@ -101,16 +101,15 @@ impl ConfigCacheSequence {
         if let Some(next_id) = self.seq.next_id() {
             Ok((next_id, None))
         } else if let ConfigResult::SequenceSection { start, end } = self
-                .config
-                .send(ConfigCmd::GetSequenceSection(100))
-                .await??
-            {
-                self.seq = CacheSequence::new(start + 1, end - start);
-                Ok((start, Some(end)))
-            } else {
-                Err(anyhow::anyhow!("config result is error"))
-            }
-
+            .config
+            .send(ConfigCmd::GetSequenceSection(100))
+            .await??
+        {
+            self.seq = CacheSequence::new(start + 1, end - start);
+            Ok((start, Some(end)))
+        } else {
+            Err(anyhow::anyhow!("config result is error"))
+        }
     }
 }
 
@@ -126,7 +125,6 @@ impl Default for TransferImportManager {
         Self::new()
     }
 }
-
 
 impl TransferImportManager {
     pub fn new() -> Self {
@@ -155,8 +153,9 @@ impl TransferImportManager {
                 } else if param.config && record.table_name.as_str() == NAMESPACE_TREE_NAME.as_str()
                 {
                     Self::apply_namespace(raft, record).await?;
-                } else if ( param.user && record.table_name.as_str() == USER_TREE_NAME.as_str() )  ||
-                    (param.cache && record.table_name.as_str() == CACHE_TREE_NAME.as_str()) {
+                } else if (param.user && record.table_name.as_str() == USER_TREE_NAME.as_str())
+                    || (param.cache && record.table_name.as_str() == CACHE_TREE_NAME.as_str())
+                {
                     Self::apply_table(raft, record).await?;
                 } else {
                     ignore += 1;
