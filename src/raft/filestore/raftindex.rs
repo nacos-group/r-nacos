@@ -137,13 +137,7 @@ impl RaftIndexManager {
         #[cfg(all(not(miri), any(windows, target_os = "linux", target_os = "macos")))]
         {
             use fs2::FileExt;
-
-            let try_lock = if cfg!(any(feature = "testing", feature = "light_testing")) {
-                file.lock_exclusive()
-            } else {
-                file.try_lock_exclusive()
-            };
-            if try_lock.is_err() {
+            if file.try_lock_exclusive().is_err() {
                 log::error!("try lock db error,path:{}", &path);
                 return Err(anyhow::anyhow!("try lock db error,path:{}", &path));
             }

@@ -1,4 +1,3 @@
-use std::cmp::{max, min};
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -389,7 +388,7 @@ pub(super) async fn listener_config(
     if let Some(_timeout) = _req.headers().get("Long-Pulling-Timeout") {
         match _timeout.to_str().unwrap().parse::<i64>() {
             Ok(v) => {
-                time_out = current_time + min(max(10000, v), 120000) - 500;
+                time_out = current_time + v.clamp(10000, 120000) - 500;
             }
             Err(_) => {
                 time_out = 0;

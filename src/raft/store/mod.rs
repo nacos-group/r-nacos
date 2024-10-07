@@ -4,7 +4,6 @@
 use std::sync::Arc;
 
 use super::db::table::TableManagerReq;
-use crate::config::core::{ConfigKey, ConfigValue};
 use crate::namespace::model::NamespaceRaftReq;
 use async_raft_ext::AppData;
 use async_raft_ext::AppDataResponse;

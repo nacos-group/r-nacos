@@ -1,5 +1,4 @@
 use crate::common::string_utils::StringUtils;
-use std::env;
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -32,6 +31,8 @@ lazy_static! {
     pub static ref APP_SYS_CONFIG: AppSysConfig = AppSysConfig::init_from_env();
 }
 */
+
+const DEFAULT_DB_PATH: &str = "nacos_db";
 
 #[derive(Default, Clone, Debug)]
 pub struct NamingSysConfig {
@@ -233,17 +234,17 @@ impl AppSysConfig {
             v
         } else if run_in_docker {
             // 运行在docker，默认值保持一致
-            "nacos_db".to_owned()
+            DEFAULT_DB_PATH.to_owned()
         } else {
             #[cfg(any(target_os = "linux", target_os = "macos"))]
             {
-                if let Some(mut home) = env::home_dir() {
+                if let Some(mut home) = dirs::home_dir() {
                     home.push(".local/share/r-nacos/nacos_db");
                     return home.to_string_lossy().to_string();
                 }
             }
             // windows系统默认值保持一致
-            "nacos_db".to_owned()
+            DEFAULT_DB_PATH.to_owned()
         }
     }
 

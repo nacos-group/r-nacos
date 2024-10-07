@@ -5,7 +5,7 @@ use super::{
     log::SnapshotRange,
     model::{ApplyRequestDto, LogRecordLoader, MemberShip, SnapshotHeaderDto},
     raftindex::{RaftIndexManager, RaftIndexRequest, RaftIndexResponse},
-    raftlog::{RaftLogManager, RaftLogManagerAsyncRequest, RaftLogManagerRequest},
+    raftlog::{RaftLogManager, RaftLogManagerAsyncRequest},
     raftsnapshot::{
         RaftSnapshotManager, RaftSnapshotRequest, RaftSnapshotResponse, SnapshotReader,
     },
@@ -18,7 +18,6 @@ use crate::common::constant::{
 };
 use crate::config::core::{ConfigCmd, ConfigKey, ConfigValue};
 use crate::config::model::{ConfigRaftCmd, ConfigValueDO};
-use crate::namespace::model::{NamespaceParam, NamespaceRaftReq};
 use crate::raft::db::table::{TableManagerInnerReq, TableManagerReq};
 use crate::raft::filestore::model::SnapshotRecordDto;
 use crate::raft::filestore::raftdata::RaftDataWrap;

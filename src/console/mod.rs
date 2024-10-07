@@ -80,11 +80,7 @@ impl NamespaceUtilsOld {
         if namespace_str.is_empty() {
             return vec![];
         }
-        if let Ok(namespaces) = serde_json::from_str::<Vec<NamespaceInfo>>(&namespace_str) {
-            namespaces
-        } else {
-            vec![]
-        }
+        serde_json::from_str::<Vec<NamespaceInfo>>(&namespace_str).unwrap_or_default()
     }
 
     pub async fn save_namespace(

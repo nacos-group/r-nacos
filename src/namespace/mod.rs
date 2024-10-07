@@ -1,13 +1,10 @@
 pub mod model;
 
-use crate::common::byte_utils::id_to_bin;
 use crate::common::constant::{
-    CONFIG_TREE_NAME, EMPTY_ARC_STRING, NAMESPACE_TREE_NAME, SEQUENCE_TREE_NAME, SEQ_KEY_CONFIG,
+    EMPTY_ARC_STRING, NAMESPACE_TREE_NAME,
 };
 use crate::common::string_utils::StringUtils;
 use crate::config::core::ConfigActor;
-use crate::config::model::ConfigValueDO;
-use crate::console::model::NamespaceInfo;
 use crate::console::NamespaceUtilsOld;
 use crate::namespace::model::{
     Namespace, NamespaceDO, NamespaceParam, NamespaceQueryReq, NamespaceQueryResult,
@@ -113,8 +110,10 @@ impl NamespaceActor {
             if only_add {
                 return;
             }
-            let mut value = Namespace::default();
-            value.namespace_id = param.namespace_id;
+            let mut value = Namespace{
+                namespace_id: param.namespace_id,
+                ..Namespace::default()
+            };
             value.namespace_name = if let Some(name) = param.namespace_name {
                 name
             } else {

@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 
 use actix::prelude::*;
 
-use crate::common::constant::{CACHE_TREE_NAME, NAMESPACE_TREE_NAME, USER_TREE_NAME};
+use crate::common::constant::{CACHE_TREE_NAME, USER_TREE_NAME};
 use crate::common::sequence_utils::SimpleSequence;
 use crate::raft::filestore::model::SnapshotRecordDto;
 use crate::raft::filestore::raftsnapshot::{SnapshotWriterActor, SnapshotWriterRequest};

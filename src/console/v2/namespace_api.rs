@@ -1,10 +1,8 @@
 use crate::common::appdata::AppShareData;
 use crate::common::model::ApiResult;
 use crate::common::string_utils::StringUtils;
-use crate::config::core::ConfigActor;
 use crate::console::model::NamespaceInfo;
 use crate::console::NamespaceUtils;
-//use actix::Addr;
 use actix_web::{web, HttpResponse, Responder};
 use std::sync::Arc;
 use uuid::Uuid;

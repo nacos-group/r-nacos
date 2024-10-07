@@ -1,3 +1,4 @@
+#![allow(clippy::suspicious_open_options)]
 use crate::common::constant::{
     CACHE_TREE_NAME, CONFIG_TREE_NAME, EMPTY_STR, NAMESPACE_TREE_NAME, SEQUENCE_TREE_NAME,
     USER_TREE_NAME,
@@ -194,7 +195,7 @@ impl TransferWriterManager {
 
     fn build_writer_actor(&self) -> Addr<TransferWriterActor> {
         let mut path = self.tmp_dir.clone();
-        path.push(format!("{}.bak", Uuid::new_v4().simple().to_string()));
+        path.push(format!("{}.data", Uuid::new_v4().simple()));
         let writer_actor = TransferWriterActor::new(path, self.version).start();
         writer_actor.do_send(TransferWriterRequest::AddTableNameMap(
             CONFIG_TREE_NAME.clone(),
@@ -258,7 +259,7 @@ impl TransferWriterManager {
 impl Actor for TransferWriterManager {
     type Context = Context<Self>;
 
-    fn started(&mut self, ctx: &mut Self::Context) {
+    fn started(&mut self, _ctx: &mut Self::Context) {
         log::info!("TransferWriterManager started");
     }
 }
@@ -294,7 +295,7 @@ impl Handler<TransferManagerAsyncRequest> for TransferWriterManager {
             }
         }
         .into_actor(self)
-        .map(|r, act, _ctx| {
+        .map(|r, _act, _ctx| {
             let path = r?;
             Ok(TransferManagerResponse::BackupFile(TempFile::new(path)))
         });

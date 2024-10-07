@@ -1,9 +1,8 @@
 use crate::common::appdata::AppShareData;
-use crate::config::ConfigUtils;
 use crate::console::config_api::UploadForm;
 use crate::now_millis;
 use crate::transfer::model::{
-    TransferBackupParam, TransferImportParam, TransferImportRequest, TransferImportResponse,
+    TransferBackupParam, TransferImportParam, TransferImportResponse,
     TransferManagerAsyncRequest, TransferManagerResponse,
 };
 use actix_multipart::form::MultipartForm;
@@ -34,7 +33,7 @@ pub async fn download_transfer_file(
         let mut buf = vec![];
         tmpfile.read_to_end(&mut buf).await.ok();
 
-        let filename = format!("rnacos_export_{}.bak", now_millis());
+        let filename = format!("rnacos_export_{}.data", now_millis());
         HttpResponse::Ok()
             .insert_header(header::ContentType::octet_stream())
             .insert_header(header::ContentDisposition::attachment(filename))

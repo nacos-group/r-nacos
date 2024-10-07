@@ -4,30 +4,28 @@ use crate::common::constant::{
 use crate::common::pb::transfer::{TransferHeader, TransferItem};
 use crate::common::protobuf_utils::MessageBufReader;
 use crate::common::sequence_utils::CacheSequence;
-use crate::config::core::{ConfigActor, ConfigCmd, ConfigKey, ConfigResult, ConfigValue};
+use crate::config::core::{ConfigActor, ConfigCmd, ConfigResult, ConfigValue};
 use crate::config::model::ConfigValueDO;
 use crate::namespace::model::{Namespace, NamespaceDO, NamespaceParam, NamespaceRaftReq};
-use crate::now_millis_i64;
 use crate::raft::db::table::TableManagerReq;
 use crate::raft::filestore::raftdata::RaftDataWrap;
 use crate::raft::store::ClientRequest;
 use crate::raft::NacosRaft;
 use crate::transfer::model::{
     TransferHeaderDto, TransferImportParam, TransferImportRequest, TransferImportResponse,
-    TransferPrefix, TransferRecordDto, TransferRecordRef,
+    TransferPrefix, TransferRecordRef,
 };
 use actix::prelude::*;
-use anyhow::anyhow;
 use async_raft_ext::raft::ClientWriteRequest;
 use bean_factory::{bean, BeanFactory, FactoryData, Inject};
 use binrw::BinReaderExt;
 use quick_protobuf::BytesReader;
-use std::io::{BufReader, Cursor};
-use std::sync::{Arc, Weak};
+use std::io::Cursor;
+use std::sync::Arc;
 
 pub struct TransferReader {
     message_reader: MessageBufReader,
-    prefix: TransferPrefix,
+    //prefix: TransferPrefix,
     header: TransferHeaderDto,
 }
 
@@ -48,7 +46,7 @@ impl TransferReader {
         };
         Ok(Self {
             message_reader,
-            prefix,
+            //prefix,
             header,
         })
     }
@@ -102,8 +100,7 @@ impl ConfigCacheSequence {
     pub async fn next_state(&mut self) -> anyhow::Result<(u64, Option<u64>)> {
         if let Some(next_id) = self.seq.next_id() {
             Ok((next_id, None))
-        } else {
-            if let ConfigResult::SequenceSection { start, end } = self
+        } else if let ConfigResult::SequenceSection { start, end } = self
                 .config
                 .send(ConfigCmd::GetSequenceSection(100))
                 .await??
@@ -113,7 +110,7 @@ impl ConfigCacheSequence {
             } else {
                 Err(anyhow::anyhow!("config result is error"))
             }
-        }
+
     }
 }
 
@@ -123,6 +120,13 @@ pub struct TransferImportManager {
     raft: Option<Arc<NacosRaft>>,
     importing: bool,
 }
+
+impl Default for TransferImportManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 
 impl TransferImportManager {
     pub fn new() -> Self {
@@ -139,7 +143,7 @@ impl TransferImportManager {
         raft: Option<Arc<NacosRaft>>,
         data_wrap: Option<Arc<RaftDataWrap>>,
     ) -> anyhow::Result<()> {
-        if let (Some(raft), Some(data_wrap)) = (raft, data_wrap) {
+        if let (Some(raft), Some(data_wrap)) = (&raft, data_wrap) {
             let mut count = 0;
             let mut ignore = 0;
             let mut reader = TransferReader::new(data)?;
@@ -147,14 +151,13 @@ impl TransferImportManager {
             while let Ok(Some(record)) = reader.read_record() {
                 count += 1;
                 if param.config && record.table_name.as_str() == CONFIG_TREE_NAME.as_str() {
-                    Self::apply_config(&raft, &mut config_seq, record).await?;
+                    Self::apply_config(raft, &mut config_seq, record).await?;
                 } else if param.config && record.table_name.as_str() == NAMESPACE_TREE_NAME.as_str()
                 {
-                    Self::apply_namespace(&raft, record).await?;
-                } else if param.user && record.table_name.as_str() == USER_TREE_NAME.as_str() {
-                    Self::apply_table(&raft, record).await?;
-                } else if param.cache && record.table_name.as_str() == CACHE_TREE_NAME.as_str() {
-                    Self::apply_table(&raft, record).await?;
+                    Self::apply_namespace(raft, record).await?;
+                } else if ( param.user && record.table_name.as_str() == USER_TREE_NAME.as_str() )  ||
+                    (param.cache && record.table_name.as_str() == CACHE_TREE_NAME.as_str()) {
+                    Self::apply_table(raft, record).await?;
                 } else {
                     ignore += 1;
                 }
@@ -175,7 +178,7 @@ impl TransferImportManager {
             last_seq_id: None,
         };
         let req = ClientRequest::TableManagerReq(table_req);
-        Self::send_raft_request(&raft, req).await?;
+        Self::send_raft_request(raft, req).await?;
         Ok(())
     }
 
@@ -191,7 +194,7 @@ impl TransferImportManager {
             r#type: Some(value.r#type),
         };
         let req = ClientRequest::NamespaceReq(NamespaceRaftReq::Update(param));
-        Self::send_raft_request(&raft, req).await?;
+        Self::send_raft_request(raft, req).await?;
         Ok(())
     }
 
@@ -216,7 +219,7 @@ impl TransferImportManager {
             value: save_do.to_bytes()?,
             last_seq_id: update_last_id,
         };
-        Self::send_raft_request(&raft, req).await?;
+        Self::send_raft_request(raft, req).await?;
         Ok(())
     }
 
@@ -250,7 +253,7 @@ impl TransferImportManager {
 impl Actor for TransferImportManager {
     type Context = Context<Self>;
 
-    fn started(&mut self, ctx: &mut Self::Context) {
+    fn started(&mut self, _ctx: &mut Self::Context) {
         log::info!("TransferReaderManager started");
     }
 }

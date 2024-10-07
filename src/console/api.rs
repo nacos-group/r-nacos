@@ -2,15 +2,12 @@ use std::sync::Arc;
 
 use crate::common::appdata::AppShareData;
 use crate::common::string_utils::StringUtils;
-use crate::config::core::ConfigActor;
-use actix::prelude::*;
 use actix_web::{http::header, web, HttpResponse, Responder};
 use uuid::Uuid;
 
 use crate::naming::ops::ops_api::query_opt_service_list;
 use crate::openapi::naming::instance::{del_instance, get_instance, update_instance};
 use crate::openapi::naming::service::{query_service, remove_service, update_service};
-//use crate::console::raft_api::{raft_add_learner, raft_change_membership, raft_init, raft_metrics, raft_read, raft_write};
 
 use super::cluster_api::query_cluster_info;
 use super::config_api::query_config_list;
