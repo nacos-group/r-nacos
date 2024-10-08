@@ -525,7 +525,8 @@ KEY3=VALUE3
 <tr><td>RNACOS_CONSOLE_LOGIN_ONE_HOUR_LIMIT</td><td>r-nacos控制台登录1小时失败次数限制</td><td>默认是5,一个用户连续登陆失败5次，会被锁定1个小时</td><td>5</td><td>0.4.x</td></tr>
 <tr><td>RNACOS_HTTP_WORKERS</td><td>http工作线程数</td><td>cpu核数</td><td>8</td><td>0.1.x</td></tr>
 <tr><td>RNACOS_CONFIG_DB_FILE</td><td>配置中心的本地数据库文件地址【0.2.x后不在使用】</td><td>config.db</td><td>config.db</td><td>0.1.x</td></tr>
-<tr><td>RNACOS_CONFIG_DB_DIR</td><td>配置中心的本地数据库sled文件夹, 会在系统运行时自动创建</td><td>nacos_db</td><td>nacos_db</td><td>0.2.x</td></tr>
+<tr><td>RNACOS_CONFIG_DB_DIR</td><td>配置中心的本地数据库文件夹, 会在系统运行时自动创建【因语义原因，v0.6.x后推荐使用RNACOS_DATA_DIR】</td><td>nacos_db</td><td>nacos_db</td><td>0.2.x</td></tr>
+<tr><td>RNACOS_DATA_DIR</td><td>本地数据库文件夹, 会在系统运行时自动创建【与RNACOS_CONFIG_DB_DIR等价，用于替代RNACOS_CONFIG_DB_DIR】</td><td>linux,MacOS默认为~/.local/share/r-nacos/nacos_db;windows,docker默认为nacos_db</td><td>nacos_db</td><td>0.6.x</td></tr>
 <tr><td>RNACOS_RAFT_NODE_ID</td><td>节点id</td><td>1</td><td>1</td><td>0.3.0</td></tr>
 <tr><td>RNACOS_RAFT_NODE_ADDR</td><td>节点地址Ip:GrpcPort,单节点运行时每次启动都会生效；多节点集群部署时，只取加入集群时配置的值</td><td>127.0.0.1:GrpcPort</td><td>127.0.0.1:9848</td><td>0.3.0</td></tr>
 <tr><td>RNACOS_RAFT_AUTO_INIT</td><td>是否当做主节点初始化,(只在每一次启动时生效)</td><td>节点1时默认为true,节点非1时为false</td><td>true</td><td>0.3.0</td></tr>
