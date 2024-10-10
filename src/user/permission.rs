@@ -5,6 +5,7 @@
 /// 2）http请求路径，由后端拦截器控制否支持请求；
 use std::{collections::HashSet, hash::Hash, sync::Arc};
 
+
 use crate::common::constant::{EMPTY_STR, HTTP_METHOD_ALL, HTTP_METHOD_GET};
 
 pub enum Resource {
@@ -361,14 +362,27 @@ pub enum UserRole {
     OldConsole,
     None,
 }
+const MANAGER_VALUE: &'static str = "0";
+const DEVELOPER_VALUE: &'static str = "1";
+const VISITOR_VALUE: &'static str = "2";
+const NONE_VALUE: &'static str = "";
 
 impl UserRole {
     pub fn new(role_value: &str) -> Self {
         match role_value {
-            "0" => Self::Manager,
-            "1" => Self::Developer,
-            "2" => Self::Visitor,
+            MANAGER_VALUE => Self::Manager,
+            DEVELOPER_VALUE => Self::Developer,
+            VISITOR_VALUE => Self::Visitor,
             _ => Self::None,
+        }
+    }
+
+    pub fn to_role_value(&self) -> &str {
+        match self {
+            Self::Manager => MANAGER_VALUE,
+            Self::Developer => DEVELOPER_VALUE,
+            Self::Visitor => VISITOR_VALUE,
+            _ => NONE_VALUE,
         }
     }
 
