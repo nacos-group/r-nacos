@@ -1,11 +1,12 @@
+use super::model::ServiceKey;
+use crate::common::string_utils::StringUtils;
+use crate::namespace::model::{NamespaceActorReq, WeakNamespaceFromType, WeakNamespaceParam};
+use crate::namespace::NamespaceActor;
+use actix::Addr;
 use std::{
     collections::{BTreeMap, BTreeSet},
     sync::Arc,
 };
-
-use crate::common::string_utils::StringUtils;
-
-use super::model::ServiceKey;
 
 #[derive(Debug, Clone, Default)]
 pub struct ServiceQueryParam {
@@ -144,6 +145,7 @@ impl ServiceIndex {
 pub struct NamespaceIndex {
     pub namespace_group: BTreeMap<Arc<String>, ServiceIndex>,
     pub service_size: usize,
+    pub(crate) namespace_actor: Option<Addr<NamespaceActor>>,
 }
 
 impl NamespaceIndex {
@@ -177,6 +179,13 @@ impl NamespaceIndex {
                 self.service_size += 1;
                 result = true;
             }
+            self.notify_namespace_change(
+                WeakNamespaceParam {
+                    namespace_id: namespace_id.clone(),
+                    from_type: WeakNamespaceFromType::Naming,
+                },
+                false,
+            );
             self.namespace_group.insert(namespace_id, service_index);
         }
         result
@@ -196,6 +205,13 @@ impl NamespaceIndex {
                 result = true;
             }
             if group_size == 0 {
+                self.notify_namespace_change(
+                    WeakNamespaceParam {
+                        namespace_id: namespace_id.clone(),
+                        from_type: WeakNamespaceFromType::Naming,
+                    },
+                    true,
+                );
                 self.namespace_group.remove(namespace_id);
             }
         }
@@ -220,6 +236,16 @@ impl NamespaceIndex {
             }
         }
         (size, rlist)
+    }
+
+    fn notify_namespace_change(&self, param: WeakNamespaceParam, is_remove: bool) {
+        if let Some(act) = &self.namespace_actor {
+            if is_remove {
+                act.do_send(NamespaceActorReq::RemoveWeak(param));
+            } else {
+                act.do_send(NamespaceActorReq::SetWeak(param));
+            }
+        }
     }
 
     pub fn get_tenant_count(&self) -> usize {
