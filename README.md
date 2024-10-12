@@ -170,7 +170,8 @@ k8s支持使用 [helm](https://github.com/nacos-group/r-nacos/tree/master/deploy
 |RNACOS_CONSOLE_LOGIN_ONE_HOUR_LIMIT|r-nacos控制台登录1小时失败次数限制|默认是5,一个用户连续登陆失败5次，会被锁定1个小时|5|0.4.x|
 |RNACOS_HTTP_WORKERS|http工作线程数|cpu核数|8|0.1.x|
 |RNACOS_CONFIG_DB_FILE|配置中心的本地数据库文件地址【0.2.x后不在使用】|config.db|config.db|0.1.x|
-|RNACOS_CONFIG_DB_DIR|配置中心的本地数据库sled文件夹, 会在系统运行时自动创建|nacos_db|nacos_db|0.2.x|
+|RNACOS_CONFIG_DB_DIR|配置中心的本地数据库文件夹, 会在系统运行时自动创建【因语义原因，v0.6.x后推荐使用RNACOS_DATA_DIR】|nacos_db|nacos_db|0.2.x|
+|RNACOS_DATA_DIR|本地数据库文件夹, 会在系统运行时自动创建【与RNACOS_CONFIG_DB_DIR等价，用于替代RNACOS_CONFIG_DB_DIR】|linux,MacOS默认为~/.local/share/r-nacos/nacos_db;windows,docker默认为nacos_db|nacos_db|0.6.x|
 |RNACOS_RAFT_NODE_ID|节点id|1|1|0.3.0|
 |RNACOS_RAFT_NODE_ADDR|节点地址Ip:GrpcPort,单节点运行时每次启动都会生效；多节点集群部署时，只取加入集群时配置的值|127.0.0.1:GrpcPort|127.0.0.1:9848|0.3.0|
 |RNACOS_RAFT_AUTO_INIT|是否当做主节点初始化,(只在每一次启动时生效)|节点1时默认为true,节点非1时为false|true|0.3.0|

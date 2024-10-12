@@ -57,6 +57,7 @@ use std::time::Duration;
 use crate::common::constant::EMPTY_ARC_STRING;
 use crate::metrics::metrics_key::MetricsKey;
 use crate::metrics::model::{MetricsItem, MetricsQuery, MetricsRecord};
+use crate::namespace::NamespaceActor;
 use actix::prelude::*;
 
 //#[derive(Default)]
@@ -75,6 +76,7 @@ pub struct NamingActor {
     pub(crate) client_instance_set: HashMap<Arc<String>, HashSet<InstanceKey>>,
     cluster_node_manage: Option<Addr<InnerNodeManage>>,
     cluster_delay_notify: Option<Addr<ClusterInstanceDelayNotifyActor>>,
+    namespace_actor: Option<Addr<NamespaceActor>>,
     current_range: Option<ProcessRange>,
     //dal_addr: Addr<ServiceDalActor>,
 }
@@ -104,6 +106,8 @@ impl Inject for NamingActor {
         }
         self.cluster_node_manage = factory_data.get_actor();
         self.cluster_delay_notify = factory_data.get_actor();
+        self.namespace_actor = factory_data.get_actor();
+        self.namespace_index.namespace_actor = self.namespace_actor.clone();
         log::info!("NamingActor inject complete");
     }
 }
@@ -132,6 +136,7 @@ impl NamingActor {
             cluster_node_manage: None,
             cluster_delay_notify: None,
             current_range: None,
+            namespace_actor: None,
             //dal_addr,
         }
     }

@@ -27,6 +27,7 @@ use crate::config::model::{
     ConfigRaftCmd, ConfigRaftResult, ConfigValueDO, HistoryItem, SetConfigParam,
 };
 use crate::config::utils::param_utils;
+use crate::namespace::NamespaceActor;
 use crate::now_millis_i64;
 use crate::raft::filestore::model::SnapshotRecordDto;
 use crate::raft::filestore::raftsnapshot::{SnapshotWriterActor, SnapshotWriterRequest};
@@ -397,6 +398,7 @@ pub struct ConfigActor {
     pub(crate) subscriber: Subscriber,
     pub(crate) tenant_index: TenantIndex,
     raft: Option<Weak<NacosRaft>>,
+    namespace_actor: Option<Addr<NamespaceActor>>,
     sequence: SimpleSequence,
 }
 
@@ -411,6 +413,8 @@ impl Inject for ConfigActor {
     ) {
         let raft: Option<Arc<NacosRaft>> = factory_data.get_bean();
         self.raft = raft.map(|e| Arc::downgrade(&e));
+        self.namespace_actor = factory_data.get_actor();
+        self.tenant_index.namespace_actor = self.namespace_actor.clone();
         if let Some(conn_manage) = factory_data.get_actor() {
             self.subscriber.set_conn_manage(conn_manage);
         }
@@ -432,6 +436,7 @@ impl ConfigActor {
             listener: ConfigListener::new(),
             tenant_index: TenantIndex::new(),
             raft: None,
+            namespace_actor: None,
             sequence: SimpleSequence::new(0, 100),
         }
     }

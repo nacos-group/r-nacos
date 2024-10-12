@@ -1,10 +1,14 @@
+use crate::common::string_utils::StringUtils;
+use crate::config::core::ConfigKey;
+use crate::namespace::model::{NamespaceActorReq, WeakNamespaceFromType, WeakNamespaceParam};
+use crate::namespace::NamespaceActor;
+use actix::Addr;
 use std::{
     collections::{BTreeMap, BTreeSet},
     sync::Arc,
 };
 
-use crate::common::string_utils::StringUtils;
-use crate::config::core::ConfigKey;
+const SYSCONFIG_NAMESPACE: &str = "__INNER_SYSTEM__";
 
 #[derive(Debug, Clone, Default)]
 pub struct ConfigQueryParam {
@@ -118,6 +122,7 @@ impl ConfigIndex {
 pub struct TenantIndex {
     pub tenant_group: BTreeMap<Arc<String>, ConfigIndex>,
     pub size: usize,
+    pub(crate) namespace_actor: Option<Addr<NamespaceActor>>,
 }
 
 impl TenantIndex {
@@ -151,6 +156,13 @@ impl TenantIndex {
                 self.size += 1;
                 result = true;
             }
+            self.notify_namespace_change(
+                WeakNamespaceParam {
+                    namespace_id: tenant.clone(),
+                    from_type: WeakNamespaceFromType::Config,
+                },
+                false,
+            );
             self.tenant_group.insert(tenant, config_index);
         }
         result
@@ -170,10 +182,31 @@ impl TenantIndex {
                 result = true;
             }
             if group_size == 0 {
+                self.notify_namespace_change(
+                    WeakNamespaceParam {
+                        namespace_id: tenant.clone(),
+                        from_type: WeakNamespaceFromType::Config,
+                    },
+                    true,
+                );
                 self.tenant_group.remove(tenant);
             }
         }
         result
+    }
+
+    fn notify_namespace_change(&self, param: WeakNamespaceParam, is_remove: bool) {
+        if SYSCONFIG_NAMESPACE == param.namespace_id.as_str() {
+            //历史系统命名空间跳过
+            return;
+        }
+        if let Some(act) = &self.namespace_actor {
+            if is_remove {
+                act.do_send(NamespaceActorReq::RemoveWeak(param));
+            } else {
+                act.do_send(NamespaceActorReq::SetWeak(param));
+            }
+        }
     }
 
     pub fn query_config_page(&self, param: &ConfigQueryParam) -> (usize, Vec<ConfigKey>) {
