@@ -6,7 +6,7 @@ pub mod naming_model;
 pub mod raft_model;
 pub mod user_model;
 
-use crate::namespace::model::{Namespace, NamespaceParam};
+use crate::namespace::model::{Namespace, NamespaceFromFlags, NamespaceParam};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
@@ -23,7 +23,7 @@ impl From<Namespace> for NamespaceInfo {
         Self {
             namespace_id: Some(value.namespace_id),
             namespace_name: Some(value.namespace_name),
-            r#type: Some(value.r#type),
+            r#type: Some(NamespaceFromFlags::get_api_type(value.flag)),
         }
     }
 }

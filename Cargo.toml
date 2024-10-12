@@ -115,6 +115,7 @@ bcrypt = "0.15"
 [target.'cfg(any(target_os = "linux", target_os = "macos", target_os="windows"))'.dependencies]
 fs2 = "0.4.3"
 dirs = "5.0"
+bitflags = "2.6.0"
 
 [dependencies.uuid]
 version = "1.2.1"

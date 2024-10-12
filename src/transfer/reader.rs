@@ -6,7 +6,9 @@ use crate::common::protobuf_utils::MessageBufReader;
 use crate::common::sequence_utils::CacheSequence;
 use crate::config::core::{ConfigActor, ConfigCmd, ConfigResult, ConfigValue};
 use crate::config::model::ConfigValueDO;
-use crate::namespace::model::{Namespace, NamespaceDO, NamespaceParam, NamespaceRaftReq};
+use crate::namespace::model::{
+    Namespace, NamespaceDO, NamespaceFromFlags, NamespaceParam, NamespaceRaftReq,
+};
 use crate::raft::db::table::TableManagerReq;
 use crate::raft::filestore::raftdata::RaftDataWrap;
 use crate::raft::store::ClientRequest;
@@ -190,7 +192,7 @@ impl TransferImportManager {
         let param = NamespaceParam {
             namespace_id: value.namespace_id,
             namespace_name: Some(value.namespace_name),
-            r#type: Some(value.r#type),
+            r#type: Some(NamespaceFromFlags::get_db_type(value.flag)),
         };
         let req = ClientRequest::NamespaceReq(NamespaceRaftReq::Update(param));
         Self::send_raft_request(raft, req).await?;

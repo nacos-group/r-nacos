@@ -1,12 +1,24 @@
 use actix::prelude::*;
+use bitflags::bitflags;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+
+/*
+lazy_static::lazy_static! {
+    pub static ref FROM_SYSTEM_ARC_VALUE: Arc<String> = Arc::new("0".to_string());
+    pub static ref FROM_USER_ARC_VALUE: Arc<String> = Arc::new("2".to_string());
+}
+*/
+
+pub(crate) const FROM_SYSTEM_VALUE: &'static str = "0";
+pub(crate) const FROM_USER_VALUE: &'static str = "2";
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct Namespace {
     pub namespace_id: Arc<String>,
     pub namespace_name: String,
-    pub r#type: String,
+    //pub r#type: String,
+    pub flag: u32,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
@@ -43,29 +55,74 @@ impl NamespaceDO {
 
 impl From<NamespaceDO> for Namespace {
     fn from(value: NamespaceDO) -> Self {
+        let flag = if let Some(t) = &value.r#type {
+            NamespaceFromFlags::from_db_type(t)
+        } else {
+            NamespaceFromFlags::USER.bits()
+        };
         Self {
             namespace_id: Arc::new(value.namespace_id.unwrap_or_default()),
             namespace_name: value.namespace_name.unwrap_or_default(),
-            r#type: value.r#type.unwrap_or("2".to_string()),
+            flag,
         }
     }
 }
 
 impl From<Namespace> for NamespaceDO {
     fn from(value: Namespace) -> Self {
+        let t = NamespaceFromFlags::get_db_type(value.flag);
         Self {
             namespace_id: Some(value.namespace_id.as_str().to_string()),
             namespace_name: Some(value.namespace_name),
-            r#type: Some(value.r#type),
+            r#type: Some(t),
         }
     }
 }
 
-pub(crate) const FROM_SYSTEM_VALUE: &'static str = "0";
-pub(crate) const FROM_USER_VALUE: &'static str = "2";
-pub(crate) const FROM_CONFIG_VALUE: &'static str = "3";
-pub(crate) const FROM_NAMING_VALUE: &'static str = "4";
-pub(crate) const FROM_CONFIG_OR_NAMING_VALUE: &'static str = "5";
+bitflags! {
+    /// Represents a set of flags.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    pub struct NamespaceFromFlags: u32 {
+        /// The value `SYSTEM`, at bit position `0`.
+        const SYSTEM = 0b00000001;
+        /// The value `USER`, at bit position `1`.
+        const USER = 0b00000010;
+        /// The value `CONFIG`, at bit position `2`.
+        const CONFIG = 0b00000100;
+        /// The value `NAMING`, at bit position `3`.
+        const NAMING= 0b00001000;
+
+        /// The combination of `A`, `B`, and `C`.
+        const CONFIG_NAMING = Self::CONFIG.bits() | Self::NAMING.bits() ;
+    }
+}
+
+impl NamespaceFromFlags {
+    pub fn from_db_type(t: &str) -> u32 {
+        if t == FROM_SYSTEM_VALUE {
+            Self::SYSTEM.bits()
+        } else {
+            Self::USER.bits()
+            //t.parse().unwrap_or(Self::USER.bits())
+        }
+    }
+
+    pub fn get_db_type(v: u32) -> String {
+        if v == Self::SYSTEM.bits() {
+            FROM_SYSTEM_VALUE.to_string()
+        } else {
+            //v.to_string()
+            FROM_USER_VALUE.to_string()
+        }
+    }
+    pub fn get_api_type(v: u32) -> String {
+        if v == Self::SYSTEM.bits() {
+            FROM_SYSTEM_VALUE.to_string()
+        } else {
+            v.to_string()
+        }
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum WeakNamespaceFromType {
@@ -74,45 +131,10 @@ pub enum WeakNamespaceFromType {
 }
 
 impl WeakNamespaceFromType {
-    pub fn get_type_value(&self) -> &str {
+    pub fn get_flag(&self) -> u32 {
         match self {
-            WeakNamespaceFromType::Config => FROM_CONFIG_VALUE,
-            WeakNamespaceFromType::Naming => FROM_NAMING_VALUE,
-        }
-    }
-
-    /// 获取合并弱引用类型后的值
-    pub fn get_merge_value<'a>(&self, v: &'a str) -> &'a str {
-        if v == FROM_SYSTEM_VALUE || v == FROM_USER_VALUE || self.get_type_value() == v {
-            v
-        } else {
-            FROM_CONFIG_OR_NAMING_VALUE
-        }
-    }
-
-    /// 获取分离弱引用类型后的值
-    pub fn get_split_value<'a>(&self, v: &'a str) -> Option<&'a str> {
-        if v == FROM_CONFIG_OR_NAMING_VALUE {
-            //合并值需要拆开
-            match self {
-                WeakNamespaceFromType::Config => Some(FROM_NAMING_VALUE),
-                WeakNamespaceFromType::Naming => Some(FROM_CONFIG_VALUE),
-            }
-        } else if v != self.get_type_value() {
-            //非合并值，且与当前类型值不相等，直接返回原值
-            Some(v)
-        } else {
-            //否则移除自身，返回空
-            None
-        }
-    }
-
-    /// 判断指定值是否已包含当前类型或已持久化,以确认是否要更新类型值;
-    pub fn contained_by_value(&self, v: &str) -> bool {
-        if v == FROM_SYSTEM_VALUE || v == FROM_USER_VALUE || v == FROM_CONFIG_OR_NAMING_VALUE {
-            true
-        } else {
-            self.get_type_value() == v
+            WeakNamespaceFromType::Config => NamespaceFromFlags::CONFIG.bits(),
+            WeakNamespaceFromType::Naming => NamespaceFromFlags::NAMING.bits(),
         }
     }
 }

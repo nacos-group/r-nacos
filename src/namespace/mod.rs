@@ -5,9 +5,9 @@ use crate::common::string_utils::StringUtils;
 use crate::config::core::ConfigActor;
 use crate::console::NamespaceUtilsOld;
 use crate::namespace::model::{
-    Namespace, NamespaceActorReq, NamespaceActorResult, NamespaceDO, NamespaceParam,
-    NamespaceQueryReq, NamespaceQueryResult, NamespaceRaftReq, NamespaceRaftResult,
-    WeakNamespaceFromType, FROM_SYSTEM_VALUE, FROM_USER_VALUE,
+    Namespace, NamespaceActorReq, NamespaceActorResult, NamespaceDO, NamespaceFromFlags,
+    NamespaceParam, NamespaceQueryReq, NamespaceQueryResult, NamespaceRaftReq, NamespaceRaftResult,
+    WeakNamespaceFromType, FROM_SYSTEM_VALUE,
 };
 use crate::naming::core::NamingActor;
 use crate::raft::filestore::model::SnapshotRecordDto;
@@ -105,6 +105,11 @@ impl NamespaceActor {
             //标记已同步旧版本数据
             self.already_sync_from_config = true;
         }
+        let param_flag = if param.namespace_id.is_empty() {
+            NamespaceFromFlags::SYSTEM.bits()
+        } else {
+            NamespaceFromFlags::USER.bits()
+        };
         let value = if let Some(v) = self.data.get(&param.namespace_id) {
             if only_add {
                 return;
@@ -118,11 +123,7 @@ impl NamespaceActor {
             } else {
                 v.namespace_name.to_owned()
             };
-            value.r#type = if let Some(r#type) = param.r#type {
-                r#type
-            } else {
-                v.r#type.to_owned()
-            };
+            value.flag = v.flag | param_flag;
             value
         } else {
             if only_update {
@@ -132,7 +133,7 @@ impl NamespaceActor {
             Namespace {
                 namespace_id: param.namespace_id,
                 namespace_name: param.namespace_name.unwrap_or_default(),
-                r#type: param.r#type.unwrap_or(FROM_USER_VALUE.to_owned()),
+                flag: param_flag,
             }
         };
         self.data
@@ -140,21 +141,25 @@ impl NamespaceActor {
     }
 
     fn set_weak_namespace(&mut self, namespace_id: Arc<String>, from_type: WeakNamespaceFromType) {
+        if namespace_id.is_empty() {
+            return;
+        }
         if let Some(v) = self.data.get(&namespace_id) {
-            let new_type = from_type.get_merge_value(&v.r#type);
-            if new_type == &v.r#type {
+            let new_flag = v.flag | from_type.get_flag();
+            if new_flag == v.flag {
                 //类型不变直接跨过
                 return;
             }
             let mut new_value = v.as_ref().to_owned();
-            new_value.r#type = new_type.to_owned();
+            new_value.flag = new_flag;
             self.data.insert(namespace_id, Arc::new(new_value));
         } else {
             self.id_order_list.push(namespace_id.clone());
+            let flag = from_type.get_flag();
             let value = Namespace {
                 namespace_id: namespace_id.clone(),
                 namespace_name: namespace_id.as_str().to_owned(),
-                r#type: from_type.get_type_value().to_owned(),
+                flag,
             };
             self.data.insert(namespace_id.clone(), Arc::new(value));
         }
@@ -165,15 +170,21 @@ impl NamespaceActor {
         namespace_id: Arc<String>,
         from_type: WeakNamespaceFromType,
     ) {
+        self.remove_namespace(namespace_id, from_type.get_flag())
+    }
+
+    fn remove_namespace(&mut self, namespace_id: Arc<String>, from_flag: u32) {
+        if namespace_id.is_empty() {
+            return;
+        }
         if let Some(v) = self.data.get(&namespace_id) {
-            if let Some(new_type) = from_type.get_split_value(&v.r#type) {
-                //更新类型
-                if new_type == &v.r#type {
-                    //类型不变直接跨过
-                    return;
-                }
+            let new_flag = v.flag & (!from_flag);
+            if new_flag == v.flag {
+                //类型不变直接跨过
+                return;
+            } else if new_flag > 0 {
                 let mut new_value = v.as_ref().to_owned();
-                new_value.r#type = new_type.to_owned();
+                new_value.flag = new_flag;
                 self.data.insert(namespace_id, Arc::new(new_value));
             } else {
                 //删除
@@ -183,23 +194,12 @@ impl NamespaceActor {
     }
 
     fn remove_id(&mut self, id: &Arc<String>) {
+        self.data.remove(id);
         for (i, item) in self.id_order_list.iter().enumerate() {
             if id == item {
                 self.id_order_list.remove(i);
                 break;
             }
-        }
-    }
-
-    fn delete(&mut self, id: &Arc<String>) -> bool {
-        if id.is_empty() {
-            return false;
-        }
-        if self.data.remove(id).is_some() {
-            self.remove_id(id);
-            true
-        } else {
-            false
         }
     }
 
@@ -215,7 +215,8 @@ impl NamespaceActor {
 
     fn build_snapshot(&self, writer: Addr<SnapshotWriterActor>) -> anyhow::Result<()> {
         for (key, value) in &self.data {
-            if key.is_empty() {
+            if key.is_empty() || value.flag & NamespaceFromFlags::USER.bits() == 0 {
+                //非用户数据不记录
                 continue;
             }
             let value_db: NamespaceDO = value.as_ref().to_owned().into();
@@ -232,7 +233,7 @@ impl NamespaceActor {
             let value = Namespace {
                 namespace_id: param.namespace_id,
                 namespace_name: param.namespace_name.unwrap_or_default(),
-                r#type: param.r#type.unwrap_or_default(),
+                flag: NamespaceFromFlags::USER.bits(),
             };
             let key = value.namespace_id.clone();
             let value_db: NamespaceDO = value.into();
@@ -251,7 +252,8 @@ impl NamespaceActor {
     /// 迁移数据备件
     fn transfer_backup(&self, writer: Addr<TransferWriterActor>) -> anyhow::Result<()> {
         for (key, value) in &self.data {
-            if key.is_empty() {
+            if key.is_empty() || value.flag & NamespaceFromFlags::USER.bits() == 0 {
+                //非用户数据不记录
                 continue;
             }
             let value_db: NamespaceDO = value.as_ref().to_owned().into();
@@ -273,7 +275,7 @@ impl NamespaceActor {
             NamespaceParam {
                 namespace_id: value.namespace_id,
                 namespace_name: Some(value.namespace_name),
-                r#type: Some(value.r#type),
+                r#type: Some(NamespaceFromFlags::get_db_type(value.flag)),
             },
             false,
             false,
@@ -382,7 +384,7 @@ impl Handler<NamespaceRaftReq> for NamespaceActor {
                 Ok(NamespaceRaftResult::None)
             }
             NamespaceRaftReq::Delete { id } => {
-                self.delete(&id);
+                self.remove_namespace(id, NamespaceFromFlags::USER.bits());
                 Ok(NamespaceRaftResult::None)
             }
             NamespaceRaftReq::InitFromOldValue(value) => {

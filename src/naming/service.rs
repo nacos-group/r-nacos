@@ -72,7 +72,7 @@ impl Service {
         mut instance: Instance,
         update_tag: Option<InstanceUpdateTag>,
     ) -> (UpdateInstanceType, Option<Arc<String>>) {
-        //log::info!("test update_instance {:?}", &instance);
+        //!("test update_instance {:?}", &instance);
         instance.namespace_id = self.namespace_id.clone();
         instance.group_name = self.group_name.clone();
         instance.service_name = self.service_name.clone();
