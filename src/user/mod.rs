@@ -11,6 +11,7 @@ use self::{
 };
 use crate::common::constant::USER_TREE_NAME;
 use crate::common::string_utils::StringUtils;
+use crate::user::permission::UserRole;
 use crate::{
     now_millis,
     raft::{
@@ -140,9 +141,9 @@ impl Inject for UserManager {
                     }
                 };
             }
-            .into_actor(act)
-            .map(|_, _, _| {})
-            .spawn(ctx);
+                .into_actor(act)
+                .map(|_, _, _| {})
+                .spawn(ctx);
         });
     }
 }
@@ -327,7 +328,7 @@ impl Handler<UserManagerReq> for UserManager {
                     if !StringUtils::is_option_empty(&last_user.password_hash) {
                         check_success = check_success
                             && verify_password_hash_option(&password, &last_user.password_hash)
-                                .unwrap_or(false);
+                            .unwrap_or(false);
                         //debug info
                         /*
                         println!(
@@ -347,13 +348,50 @@ impl Handler<UserManagerReq> for UserManager {
                     ))
                 }
                 UserManagerReq::Remove { username } => {
-                    let req = TableManagerReq::Remove {
-                        table_name: USER_TREE_NAME.clone(),
-                        key: username.as_bytes().to_owned(),
-                    };
-                    if let Some(raft_table_route) = raft_table_route {
-                        raft_table_route.request(req).await.ok();
+                    if let Some(table_manager) = &table_manager {
+                        // 查询该用户信息
+                        let query_req = TableManagerQueryReq::GetByArcKey {
+                            table_name: USER_TREE_NAME.clone(),
+                            key: username.clone(),
+                        };
+
+                        if let TableManagerResult::Value(v) = table_manager.send(query_req).await?? {
+                            let user_do = UserDo::from_bytes(&v)?;
+
+                            // 如果该用户是 admin，进行检查
+                            if user_do.roles.contains(&UserRole::Manager.to_role_value().to_string()) {
+                                let query_req = TableManagerQueryReq::QueryPageList {
+                                    table_name: USER_TREE_NAME.clone(),
+                                    like_key: None,
+                                    offset: None,
+                                    limit: None,
+                                    is_rev: true,
+                                };
+
+                                if let TableManagerResult::PageListResult(_, list) = table_manager.send(query_req).await?? {
+                                    let manager_count = list.iter()
+                                        .filter_map(|(_, v)| UserDo::from_bytes(&v).ok())
+                                        .filter(|user_do| user_do.roles.contains(&UserRole::Manager.to_role_value().to_string()))
+                                        .count();
+
+                                    // 仅剩一个 admin 时，不允许删除
+                                    if manager_count <= 1 {
+                                        return Err(anyhow::anyhow!("at least one admin must be reserved!"));
+                                    }
+                                }
+                            }
+                        }
+
+                        // 移除该用户
+                        let req = TableManagerReq::Remove {
+                            table_name: USER_TREE_NAME.clone(),
+                            key: username.as_bytes().to_owned(),
+                        };
+                        if let Some(raft_table_route) = raft_table_route {
+                            raft_table_route.request(req).await.ok();
+                        }
                     }
+
                     Ok(UserManagerInnerCtx::None)
                 }
                 UserManagerReq::Query { name } => {
