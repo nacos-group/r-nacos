@@ -181,7 +181,6 @@ impl NamespaceActor {
             let new_flag = v.flag & (!from_flag);
             if new_flag == v.flag {
                 //类型不变直接跨过
-                return;
             } else if new_flag > 0 {
                 let mut new_value = v.as_ref().to_owned();
                 new_value.flag = new_flag;

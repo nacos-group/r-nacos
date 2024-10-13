@@ -361,10 +361,10 @@ pub enum UserRole {
     OldConsole,
     None,
 }
-const MANAGER_VALUE: &'static str = "0";
-const DEVELOPER_VALUE: &'static str = "1";
-const VISITOR_VALUE: &'static str = "2";
-const NONE_VALUE: &'static str = "";
+const MANAGER_VALUE: &str = "0";
+const DEVELOPER_VALUE: &str = "1";
+const VISITOR_VALUE: &str = "2";
+const NONE_VALUE: &str = "";
 
 impl UserRole {
     pub fn new(role_value: &str) -> Self {

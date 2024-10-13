@@ -10,8 +10,8 @@ lazy_static::lazy_static! {
 }
 */
 
-pub(crate) const FROM_SYSTEM_VALUE: &'static str = "0";
-pub(crate) const FROM_USER_VALUE: &'static str = "2";
+pub(crate) const FROM_SYSTEM_VALUE: &str = "0";
+pub(crate) const FROM_USER_VALUE: &str = "2";
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct Namespace {

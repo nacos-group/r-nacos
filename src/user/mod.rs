@@ -378,7 +378,7 @@ impl Handler<UserManagerReq> for UserManager {
                                 {
                                     let manager_count = list
                                         .iter()
-                                        .filter_map(|(_, v)| UserDo::from_bytes(&v).ok())
+                                        .filter_map(|(_, v)| UserDo::from_bytes(v).ok())
                                         .filter(|user_do| {
                                             user_do.roles.contains(
                                                 &UserRole::Manager.to_role_value().to_string(),

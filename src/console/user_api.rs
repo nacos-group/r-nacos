@@ -192,7 +192,7 @@ pub async fn remove_user(
             }
         }
         Err(e) => {
-            Ok(HttpResponse::Ok().json(ApiResult::<()>::error("SYSTEM_ERROR".to_owned(), None)))
+            Ok(HttpResponse::Ok().json(ApiResult::<()>::error("SYSTEM_ERROR".to_owned(), Some(e.to_string()))))
         }
     }
 }
