@@ -186,22 +186,13 @@ pub async fn remove_user(
     match app.user_manager.send(msg).await {
         Ok(r) => {
             match r {
-                Ok(_) => {
-                    Ok(HttpResponse::Ok().json(ApiResult::success(Some(true))))
-                }
-                Err(e) => {
-                    Ok(HttpResponse::Ok().json(ApiResult::<()>::error(
-                        e.to_string(),
-                        Some(e.to_string()),
-                    )))
-                }
+                Ok(_) => Ok(HttpResponse::Ok().json(ApiResult::success(Some(true)))),
+                Err(e) => Ok(HttpResponse::Ok()
+                    .json(ApiResult::<()>::error(e.to_string(), Some(e.to_string())))),
             }
         }
         Err(e) => {
-            Ok(HttpResponse::Ok().json(ApiResult::<()>::error(
-                "SYSTEM_ERROR".to_owned(),
-                None,
-            )))
+            Ok(HttpResponse::Ok().json(ApiResult::<()>::error("SYSTEM_ERROR".to_owned(), None)))
         }
     }
 }
