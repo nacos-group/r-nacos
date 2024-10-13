@@ -421,6 +421,13 @@ impl Handler<NamespaceQueryReq> for NamespaceActor {
                 let list = self.query_list();
                 Ok(NamespaceQueryResult::List(list))
             }
+            NamespaceQueryReq::Info(id) => {
+                if let Some(v) = self.data.get(&id) {
+                    Ok(NamespaceQueryResult::Info(v.clone()))
+                } else {
+                    Ok(NamespaceQueryResult::None)
+                }
+            }
         }
     }
 }

@@ -182,10 +182,12 @@ pub enum NamespaceActorResult {
 #[rtype(result = "anyhow::Result<NamespaceQueryResult>")]
 pub enum NamespaceQueryReq {
     List,
+    Info(Arc<String>),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum NamespaceQueryResult {
     List(Vec<Arc<Namespace>>),
+    Info(Arc<Namespace>),
     None,
 }

@@ -14,7 +14,9 @@ pub mod v2;
 use std::sync::Arc;
 
 use self::model::NamespaceInfo;
-use crate::namespace::model::{NamespaceQueryReq, NamespaceQueryResult, NamespaceRaftReq};
+use crate::namespace::model::{
+    NamespaceFromFlags, NamespaceQueryReq, NamespaceQueryResult, NamespaceRaftReq,
+};
 use crate::{
     common::appdata::AppShareData,
     config::core::{ConfigActor, ConfigCmd, ConfigKey, ConfigResult},
@@ -229,11 +231,20 @@ impl NamespaceUtils {
         app_data: &Arc<AppShareData>,
         namespace_id: Option<Arc<String>>,
     ) -> anyhow::Result<()> {
+        let namespace_id = namespace_id.unwrap_or_default();
+        let res = app_data
+            .namespace_addr
+            .send(NamespaceQueryReq::Info(namespace_id.clone()))
+            .await??;
+        if let NamespaceQueryResult::Info(v) = res {
+            if v.flag != NamespaceFromFlags::USER.bits() {
+                // 命名空间下存在配置或服务数据，不能删除
+                return Err(anyhow::anyhow!("The namespace can't be deleted,because config or service data exists in the namespace"));
+            }
+        }
         app_data
             .raft_request_route
-            .request_namespace(NamespaceRaftReq::Delete {
-                id: namespace_id.unwrap_or_default(),
-            })
+            .request_namespace(NamespaceRaftReq::Delete { id: namespace_id })
             .await?;
         Ok(())
     }
