@@ -191,8 +191,9 @@ pub async fn remove_user(
                     .json(ApiResult::<()>::error(e.to_string(), Some(e.to_string())))),
             }
         }
-        Err(e) => {
-            Ok(HttpResponse::Ok().json(ApiResult::<()>::error("SYSTEM_ERROR".to_owned(), Some(e.to_string()))))
-        }
+        Err(e) => Ok(HttpResponse::Ok().json(ApiResult::<()>::error(
+            "SYSTEM_ERROR".to_owned(),
+            Some(e.to_string()),
+        ))),
     }
 }
