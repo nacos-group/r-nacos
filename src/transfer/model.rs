@@ -1,7 +1,7 @@
-///导入导出中间文件对象
-use crate::common::constant;
 use crate::common::pb::transfer::{TableNameMapEntity, TransferHeader, TransferItem};
 use crate::common::tempfile::TempFile;
+///导入导出中间文件对象
+use crate::common::{constant, get_app_version};
 use crate::now_millis;
 use crate::transfer::writer::TransferWriterActor;
 use actix::{Addr, Message};
@@ -53,7 +53,7 @@ impl TransferHeaderDto {
         Self {
             version,
             modify_time: now_millis(),
-            from_sys: Some(format!("r-nacos_{}", constant::APP_VERSION)),
+            from_sys: Some(format!("r-nacos_{}", get_app_version())),
             name_to_id: Default::default(),
             id_to_name: Default::default(),
             max_id: 0,

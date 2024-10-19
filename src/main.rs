@@ -1,10 +1,12 @@
 #![allow(unused_imports)]
 
+mod cli;
+
 use actix::Actor;
 use actix_web::{web::Data, App};
 use async_raft_ext::raft::ClientWriteRequest;
 use async_raft_ext::{Config, Raft, RaftStorage};
-use rnacos::common::AppSysConfig;
+use rnacos::common::{get_app_version, AppSysConfig};
 use rnacos::config::core::{ConfigActor, ConfigCmd};
 use rnacos::console::middle::login_middle::CheckLogin;
 use rnacos::grpc::bistream_manage::BiStreamManage;
@@ -34,31 +36,22 @@ use clap::Parser;
 use env_logger::TimestampPrecision;
 use env_logger_timezone_fmt::{TimeZoneFormat, TimeZoneFormatEnv};
 //use mimalloc::MiMalloc;
+use crate::cli::{Cli, Commands};
 use rnacos::common::appdata::AppShareData;
-use rnacos::common::constant::APP_VERSION;
 use rnacos::openapi::middle::auth_middle::ApiCheckAuth;
 use rnacos::raft::NacosRaft;
+use rnacos::transfer::data_to_sqlite::data_to_sqlite;
 use rnacos::web_config::{app_config, console_config};
-
 //#[global_allocator]
 //static GLOBAL: MiMalloc = MiMalloc;
 
-#[derive(Parser, Clone, Debug)]
-#[clap(author, version, about, long_about = None)]
-pub struct AppOpt {
-    /// env file path
-    #[arg(short, long, default_value = "")]
-    pub env_file: String,
-}
-
 #[actix_web::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    init_env();
+    let cli_opt = cli::Cli::parse();
+    init_env(&cli_opt.env_file);
     let rust_log = std::env::var("RUST_LOG").unwrap_or("info".to_owned());
-    println!("version:{}, RUST_LOG:{}", APP_VERSION, &rust_log);
     std::env::set_var("RUST_LOG", &rust_log);
     let sys_config = Arc::new(AppSysConfig::init_from_env());
-    println!("data dir:{}", sys_config.local_db_dir);
     let timezone_fmt = Arc::new(TimeZoneFormatEnv::new(
         sys_config.gmt_fixed_offset_hours.map(|v| v * 60 * 60),
         Some(TimestampPrecision::Micros),
@@ -66,6 +59,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
     env_logger::Builder::from_default_env()
         .format(move |buf, record| TimeZoneFormat::new(buf, &timezone_fmt).write(record))
         .init();
+    if let Some(cmd) = cli_opt.command {
+        return run_subcommand(cmd).await;
+    }
+    println!("version:{}, RUST_LOG:{}", get_app_version(), &rust_log);
+    println!("data dir:{}", sys_config.local_db_dir);
     let factory_data = config_factory(sys_config.clone()).await?;
     let app_data = build_share_data(factory_data.clone())?;
     let http_addr = sys_config.get_http_addr();
@@ -131,15 +129,23 @@ async fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn init_env() {
-    let app_opt = AppOpt::parse();
-    let env_path = app_opt.env_file;
+fn init_env(env_path: &str) {
     //let env_path = std::env::var("RNACOS_ENV_FILE").unwrap_or_default();
     if env_path.is_empty() {
         dotenv::dotenv().ok();
     } else {
         dotenv::from_path(env_path).ok();
     }
+}
+
+async fn run_subcommand(commands: Commands) -> Result<(), Box<dyn Error>> {
+    match commands {
+        Commands::DataToSqlite { file, out } => {
+            log::info!("middle data to sqlite, from:{file} to:{out}");
+            data_to_sqlite(&file, &out).await?;
+        }
+    }
+    Ok(())
 }
 
 async fn run_console_web(source_app_data: Arc<AppShareData>) {

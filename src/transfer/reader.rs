@@ -2,7 +2,7 @@ use crate::common::constant::{
     CACHE_TREE_NAME, CONFIG_TREE_NAME, EMPTY_ARC_STRING, NAMESPACE_TREE_NAME, USER_TREE_NAME,
 };
 use crate::common::pb::transfer::{TransferHeader, TransferItem};
-use crate::common::protobuf_utils::MessageBufReader;
+use crate::common::protobuf_utils::{FileMessageReader, MessageBufReader};
 use crate::common::sequence_utils::CacheSequence;
 use crate::config::core::{ConfigActor, ConfigCmd, ConfigResult, ConfigValue};
 use crate::config::model::ConfigValueDO;
@@ -24,6 +24,37 @@ use binrw::BinReaderExt;
 use quick_protobuf::BytesReader;
 use std::io::Cursor;
 use std::sync::Arc;
+use tokio::fs::OpenOptions;
+
+pub(crate) fn reader_transfer_record<'a>(
+    v: &'a [u8],
+    header: &'a TransferHeaderDto,
+) -> anyhow::Result<TransferRecordRef<'a>> {
+    let mut reader = BytesReader::from_bytes(v);
+    let record_do: TransferItem = reader.read_message(v)?;
+    let table_name = if record_do.table_id == 0 {
+        if CONFIG_TREE_NAME.as_str() == record_do.table_name.as_ref() {
+            CONFIG_TREE_NAME.clone()
+        } else if USER_TREE_NAME.as_str() == record_do.table_name.as_ref() {
+            USER_TREE_NAME.clone()
+        } else if CACHE_TREE_NAME.as_str() == record_do.table_name.as_ref() {
+            CACHE_TREE_NAME.clone()
+        } else if NAMESPACE_TREE_NAME.as_str() == record_do.table_name.as_ref() {
+            NAMESPACE_TREE_NAME.clone()
+        } else {
+            //ignore
+            EMPTY_ARC_STRING.clone()
+        }
+    } else {
+        header
+            .id_to_name
+            .get(&record_do.table_id)
+            .cloned()
+            .unwrap_or(EMPTY_ARC_STRING.clone())
+    };
+    let record = TransferRecordRef::new(table_name, record_do);
+    Ok(record)
+}
 
 pub struct TransferReader {
     message_reader: MessageBufReader,
@@ -55,33 +86,41 @@ impl TransferReader {
 
     pub fn read_record(&mut self) -> anyhow::Result<Option<TransferRecordRef>> {
         if let Some(v) = self.message_reader.next_message_vec() {
-            let mut reader = BytesReader::from_bytes(v);
-            let record_do: TransferItem = reader.read_message(v)?;
-            let table_name = if record_do.table_id == 0 {
-                if CONFIG_TREE_NAME.as_str() == record_do.table_name.as_ref() {
-                    CONFIG_TREE_NAME.clone()
-                } else if USER_TREE_NAME.as_str() == record_do.table_name.as_ref() {
-                    USER_TREE_NAME.clone()
-                } else if CACHE_TREE_NAME.as_str() == record_do.table_name.as_ref() {
-                    CACHE_TREE_NAME.clone()
-                } else if NAMESPACE_TREE_NAME.as_str() == record_do.table_name.as_ref() {
-                    NAMESPACE_TREE_NAME.clone()
-                } else {
-                    //ignore
-                    EMPTY_ARC_STRING.clone()
-                }
-            } else {
-                self.header
-                    .id_to_name
-                    .get(&record_do.table_id)
-                    .cloned()
-                    .unwrap_or(EMPTY_ARC_STRING.clone())
-            };
-            let record = TransferRecordRef::new(table_name, record_do);
+            let record = reader_transfer_record(v, &self.header)?;
             Ok(Some(record))
         } else {
             Ok(None)
         }
+    }
+}
+
+pub struct TransferFileReader {
+    message_reader: FileMessageReader,
+    //prefix: TransferPrefix,
+    pub(crate) header: TransferHeaderDto,
+}
+
+impl TransferFileReader {
+    pub async fn new(path: &str) -> anyhow::Result<Self> {
+        let file = OpenOptions::new().read(true).open(&path).await?;
+        let mut message_reader = FileMessageReader::new(file, 8);
+        message_reader.seek_start(8).await?;
+        let header = if let Ok(v) = message_reader.read_next().await {
+            let mut reader = BytesReader::from_bytes(&v);
+            let header_do: TransferHeader = reader.read_message(&v)?;
+            header_do.into()
+        } else {
+            return Err(anyhow::anyhow!("read header error from transfer file"));
+        };
+        Ok(Self {
+            message_reader,
+            header,
+        })
+    }
+
+    pub async fn read_record_vec(&mut self) -> anyhow::Result<Option<Vec<u8>>> {
+        let v = self.message_reader.read_next().await?;
+        Ok(Some(v))
     }
 }
 

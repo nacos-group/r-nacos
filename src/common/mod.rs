@@ -276,3 +276,7 @@ pub fn gen_uuid() -> i64 {
 
     ((msb << 32) | lsb) as i64
 }
+
+pub fn get_app_version() -> &'static str {
+    env!("CARGO_PKG_VERSION")
+}

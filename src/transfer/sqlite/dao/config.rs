@@ -2,34 +2,34 @@
 use rsql_builder::B;
 use rusqlite::{Connection, Row};
 use serde::{Deserialize, Serialize};
-use std::rc::Rc;
+use std::sync::Arc;
 
 use crate::common::rusqlite_utils::{
-    get_row_value, sqlite_execute, sqlite_fetch, sqlite_fetch_count,
+    get_row_arc_value, get_row_value, sqlite_execute, sqlite_fetch, sqlite_fetch_count,
 };
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct ConfigDO {
     pub id: Option<i64>,
-    pub data_id: Option<String>,
-    pub group_id: Option<String>,
-    pub tenant_id: Option<String>,
-    pub content: Option<String>,
-    pub config_type: Option<String>,
-    pub config_desc: Option<String>,
-    pub last_time: Option<f64>,
+    pub data_id: Option<Arc<String>>,
+    pub group_id: Option<Arc<String>>,
+    pub tenant_id: Option<Arc<String>>,
+    pub content: Option<Arc<String>>,
+    pub config_type: Option<Arc<String>>,
+    pub config_desc: Option<Arc<String>>,
+    pub last_time: Option<i64>,
 }
 
 impl ConfigDO {
     fn from_row(r: &Row) -> Self {
         let mut s = Self::default();
         s.id = get_row_value(r, "id");
-        s.data_id = get_row_value(r, "data_id");
-        s.group_id = get_row_value(r, "group_id");
-        s.tenant_id = get_row_value(r, "tenant_id");
-        s.content = get_row_value(r, "content");
-        s.config_type = get_row_value(r, "config_type");
-        s.config_desc = get_row_value(r, "config_desc");
+        s.data_id = get_row_arc_value(r, "data_id");
+        s.group_id = get_row_arc_value(r, "group_id");
+        s.tenant_id = get_row_arc_value(r, "tenant_id");
+        s.content = get_row_arc_value(r, "content");
+        s.config_type = get_row_arc_value(r, "config_type");
+        s.config_desc = get_row_arc_value(r, "config_desc");
         s.last_time = get_row_value(r, "last_time");
         s
     }
@@ -148,13 +148,13 @@ impl ConfigSql {
     }
 }
 
-pub struct ConfigDao {
-    conn: Rc<Connection>,
+pub struct ConfigDao<'a> {
+    conn: &'a Connection,
     inner: ConfigSql,
 }
 
-impl ConfigDao {
-    pub fn new(conn: Rc<Connection>) -> Self {
+impl<'a> ConfigDao<'a> {
+    pub fn new(conn: &'a Connection) -> Self {
         Self {
             conn,
             inner: ConfigSql {},

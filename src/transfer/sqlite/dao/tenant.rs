@@ -2,7 +2,6 @@
 use rsql_builder::B;
 use rusqlite::{Connection, Row};
 use serde::{Deserialize, Serialize};
-use std::rc::Rc;
 
 use crate::common::rusqlite_utils::{
     get_row_value, sqlite_execute, sqlite_fetch, sqlite_fetch_count,
@@ -123,13 +122,13 @@ impl TenantSql {
     }
 }
 
-pub struct TenantDao {
-    conn: Rc<Connection>,
+pub struct TenantDao<'a> {
+    conn: &'a Connection,
     inner: TenantSql,
 }
 
-impl TenantDao {
-    pub fn new(conn: Rc<Connection>) -> Self {
+impl<'a> TenantDao<'a> {
+    pub fn new(conn: &'a Connection) -> Self {
         Self {
             conn,
             inner: TenantSql {},

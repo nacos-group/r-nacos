@@ -7,16 +7,16 @@ use actix_web::{
 };
 use serde::{Deserialize, Serialize};
 
+use super::model::user_model::{UpdateUserInfoParam, UserInfo, UserPageParams, UserPermissions};
+use crate::common::get_app_version;
 use crate::{
     common::{
         appdata::AppShareData,
-        constant::{APP_VERSION, EMPTY_STR},
+        constant::EMPTY_STR,
         model::{ApiResult, PageResultOld, UserSession},
     },
     user::{model::UserDto, permission::UserRole, UserManagerReq, UserManagerResult},
 };
-
-use super::model::user_model::{UpdateUserInfoParam, UserInfo, UserPageParams, UserPermissions};
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -51,7 +51,7 @@ pub async fn get_user_web_resources(req: HttpRequest) -> actix_web::Result<impl 
         let data = UserPermissions {
             resources,
             from: EMPTY_STR,
-            version: APP_VERSION,
+            version: get_app_version(),
             username: Some(session.username.clone()),
         };
         Ok(HttpResponse::Ok().json(ApiResult::success(Some(data))))
@@ -60,7 +60,7 @@ pub async fn get_user_web_resources(req: HttpRequest) -> actix_web::Result<impl 
         let data = UserPermissions {
             resources,
             from: "OLD_CONSOLE",
-            version: APP_VERSION,
+            version: get_app_version(),
             username: None,
         };
         Ok(HttpResponse::Ok().json(ApiResult::success(Some(data))))
