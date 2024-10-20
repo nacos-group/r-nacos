@@ -41,6 +41,7 @@ use rnacos::common::appdata::AppShareData;
 use rnacos::openapi::middle::auth_middle::ApiCheckAuth;
 use rnacos::raft::NacosRaft;
 use rnacos::transfer::data_to_sqlite::data_to_sqlite;
+use rnacos::transfer::sqlite_to_data::sqlite_to_data;
 use rnacos::web_config::{app_config, console_config};
 //#[global_allocator]
 //static GLOBAL: MiMalloc = MiMalloc;
@@ -143,6 +144,10 @@ async fn run_subcommand(commands: Commands) -> Result<(), Box<dyn Error>> {
         Commands::DataToSqlite { file, out } => {
             log::info!("middle data to sqlite, from:{file} to:{out}");
             data_to_sqlite(&file, &out).await?;
+        }
+        Commands::SqliteToData { file, out } => {
+            log::info!("sqlite to middle data, from:{file} to:{out}");
+            sqlite_to_data(&file, &out).await?;
         }
     }
     Ok(())

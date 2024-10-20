@@ -22,4 +22,12 @@ pub enum Commands {
         /// out to sqlite db file
         out: String,
     },
+    /// sqlite to transfer middle data
+    #[command(arg_required_else_help = true)]
+    SqliteToData {
+        /// the sqlite db file
+        file: String,
+        /// out to transfer middle data file
+        out: String,
+    },
 }

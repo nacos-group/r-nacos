@@ -40,6 +40,9 @@ impl ConfigHistoryDO {
 #[derive(Debug, Default)]
 pub struct ConfigHistoryParam {
     pub id: Option<i64>,
+    pub data_id: Option<Arc<String>>,
+    pub group_id: Option<Arc<String>>,
+    pub tenant_id: Option<Arc<String>>,
     pub limit: Option<i64>,
     pub offset: Option<i64>,
 }
@@ -50,6 +53,15 @@ impl ConfigHistorySql {
         let mut whr = B::new_where();
         if let Some(id) = &param.id {
             whr.eq("id", id);
+        }
+        if let Some(data_id) = &param.data_id {
+            whr.eq("data_id", data_id);
+        }
+        if let Some(group_id) = &param.group_id {
+            whr.eq("group_id", group_id);
+        }
+        if let Some(tenant_id) = &param.tenant_id {
+            whr.eq("tenant_id", tenant_id);
         }
         whr
     }

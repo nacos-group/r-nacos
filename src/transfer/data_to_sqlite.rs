@@ -8,37 +8,9 @@ use crate::transfer::sqlite::dao::config::{ConfigDO, ConfigDao};
 use crate::transfer::sqlite::dao::config_history::{ConfigHistoryDO, ConfigHistoryDao};
 use crate::transfer::sqlite::dao::tenant::{TenantDO, TenantDao};
 use crate::transfer::sqlite::dao::user::{UserDO, UserDao};
+use crate::transfer::sqlite::TableSeq;
 use crate::user::model::UserDo;
 use rusqlite::Connection;
-
-#[derive(Debug, Default)]
-pub struct TableSeq {
-    pub(crate) config_id: i64,
-    pub(crate) config_history_id: i64,
-    pub(crate) tenant_id: i64,
-    pub(crate) user_id: i64,
-}
-
-impl TableSeq {
-    pub fn next_config_id(&mut self) -> i64 {
-        self.config_id += 1;
-        self.config_id
-    }
-
-    pub fn next_config_history_id(&mut self) -> i64 {
-        self.config_history_id += 1;
-        self.config_history_id
-    }
-
-    pub fn next_tenant_id(&mut self) -> i64 {
-        self.tenant_id += 1;
-        self.tenant_id
-    }
-    pub fn next_user_id(&mut self) -> i64 {
-        self.user_id += 1;
-        self.user_id
-    }
-}
 
 pub async fn data_to_sqlite(data_file: &str, db_path: &str) -> anyhow::Result<()> {
     let mut file_reader = TransferFileReader::new(data_file).await?;
@@ -138,17 +110,8 @@ fn insert_user(
     record: TransferRecordRef<'_>,
 ) -> anyhow::Result<()> {
     let value_do = UserDo::from_bytes(&record.value)?;
-    let user_do = UserDO {
-        id: Some(table_seq.next_user_id()),
-        username: Some(value_do.username),
-        nickname: Some(value_do.nickname),
-        password_hash: value_do.password_hash,
-        gmt_create: Some(value_do.gmt_create as i64),
-        gmt_modified: Some(value_do.gmt_modified as i64),
-        enabled: Some(value_do.enable.to_string()),
-        roles: Some(serde_json::to_string(&value_do.roles)?),
-        extend_info: Some(serde_json::to_string(&value_do.extend_info)?),
-    };
+    let mut user_do: UserDO = value_do.into();
+    user_do.id = Some(table_seq.next_user_id());
     user_dao.insert(&user_do)?;
     Ok(())
 }

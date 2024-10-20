@@ -21,4 +21,7 @@ impl ConfigUtils {
             val
         }
     }
+    pub fn is_default_tenant(val: &str) -> bool {
+        val == DEFAULT_TENANT
+    }
 }
