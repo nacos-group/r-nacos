@@ -184,20 +184,20 @@ impl<'a> ConfigHistoryDao<'a> {
         }
     }
 
-    pub fn execute(&self, sql: &str, args: &Vec<serde_json::Value>) -> anyhow::Result<usize> {
-        sqlite_execute(&self.conn, sql, args)
+    pub fn execute(&self, sql: &str, args: &[serde_json::Value]) -> anyhow::Result<usize> {
+        sqlite_execute(self.conn, sql, args)
     }
 
     pub fn fetch(
         &self,
         sql: &str,
-        args: &Vec<serde_json::Value>,
+        args: &[serde_json::Value],
     ) -> anyhow::Result<Vec<ConfigHistoryDO>> {
-        sqlite_fetch(&self.conn, sql, args, ConfigHistoryDO::from_row)
+        sqlite_fetch(self.conn, sql, args, ConfigHistoryDO::from_row)
     }
 
-    pub fn fetch_count(&self, sql: &str, args: &Vec<serde_json::Value>) -> anyhow::Result<u64> {
-        sqlite_fetch_count(&self.conn, sql, args)
+    pub fn fetch_count(&self, sql: &str, args: &[serde_json::Value]) -> anyhow::Result<u64> {
+        sqlite_fetch_count(self.conn, sql, args)
     }
 
     pub fn insert(&self, record: &ConfigHistoryDO) -> anyhow::Result<usize> {

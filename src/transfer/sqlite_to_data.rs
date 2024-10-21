@@ -63,8 +63,8 @@ fn apply_config(
     table_seq: &mut TableSeq,
     writer_actor: &Addr<TransferWriterActor>,
 ) -> anyhow::Result<()> {
-    let config_dao = ConfigDao::new(&conn);
-    let config_history_dao = ConfigHistoryDao::new(&conn);
+    let config_dao = ConfigDao::new(conn);
+    let config_history_dao = ConfigHistoryDao::new(conn);
     let config_param = ConfigParam::default();
     let mut count = 0;
     //query all config
@@ -120,11 +120,7 @@ fn build_config_record(
         }
     }
     let need_pull_current = if let Some(last_content) = &last_content {
-        if last_content == &current_current {
-            false
-        } else {
-            true
-        }
+        last_content != &current_current
     } else {
         true
     };
@@ -150,7 +146,7 @@ fn build_config_record(
 
 fn apply_tenant(conn: &Connection, writer_actor: &Addr<TransferWriterActor>) -> anyhow::Result<()> {
     let mut count = 0;
-    let tenant_dao = TenantDao::new(&conn);
+    let tenant_dao = TenantDao::new(conn);
     let param = TenantParam::default();
     for item in tenant_dao.query(&param)? {
         let key = if let Some(v) = &item.tenant_id {
@@ -178,7 +174,7 @@ fn apply_tenant(conn: &Connection, writer_actor: &Addr<TransferWriterActor>) -> 
 
 fn apply_user(conn: &Connection, writer_actor: &Addr<TransferWriterActor>) -> anyhow::Result<()> {
     let mut count = 0;
-    let user_dao = UserDao::new(&conn);
+    let user_dao = UserDao::new(conn);
     let param = UserParam::default();
     for item in user_dao.query(&param)? {
         let key = if let Some(v) = &item.username {

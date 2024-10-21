@@ -169,16 +169,16 @@ impl<'a> UserDao<'a> {
         }
     }
 
-    pub fn execute(&self, sql: &str, args: &Vec<serde_json::Value>) -> anyhow::Result<usize> {
-        sqlite_execute(&self.conn, sql, args)
+    pub fn execute(&self, sql: &str, args: &[serde_json::Value]) -> anyhow::Result<usize> {
+        sqlite_execute(self.conn, sql, args)
     }
 
-    pub fn fetch(&self, sql: &str, args: &Vec<serde_json::Value>) -> anyhow::Result<Vec<UserDO>> {
-        sqlite_fetch(&self.conn, sql, args, UserDO::from_row)
+    pub fn fetch(&self, sql: &str, args: &[serde_json::Value]) -> anyhow::Result<Vec<UserDO>> {
+        sqlite_fetch(self.conn, sql, args, UserDO::from_row)
     }
 
-    pub fn fetch_count(&self, sql: &str, args: &Vec<serde_json::Value>) -> anyhow::Result<u64> {
-        sqlite_fetch_count(&self.conn, sql, args)
+    pub fn fetch_count(&self, sql: &str, args: &[serde_json::Value]) -> anyhow::Result<u64> {
+        sqlite_fetch_count(self.conn, sql, args)
     }
 
     pub fn insert(&self, record: &UserDO) -> anyhow::Result<usize> {

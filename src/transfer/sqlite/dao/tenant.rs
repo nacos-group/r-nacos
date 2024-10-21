@@ -135,16 +135,16 @@ impl<'a> TenantDao<'a> {
         }
     }
 
-    pub fn execute(&self, sql: &str, args: &Vec<serde_json::Value>) -> anyhow::Result<usize> {
-        sqlite_execute(&self.conn, sql, args)
+    pub fn execute(&self, sql: &str, args: &[serde_json::Value]) -> anyhow::Result<usize> {
+        sqlite_execute(self.conn, sql, args)
     }
 
-    pub fn fetch(&self, sql: &str, args: &Vec<serde_json::Value>) -> anyhow::Result<Vec<TenantDO>> {
-        sqlite_fetch(&self.conn, sql, args, TenantDO::from_row)
+    pub fn fetch(&self, sql: &str, args: &[serde_json::Value]) -> anyhow::Result<Vec<TenantDO>> {
+        sqlite_fetch(self.conn, sql, args, TenantDO::from_row)
     }
 
-    pub fn fetch_count(&self, sql: &str, args: &Vec<serde_json::Value>) -> anyhow::Result<u64> {
-        sqlite_fetch_count(&self.conn, sql, args)
+    pub fn fetch_count(&self, sql: &str, args: &[serde_json::Value]) -> anyhow::Result<u64> {
+        sqlite_fetch_count(self.conn, sql, args)
     }
 
     pub fn insert(&self, record: &TenantDO) -> anyhow::Result<usize> {
