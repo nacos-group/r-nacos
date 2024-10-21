@@ -34,9 +34,9 @@ use super::service::ServiceMetadata;
 use super::service_index::NamespaceIndex;
 use super::service_index::ServiceQueryParam;
 use super::NamingUtils;
-use crate::common::delay_notify;
 use crate::common::hash_utils::get_hash_value;
 use crate::common::NamingSysConfig;
+use crate::common::{delay_notify, AppSysConfig};
 use crate::grpc::bistream_manage::BiStreamManage;
 use crate::now_millis;
 use crate::now_millis_i64;
@@ -108,6 +108,15 @@ impl Inject for NamingActor {
         self.cluster_delay_notify = factory_data.get_actor();
         self.namespace_actor = factory_data.get_actor();
         self.namespace_index.namespace_actor = self.namespace_actor.clone();
+        let sys_config: Option<Arc<AppSysConfig>> = factory_data.get_bean();
+        if let Some(sys_config) = sys_config {
+            self.sys_config.instance_health_timeout_millis =
+                sys_config.naming_health_timeout as i64 + 3000;
+            self.sys_config.instance_timeout_millis =
+                sys_config.naming_instance_timeout as i64 + 3000;
+            log::info!("NamingActor change naming timeout info from env,health_timeout:{},instance_timeout:{}"
+                ,self.sys_config.instance_health_timeout_millis,self.sys_config.instance_timeout_millis)
+        }
         log::info!("NamingActor inject complete");
     }
 }
@@ -383,7 +392,7 @@ impl NamingActor {
         }
         let instance_short_key = instance.get_short_key();
 
-        let (tag, replace_old_client_id) = service.update_instance(instance, tag);
+        let (tag, replace_old_client_id) = service.update_instance(instance, tag, from_sync);
         if let UpdateInstanceType::UpdateOtherClusterMetaData(_, _) = &tag {
             return tag;
         }
@@ -516,8 +525,8 @@ impl NamingActor {
 
     pub fn time_check(&mut self) {
         let current_time = Local::now().timestamp_millis();
-        let healthy_time = current_time - 15000;
-        let offline_time = current_time - 30000;
+        let healthy_time = current_time - self.sys_config.instance_health_timeout_millis;
+        let offline_time = current_time - self.sys_config.instance_timeout_millis;
         let mut size = 0;
         let now = now_millis();
         let mut change_list = vec![];
@@ -1081,7 +1090,7 @@ async fn query_healthy_instances() {
     instance.cluster_name = "DEFUALT".to_owned();
     instance.init();
     let key = instance.get_service_key();
-    naming.update_instance(&key, instance, None);
+    naming.update_instance(&key, instance, None, false);
     if let Some(service) = naming.service_map.get_mut(&key) {
         service.protect_threshold = 0.1;
     }

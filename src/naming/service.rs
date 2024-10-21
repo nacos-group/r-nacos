@@ -71,6 +71,7 @@ impl Service {
         &mut self,
         mut instance: Instance,
         update_tag: Option<InstanceUpdateTag>,
+        from_sync: bool,
     ) -> (UpdateInstanceType, Option<Arc<String>>) {
         //!("test update_instance {:?}", &instance);
         instance.namespace_id = self.namespace_id.clone();
@@ -113,8 +114,16 @@ impl Service {
             }
             if !old_instance.healthy && instance.healthy {
                 self.healthy_instance_size += 1;
+                log::info!(
+                    "[on update_instance] instance healthy status change to healthy,{:?}",
+                    instance.get_instance_key()
+                )
             } else if old_instance.healthy && !instance.healthy {
                 self.healthy_instance_size -= 1;
+                log::info!(
+                    "[on update_instance] instance healthy status change to unhealthy,{:?}",
+                    instance.get_instance_key()
+                )
             }
             rtype = UpdateInstanceType::UpdateValue;
             if let Some(update_tag) = update_tag {
@@ -161,7 +170,8 @@ impl Service {
             rtype = UpdateInstanceType::New;
         }
         let new_instance = Arc::new(instance);
-        if new_instance.is_enable_timeout() {
+        // 非来自集群的更新才维护实例心跳检测
+        if new_instance.is_enable_timeout() && !from_sync {
             self.healthy_timeout_set.add(
                 new_instance.last_modified_millis as u64,
                 new_instance.get_short_key(),

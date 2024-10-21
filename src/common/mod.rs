@@ -39,6 +39,8 @@ pub struct NamingSysConfig {
     pub once_time_check_size: usize,
     pub service_time_out_millis: u64,
     pub instance_metadata_time_out_millis: u64,
+    pub instance_health_timeout_millis: i64,
+    pub instance_timeout_millis: i64,
 }
 
 impl NamingSysConfig {
@@ -47,6 +49,8 @@ impl NamingSysConfig {
             once_time_check_size: 10000,
             service_time_out_millis: 30000,
             instance_metadata_time_out_millis: 60000,
+            instance_health_timeout_millis: 18000,
+            instance_timeout_millis: 33000,
         }
     }
 }
@@ -81,6 +85,8 @@ pub struct AppSysConfig {
     pub metrics_log_enable: bool,
     pub console_captcha_enable: bool,
     pub run_in_docker: bool,
+    pub naming_health_timeout: u64,
+    pub naming_instance_timeout: u64,
 }
 
 impl AppSysConfig {
@@ -194,6 +200,20 @@ impl AppSysConfig {
         if metrics_log_interval_second < metrics_collect_interval_second {
             metrics_collect_interval_second = metrics_log_interval_second;
         }
+        let naming_health_timeout = std::env::var("RNACOS_NAMING_HEALTH_TIMEOUT_SECOND")
+            .unwrap_or("15".to_owned())
+            .parse()
+            .unwrap_or(15)
+            * 1000;
+        let mut naming_instance_timeout = std::env::var("RNACOS_NAMING_INSTANCE_TIMEOUT_SECOND")
+            .unwrap_or("30".to_owned())
+            .parse()
+            .unwrap_or(30)
+            * 1000;
+        if naming_health_timeout >= naming_instance_timeout {
+            //如果配置不合理，则默认使过期时间大于心跳时间15秒
+            naming_instance_timeout = naming_health_timeout + 15 * 1000;
+        }
         Self {
             local_db_dir,
             config_db_file,
@@ -223,6 +243,8 @@ impl AppSysConfig {
             metrics_log_interval_second,
             console_captcha_enable,
             run_in_docker,
+            naming_health_timeout,
+            naming_instance_timeout,
         }
     }
 
