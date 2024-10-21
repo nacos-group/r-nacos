@@ -42,9 +42,19 @@ impl InstanceWebParams {
     }
 
     pub(crate) fn convert_to_instance(self) -> Result<Instance, String> {
+        let ip = if let Some(ip) = self.ip {
+            Arc::new(ip)
+        } else {
+            return Err("the instance ip is None".to_string());
+        };
+        let port = if let Some(port) = self.port {
+            port
+        } else {
+            return Err("the instance port is None".to_string());
+        };
         let mut instance = Instance {
-            ip: Arc::new(self.ip.unwrap()),
-            port: self.port.unwrap(),
+            ip,
+            port,
             weight: self.weight.unwrap_or(1f32),
             enabled: get_bool_from_string(&self.enabled, true),
             healthy: true,
@@ -64,7 +74,7 @@ impl InstanceWebParams {
             ..Default::default()
         };
 
-        let grouped_name = self.service_name.unwrap();
+        let grouped_name = self.service_name.unwrap_or_default();
         if let Some((group_name, service_name)) =
             NamingUtils::split_group_and_serivce_name(&grouped_name)
         {
@@ -108,7 +118,7 @@ impl InstanceWebQueryListParams {
     pub(crate) fn to_clusters_key(&self) -> Result<(ServiceKey, String), String> {
         let mut service_name = "".to_owned();
         let mut group_name = "".to_owned();
-        let grouped_name = self.service_name.as_ref().unwrap().to_owned();
+        let grouped_name = self.service_name.clone().unwrap_or_default();
         if let Some((_group_name, _service_name)) =
             NamingUtils::split_group_and_serivce_name(&grouped_name)
         {
@@ -303,8 +313,8 @@ pub struct BeatInfo {
 impl BeatInfo {
     pub fn convert_to_instance(self) -> Instance {
         let mut instance = Instance {
-            ip: Arc::new(self.ip.unwrap()),
-            port: self.port.unwrap(),
+            ip: Arc::new(self.ip.unwrap_or("unknown".to_string())),
+            port: self.port.unwrap_or(1),
             cluster_name: NamingUtils::default_cluster(
                 self.cluster.as_ref().unwrap_or(&"".to_owned()).to_owned(),
             ),
