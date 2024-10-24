@@ -118,7 +118,7 @@ pub fn app_config(conf_data: AppSysConfig) -> impl FnOnce(&mut ServiceConfig) {
 }
 
 #[deprecated]
-pub fn app_without_no_auth_console_config(config: &mut web::ServiceConfig) {
+pub fn app_without_no_auth_console_config(config: &mut ServiceConfig) {
     config
         .service(web::resource("/").route(web::get().to(disable_no_auth_console_index)))
         .service(web::resource("/nacos").route(web::get().to(disable_no_auth_console_index)))
@@ -132,7 +132,7 @@ pub fn app_without_no_auth_console_config(config: &mut web::ServiceConfig) {
     raft_config(config);
 }
 
-pub fn nacos_console_api_config(config: &mut web::ServiceConfig) {
+pub fn nacos_console_api_config(config: &mut ServiceConfig) {
     config.service(
         web::scope("/nacos/v1/console").service(
             web::resource("/namespaces")
@@ -145,14 +145,14 @@ pub fn nacos_console_api_config(config: &mut web::ServiceConfig) {
 }
 
 /// 独立控制台服务
-pub fn console_config(config: &mut web::ServiceConfig) {
+pub fn console_config(config: &mut ServiceConfig) {
     //console_api_config(config);
     console_api_config_v2(config);
     console_api_config_v1(config);
     console_page_config(config);
 }
 
-pub fn console_page_config(config: &mut web::ServiceConfig) {
+pub fn console_page_config(config: &mut ServiceConfig) {
     config
         .service(web::resource("/").route(web::get().to(index)))
         .service(icon)
