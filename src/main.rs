@@ -63,8 +63,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     if let Some(cmd) = cli_opt.command {
         return run_subcommand(cmd).await;
     }
-    println!("version:{}, RUST_LOG:{}", get_app_version(), &rust_log);
-    println!("data dir:{}", sys_config.local_db_dir);
+    log::info!("version:{}, RUST_LOG:{}", get_app_version(), &rust_log);
+    log::info!("data dir:{}", sys_config.local_db_dir);
     let factory_data = config_factory(sys_config.clone()).await?;
     let app_data = build_share_data(factory_data.clone())?;
     let http_addr = sys_config.get_http_addr();
@@ -125,7 +125,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     if let Some(num) = sys_config.http_workers {
         server = server.workers(num);
     }
-    println!("rnacos started");
+    log::info!("rnacos started");
     server.bind(http_addr)?.run().await?;
     Ok(())
 }
