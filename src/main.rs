@@ -41,6 +41,7 @@ use rnacos::common::appdata::AppShareData;
 use rnacos::openapi::middle::auth_middle::ApiCheckAuth;
 use rnacos::raft::NacosRaft;
 use rnacos::transfer::data_to_sqlite::data_to_sqlite;
+use rnacos::transfer::openapi_to_data::openapi_to_data;
 use rnacos::transfer::sqlite_to_data::sqlite_to_data;
 use rnacos::web_config::{app_config, console_config};
 //#[global_allocator]
@@ -63,8 +64,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
     if let Some(cmd) = cli_opt.command {
         return run_subcommand(cmd).await;
     }
-    log::info!("version:{}, RUST_LOG:{}", get_app_version(), &rust_log);
-    log::info!("data dir:{}", sys_config.local_db_dir);
+    // 这里不使用log:info避免日志等级高于info时不打印
+    println!("version:{}, RUST_LOG:{}", get_app_version(), &rust_log);
+    println!("data dir:{}", sys_config.local_db_dir);
     let factory_data = config_factory(sys_config.clone()).await?;
     let app_data = build_share_data(factory_data.clone())?;
     let http_addr = sys_config.get_http_addr();
@@ -125,7 +127,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     if let Some(num) = sys_config.http_workers {
         server = server.workers(num);
     }
-    log::info!("rnacos started");
+    // 这里不使用log:info避免日志等级高于info时不打印
+    println!("rnacos started");
     server.bind(http_addr)?.run().await?;
     Ok(())
 }
@@ -148,6 +151,15 @@ async fn run_subcommand(commands: Commands) -> Result<(), Box<dyn Error>> {
         Commands::SqliteToData { file, out } => {
             log::info!("sqlite to middle data, from:{file} to:{out}");
             sqlite_to_data(&file, &out).await?;
+        }
+        Commands::OpenapiToData {
+            host,
+            username,
+            password,
+            out,
+        } => {
+            log::info!("openapi to middle data, from:{host} to:{out}");
+            openapi_to_data(&host, &username, &password, &out).await?;
         }
     }
     Ok(())

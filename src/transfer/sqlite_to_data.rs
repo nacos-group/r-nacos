@@ -1,13 +1,12 @@
-use crate::common::actor_utils::create_actor_at_thread;
 use crate::common::constant::{
-    CACHE_TREE_NAME, CONFIG_TREE_NAME, EMPTY_ARC_STRING, EMPTY_STR, NAMESPACE_TREE_NAME,
-    SEQUENCE_TREE_NAME, USER_TREE_NAME,
+    CONFIG_TREE_NAME, EMPTY_ARC_STRING, EMPTY_STR, NAMESPACE_TREE_NAME, USER_TREE_NAME,
 };
 use crate::config::core::{ConfigKey, ConfigValue};
 use crate::config::model::ConfigValueDO;
 use crate::config::ConfigUtils;
 use crate::namespace::model::{NamespaceDO, FROM_USER_VALUE};
 use crate::now_millis_i64;
+use crate::transfer::init_writer_actor;
 use crate::transfer::model::{
     TransferRecordDto, TransferWriterAsyncRequest, TransferWriterRequest,
 };
@@ -35,27 +34,6 @@ pub async fn sqlite_to_data(db_path: &str, data_file: &str) -> anyhow::Result<()
         .await
         .ok();
     Ok(())
-}
-
-fn init_writer_actor(data_file: &str) -> Addr<TransferWriterActor> {
-    let writer_actor = create_actor_at_thread(TransferWriterActor::new(data_file.into(), 0));
-    writer_actor.do_send(TransferWriterRequest::AddTableNameMap(
-        CONFIG_TREE_NAME.clone(),
-    ));
-    writer_actor.do_send(TransferWriterRequest::AddTableNameMap(
-        SEQUENCE_TREE_NAME.clone(),
-    ));
-    writer_actor.do_send(TransferWriterRequest::AddTableNameMap(
-        NAMESPACE_TREE_NAME.clone(),
-    ));
-    writer_actor.do_send(TransferWriterRequest::AddTableNameMap(
-        USER_TREE_NAME.clone(),
-    ));
-    writer_actor.do_send(TransferWriterRequest::AddTableNameMap(
-        CACHE_TREE_NAME.clone(),
-    ));
-    writer_actor.do_send(TransferWriterRequest::InitHeader);
-    writer_actor
 }
 
 fn apply_config(
@@ -93,7 +71,7 @@ fn apply_config(
         count += 1;
         writer_actor.do_send(TransferWriterRequest::AddRecord(record));
     }
-    log::info!("transfer config count:{count}");
+    log::info!("transfer config total count:{count}");
     Ok(())
 }
 
@@ -103,8 +81,8 @@ fn build_config_record(
     config_do: ConfigDO,
     histories: Vec<ConfigHistoryDO>,
 ) -> anyhow::Result<TransferRecordDto> {
-    let current_current = config_do.content.unwrap_or_default();
-    let mut config_value = ConfigValue::new(current_current.clone());
+    let current_content = config_do.content.unwrap_or_default();
+    let mut config_value = ConfigValue::new(current_content.clone());
     let mut last_content = None;
     for item in histories {
         if let Some(content) = item.content {
@@ -120,14 +98,14 @@ fn build_config_record(
         }
     }
     let need_pull_current = if let Some(last_content) = &last_content {
-        last_content != &current_current
+        last_content != &current_content
     } else {
         true
     };
     if need_pull_current {
         let op_time = config_do.last_time.unwrap_or(now_millis_i64());
         config_value.update_value(
-            current_current,
+            current_content,
             table_seq.next_config_id() as u64,
             op_time,
             None,

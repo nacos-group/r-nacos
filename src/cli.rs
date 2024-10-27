@@ -30,4 +30,17 @@ pub enum Commands {
         /// out to transfer middle data file
         out: String,
     },
+    #[command(arg_required_else_help = true)]
+    OpenapiToData {
+        /// nacos auth username,default is empty
+        #[arg(short, long, default_value = "")]
+        username: String,
+        /// nacos auth password,default is empty
+        #[arg(short, long, default_value = "")]
+        password: String,
+        /// nacos host ip:port; example: 127.0.0.1:8848
+        host: String,
+        /// out to transfer middle data file
+        out: String,
+    },
 }
