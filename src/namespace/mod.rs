@@ -1,7 +1,6 @@
 pub mod model;
 
 use crate::common::constant::{EMPTY_ARC_STRING, NAMESPACE_TREE_NAME};
-use crate::common::string_utils::StringUtils;
 use crate::config::core::ConfigActor;
 use crate::console::NamespaceUtilsOld;
 use crate::namespace::model::{
@@ -99,6 +98,11 @@ impl NamespaceActor {
     }
 
     fn set_namespace(&mut self, param: NamespaceParam, only_add: bool, only_update: bool) {
+        // id为public的命名空间使用空串替代
+        // 空串在初始化时已经设置，这里直接跳过
+        if param.namespace_id.as_ref() == DEFAULT_NAMESPACE {
+            return;
+        }
         if !self.already_sync_from_config
             && param.namespace_id.as_str() == ALREADY_SYNC_FROM_CONFIG_KEY
         {
@@ -111,7 +115,9 @@ impl NamespaceActor {
             NamespaceFromFlags::USER.bits()
         };
         let value = if let Some(v) = self.data.get(&param.namespace_id) {
-            if only_add {
+            // only_add只在兼容从v0.5数据升级时发生；
+            // 如果已经存在用户创建或变更过的数据则直接退出，否则更新
+            if only_add && (v.flag | NamespaceFromFlags::USER.bits() == v.flag) {
                 return;
             }
             let mut value = Namespace {
@@ -288,13 +294,14 @@ impl NamespaceActor {
         }
         let list = NamespaceUtilsOld::get_namespaces_from_source(namespace_source);
         for item in list {
-            if StringUtils::is_option_empty_arc(&item.namespace_id) {
+            let item = item.as_ref().to_owned();
+            let namespace_id = item.namespace_id.unwrap_or_default();
+            if namespace_id.is_empty() {
                 continue;
             }
-            let item = item.as_ref().to_owned();
             self.set_namespace(
                 NamespaceParam {
-                    namespace_id: item.namespace_id.unwrap_or_default(),
+                    namespace_id,
                     namespace_name: item.namespace_name,
                     r#type: item.r#type,
                 },
