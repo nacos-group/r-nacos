@@ -87,13 +87,17 @@ pub struct ConfigPublishRequest {
     pub tenant: String,
     pub content: Arc<String>,
     pub cas_md5: Option<String>,
-    pub addition_map: Option<HashMap<String, String>>,
+    pub addition_map: Option<HashMap<String, Option<String>>>,
 }
 
 impl ConfigPublishRequest {
     pub fn get_addition_param(&self, key: &str) -> Option<&String> {
         if let Some(addition_map) = self.addition_map.as_ref() {
-            addition_map.get(key)
+            if let Some(v) = addition_map.get(key) {
+                v.as_ref()
+            } else {
+                None
+            }
         } else {
             None
         }
