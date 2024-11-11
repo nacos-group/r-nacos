@@ -30,6 +30,14 @@ pub enum Commands {
         /// out to transfer middle data file
         out: String,
     },
+    /// nacos mysql to transfer middle data
+    #[command(arg_required_else_help = true)]
+    MysqlToData {
+        /// the nacos mysql db uri; example: mysql://user:password@localhost:3306/nacos
+        uri: String,
+        /// out to transfer middle data file
+        out: String,
+    },
     #[command(arg_required_else_help = true)]
     OpenapiToData {
         /// nacos auth username,default is empty

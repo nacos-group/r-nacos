@@ -20,6 +20,7 @@ pub mod protobuf_utils;
 pub mod rusqlite_utils;
 pub mod sequence_utils;
 pub mod sled_utils;
+pub mod sqlx_utils;
 pub mod string_utils;
 pub mod tempfile;
 pub mod web_utils;

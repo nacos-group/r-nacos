@@ -117,6 +117,8 @@ fs2 = "0.4.3"
 dirs = "5.0"
 bitflags = "2.6.0"
 
+sqlx = { version = "0.6", features = ["runtime-tokio-rustls","mysql"] }
+
 [dependencies.uuid]
 version = "1.2.1"
 features = [

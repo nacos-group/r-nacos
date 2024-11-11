@@ -41,6 +41,7 @@ use rnacos::common::appdata::AppShareData;
 use rnacos::openapi::middle::auth_middle::ApiCheckAuth;
 use rnacos::raft::NacosRaft;
 use rnacos::transfer::data_to_sqlite::data_to_sqlite;
+use rnacos::transfer::mysql_to_data::mysql_to_data;
 use rnacos::transfer::openapi_to_data::openapi_to_data;
 use rnacos::transfer::sqlite_to_data::sqlite_to_data;
 use rnacos::web_config::{app_config, console_config};
@@ -151,6 +152,10 @@ async fn run_subcommand(commands: Commands) -> Result<(), Box<dyn Error>> {
         Commands::SqliteToData { file, out } => {
             log::info!("sqlite to middle data, from:{file} to:{out}");
             sqlite_to_data(&file, &out).await?;
+        }
+        Commands::MysqlToData { uri, out } => {
+            log::info!("nacos mysql to middle data, from: mysql://** to:{out}");
+            mysql_to_data(&uri, &out).await?;
         }
         Commands::OpenapiToData {
             host,

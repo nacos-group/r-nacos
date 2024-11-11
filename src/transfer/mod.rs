@@ -8,6 +8,8 @@ use actix::Addr;
 
 pub mod data_to_sqlite;
 pub mod model;
+pub mod mysql;
+pub mod mysql_to_data;
 pub mod openapi_to_data;
 pub mod reader;
 pub mod sqlite;
