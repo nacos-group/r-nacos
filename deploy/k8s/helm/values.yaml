@@ -14,11 +14,13 @@ imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
 
-rancosConfig:
+rnacosConfig:
   rustLog: info
   httpWorkers: 8
   consoleLoginOneHourLimit: 5
 
+# more configs from environment variables
+# https://r-nacos.github.io/docs/notes/env_config/#%E8%BF%90%E8%A1%8C%E5%8F%82%E6%95%B0%E8%AF%B4%E6%98%8E
 extraEnvVars: []
 
 persistence:
