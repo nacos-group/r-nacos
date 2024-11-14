@@ -39,13 +39,11 @@ spec:
           readinessProbe:
             tcpSocket:
               port: 9848
-              service: ""
             initialDelaySeconds: 5
             periodSeconds: 10
           livenessProbe:
             tcpSocket:
               port: 9848
-              service: ""
             initialDelaySeconds: 15
             periodSeconds: 20
           env:
@@ -57,6 +55,9 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
+            {{- with .Values.extraEnvVars }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
           volumeMounts:
             - name: podinfo
               mountPath: /etc/podinfo

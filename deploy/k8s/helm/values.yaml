@@ -19,6 +19,8 @@ rancosConfig:
   httpWorkers: 8
   consoleLoginOneHourLimit: 5
 
+extraEnvVars: []
+
 persistence:
   size: 20Gi
   storageClass: default
