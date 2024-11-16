@@ -14,12 +14,12 @@ use crate::{
     raft::network::factory::RaftClusterRequestSender,
 };
 
-use super::model::NamingRouteAddr;
 use super::model::NamingRouteRequest;
 use super::model::ProcessRange;
 use super::model::SnapshotDataInfo;
 use super::model::SnapshotForSend;
 use super::model::SyncSenderRequest;
+use super::model::{NamingRouteAddr, SyncSenderSetCmd};
 use super::sync_sender::ClusteSyncSender;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -116,6 +116,9 @@ impl InnerNodeManage {
         let now = now_millis();
         for (key, addr) in nodes {
             if let Some(node) = self.all_nodes.get_mut(&key) {
+                if let Some(sender) = node.sync_sender.as_ref() {
+                    sender.do_send(SyncSenderSetCmd::UpdateTargetAddr(addr.clone()));
+                };
                 node.addr = addr;
             } else {
                 let is_local = self.local_id == key;
