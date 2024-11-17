@@ -2,6 +2,7 @@ use std::{collections::HashSet, sync::Arc, time::Duration};
 
 use crate::common::actor_utils::{create_actor_at_thread, create_actor_at_thread2};
 use crate::grpc::handler::RAFT_ROUTE_REQUEST;
+use crate::health::core::HealthManager;
 use crate::metrics::core::MetricsManager;
 use crate::namespace::NamespaceActor;
 use crate::raft::cluster::route::RaftRequestRoute;
@@ -193,6 +194,8 @@ pub async fn config_factory(sys_config: Arc<AppSysConfig>) -> anyhow::Result<Fac
     factory.register(BeanDefinition::actor_with_inject_from_obj(
         transfer_writer_addr,
     ));
+    let health_manager = HealthManager::new().start();
+    factory.register(BeanDefinition::actor_with_inject_from_obj(health_manager));
     Ok(factory.init().await)
 }
 
@@ -227,6 +230,7 @@ pub fn build_share_data(factory_data: FactoryData) -> anyhow::Result<Arc<AppShar
         raft_request_route: factory_data.get_bean().unwrap(),
         transfer_writer_manager: factory_data.get_actor().unwrap(),
         transfer_import_manager: factory_data.get_actor().unwrap(),
+        health_manager: factory_data.get_actor().unwrap(),
         factory_data,
     });
     Ok(app_data)

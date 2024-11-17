@@ -6,6 +6,7 @@ use rnacos_web_dist_wrap::get_embedded_file;
 use crate::common::AppSysConfig;
 use crate::console::api::{console_api_config_v1, console_api_config_v2};
 use crate::openapi::auth::{login_config, mock_token};
+use crate::openapi::health::health_config;
 use crate::openapi::metrics::metrics_config;
 use crate::openapi::{openapi_config, v1::console as nacos_console};
 use crate::raft::network::raft_config;
@@ -101,12 +102,14 @@ pub fn app_config(conf_data: AppSysConfig) -> impl FnOnce(&mut ServiceConfig) {
                 );
             login_config(config);
             metrics_config(config);
+            health_config(config);
             raft_config(config);
             nacos_console_api_config(config);
             config.configure(openapi_config(conf_data));
         } else {
             login_config(config);
             metrics_config(config);
+            health_config(config);
             raft_config(config);
             nacos_console_api_config(config);
             config.configure(openapi_config(conf_data));

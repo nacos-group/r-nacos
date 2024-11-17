@@ -12,6 +12,7 @@ pub mod user;
 pub mod utils;
 pub mod web_config;
 
+pub mod health;
 pub mod transfer;
 
 pub use inner_mem_cache::TimeoutSet;
