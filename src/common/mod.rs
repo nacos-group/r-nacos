@@ -78,6 +78,7 @@ pub struct AppSysConfig {
     pub openapi_login_one_minute_limit: u32,
     pub openapi_enable_auth: bool,
     pub cluster_token: Arc<String>,
+    pub backup_token: Arc<String>,
     pub init_admin_username: String,
     pub init_admin_password: String,
     pub metrics_enable: bool,
@@ -165,6 +166,12 @@ impl AppSysConfig {
         let cluster_token = std::env::var("RNACOS_CLUSTER_TOKEN")
             .map(Arc::new)
             .unwrap_or(constant::EMPTY_ARC_STRING.clone());
+        let mut backup_token = std::env::var("RNACOS_BACKUP_TOKEN")
+            .map(Arc::new)
+            .unwrap_or(constant::EMPTY_ARC_STRING.clone());
+        if backup_token.len() < 32 {
+            backup_token = constant::EMPTY_ARC_STRING.clone();
+        }
         let init_admin_username =
             StringUtils::map_not_empty(std::env::var("RNACOS_INIT_ADMIN_USERNAME").ok())
                 .unwrap_or("admin".to_owned());
@@ -236,6 +243,7 @@ impl AppSysConfig {
             gmt_fixed_offset_hours,
             openapi_enable_auth,
             cluster_token,
+            backup_token,
             init_admin_username,
             init_admin_password,
             metrics_enable,

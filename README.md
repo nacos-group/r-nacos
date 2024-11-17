@@ -184,6 +184,7 @@ k8s支持使用 [helm](https://github.com/nacos-group/r-nacos/tree/master/deploy
 |RNACOS_ENABLE_OPEN_API_AUTH|是否对openapi开启鉴权；（注：nacos切换到r-nacos过程中不要开启鉴权）|false|true|0.5.8|
 |RNACOS_API_LOGIN_TIMEOUT|open api鉴权有效时长，单位为秒；(注：从不鉴权到开启鉴权，需要间隔对应时长以保证客户端token能更新生效)|一小时,3600秒|3600|0.5.8|
 |RNACOS_CLUSTER_TOKEN|集群间的通信请求校验token，空表示不开启校验，设置后只有相同token的节点间才可通讯|空字符串|1234567890abcdefg|0.5.8|
+|RNACOS_BACKUP_TOKEN|数据备份接口请求校验token，空或长度小于32位表示不开启备份接口|空字符串|1234567890abcdefg1234567890abcdefg|0.6.6|
 |RNACOS_INIT_ADMIN_USERNAME|初始化管理员用户名，只在主节点第一次启动时生效|admin|rnacos|0.5.11|
 |RNACOS_INIT_ADMIN_PASSWORD|初始化管理员密码，只在主节点第一次启动时生效|admin|rnacos123456|0.5.11|
 |RNACOS_ENABLE_METRICS|是否开启监控指标功能|true|true|0.5.13|

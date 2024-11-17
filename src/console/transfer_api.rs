@@ -13,9 +13,7 @@ use std::sync::Arc;
 use tokio::fs::OpenOptions;
 use tokio::io::{AsyncReadExt, AsyncSeekExt};
 
-pub async fn download_transfer_file(
-    app_share_data: web::Data<Arc<AppShareData>>,
-) -> impl Responder {
+pub async fn download_transfer_file(app_share_data: web::Data<Arc<AppShareData>>) -> HttpResponse {
     if let Ok(Ok(TransferManagerResponse::BackupFile(temp_file))) = app_share_data
         .transfer_writer_manager
         .send(TransferManagerAsyncRequest::Backup(
