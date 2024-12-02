@@ -62,6 +62,7 @@ impl InstanceRequestHandler {
             } else {
                 return Err(anyhow::format_err!("serivceName is unvaild!"));
             };
+            let now = now_millis_i64();
             let mut instance = Instance {
                 id: Default::default(),
                 ip: input.ip.unwrap(),
@@ -75,7 +76,8 @@ impl InstanceRequestHandler {
                 group_name,
                 group_service: Default::default(),
                 metadata: input.metadata.unwrap_or_default(),
-                last_modified_millis: now_millis_i64(),
+                last_modified_millis: now,
+                register_time: now,
                 namespace_id: Arc::new(NamingUtils::default_namespace(
                     request.namespace.unwrap_or_default(),
                 )),

@@ -85,6 +85,7 @@ impl Service {
         let old_instance = self.instances.get(&key);
         let mut replace_old_client_id = None;
         if let Some(old_instance) = old_instance {
+            instance.register_time = old_instance.register_time;
             if !instance.from_grpc && old_instance.from_grpc {
                 /*
                 match (old_instance.from_grpc, old_instance.is_from_cluster()) {

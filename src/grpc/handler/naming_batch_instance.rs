@@ -85,6 +85,7 @@ impl BatchInstanceRequestHandler {
                     group_service: Default::default(),
                     metadata: input.metadata.unwrap_or_default(),
                     last_modified_millis: last_modified_millis.to_owned(),
+                    register_time: last_modified_millis,
                     namespace_id: namesapce_id.clone(),
                     app_name: "".to_owned(),
                     from_grpc: true,
