@@ -20,7 +20,7 @@
 |musl alpine包|$version-alpine| qingpan/rnacos:v0.4.2-alpine | docker包基于alpine,体积比较小(压缩包11M,解压后34M),运行性能相对较低|
 
 
-如果不观注版本，可以使用最新正式版本tag。
+如果不关注版本，可以使用最新正式版本tag。
 
 + 最新的gnu正式版本: `qingpan/rnacos:stable`
 + 最新的alpine正式版本: `qingpan/rnacos:stable-alpine`
