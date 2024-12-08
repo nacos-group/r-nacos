@@ -199,6 +199,7 @@ pub struct ConfigInfoDto {
     pub data_id: Arc<String>,
     pub content: Option<Arc<String>>,
     pub md5: Option<Arc<String>>,
+    pub desc: Option<Arc<String>>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
@@ -554,6 +555,7 @@ impl ConfigActor {
                     tenant: item.tenant.clone(),
                     group: item.group.clone(),
                     data_id: item.data_id.clone(),
+                    desc: value.desc.clone(),
                     //md5:Some(value.md5.clone()),
                     //content:Some(value.content.clone()),
                     ..Default::default()
