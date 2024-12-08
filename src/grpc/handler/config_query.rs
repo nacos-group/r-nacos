@@ -3,6 +3,7 @@
 use std::sync::Arc;
 
 use crate::config::config_type::ConfigType;
+use crate::config::ConfigUtils;
 use crate::grpc::api_model::NOT_FOUND;
 use crate::grpc::HandlerResult;
 use crate::{
@@ -42,7 +43,7 @@ impl PayloadHandler for ConfigQueryRequestHandler {
         let cmd = ConfigCmd::GET(ConfigKey::new(
             &request.data_id,
             &request.group,
-            &request.tenant,
+            &ConfigUtils::default_tenant(request.tenant),
         ));
         let mut response = ConfigQueryResponse {
             request_id: request.request_id,

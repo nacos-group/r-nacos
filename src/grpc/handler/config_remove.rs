@@ -2,6 +2,7 @@
 
 use std::sync::Arc;
 
+use crate::config::ConfigUtils;
 use crate::grpc::HandlerResult;
 use crate::{
     common::appdata::AppShareData,
@@ -38,7 +39,7 @@ impl PayloadHandler for ConfigRemoveRequestHandler {
         let req = DelConfigReq::new(ConfigKey::new(
             &request.data_id,
             &request.group,
-            &request.tenant,
+            &ConfigUtils::default_tenant(request.tenant),
         ));
         match self.app_data.config_route.del_config(req).await {
             Ok(_res) => {

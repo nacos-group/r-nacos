@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use crate::common::string_utils::StringUtils;
 use crate::config::config_type::ConfigType;
+use crate::config::ConfigUtils;
 use crate::grpc::HandlerResult;
 use crate::{
     common::appdata::AppShareData,
@@ -42,7 +43,11 @@ impl PayloadHandler for ConfigPublishRequestHandler {
         let desc =
             StringUtils::map_not_empty(request.get_addition_param("desc").cloned()).map(Arc::new);
         let mut req = SetConfigReq::new(
-            ConfigKey::new(&request.data_id, &request.group, &request.tenant),
+            ConfigKey::new(
+                &request.data_id,
+                &request.group,
+                &ConfigUtils::default_tenant(request.tenant),
+            ),
             request.content,
         );
         req.config_type = config_type;

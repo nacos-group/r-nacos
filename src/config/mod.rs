@@ -1,3 +1,6 @@
+use crate::common::constant::EMPTY_ARC_STRING;
+use std::sync::Arc;
+
 pub mod config_db;
 pub mod config_index;
 pub mod config_sled;
@@ -21,6 +24,15 @@ impl ConfigUtils {
             val
         }
     }
+
+    pub fn default_tenant_arc(val: Arc<String>) -> Arc<String> {
+        if val.as_str() == DEFAULT_TENANT {
+            EMPTY_ARC_STRING.clone()
+        } else {
+            val
+        }
+    }
+
     pub fn is_default_tenant(val: &str) -> bool {
         val == DEFAULT_TENANT
     }

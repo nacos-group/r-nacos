@@ -2,6 +2,7 @@
 
 use std::sync::Arc;
 
+use crate::config::ConfigUtils;
 use crate::grpc::HandlerResult;
 use crate::{
     common::appdata::AppShareData,
@@ -40,7 +41,11 @@ impl PayloadHandler for ConfigChangeBatchListenRequestHandler {
         let request: ConfigBatchListenRequest = serde_json::from_slice(&body_vec)?;
         let mut listener_items = vec![];
         for item in request.config_listen_contexts {
-            let key = ConfigKey::new(&item.data_id, &item.group, &item.tenant);
+            let key = ConfigKey::new(
+                &item.data_id,
+                &item.group,
+                &ConfigUtils::default_tenant(item.tenant),
+            );
             listener_items.push(ListenerItem::new(key, item.md5));
         }
         let cmd = if request.listen {
