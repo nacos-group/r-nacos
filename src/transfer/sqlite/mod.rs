@@ -78,6 +78,9 @@ impl From<UserDO> for UserDo {
             roles,
             extend_info,
             password_hash: v.password_hash,
+            namespace_privilege_flags: None,
+            namespace_white_list: Default::default(),
+            namespace_black_list: Default::default(),
         }
     }
 }

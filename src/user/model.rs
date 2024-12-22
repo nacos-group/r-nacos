@@ -1,8 +1,8 @@
-use std::{collections::HashMap, sync::Arc};
-
-use serde::{Deserialize, Serialize};
-
+use crate::common::model::privilege::{PrivilegeGroup, PrivilegeGroupFlags};
 use crate::user::permission::UserRoleHelper;
+use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
+use std::{collections::HashMap, sync::Arc};
 
 #[derive(Clone, prost::Message, Serialize, Deserialize)]
 pub struct UserDo {
@@ -25,6 +25,12 @@ pub struct UserDo {
         ::std::collections::HashMap<::prost::alloc::string::String, ::prost::alloc::string::String>,
     #[prost(string, optional, tag = "9")]
     pub password_hash: Option<String>,
+    #[prost(uint32, optional, tag = "10")]
+    pub namespace_privilege_flags: Option<u32>,
+    #[prost(string, repeated, tag = "11")]
+    pub namespace_white_list: ::prost::alloc::vec::Vec<String>,
+    #[prost(string, repeated, tag = "12")]
+    pub namespace_black_list: ::prost::alloc::vec::Vec<String>,
 }
 
 impl UserDo {
@@ -51,6 +57,7 @@ pub struct UserDto {
     pub enable: Option<bool>,
     pub roles: Option<Vec<Arc<String>>>,
     pub extend_info: Option<HashMap<String, String>>,
+    pub namespace_privilege: Option<PrivilegeGroup<Arc<String>>>,
 }
 
 impl From<UserDo> for UserDto {
@@ -59,6 +66,25 @@ impl From<UserDo> for UserDto {
         for role in &value.roles {
             roles.push(UserRoleHelper::get_role(role));
         }
+        let namespace_privilege_flags = value.namespace_privilege_flags.unwrap_or_default() as u8;
+        let namespace_privilege =
+            if namespace_privilege_flags & PrivilegeGroupFlags::ENABLE.bits() > 0 {
+                let mut namespace_whitelist = HashSet::new();
+                for item in &value.namespace_white_list {
+                    namespace_whitelist.insert(Arc::new(item.clone()));
+                }
+                let mut namespace_black_list = HashSet::new();
+                for item in &value.namespace_black_list {
+                    namespace_black_list.insert(Arc::new(item.clone()));
+                }
+                Some(PrivilegeGroup::new(
+                    value.namespace_privilege_flags.unwrap_or_default() as u8,
+                    Some(namespace_whitelist),
+                    Some(namespace_black_list),
+                ))
+            } else {
+                Some(PrivilegeGroup::default())
+            };
         Self {
             username: Arc::new(value.username),
             nickname: Some(value.nickname),
@@ -71,6 +97,7 @@ impl From<UserDo> for UserDto {
             enable: Some(value.enable),
             roles: Some(roles),
             extend_info: Some(value.extend_info),
+            namespace_privilege,
         }
     }
 }

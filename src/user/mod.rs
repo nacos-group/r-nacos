@@ -234,6 +234,9 @@ impl Handler<UserManagerReq> for UserManager {
                             .collect(),
                         enable: true,
                         extend_info: user.extend_info.unwrap_or_default(),
+                        namespace_privilege_flags: None,
+                        namespace_white_list: Default::default(),
+                        namespace_black_list: Default::default(),
                     };
                     let user_data = user_do.to_bytes();
                     let req = TableManagerReq::Set {

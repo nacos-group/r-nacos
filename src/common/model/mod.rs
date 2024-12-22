@@ -1,3 +1,5 @@
+pub mod privilege;
+
 use std::{collections::HashMap, sync::Arc};
 
 use serde::{Deserialize, Serialize};
