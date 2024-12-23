@@ -43,6 +43,30 @@ impl UserDo {
     pub fn from_bytes(v: &[u8]) -> anyhow::Result<Self> {
         Ok(prost::Message::decode(v)?)
     }
+
+    pub fn build_namespace_privilege(&self) -> PrivilegeGroup<Arc<String>> {
+        let namespace_privilege_flags =
+            self.namespace_privilege_flags.clone().unwrap_or_default() as u8;
+        let namespace_privilege =
+            if namespace_privilege_flags & PrivilegeGroupFlags::ENABLE.bits() > 0 {
+                let mut namespace_whitelist = HashSet::new();
+                for item in &self.namespace_white_list {
+                    namespace_whitelist.insert(Arc::new(item.clone()));
+                }
+                let mut namespace_black_list = HashSet::new();
+                for item in &self.namespace_black_list {
+                    namespace_black_list.insert(Arc::new(item.clone()));
+                }
+                PrivilegeGroup::new(
+                    self.namespace_privilege_flags.unwrap_or_default() as u8,
+                    Some(namespace_whitelist),
+                    Some(namespace_black_list),
+                )
+            } else {
+                PrivilegeGroup::default()
+            };
+        namespace_privilege
+    }
 }
 
 #[derive(Clone, Serialize, Deserialize, Default)]
@@ -66,25 +90,7 @@ impl From<UserDo> for UserDto {
         for role in &value.roles {
             roles.push(UserRoleHelper::get_role(role));
         }
-        let namespace_privilege_flags = value.namespace_privilege_flags.unwrap_or_default() as u8;
-        let namespace_privilege =
-            if namespace_privilege_flags & PrivilegeGroupFlags::ENABLE.bits() > 0 {
-                let mut namespace_whitelist = HashSet::new();
-                for item in &value.namespace_white_list {
-                    namespace_whitelist.insert(Arc::new(item.clone()));
-                }
-                let mut namespace_black_list = HashSet::new();
-                for item in &value.namespace_black_list {
-                    namespace_black_list.insert(Arc::new(item.clone()));
-                }
-                Some(PrivilegeGroup::new(
-                    value.namespace_privilege_flags.unwrap_or_default() as u8,
-                    Some(namespace_whitelist),
-                    Some(namespace_black_list),
-                ))
-            } else {
-                Some(PrivilegeGroup::default())
-            };
+        let namespace_privilege = Some(value.build_namespace_privilege());
         Self {
             username: Arc::new(value.username),
             nickname: Some(value.nickname),

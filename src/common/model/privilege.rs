@@ -15,6 +15,30 @@ bitflags! {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct PrivilegeGroupOptionParam<T>
+where
+    T: Sized + std::hash::Hash + std::cmp::Eq,
+{
+    pub whitelist_is_all: Option<bool>,
+    pub whitelist: Option<HashSet<T>>,
+    pub blacklist_is_all: Option<bool>,
+    pub blacklist: Option<HashSet<T>>,
+}
+
+impl<T> PrivilegeGroupOptionParam<T>
+where
+    T: Sized + std::hash::Hash + std::cmp::Eq,
+{
+    pub fn is_none(&self) -> bool {
+        self.whitelist_is_all.is_none()
+            && self.whitelist.is_none()
+            && self.blacklist_is_all.is_none()
+            && self.blacklist.is_none()
+    }
+}
+
 ///
 /// 数据权限组
 /// 支持分别设置黑白名单
@@ -25,9 +49,9 @@ where
     T: Sized + std::hash::Hash + std::cmp::Eq,
 {
     pub enabled: bool,
-    pub white_list_is_all: bool,
+    pub whitelist_is_all: bool,
     pub whitelist: Option<HashSet<T>>,
-    pub black_list_is_all: bool,
+    pub blacklist_is_all: bool,
     pub blacklist: Option<HashSet<T>>,
 }
 
@@ -45,8 +69,8 @@ where
         let black_list_is_all = flags & PrivilegeGroupFlags::BLACK_LIST_IS_ALL.bits() > 0;
         Self {
             enabled,
-            white_list_is_all,
-            black_list_is_all,
+            whitelist_is_all: white_list_is_all,
+            blacklist_is_all: black_list_is_all,
             whitelist,
             blacklist,
         }
@@ -55,9 +79,9 @@ where
     pub fn empty() -> Self {
         Self {
             enabled: true,
-            white_list_is_all: false,
+            whitelist_is_all: false,
             whitelist: None,
-            black_list_is_all: false,
+            blacklist_is_all: false,
             blacklist: None,
         }
     }
@@ -65,9 +89,9 @@ where
     pub fn all() -> Self {
         Self {
             enabled: true,
-            white_list_is_all: true,
+            whitelist_is_all: true,
             whitelist: None,
-            black_list_is_all: false,
+            blacklist_is_all: false,
             blacklist: None,
         }
     }
@@ -77,10 +101,10 @@ where
         if self.enabled {
             v |= PrivilegeGroupFlags::ENABLE.bits();
         }
-        if self.white_list_is_all {
+        if self.whitelist_is_all {
             v |= PrivilegeGroupFlags::WHILE_LIST_IS_ALL.bits();
         }
-        if self.black_list_is_all {
+        if self.blacklist_is_all {
             v |= PrivilegeGroupFlags::BLACK_LIST_IS_ALL.bits();
         }
         v
@@ -88,7 +112,7 @@ where
 
     pub fn set_flags(&mut self, flags: u8) {
         self.enabled = flags & PrivilegeGroupFlags::ENABLE.bits() > 0;
-        self.white_list_is_all = flags & PrivilegeGroupFlags::WHILE_LIST_IS_ALL.bits() > 0;
-        self.black_list_is_all = flags & PrivilegeGroupFlags::BLACK_LIST_IS_ALL.bits() > 0;
+        self.whitelist_is_all = flags & PrivilegeGroupFlags::WHILE_LIST_IS_ALL.bits() > 0;
+        self.blacklist_is_all = flags & PrivilegeGroupFlags::BLACK_LIST_IS_ALL.bits() > 0;
     }
 }

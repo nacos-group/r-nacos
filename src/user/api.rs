@@ -63,6 +63,7 @@ pub async fn add_user(
             password: Some(param.password.unwrap()),
             ..Default::default()
         },
+        namespace_privilege_param: None,
     };
     app.user_manager.send(msg).await.ok();
     Ok("{\"ok\":1}")
@@ -79,6 +80,7 @@ pub async fn update_user(
             password: Some(param.password.unwrap()),
             ..Default::default()
         },
+        namespace_privilege_param: None,
     };
     app.user_manager.send(msg).await.ok();
     Ok("{\"ok\":1}")

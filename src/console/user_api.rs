@@ -97,6 +97,7 @@ pub async fn reset_password(
                             password: Some(param.new_password),
                             ..Default::default()
                         },
+                        namespace_privilege_param: None,
                     };
                     if let Ok(Ok(_r)) = app.user_manager.send(msg).await {
                         return Ok(HttpResponse::Ok().json(ApiResult::success(Some(true))));
@@ -140,6 +141,7 @@ pub async fn add_user(
     app: Data<Arc<AppShareData>>,
     web::Form(user_param): web::Form<UpdateUserInfoParam>,
 ) -> actix_web::Result<impl Responder> {
+    let namespace_privilege_param = user_param.namespace_privilege_param.clone();
     let user: UserDto = user_param.into();
     if user.roles.is_none() {
         return Ok(HttpResponse::Ok().json(ApiResult::<()>::error(
@@ -155,6 +157,7 @@ pub async fn add_user(
             gmt_modified: None,
             ..user
         },
+        namespace_privilege_param,
     };
     app.user_manager.send(msg).await.ok();
     Ok(HttpResponse::Ok().json(ApiResult::success(Some(true))))
@@ -164,6 +167,7 @@ pub async fn update_user(
     app: Data<Arc<AppShareData>>,
     web::Form(user_param): web::Form<UpdateUserInfoParam>,
 ) -> actix_web::Result<impl Responder> {
+    let namespace_privilege_param = user_param.namespace_privilege_param.clone();
     let user: UserDto = user_param.into();
     let msg = UserManagerReq::UpdateUser {
         user: UserDto {
@@ -171,6 +175,7 @@ pub async fn update_user(
             gmt_create: None,
             ..user
         },
+        namespace_privilege_param,
     };
     app.user_manager.send(msg).await.ok();
     Ok(HttpResponse::Ok().json(ApiResult::success(Some(true))))

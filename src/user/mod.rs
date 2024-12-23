@@ -1,8 +1,7 @@
 use crate::common::AppSysConfig;
-use std::{sync::Arc, time::Duration};
-
 use actix::prelude::*;
 use bean_factory::{bean, Inject};
+use std::{sync::Arc, time::Duration};
 //use inner_mem_cache::MemCache;
 
 use self::{
@@ -10,6 +9,7 @@ use self::{
     permission::USER_ROLE_MANAGER,
 };
 use crate::common::constant::USER_TREE_NAME;
+use crate::common::model::privilege::{PrivilegeGroup, PrivilegeGroupOptionParam};
 use crate::common::string_utils::StringUtils;
 use crate::user::permission::UserRole;
 use crate::{
@@ -90,7 +90,10 @@ impl UserManager {
                         roles: Some(vec![USER_ROLE_MANAGER.clone()]),
                         ..Default::default()
                     };
-                    let user_manager_req = UserManagerReq::AddUser { user };
+                    let user_manager_req = UserManagerReq::AddUser {
+                        user,
+                        namespace_privilege_param: None,
+                    };
                     self_addr.do_send(user_manager_req);
                 }
             }
@@ -161,9 +164,11 @@ impl Actor for UserManager {
 pub enum UserManagerReq {
     AddUser {
         user: UserDto,
+        namespace_privilege_param: Option<PrivilegeGroupOptionParam<Arc<String>>>,
     },
     UpdateUser {
         user: UserDto,
+        namespace_privilege_param: Option<PrivilegeGroupOptionParam<Arc<String>>>,
     },
     CheckUser {
         name: Arc<String>,
@@ -211,13 +216,27 @@ impl Handler<UserManagerReq> for UserManager {
         let query_info_at_cache = false;
         let fut = async move {
             match msg {
-                UserManagerReq::AddUser { user } => {
+                UserManagerReq::AddUser {
+                    user,
+                    namespace_privilege_param,
+                } => {
                     let now = (now_millis() / 1000) as u32;
                     let password_hash = if let Some(password) = &user.password {
                         build_password_hash(password).ok()
                     } else {
                         None
                     };
+                    let mut namespace_privilege = PrivilegeGroup::all();
+                    if let Some(namespace_privilege_param) = namespace_privilege_param {
+                        namespace_privilege.blacklist = namespace_privilege_param.blacklist;
+                        namespace_privilege.whitelist = namespace_privilege_param.whitelist;
+                        if let Some(value) = namespace_privilege_param.whitelist_is_all {
+                            namespace_privilege.whitelist_is_all = value;
+                        }
+                        if let Some(value) = namespace_privilege_param.blacklist_is_all {
+                            namespace_privilege.blacklist_is_all = value;
+                        }
+                    }
                     let user_do = UserDo {
                         username: user.username.as_ref().to_owned(),
                         // 新版本不存储原密码,启用后新版数据不支持降级回去使用
@@ -234,9 +253,19 @@ impl Handler<UserManagerReq> for UserManager {
                             .collect(),
                         enable: true,
                         extend_info: user.extend_info.unwrap_or_default(),
-                        namespace_privilege_flags: None,
-                        namespace_white_list: Default::default(),
-                        namespace_black_list: Default::default(),
+                        namespace_privilege_flags: Some(namespace_privilege.get_flags() as u32),
+                        namespace_white_list: namespace_privilege
+                            .whitelist
+                            .unwrap_or_default()
+                            .iter()
+                            .map(|e| e.as_ref().to_owned())
+                            .collect(),
+                        namespace_black_list: namespace_privilege
+                            .blacklist
+                            .unwrap_or_default()
+                            .iter()
+                            .map(|e| e.as_ref().to_owned())
+                            .collect(),
                     };
                     let user_data = user_do.to_bytes();
                     let req = TableManagerReq::Set {
@@ -253,7 +282,10 @@ impl Handler<UserManagerReq> for UserManager {
                         value: user_do,
                     })
                 }
-                UserManagerReq::UpdateUser { user } => {
+                UserManagerReq::UpdateUser {
+                    user,
+                    namespace_privilege_param,
+                } => {
                     let mut last_user = if let Some(raft_table_route) = &raft_table_route {
                         let query_req = TableManagerQueryReq::GetByArcKey {
                             table_name: USER_TREE_NAME.clone(),
@@ -293,6 +325,36 @@ impl Handler<UserManagerReq> for UserManager {
                             last_user.roles =
                                 roles.into_iter().map(|e| e.as_ref().to_owned()).collect();
                         }
+                    }
+                    if let Some(namespace_privilege_param) = namespace_privilege_param {
+                        let mut namespace_privilege = last_user.build_namespace_privilege();
+                        namespace_privilege.enabled = true;
+                        if let Some(value) = namespace_privilege_param.blacklist {
+                            namespace_privilege.blacklist = Some(value);
+                        }
+                        if let Some(value) = namespace_privilege_param.whitelist {
+                            namespace_privilege.whitelist = Some(value);
+                        }
+                        if let Some(value) = namespace_privilege_param.whitelist_is_all {
+                            namespace_privilege.whitelist_is_all = value;
+                        }
+                        if let Some(value) = namespace_privilege_param.blacklist_is_all {
+                            namespace_privilege.blacklist_is_all = value;
+                        }
+                        last_user.namespace_privilege_flags =
+                            Some(namespace_privilege.get_flags() as u32);
+                        last_user.namespace_white_list = namespace_privilege
+                            .whitelist
+                            .unwrap_or_default()
+                            .iter()
+                            .map(|e| e.as_ref().to_owned())
+                            .collect();
+                        last_user.namespace_black_list = namespace_privilege
+                            .blacklist
+                            .unwrap_or_default()
+                            .iter()
+                            .map(|e| e.as_ref().to_owned())
+                            .collect();
                     }
                     last_user.gmt_modified = now;
                     let user_data = last_user.to_bytes();

@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
-use serde::{Deserialize, Serialize};
-
+use crate::common::model::privilege::PrivilegeGroupOptionParam;
 use crate::user::{model::UserDto, permission::UserRoleHelper};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
@@ -28,6 +28,7 @@ pub struct UpdateUserInfoParam {
     pub password: Option<String>,
     pub enable: Option<bool>,
     pub roles: Option<String>,
+    pub namespace_privilege_param: Option<PrivilegeGroupOptionParam<Arc<String>>>,
 }
 
 impl UpdateUserInfoParam {
