@@ -59,11 +59,11 @@ impl UserDo {
                 }
                 PrivilegeGroup::new(
                     self.namespace_privilege_flags.unwrap_or_default() as u8,
-                    Some(namespace_whitelist),
-                    Some(namespace_black_list),
+                    Some(Arc::new(namespace_whitelist)),
+                    Some(Arc::new(namespace_black_list)),
                 )
             } else {
-                PrivilegeGroup::default()
+                PrivilegeGroup::all()
             };
         namespace_privilege
     }

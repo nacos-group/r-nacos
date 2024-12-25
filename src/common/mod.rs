@@ -10,6 +10,7 @@ pub mod crypto_utils;
 pub mod cycle_queue;
 pub mod datetime_utils;
 pub mod delay_notify;
+pub mod error_code;
 pub mod hash_utils;
 pub mod limiter_utils;
 pub mod macros;

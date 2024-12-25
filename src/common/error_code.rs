@@ -1,0 +1,2 @@
+//ERROR CODE
+pub const NO_PERMISSION: &str = "NO_PERMISSION";

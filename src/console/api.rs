@@ -1,14 +1,5 @@
 use std::sync::Arc;
 
-use crate::common::appdata::AppShareData;
-use crate::common::string_utils::StringUtils;
-use actix_web::{http::header, web, HttpResponse, Responder};
-use uuid::Uuid;
-
-use crate::naming::ops::ops_api::query_opt_service_list;
-use crate::openapi::naming::instance::{del_instance, get_instance, update_instance};
-use crate::openapi::naming::service::{query_service, remove_service, update_service};
-
 use super::cluster_api::query_cluster_info;
 use super::config_api::query_config_list;
 use super::{
@@ -19,14 +10,35 @@ use super::{
     transfer_api, NamespaceUtils,
 };
 use super::{login_api, user_api};
+use crate::common::appdata::AppShareData;
+use crate::common::error_code::NO_PERMISSION;
+use crate::common::string_utils::StringUtils;
+use crate::naming::ops::ops_api::query_opt_service_list;
+use crate::openapi::naming::instance::{del_instance, get_instance, update_instance};
+use crate::openapi::naming::service::{query_service, remove_service, update_service};
+use crate::user_namespace_privilege;
+use actix_web::{http::header, web, HttpMessage, HttpRequest, HttpResponse, Responder};
+use uuid::Uuid;
 
 use super::v2;
 
-pub async fn query_namespace_list(app_data: web::Data<Arc<AppShareData>>) -> impl Responder {
+pub async fn query_namespace_list(
+    req: HttpRequest,
+    app_data: web::Data<Arc<AppShareData>>,
+) -> impl Responder {
+    let namespace_privilege = user_namespace_privilege!(req);
     //HttpResponse::InternalServerError().body("system error")
     let namespaces = NamespaceUtils::get_namespaces(&app_data)
         .await
         .unwrap_or_default();
+    let namespaces = if namespace_privilege.is_all() {
+        namespaces
+    } else {
+        namespaces
+            .into_iter()
+            .filter(|e| namespace_privilege.check_option_value_permission(&e.namespace_id, false))
+            .collect()
+    };
     let result = ConsoleResult::success(namespaces);
     let v = serde_json::to_string(&result).unwrap();
     HttpResponse::Ok()
@@ -35,12 +47,17 @@ pub async fn query_namespace_list(app_data: web::Data<Arc<AppShareData>>) -> imp
 }
 
 pub async fn add_namespace(
+    req: HttpRequest,
     param: web::Form<NamespaceInfo>,
     app_data: web::Data<Arc<AppShareData>>,
 ) -> impl Responder {
     let mut param = param.0;
     if StringUtils::is_option_empty_arc(&param.namespace_id) {
         param.namespace_id = Some(Arc::new(Uuid::new_v4().to_string()));
+    }
+    let namespace_privilege = user_namespace_privilege!(req);
+    if !namespace_privilege.check_option_value_permission(&param.namespace_id, false) {
+        return HttpResponse::Ok().json(ConsoleResult::<()>::error(NO_PERMISSION.to_string()));
     }
     match NamespaceUtils::add_namespace(&app_data, param).await {
         Ok(_) => {
@@ -61,9 +78,14 @@ pub async fn add_namespace(
 }
 
 pub async fn update_namespace(
+    req: HttpRequest,
     param: web::Form<NamespaceInfo>,
     app_data: web::Data<Arc<AppShareData>>,
 ) -> impl Responder {
+    let namespace_privilege = user_namespace_privilege!(req);
+    if !namespace_privilege.check_option_value_permission(&param.namespace_id, false) {
+        return HttpResponse::Ok().json(ConsoleResult::<()>::error(NO_PERMISSION.to_string()));
+    }
     match NamespaceUtils::update_namespace(&app_data, param.0).await {
         Ok(_) => {
             let result = ConsoleResult::success(true);
@@ -83,9 +105,14 @@ pub async fn update_namespace(
 }
 
 pub async fn remove_namespace(
+    req: HttpRequest,
     param: web::Form<NamespaceInfo>,
     app_data: web::Data<Arc<AppShareData>>,
 ) -> impl Responder {
+    let namespace_privilege = user_namespace_privilege!(req);
+    if !namespace_privilege.check_option_value_permission(&param.namespace_id, false) {
+        return HttpResponse::Ok().json(ConsoleResult::<()>::error(NO_PERMISSION.to_string()));
+    }
     match NamespaceUtils::remove_namespace(&app_data, param.0.namespace_id).await {
         Ok(_) => {
             let result = ConsoleResult::success(true);

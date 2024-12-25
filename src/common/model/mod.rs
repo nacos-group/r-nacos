@@ -2,6 +2,7 @@ pub mod privilege;
 
 use std::{collections::HashMap, sync::Arc};
 
+use crate::common::model::privilege::PrivilegeGroup;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Default, Deserialize, Serialize)]
@@ -90,6 +91,7 @@ pub struct UserSession {
     pub username: Arc<String>,
     pub nickname: Option<String>,
     pub roles: Vec<Arc<String>>,
+    pub namespace_privilege: Option<PrivilegeGroup<Arc<String>>>,
     pub extend_infos: HashMap<String, String>,
 }
 

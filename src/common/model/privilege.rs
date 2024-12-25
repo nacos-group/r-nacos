@@ -1,6 +1,7 @@
 use bitflags::bitflags;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
+use std::sync::Arc;
 
 bitflags! {
     /// Represents a set of flags.
@@ -22,9 +23,9 @@ where
     T: Sized + std::hash::Hash + std::cmp::Eq,
 {
     pub whitelist_is_all: Option<bool>,
-    pub whitelist: Option<HashSet<T>>,
+    pub whitelist: Option<Arc<HashSet<T>>>,
     pub blacklist_is_all: Option<bool>,
-    pub blacklist: Option<HashSet<T>>,
+    pub blacklist: Option<Arc<HashSet<T>>>,
 }
 
 impl<T> PrivilegeGroupOptionParam<T>
@@ -42,7 +43,7 @@ where
 ///
 /// 数据权限组
 /// 支持分别设置黑白名单
-#[derive(Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct PrivilegeGroup<T>
 where
@@ -50,9 +51,9 @@ where
 {
     pub enabled: bool,
     pub whitelist_is_all: bool,
-    pub whitelist: Option<HashSet<T>>,
+    pub whitelist: Option<Arc<HashSet<T>>>,
     pub blacklist_is_all: bool,
-    pub blacklist: Option<HashSet<T>>,
+    pub blacklist: Option<Arc<HashSet<T>>>,
 }
 
 impl<T> PrivilegeGroup<T>
@@ -61,8 +62,8 @@ where
 {
     pub fn new(
         flags: u8,
-        whitelist: Option<HashSet<T>>,
-        blacklist: Option<HashSet<T>>,
+        whitelist: Option<Arc<HashSet<T>>>,
+        blacklist: Option<Arc<HashSet<T>>>,
     ) -> PrivilegeGroup<T> {
         let enabled = flags & PrivilegeGroupFlags::ENABLE.bits() > 0;
         let white_list_is_all = flags & PrivilegeGroupFlags::WHILE_LIST_IS_ALL.bits() > 0;
@@ -96,6 +97,21 @@ where
         }
     }
 
+    pub fn is_all(&self) -> bool {
+        self.enabled && self.whitelist_is_all && self.blacklist_is_empty()
+    }
+
+    fn blacklist_is_empty(&self) -> bool {
+        if self.blacklist_is_all {
+            return false;
+        }
+        if let Some(blacklist) = &self.blacklist {
+            blacklist.is_empty()
+        } else {
+            true
+        }
+    }
+
     pub fn get_flags(&self) -> u8 {
         let mut v = 0;
         if self.enabled {
@@ -114,5 +130,39 @@ where
         self.enabled = flags & PrivilegeGroupFlags::ENABLE.bits() > 0;
         self.whitelist_is_all = flags & PrivilegeGroupFlags::WHILE_LIST_IS_ALL.bits() > 0;
         self.blacklist_is_all = flags & PrivilegeGroupFlags::BLACK_LIST_IS_ALL.bits() > 0;
+    }
+
+    pub fn check_permission(&self, key: &T) -> bool {
+        self.at_whitelist(key) && !self.at_blacklist(key)
+    }
+
+    pub fn check_option_value_permission(&self, key: &Option<T>, empty_default: bool) -> bool {
+        if let Some(key) = key {
+            self.at_whitelist(key) && !self.at_blacklist(key)
+        } else {
+            empty_default
+        }
+    }
+
+    fn at_whitelist(&self, key: &T) -> bool {
+        if self.whitelist_is_all {
+            return true;
+        }
+        if let Some(list) = &self.whitelist {
+            list.contains(key)
+        } else {
+            false
+        }
+    }
+
+    fn at_blacklist(&self, key: &T) -> bool {
+        if self.blacklist_is_all {
+            return true;
+        }
+        if let Some(list) = &self.blacklist {
+            list.contains(key)
+        } else {
+            false
+        }
     }
 }
