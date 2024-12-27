@@ -1,3 +1,4 @@
+use crate::common::model::privilege::PrivilegeGroup;
 use crate::common::string_utils::StringUtils;
 use crate::config::core::ConfigKey;
 use crate::namespace::model::{NamespaceActorReq, WeakNamespaceFromType, WeakNamespaceParam};
@@ -17,6 +18,7 @@ pub struct ConfigQueryParam {
     pub data_id: Option<Arc<String>>,
     pub like_group: Option<String>,
     pub like_data_id: Option<String>,
+    pub namespace_privilege: PrivilegeGroup<Arc<String>>,
     pub query_context: bool,
     pub offset: usize,
     pub limit: usize,
@@ -214,16 +216,20 @@ impl TenantIndex {
         let mut size = 0;
         let mut limit = param.limit;
         if let Some(tenant) = &param.tenant {
-            if let Some(index) = self.tenant_group.get(tenant) {
-                return index.query_config_page(tenant, limit, param);
+            if param.namespace_privilege.check_permission(tenant) {
+                if let Some(index) = self.tenant_group.get(tenant) {
+                    return index.query_config_page(tenant, limit, param);
+                }
             }
         } else {
             for (tenant, service_index) in &self.tenant_group {
-                let (sub_size, mut sub_list) =
-                    service_index.query_config_page(tenant, limit, param);
-                size += sub_size;
-                limit -= sub_list.len();
-                rlist.append(&mut sub_list);
+                if param.namespace_privilege.check_permission(tenant) {
+                    let (sub_size, mut sub_list) =
+                        service_index.query_config_page(tenant, limit, param);
+                    size += sub_size;
+                    limit -= sub_list.len();
+                    rlist.append(&mut sub_list);
+                }
             }
         }
         (size, rlist)

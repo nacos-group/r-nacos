@@ -1,3 +1,5 @@
+use crate::common::constant::DEFAULT_NAMESPACE_ARC_STRING;
+use crate::namespace::is_default_namespace;
 use bitflags::bitflags;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
@@ -43,7 +45,7 @@ where
 ///
 /// 数据权限组
 /// 支持分别设置黑白名单
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PrivilegeGroup<T>
 where
@@ -54,6 +56,15 @@ where
     pub whitelist: Option<Arc<HashSet<T>>>,
     pub blacklist_is_all: bool,
     pub blacklist: Option<Arc<HashSet<T>>>,
+}
+
+impl<T> Default for PrivilegeGroup<T>
+where
+    T: Sized + std::hash::Hash + std::cmp::Eq,
+{
+    fn default() -> Self {
+        Self::all()
+    }
 }
 
 impl<T> PrivilegeGroup<T>
@@ -164,5 +175,28 @@ where
         } else {
             false
         }
+    }
+}
+
+pub fn check_namespace_permission(
+    privilege_group: &PrivilegeGroup<Arc<String>>,
+    key: &Arc<String>,
+) -> bool {
+    if is_default_namespace(key.as_str()) {
+        privilege_group.check_permission(&DEFAULT_NAMESPACE_ARC_STRING)
+    } else {
+        privilege_group.check_permission(key)
+    }
+}
+
+pub fn check_option_namespace_permission(
+    privilege_group: &PrivilegeGroup<Arc<String>>,
+    key: &Option<Arc<String>>,
+    empty_default: bool,
+) -> bool {
+    if let Some(key) = key {
+        check_namespace_permission(privilege_group, key)
+    } else {
+        empty_default
     }
 }

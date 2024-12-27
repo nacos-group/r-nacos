@@ -20,4 +20,5 @@ lazy_static::lazy_static! {
     pub static ref CACHE_TREE_NAME: Arc<String> =  Arc::new("T_CACHE".to_string());
     pub static ref NAMESPACE_TREE_NAME: Arc<String> =  Arc::new("T_NAMESPACE".to_string());
     pub static ref EMPTY_ARC_STRING: Arc<String> = Arc::new("".to_string());
+    pub static ref DEFAULT_NAMESPACE_ARC_STRING: Arc<String> = Arc::new("".to_string());
 }

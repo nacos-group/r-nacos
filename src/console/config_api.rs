@@ -30,10 +30,11 @@ use super::model::config_model::OpsConfigImportInfo;
 use super::model::PageResult;
 
 pub async fn query_config_list(
+    req: HttpRequest,
     request: web::Query<OpsConfigQueryListRequest>,
     config_addr: web::Data<Addr<ConfigActor>>,
 ) -> impl Responder {
-    let cmd = ConfigCmd::QueryPageInfo(Box::new(request.0.to_param().unwrap()));
+    let cmd = ConfigCmd::QueryPageInfo(Box::new(request.0.to_param(&req).unwrap()));
     match config_addr.send(cmd).await {
         Ok(res) => {
             let r: ConfigResult = res.unwrap();
@@ -177,10 +178,11 @@ fn zip_file(mut zip: ZipWriter<&mut File>, list: Vec<ConfigInfoDto>) -> anyhow::
 ///
 /// 按查询条件导出配置
 pub async fn download_config(
+    req: HttpRequest,
     request: web::Query<OpsConfigQueryListRequest>,
     config_addr: web::Data<Addr<ConfigActor>>,
 ) -> impl Responder {
-    let mut param = request.0.to_param().unwrap();
+    let mut param = request.0.to_param(&req).unwrap();
     param.limit = 0xffff_ffff;
     param.query_context = true;
     let cmd = ConfigCmd::QueryPageInfo(Box::new(param));

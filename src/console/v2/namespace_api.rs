@@ -1,10 +1,9 @@
 use crate::common::appdata::AppShareData;
-use crate::common::error_code::NO_PERMISSION;
 use crate::common::model::ApiResult;
 use crate::common::string_utils::StringUtils;
 use crate::console::model::NamespaceInfo;
 use crate::console::NamespaceUtils;
-use crate::user_namespace_privilege;
+use crate::{user_namespace_privilege, user_no_namespace_permission};
 use actix_http::HttpMessage;
 use actix_web::{web, HttpRequest, HttpResponse, Responder};
 use std::sync::Arc;
@@ -40,13 +39,7 @@ pub async fn add_namespace(
     }
     let namespace_privilege = user_namespace_privilege!(req);
     if !namespace_privilege.check_option_value_permission(&param.namespace_id, false) {
-        return HttpResponse::Ok().json(ApiResult::<()>::error(
-            NO_PERMISSION.to_string(),
-            Some(format!(
-                "user no such namespace permission: {:?}",
-                &param.namespace_id
-            )),
-        ));
+        user_no_namespace_permission!(&param.namespace_id);
     }
     match NamespaceUtils::add_namespace(&app_data, param).await {
         Ok(_) => HttpResponse::Ok().json(ApiResult::success(Some(true))),
@@ -64,13 +57,7 @@ pub async fn update_namespace(
 ) -> impl Responder {
     let namespace_privilege = user_namespace_privilege!(req);
     if !namespace_privilege.check_option_value_permission(&param.namespace_id, false) {
-        return HttpResponse::Ok().json(ApiResult::<()>::error(
-            NO_PERMISSION.to_string(),
-            Some(format!(
-                "user no such namespace permission: {:?}",
-                &param.namespace_id
-            )),
-        ));
+        user_no_namespace_permission!(&param.namespace_id);
     }
     match NamespaceUtils::update_namespace(&app_data, param.0).await {
         Ok(_) => HttpResponse::Ok().json(ApiResult::success(Some(true))),
@@ -88,13 +75,7 @@ pub async fn remove_namespace(
 ) -> impl Responder {
     let namespace_privilege = user_namespace_privilege!(req);
     if !namespace_privilege.check_option_value_permission(&param.namespace_id, false) {
-        return HttpResponse::Ok().json(ApiResult::<()>::error(
-            NO_PERMISSION.to_string(),
-            Some(format!(
-                "user no such namespace permission: {:?}",
-                &param.namespace_id
-            )),
-        ));
+        user_no_namespace_permission!(&param.namespace_id);
     }
     match NamespaceUtils::remove_namespace(&app_data, param.0.namespace_id).await {
         Ok(_) => HttpResponse::Ok().json(ApiResult::success(Some(true))),

@@ -2,6 +2,9 @@ use crate::config::config_index::ConfigQueryParam;
 use crate::config::core::{ConfigInfoDto, ConfigKey};
 use crate::config::dal::ConfigHistoryParam;
 use crate::config::ConfigUtils;
+use crate::user_namespace_privilege;
+use actix_http::HttpMessage;
+use actix_web::HttpRequest;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
@@ -24,14 +27,16 @@ pub struct OpsConfigQueryListRequest {
 }
 
 impl OpsConfigQueryListRequest {
-    pub fn to_param(self) -> anyhow::Result<ConfigQueryParam> {
+    pub fn to_param(self, req: &HttpRequest) -> anyhow::Result<ConfigQueryParam> {
         let limit = self.page_size.unwrap_or(0xffff_ffff);
         let offset = (self.page_no.unwrap_or(1) - 1) * limit;
+        let namespace_privilege = user_namespace_privilege!(req);
         let mut param = ConfigQueryParam {
             limit,
             offset,
             like_group: self.group_param,
             like_data_id: self.data_param,
+            namespace_privilege,
             ..Default::default()
         };
         if let Some(tenant) = self.tenant {

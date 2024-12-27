@@ -1,21 +1,30 @@
 use crate::common::appdata::AppShareData;
 use crate::common::model::{ApiResult, PageResult};
 use crate::config::core::{ConfigActor, ConfigCmd, ConfigResult};
-use crate::console::model::config_model::{ConfigInfo, ConfigParams, OpsConfigQueryListRequest};
-use actix::Addr;
-use actix_web::web::Data;
-use actix_web::{web, HttpResponse, Responder};
-use std::sync::Arc;
-
 pub use crate::console::config_api::{download_config, import_config};
+use crate::console::model::config_model::{ConfigInfo, ConfigParams, OpsConfigQueryListRequest};
 use crate::console::v2::ERROR_CODE_SYSTEM_ERROR;
 use crate::raft::cluster::model::{DelConfigReq, SetConfigReq};
+use crate::{user_namespace_privilege, user_no_namespace_permission};
+use actix::Addr;
+use actix_web::web::Data;
+use actix_web::HttpMessage;
+use actix_web::{web, HttpRequest, HttpResponse, Responder};
+use std::sync::Arc;
 
 pub async fn query_config_list(
+    req: HttpRequest,
     request: web::Query<OpsConfigQueryListRequest>,
     config_addr: web::Data<Addr<ConfigActor>>,
 ) -> impl Responder {
-    let cmd = ConfigCmd::QueryPageInfo(Box::new(request.0.to_param().unwrap()));
+    let param = request.0.to_param(&req).unwrap();
+    if !param
+        .namespace_privilege
+        .check_option_value_permission(&param.tenant, true)
+    {
+        user_no_namespace_permission!(&param.tenant);
+    }
+    let cmd = ConfigCmd::QueryPageInfo(Box::new(param));
     match config_addr.send(cmd).await {
         Ok(res) => {
             let r: ConfigResult = res.unwrap();
@@ -36,6 +45,7 @@ pub async fn query_config_list(
 }
 
 pub async fn query_history_config_page(
+    req: HttpRequest,
     request: web::Query<OpsConfigQueryListRequest>,
     config_addr: web::Data<Addr<ConfigActor>>,
 ) -> impl Responder {
@@ -48,6 +58,12 @@ pub async fn query_history_config_page(
             ));
         }
     };
+    let namespace_privilege = user_namespace_privilege!(req);
+    if !namespace_privilege
+        .check_option_value_permission(&(param.tenant.clone().map(Arc::new)), false)
+    {
+        user_no_namespace_permission!(&param.tenant);
+    }
     let cmd = ConfigCmd::QueryHistoryPageInfo(Box::new(param));
     match config_addr.send(cmd).await {
         Ok(res) => {
@@ -69,10 +85,15 @@ pub async fn query_history_config_page(
 }
 
 pub(crate) async fn get_config(
+    req: HttpRequest,
     web::Query(param): web::Query<ConfigParams>,
     appdata: Data<Arc<AppShareData>>,
 ) -> impl Responder {
     let config_key = param.to_key();
+    let namespace_privilege = user_namespace_privilege!(req);
+    if !namespace_privilege.check_permission(&config_key.tenant) {
+        user_no_namespace_permission!(&config_key.tenant);
+    }
     let cmd = ConfigCmd::GET(config_key);
     if let Ok(Ok(ConfigResult::Data {
         value: v,
@@ -97,11 +118,16 @@ pub(crate) async fn get_config(
 }
 
 pub async fn add_config(
+    req: HttpRequest,
     appdata: Data<Arc<AppShareData>>,
     web::Json(param): web::Json<ConfigParams>,
 ) -> impl Responder {
     let content = param.content.clone().unwrap_or_default();
     let config_key = param.to_key();
+    let namespace_privilege = user_namespace_privilege!(req);
+    if !namespace_privilege.check_permission(&config_key.tenant) {
+        user_no_namespace_permission!(&config_key.tenant);
+    }
     if let Err(e) = config_key.is_valid() {
         return HttpResponse::Ok().json(ApiResult::<()>::error(
             ERROR_CODE_SYSTEM_ERROR.to_string(),
@@ -122,10 +148,15 @@ pub async fn add_config(
 }
 
 pub async fn remove_config(
+    req: HttpRequest,
     appdata: Data<Arc<AppShareData>>,
     web::Json(param): web::Json<ConfigParams>,
 ) -> impl Responder {
     let config_key = param.to_key();
+    let namespace_privilege = user_namespace_privilege!(req);
+    if !namespace_privilege.check_permission(&config_key.tenant) {
+        user_no_namespace_permission!(&config_key.tenant);
+    }
     let req = DelConfigReq::new(config_key);
     if appdata.config_route.del_config(req).await.is_ok() {
         HttpResponse::Ok().json(ApiResult::success(Some(true)))
