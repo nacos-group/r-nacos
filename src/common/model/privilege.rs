@@ -178,25 +178,35 @@ where
     }
 }
 
-pub fn check_namespace_permission(
-    privilege_group: &PrivilegeGroup<Arc<String>>,
-    key: &Arc<String>,
-) -> bool {
-    if is_default_namespace(key.as_str()) {
-        privilege_group.check_permission(&DEFAULT_NAMESPACE_ARC_STRING)
-    } else {
-        privilege_group.check_permission(key)
-    }
-}
+#[derive(Debug, Clone, Default)]
+pub struct NamespacePrivilegeGroup(pub PrivilegeGroup<Arc<String>>);
 
-pub fn check_option_namespace_permission(
-    privilege_group: &PrivilegeGroup<Arc<String>>,
-    key: &Option<Arc<String>>,
-    empty_default: bool,
-) -> bool {
-    if let Some(key) = key {
-        check_namespace_permission(privilege_group, key)
-    } else {
-        empty_default
+impl NamespacePrivilegeGroup {
+    pub fn new(inner: PrivilegeGroup<Arc<String>>) -> Self {
+        Self(inner)
+    }
+
+    pub fn check_permission(&self, key: &Arc<String>) -> bool {
+        if is_default_namespace(key.as_str()) {
+            self.0.check_permission(&DEFAULT_NAMESPACE_ARC_STRING)
+        } else {
+            self.0.check_permission(key)
+        }
+    }
+
+    pub fn check_option_value_permission(
+        &self,
+        key: &Option<Arc<String>>,
+        empty_default: bool,
+    ) -> bool {
+        if let Some(key) = key {
+            self.check_permission(key)
+        } else {
+            empty_default
+        }
+    }
+
+    pub fn is_all(&self) -> bool {
+        self.0.is_all()
     }
 }

@@ -1,4 +1,5 @@
 use super::model::ServiceKey;
+use crate::common::model::privilege::NamespacePrivilegeGroup;
 use crate::common::string_utils::StringUtils;
 use crate::namespace::model::{NamespaceActorReq, WeakNamespaceFromType, WeakNamespaceParam};
 use crate::namespace::NamespaceActor;
@@ -15,6 +16,7 @@ pub struct ServiceQueryParam {
     pub service: Option<Arc<String>>,
     pub like_group: Option<String>,
     pub like_service: Option<String>,
+    pub namespace_privilege: NamespacePrivilegeGroup,
     pub offset: usize,
     pub limit: usize,
 }
@@ -223,16 +225,20 @@ impl NamespaceIndex {
         let mut size = 0;
         let mut limit = param.limit;
         if let Some(namespace_id) = &param.namespace_id {
-            if let Some(index) = self.namespace_group.get(namespace_id) {
-                return index.query_service_page(namespace_id, limit, param);
+            if param.namespace_privilege.check_permission(namespace_id) {
+                if let Some(index) = self.namespace_group.get(namespace_id) {
+                    return index.query_service_page(namespace_id, limit, param);
+                }
             }
         } else {
             for (namespace_id, service_index) in &self.namespace_group {
-                let (sub_size, mut sub_list) =
-                    service_index.query_service_page(namespace_id, limit, param);
-                size += sub_size;
-                limit -= sub_list.len();
-                rlist.append(&mut sub_list);
+                if param.namespace_privilege.check_permission(namespace_id) {
+                    let (sub_size, mut sub_list) =
+                        service_index.query_service_page(namespace_id, limit, param);
+                    size += sub_size;
+                    limit -= sub_list.len();
+                    rlist.append(&mut sub_list);
+                }
             }
         }
         (size, rlist)

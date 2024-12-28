@@ -1,4 +1,4 @@
-use actix_web::{http::header, web, HttpResponse, Responder};
+use actix_web::{http::header, web, HttpRequest, HttpResponse, Responder};
 
 use crate::naming::core::{NamingActor, NamingCmd, NamingResult};
 
@@ -7,12 +7,22 @@ use super::ops_model::{OpsServiceDto, OpsServiceOptQueryListResponse, OpsService
 use actix::prelude::*;
 
 pub async fn query_opt_service_list(
+    req: HttpRequest,
     param: web::Query<OpsServiceQueryListRequest>,
     naming_addr: web::Data<Addr<NamingActor>>,
 ) -> impl Responder {
-    let serivce_param = param.0.to_param().unwrap();
+    let service_param = param.0.to_param(&req).unwrap();
+    if !service_param
+        .namespace_privilege
+        .check_option_value_permission(&service_param.namespace_id, true)
+    {
+        return HttpResponse::Unauthorized().body(format!(
+            "user no such namespace permission: {:?}",
+            &service_param.namespace_id
+        ));
+    }
     match naming_addr
-        .send(NamingCmd::QueryServiceInfoPage(serivce_param))
+        .send(NamingCmd::QueryServiceInfoPage(service_param))
         .await
     {
         Ok(res) => {

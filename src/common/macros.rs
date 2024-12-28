@@ -46,9 +46,10 @@ macro_rules! user_namespace_privilege {
             session
                 .namespace_privilege
                 .clone()
-                .unwrap_or($crate::common::model::privilege::PrivilegeGroup::all())
+                .map($crate::common::model::privilege::NamespacePrivilegeGroup::new)
+                .unwrap_or_default()
         } else {
-            $crate::common::model::privilege::PrivilegeGroup::all()
+            $crate::common::model::privilege::NamespacePrivilegeGroup::default()
         }
     }};
 }
