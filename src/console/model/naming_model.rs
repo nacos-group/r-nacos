@@ -137,7 +137,7 @@ pub struct ServiceParam {
     pub service_name: Arc<String>,
     pub namespace_id: Option<String>,
     pub group_name: Option<String>,
-    pub metadata: Option<Arc<HashMap<String, String>>>,
+    pub metadata: Option<String>,
     pub protect_threshold: Option<f32>,
 }
 
@@ -169,7 +169,7 @@ pub struct InstanceParams {
     pub ip: Option<String>,
     pub port: Option<u32>,
     pub weight: Option<f32>,
-    pub enabled: Option<String>,
+    pub enabled: Option<bool>,
     pub healthy: Option<String>,
     pub ephemeral: Option<String>,
     pub metadata: Option<String>,
@@ -191,7 +191,7 @@ impl InstanceParams {
             ip: Arc::new(self.ip.unwrap()),
             port: self.port.unwrap(),
             weight: self.weight.unwrap_or(1f32),
-            enabled: get_bool_from_string(&self.enabled, true),
+            enabled: self.enabled.unwrap_or(true),
             healthy: true,
             ephemeral: get_bool_from_string(&self.ephemeral, true),
             cluster_name: NamingUtils::default_cluster(

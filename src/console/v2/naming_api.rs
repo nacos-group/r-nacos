@@ -7,6 +7,7 @@ use crate::console::v2::ERROR_CODE_SYSTEM_ERROR;
 use crate::naming::api_model::InstanceVO;
 use crate::naming::core::{NamingActor, NamingCmd, NamingResult};
 use crate::naming::model::{InstanceUpdateTag, ServiceDetailDto};
+use crate::naming::NamingUtils;
 use crate::{user_namespace_privilege, user_no_namespace_permission};
 use actix::Addr;
 use actix_web::web::Data;
@@ -63,11 +64,19 @@ pub async fn add_service(
     if !namespace_privilege.check_permission(&service_key.namespace_id) {
         user_no_namespace_permission!(&service_key.namespace_id);
     }
+    let metadata = if let Some(metadata_str) = param.metadata {
+        match NamingUtils::parse_metadata(&metadata_str) {
+            Ok(metadata) => Some(Arc::new(metadata)),
+            Err(_) => None,
+        }
+    } else {
+        None
+    };
     let service_info = ServiceDetailDto {
         namespace_id: service_key.namespace_id,
         service_name: service_key.service_name,
         group_name: service_key.group_name,
-        metadata: param.metadata,
+        metadata,
         protect_threshold: param.protect_threshold,
     };
     if let Ok(res) = appdata

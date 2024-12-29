@@ -58,7 +58,7 @@ macro_rules! user_namespace_privilege {
 macro_rules! user_no_namespace_permission {
     ($param:expr) => {{
         return actix_web::HttpResponse::Ok().json(crate::common::model::ApiResult::<()>::error(
-            crate::common::error_code::NO_PERMISSION.to_string(),
+            crate::common::error_code::NO_NAMESPACE_PERMISSION.to_string(),
             Some(format!("user no such namespace permission: {:?}", $param)),
         ));
     }};
