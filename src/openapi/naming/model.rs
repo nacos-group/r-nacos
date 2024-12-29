@@ -1,8 +1,9 @@
 #![allow(unused_imports, unused_assignments, unused_variables)]
 use crate::common::option_utils::OptionUtils;
 use crate::naming::model::{Instance, ServiceKey};
+use crate::naming::service::SubscriberInfoDto;
 use crate::naming::NamingUtils;
-use crate::utils::{get_bool_from_string, select_option_by_clone};
+use crate::utils::get_bool_from_string;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::net::SocketAddr;
@@ -350,4 +351,10 @@ pub struct ServiceQueryListRequest {
 pub struct ServiceQueryListResponce {
     pub count: usize,
     pub doms: Vec<Arc<String>>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Default)]
+pub struct ServiceQuerySubscribersListResponce {
+    pub count: usize,
+    pub subscribers: Vec<Arc<SubscriberInfoDto>>,
 }

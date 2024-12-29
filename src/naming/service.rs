@@ -8,10 +8,10 @@ use std::{
 
 use crate::common::constant::EMPTY_ARC_STRING;
 use crate::naming::cluster::model::ProcessRange;
+use crate::now_millis;
 use actix_web::rt;
 use inner_mem_cache::TimeoutSet;
-
-use crate::now_millis;
+use serde::{Deserialize, Serialize};
 
 use super::{
     api_model::QueryListResult,
@@ -388,4 +388,13 @@ pub struct ServiceInfoDto {
     pub trigger_flag: bool,
     pub metadata: Option<Arc<HashMap<String, String>>>,
     pub protect_threshold: Option<f32>,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize, Clone)]
+pub struct SubscriberInfoDto {
+    pub service_name: Arc<String>,
+    pub group_name: Arc<String>,
+    pub namespace_id: Arc<String>,
+    pub ip: Arc<String>,
+    pub port: u16,
 }

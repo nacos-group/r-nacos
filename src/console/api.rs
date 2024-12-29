@@ -15,7 +15,9 @@ use crate::common::error_code::NO_PERMISSION;
 use crate::common::string_utils::StringUtils;
 use crate::naming::ops::ops_api::query_opt_service_list;
 use crate::openapi::naming::instance::{del_instance, get_instance, update_instance};
-use crate::openapi::naming::service::{query_service, remove_service, update_service};
+use crate::openapi::naming::service::{
+    query_service, query_subscribers_list, remove_service, update_service,
+};
 use crate::user_namespace_privilege;
 use actix_web::{http::header, web, HttpMessage, HttpRequest, HttpResponse, Responder};
 use uuid::Uuid;
@@ -147,6 +149,10 @@ pub fn console_api_config_v1(config: &mut web::ServiceConfig) {
                     .route(web::put().to(update_service))
                     .route(web::delete().to(remove_service))
                     .route(web::get().to(query_service)),
+            )
+            .service(
+                web::resource("/ns/service/subscribers")
+                    .route(web::get().to(query_subscribers_list)),
             )
             .service(
                 web::resource("/ns/instance")

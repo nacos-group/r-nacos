@@ -7,7 +7,9 @@ use crate::naming::core::{NamingActor, NamingCmd, NamingResult};
 use crate::naming::model::ServiceKey;
 use crate::naming::NamingUtils;
 use crate::openapi::constant::EMPTY;
-use crate::openapi::naming::model::{ServiceQueryListRequest, ServiceQueryListResponce};
+use crate::openapi::naming::model::{
+    ServiceQueryListRequest, ServiceQueryListResponce, ServiceQuerySubscribersListResponce,
+};
 
 pub(super) fn service() -> Scope {
     web::scope("/service")
@@ -19,6 +21,7 @@ pub(super) fn service() -> Scope {
                 .route(web::get().to(query_service)),
         )
         .service(web::resource("/list").route(web::get().to(query_service_list)))
+        .service(web::resource("/subscribers").route(web::get().to(query_subscribers_list)))
 }
 
 pub async fn query_service(
@@ -99,6 +102,56 @@ pub async fn query_service_list(
             match result {
                 NamingResult::ServicePage((c, v)) => {
                     let resp = ServiceQueryListResponce { count: c, doms: v };
+                    HttpResponse::Ok().body(serde_json::to_string(&resp).unwrap())
+                }
+                _ => HttpResponse::InternalServerError().body("error"),
+            }
+        }
+        Err(_) => HttpResponse::InternalServerError().body("error"),
+    }
+}
+
+pub async fn query_subscribers_list(
+    param: web::Query<ServiceQueryListRequest>,
+    naming_addr: web::Data<Addr<NamingActor>>,
+) -> impl Responder {
+    let page_size = param.page_size.unwrap_or(0x7fffffff);
+    let page_index = param.page_no.unwrap_or(1);
+    let namespace_id = NamingUtils::default_namespace(
+        param
+            .namespace_id
+            .as_ref()
+            .unwrap_or(&"".to_owned())
+            .to_owned(),
+    );
+    let group = NamingUtils::default_group(
+        param
+            .group_name
+            .as_ref()
+            .unwrap_or(&"".to_owned())
+            .to_owned(),
+    );
+    let service = param
+        .service_name
+        .as_ref()
+        .unwrap_or(&"".to_owned())
+        .to_owned();
+
+    let key = ServiceKey::new(&namespace_id, &group, &service);
+    match naming_addr
+        .send(NamingCmd::QueryServiceSubscribersPage(
+            key, page_size, page_index,
+        ))
+        .await
+    {
+        Ok(res) => {
+            let result: NamingResult = res.unwrap();
+            match result {
+                NamingResult::ServiceSubscribersPage((c, v)) => {
+                    let resp = ServiceQuerySubscribersListResponce {
+                        count: c,
+                        subscribers: v,
+                    };
                     HttpResponse::Ok().body(serde_json::to_string(&resp).unwrap())
                 }
                 _ => HttpResponse::InternalServerError().body("error"),
