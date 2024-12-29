@@ -45,27 +45,24 @@ impl UserDo {
     }
 
     pub fn build_namespace_privilege(&self) -> PrivilegeGroup<Arc<String>> {
-        let namespace_privilege_flags =
-            self.namespace_privilege_flags.clone().unwrap_or_default() as u8;
-        let namespace_privilege =
-            if namespace_privilege_flags & PrivilegeGroupFlags::ENABLE.bits() > 0 {
-                let mut namespace_whitelist = HashSet::new();
-                for item in &self.namespace_white_list {
-                    namespace_whitelist.insert(Arc::new(item.clone()));
-                }
-                let mut namespace_black_list = HashSet::new();
-                for item in &self.namespace_black_list {
-                    namespace_black_list.insert(Arc::new(item.clone()));
-                }
-                PrivilegeGroup::new(
-                    self.namespace_privilege_flags.unwrap_or_default() as u8,
-                    Some(Arc::new(namespace_whitelist)),
-                    Some(Arc::new(namespace_black_list)),
-                )
-            } else {
-                PrivilegeGroup::all()
-            };
-        namespace_privilege
+        let namespace_privilege_flags = self.namespace_privilege_flags.unwrap_or_default() as u8;
+        if namespace_privilege_flags & PrivilegeGroupFlags::ENABLE.bits() > 0 {
+            let mut namespace_whitelist = HashSet::new();
+            for item in &self.namespace_white_list {
+                namespace_whitelist.insert(Arc::new(item.clone()));
+            }
+            let mut namespace_black_list = HashSet::new();
+            for item in &self.namespace_black_list {
+                namespace_black_list.insert(Arc::new(item.clone()));
+            }
+            PrivilegeGroup::new(
+                namespace_privilege_flags,
+                Some(Arc::new(namespace_whitelist)),
+                Some(Arc::new(namespace_black_list)),
+            )
+        } else {
+            PrivilegeGroup::all()
+        }
     }
 }
 

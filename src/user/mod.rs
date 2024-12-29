@@ -11,6 +11,7 @@ use self::{
 use crate::common::constant::USER_TREE_NAME;
 use crate::common::model::privilege::{PrivilegeGroup, PrivilegeGroupOptionParam};
 use crate::common::string_utils::StringUtils;
+use crate::raft::cache::{CacheManager, CacheUserChangeReq};
 use crate::user::permission::UserRole;
 use crate::{
     now_millis,
@@ -52,6 +53,7 @@ pub struct UserManager {
     //cache_sec: i32,
     raft_table_route: Option<Arc<TableRoute>>,
     table_manager: Option<Addr<TableManager>>,
+    cache_manager: Option<Addr<CacheManager>>,
 }
 
 impl UserManager {
@@ -61,6 +63,7 @@ impl UserManager {
             //cache_sec: 1200,
             raft_table_route: Default::default(),
             table_manager: Default::default(),
+            cache_manager: Default::default(),
         }
     }
 
@@ -119,6 +122,7 @@ impl Inject for UserManager {
     ) {
         self.raft_table_route = factory_data.get_bean();
         self.table_manager = factory_data.get_actor();
+        self.cache_manager = factory_data.get_actor();
         let raft_addr_route: Option<Arc<RaftAddrRouter>> = factory_data.get_bean();
         ctx.run_later(Duration::from_millis(500), |act, ctx| {
             let self_addr = ctx.address();
@@ -209,6 +213,7 @@ impl Handler<UserManagerReq> for UserManager {
     fn handle(&mut self, msg: UserManagerReq, _ctx: &mut Self::Context) -> Self::Result {
         let raft_table_route = self.raft_table_route.clone();
         let table_manager = self.table_manager.clone();
+        let cache_manager = self.cache_manager.clone();
         //let query_info_at_cache = match &msg {
         //    UserManagerReq::Query { name } => self.cache.get(name).ok().is_some(),
         //    _ => false,
@@ -276,6 +281,15 @@ impl Handler<UserManagerReq> for UserManager {
                     };
                     if let Some(raft_table_route) = raft_table_route {
                         raft_table_route.request(req).await.ok();
+                    }
+                    if let Some(cache_manager) = &cache_manager {
+                        cache_manager
+                            .send(CacheUserChangeReq::UserPrivilegeChange {
+                                username: user.username.clone(),
+                                change_time: now,
+                            })
+                            .await
+                            .ok();
                     }
                     Ok(UserManagerInnerCtx::UpdateUser {
                         key: user.username,
@@ -366,6 +380,15 @@ impl Handler<UserManagerReq> for UserManager {
                     };
                     if let Some(raft_table_route) = raft_table_route {
                         raft_table_route.request(req).await.ok();
+                    }
+                    if let Some(cache_manager) = &cache_manager {
+                        cache_manager
+                            .send(CacheUserChangeReq::UserPrivilegeChange {
+                                username: user.username.clone(),
+                                change_time: now,
+                            })
+                            .await
+                            .ok();
                     }
                     Ok(UserManagerInnerCtx::UpdateUser {
                         key: user.username,
@@ -468,6 +491,12 @@ impl Handler<UserManagerReq> for UserManager {
                         };
                         if let Some(raft_table_route) = raft_table_route {
                             raft_table_route.request(req).await.ok();
+                        }
+                        if let Some(cache_manager) = &cache_manager {
+                            cache_manager
+                                .send(CacheUserChangeReq::RemoveUser { username })
+                                .await
+                                .ok();
                         }
                     }
 

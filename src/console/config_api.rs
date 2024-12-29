@@ -34,7 +34,17 @@ pub async fn query_config_list(
     request: web::Query<OpsConfigQueryListRequest>,
     config_addr: web::Data<Addr<ConfigActor>>,
 ) -> impl Responder {
-    let cmd = ConfigCmd::QueryPageInfo(Box::new(request.0.to_param(&req).unwrap()));
+    let param = request.0.to_param(&req).unwrap();
+    if !param
+        .namespace_privilege
+        .check_option_value_permission(&param.tenant, true)
+    {
+        return HttpResponse::Unauthorized().body(format!(
+            "user no such namespace permission: {:?}",
+            &param.tenant
+        ));
+    }
+    let cmd = ConfigCmd::QueryPageInfo(Box::new(param));
     match config_addr.send(cmd).await {
         Ok(res) => {
             let r: ConfigResult = res.unwrap();

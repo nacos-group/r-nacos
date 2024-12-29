@@ -41,7 +41,7 @@ macro_rules! user_namespace_privilege {
     ($req:expr) => {{
         if let Some(session) = $req
             .extensions()
-            .get::<Arc<$crate::common::model::UserSession>>()
+            .get::<std::sync::Arc<$crate::common::model::UserSession>>()
         {
             session
                 .namespace_privilege
@@ -57,8 +57,8 @@ macro_rules! user_namespace_privilege {
 #[macro_export]
 macro_rules! user_no_namespace_permission {
     ($param:expr) => {{
-        return actix_web::HttpResponse::Ok().json(crate::common::model::ApiResult::<()>::error(
-            crate::common::error_code::NO_NAMESPACE_PERMISSION.to_string(),
+        return actix_web::HttpResponse::Ok().json($crate::common::model::ApiResult::<()>::error(
+            $crate::common::error_code::NO_NAMESPACE_PERMISSION.to_string(),
             Some(format!("user no such namespace permission: {:?}", $param)),
         ));
     }};
