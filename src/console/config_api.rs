@@ -8,7 +8,7 @@ use actix_multipart::form::tempfile::TempFile;
 use actix_multipart::form::text::Text;
 use actix_multipart::form::MultipartForm;
 use actix_multipart::Multipart;
-use actix_web::{http::header, web, Error, HttpRequest, HttpResponse, Responder};
+use actix_web::{http::header, web, Error, HttpMessage, HttpRequest, HttpResponse, Responder};
 use zip::write::FileOptions;
 
 use crate::common::appdata::AppShareData;
@@ -19,8 +19,8 @@ use crate::config::ConfigUtils;
 use crate::console::model::config_model::{
     OpsConfigOptQueryListResponse, OpsConfigQueryListRequest,
 };
-use crate::now_millis;
 use crate::raft::cluster::model::SetConfigReq;
+use crate::{now_millis, user_namespace_privilege};
 use actix::prelude::Addr;
 use tokio_stream::StreamExt;
 use uuid::Uuid;
@@ -34,7 +34,17 @@ pub async fn query_config_list(
     request: web::Query<OpsConfigQueryListRequest>,
     config_addr: web::Data<Addr<ConfigActor>>,
 ) -> impl Responder {
-    let cmd = ConfigCmd::QueryPageInfo(Box::new(request.0.to_param(&req).unwrap()));
+    let param = request.0.to_param(&req).unwrap();
+    if !param
+        .namespace_privilege
+        .check_option_value_permission(&param.tenant, true)
+    {
+        return HttpResponse::Unauthorized().body(format!(
+            "user no such namespace permission: {:?}",
+            &param.tenant
+        ));
+    }
+    let cmd = ConfigCmd::QueryPageInfo(Box::new(param));
     match config_addr.send(cmd).await {
         Ok(res) => {
             let r: ConfigResult = res.unwrap();
@@ -107,6 +117,13 @@ pub async fn import_config(
             None => "".to_owned(),
         },
     ));
+    let namespace_privilege = user_namespace_privilege!(req);
+    if !namespace_privilege.check_permission(&tenant) {
+        return Ok(HttpResponse::Unauthorized().body(format!(
+            "user no such namespace permission: {}",
+            tenant.as_str()
+        )));
+    }
     //let tenant = Arc::new(ConfigUtils::default_tenant(config_info.0.tenant.unwrap_or_default()));
     for f in form.files {
         match zip::ZipArchive::new(f.file) {
@@ -148,7 +165,7 @@ pub async fn import_config(
             Err(_) => todo!(),
         }
     }
-    Ok(HttpResponse::Ok())
+    Ok(HttpResponse::Ok().finish())
 }
 
 fn zip_file(mut zip: ZipWriter<&mut File>, list: Vec<ConfigInfoDto>) -> anyhow::Result<()> {

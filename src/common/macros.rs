@@ -41,14 +41,15 @@ macro_rules! user_namespace_privilege {
     ($req:expr) => {{
         if let Some(session) = $req
             .extensions()
-            .get::<Arc<$crate::common::model::UserSession>>()
+            .get::<std::sync::Arc<$crate::common::model::UserSession>>()
         {
             session
                 .namespace_privilege
                 .clone()
-                .unwrap_or($crate::common::model::privilege::PrivilegeGroup::all())
+                .map($crate::common::model::privilege::NamespacePrivilegeGroup::new)
+                .unwrap_or_default()
         } else {
-            $crate::common::model::privilege::PrivilegeGroup::all()
+            $crate::common::model::privilege::NamespacePrivilegeGroup::default()
         }
     }};
 }
@@ -56,8 +57,8 @@ macro_rules! user_namespace_privilege {
 #[macro_export]
 macro_rules! user_no_namespace_permission {
     ($param:expr) => {{
-        return actix_web::HttpResponse::Ok().json(crate::common::model::ApiResult::<()>::error(
-            crate::common::error_code::NO_PERMISSION.to_string(),
+        return actix_web::HttpResponse::Ok().json($crate::common::model::ApiResult::<()>::error(
+            $crate::common::error_code::NO_NAMESPACE_PERMISSION.to_string(),
             Some(format!("user no such namespace permission: {:?}", $param)),
         ));
     }};

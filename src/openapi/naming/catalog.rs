@@ -1,6 +1,6 @@
 use actix::Addr;
 use actix_web::http::header;
-use actix_web::{get, web, HttpResponse, Responder, Scope};
+use actix_web::{get, web, HttpRequest, HttpResponse, Responder, Scope};
 
 use crate::naming::core::{NamingActor, NamingCmd, NamingResult};
 use crate::naming::ops::ops_model::{
@@ -13,12 +13,13 @@ pub(super) fn service() -> Scope {
 
 #[get("/services")]
 pub async fn query_opt_service_list(
+    req: HttpRequest,
     param: web::Query<OpsServiceQueryListRequest>,
     naming_addr: web::Data<Addr<NamingActor>>,
 ) -> impl Responder {
-    let serivce_param = param.0.to_param().unwrap();
+    let service_param = param.0.to_param(&req).unwrap();
     match naming_addr
-        .send(NamingCmd::QueryServiceInfoPage(serivce_param))
+        .send(NamingCmd::QueryServiceInfoPage(service_param))
         .await
     {
         Ok(res) => {

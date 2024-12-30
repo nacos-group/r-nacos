@@ -16,6 +16,7 @@ use crate::{
         crypto_utils,
         model::{ApiResult, UserSession},
     },
+    now_second_i32,
     raft::cache::{
         model::{CacheKey, CacheType, CacheValue},
         CacheLimiterReq, CacheManagerReq, CacheManagerResult,
@@ -114,6 +115,7 @@ pub async fn login(
                     roles: user.roles.unwrap_or_default(),
                     extend_infos: user.extend_info.unwrap_or_default(),
                     namespace_privilege: user.namespace_privilege,
+                    refresh_time: now_second_i32() as u32,
                 });
                 let cache_req = CacheManagerReq::Set {
                     key: CacheKey::new(CacheType::UserSession, token.clone()),

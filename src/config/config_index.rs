@@ -1,4 +1,4 @@
-use crate::common::model::privilege::PrivilegeGroup;
+use crate::common::model::privilege::NamespacePrivilegeGroup;
 use crate::common::string_utils::StringUtils;
 use crate::config::core::ConfigKey;
 use crate::namespace::model::{NamespaceActorReq, WeakNamespaceFromType, WeakNamespaceParam};
@@ -18,7 +18,7 @@ pub struct ConfigQueryParam {
     pub data_id: Option<Arc<String>>,
     pub like_group: Option<String>,
     pub like_data_id: Option<String>,
-    pub namespace_privilege: PrivilegeGroup<Arc<String>>,
+    pub namespace_privilege: NamespacePrivilegeGroup,
     pub query_context: bool,
     pub offset: usize,
     pub limit: usize,

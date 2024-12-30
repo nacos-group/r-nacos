@@ -1,10 +1,12 @@
 #![allow(unused_imports)]
 
+use actix_http::HttpMessage;
+use actix_web::HttpRequest;
+use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, sync::Arc};
 
-use serde::{Deserialize, Serialize};
-
 use crate::naming::{service::ServiceInfoDto, service_index::ServiceQueryParam, NamingUtils};
+use crate::user_namespace_privilege;
 
 #[derive(Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
@@ -17,12 +19,14 @@ pub struct OpsServiceQueryListRequest {
 }
 
 impl OpsServiceQueryListRequest {
-    pub fn to_param(self) -> anyhow::Result<ServiceQueryParam> {
+    pub fn to_param(self, req: &HttpRequest) -> anyhow::Result<ServiceQueryParam> {
         let limit = self.page_size.unwrap_or(0xffff_ffff);
         let offset = (self.page_no.unwrap_or(1) - 1) * limit;
+        let namespace_privilege = user_namespace_privilege!(req);
         let mut param = ServiceQueryParam {
             limit,
             offset,
+            namespace_privilege,
             ..Default::default()
         };
         if let Some(namespace_id) = self.namespace_id {

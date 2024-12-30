@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use std::future::{ready, Ready};
 use std::sync::Arc;
 
-use actix::Addr;
 use actix_http::{HttpMessage, StatusCode};
 use actix_web::{
     body::EitherBody,
@@ -14,9 +13,12 @@ use regex::Regex;
 
 use crate::common::appdata::AppShareData;
 use crate::common::model::{ApiResultOld, UserSession};
+use crate::now_second_i32;
 use crate::raft::cache::model::{CacheKey, CacheType, CacheValue};
-use crate::raft::cache::{CacheManager, CacheManagerReq, CacheManagerResult};
+use crate::raft::cache::{CacheManagerReq, CacheManagerResult, CacheUserChangeReq};
+use crate::user::model::UserDto;
 use crate::user::permission::UserRole;
+use crate::user::{UserManagerReq, UserManagerResult};
 
 lazy_static::lazy_static! {
     pub static ref IGNORE_CHECK_LOGIN: Vec<&'static str> = vec![
@@ -89,7 +91,7 @@ where
             "".to_owned()
         };
         let token = Arc::new(token);
-        let cache_manager = self.app_share_data.cache_manager.clone();
+        let app_share_data = self.app_share_data.clone();
         //request.parts()
         //let (http_request, _pl) = request.parts();
         //let http_request = http_request.to_owned();
@@ -104,11 +106,8 @@ where
             if is_check_path {
                 is_login = if token.is_empty() {
                     false
-                } else if let Ok(Some(session)) = get_user_session(
-                    &cache_manager,
-                    CacheManagerReq::Get(CacheKey::new(CacheType::UserSession, token.clone())),
-                )
-                .await
+                } else if let Ok(Some(session)) =
+                    get_user_session(&app_share_data, token.clone()).await
                 {
                     user_has_permission =
                         UserRole::match_url_by_roles(&session.roles, path, method);
@@ -184,11 +183,45 @@ where
 }
 
 async fn get_user_session(
-    cache_manager: &Addr<CacheManager>,
-    req: CacheManagerReq,
+    app_share_data: &AppShareData,
+    token: Arc<String>,
 ) -> anyhow::Result<Option<Arc<UserSession>>> {
-    match cache_manager.send(req).await?? {
+    let cache_key = CacheKey::new(CacheType::UserSession, token);
+    let req = CacheManagerReq::Get(cache_key.clone());
+    match app_share_data.cache_manager.send(req).await?? {
+        CacheManagerResult::ChangedValue(CacheValue::UserSession(session)) => {
+            match app_share_data
+                .user_manager
+                .send(UserManagerReq::Query {
+                    name: session.username.clone(),
+                })
+                .await??
+            {
+                UserManagerResult::QueryUser(Some(user)) => {
+                    let new_session = build_user_session(user);
+                    app_share_data
+                        .cache_manager
+                        .do_send(CacheUserChangeReq::UpdateUserSession {
+                            key: cache_key,
+                            session: new_session.clone(),
+                        });
+                    Ok(Some(new_session))
+                }
+                _ => Ok(None),
+            }
+        }
         CacheManagerResult::Value(CacheValue::UserSession(session)) => Ok(Some(session)),
         _ => Ok(None),
     }
+}
+
+fn build_user_session(user: UserDto) -> Arc<UserSession> {
+    Arc::new(UserSession {
+        username: user.username,
+        nickname: user.nickname,
+        roles: user.roles.unwrap_or_default(),
+        namespace_privilege: user.namespace_privilege,
+        extend_infos: user.extend_info.unwrap_or_default(),
+        refresh_time: now_second_i32() as u32,
+    })
 }

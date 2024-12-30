@@ -93,6 +93,8 @@ pub struct UserSession {
     pub roles: Vec<Arc<String>>,
     pub namespace_privilege: Option<PrivilegeGroup<Arc<String>>>,
     pub extend_infos: HashMap<String, String>,
+    /// 时间戳，单位秒
+    pub refresh_time: u32,
 }
 
 #[derive(Debug, Default, Clone, Deserialize, Serialize)]

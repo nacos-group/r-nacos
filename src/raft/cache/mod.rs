@@ -1,23 +1,22 @@
 // raft缓存数据
 
-use std::time::Duration;
-use std::{convert::TryInto, sync::Arc};
-
 use actix::prelude::*;
 use bean_factory::{bean, Inject};
 use inner_mem_cache::{MemCache, MemCacheMode};
 use ratelimiter_rs::RateLimiter;
 use serde::{Deserialize, Serialize};
-
-use crate::common::constant::CACHE_TREE_NAME;
-use crate::{common::limiter_utils::LimiterData, now_millis_i64, now_second_i32};
+use std::collections::HashMap;
+use std::time::Duration;
+use std::{convert::TryInto, sync::Arc};
 
 use self::model::{CacheItemDo, CacheKey, CacheValue};
-
 use super::db::{
     route::TableRoute,
     table::{TableManager, TableManagerQueryReq, TableManagerReq, TableManagerResult},
 };
+use crate::common::constant::CACHE_TREE_NAME;
+use crate::common::model::UserSession;
+use crate::{common::limiter_utils::LimiterData, now_millis_i64, now_second_i32};
 
 pub mod api;
 pub mod model;
@@ -29,6 +28,7 @@ pub struct CacheManager {
     //default_timeout: i32,
     raft_table_route: Option<Arc<TableRoute>>,
     table_manager: Option<Addr<TableManager>>,
+    user_privilege_change_time: HashMap<Arc<String>, u32>,
 }
 
 impl Default for CacheManager {
@@ -46,6 +46,7 @@ impl CacheManager {
             //default_timeout: 1200,
             raft_table_route: None,
             table_manager: None,
+            user_privilege_change_time: HashMap::new(),
         }
     }
 
@@ -105,6 +106,19 @@ impl CacheManager {
             };
             table_manager.do_send(req);
         }
+    }
+
+    fn user_privilege_has_changed(&self, v: &CacheValue) -> bool {
+        if let CacheValue::UserSession(session) = &v {
+            if session.refresh_time > 0 {
+                if let Some(change_time) = self.user_privilege_change_time.get(&session.username) {
+                    if *change_time > session.refresh_time {
+                        return true;
+                    }
+                }
+            }
+        }
+        false
     }
 }
 
@@ -187,10 +201,27 @@ pub enum CacheLimiterReq {
     },
 }
 
+#[derive(Message, Clone, Debug)]
+#[rtype(result = "anyhow::Result<CacheManagerResult>")]
+pub enum CacheUserChangeReq {
+    UserPrivilegeChange {
+        username: Arc<String>,
+        change_time: u32,
+    },
+    RemoveUser {
+        username: Arc<String>,
+    },
+    UpdateUserSession {
+        key: CacheKey,
+        session: Arc<UserSession>,
+    },
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum CacheManagerResult {
     None,
     Value(CacheValue),
+    ChangedValue(CacheValue),
     Limiter(bool),
 }
 
@@ -260,7 +291,13 @@ impl Handler<CacheManagerReq> for CacheManager {
         .map(
             |inner_ctx: anyhow::Result<CacheManagerInnerCtx>, act, _| match inner_ctx? {
                 CacheManagerInnerCtx::Get(key) => match act.cache.get(&key) {
-                    Ok(v) => Ok(CacheManagerResult::Value(v)),
+                    Ok(v) => {
+                        if act.user_privilege_has_changed(&v) {
+                            Ok(CacheManagerResult::ChangedValue(v))
+                        } else {
+                            Ok(CacheManagerResult::Value(v))
+                        }
+                    }
                     Err(_) => Ok(CacheManagerResult::None),
                 },
                 CacheManagerInnerCtx::Remove(key) => {
@@ -337,5 +374,31 @@ impl Handler<CacheLimiterReq> for CacheManager {
             }
         }
         Ok(CacheManagerResult::Limiter(r))
+    }
+}
+
+impl Handler<CacheUserChangeReq> for CacheManager {
+    type Result = anyhow::Result<CacheManagerResult>;
+
+    fn handle(&mut self, msg: CacheUserChangeReq, _ctx: &mut Self::Context) -> Self::Result {
+        match msg {
+            CacheUserChangeReq::UserPrivilegeChange {
+                username: user_name,
+                change_time,
+            } => {
+                self.user_privilege_change_time
+                    .insert(user_name, change_time);
+            }
+            CacheUserChangeReq::RemoveUser {
+                username: user_name,
+            } => {
+                self.user_privilege_change_time.remove(&user_name);
+            }
+            CacheUserChangeReq::UpdateUserSession { key, session } => {
+                let ttl = self.cache.time_to_live(&key);
+                self.cache.set(key, CacheValue::UserSession(session), ttl);
+            }
+        }
+        Ok(CacheManagerResult::None)
     }
 }

@@ -1,7 +1,8 @@
+use actix_http::HttpMessage;
+use actix_web::HttpRequest;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
-
-use serde::{Deserialize, Serialize};
 
 use crate::naming::service::ServiceInfoDto;
 use crate::naming::service_index::ServiceQueryParam;
@@ -9,6 +10,7 @@ use crate::naming::{
     model::{Instance, ServiceKey},
     NamingUtils,
 };
+use crate::user_namespace_privilege;
 use crate::utils::get_bool_from_string;
 
 /*
@@ -32,12 +34,14 @@ pub struct ServiceQueryListRequest {
 }
 
 impl ServiceQueryListRequest {
-    pub fn to_param(self) -> anyhow::Result<ServiceQueryParam> {
+    pub fn to_param(self, req: &HttpRequest) -> anyhow::Result<ServiceQueryParam> {
         let limit = self.page_size.unwrap_or(0xffff_ffff);
         let offset = (self.page_no.unwrap_or(1) - 1) * limit;
+        let namespace_privilege = user_namespace_privilege!(req);
         let mut param = ServiceQueryParam {
             limit,
             offset,
+            namespace_privilege,
             ..Default::default()
         };
         if let Some(namespace_id) = self.namespace_id {
@@ -133,7 +137,7 @@ pub struct ServiceParam {
     pub service_name: Arc<String>,
     pub namespace_id: Option<String>,
     pub group_name: Option<String>,
-    pub metadata: Option<Arc<HashMap<String, String>>>,
+    pub metadata: Option<String>,
     pub protect_threshold: Option<f32>,
 }
 
@@ -165,7 +169,7 @@ pub struct InstanceParams {
     pub ip: Option<String>,
     pub port: Option<u32>,
     pub weight: Option<f32>,
-    pub enabled: Option<String>,
+    pub enabled: Option<bool>,
     pub healthy: Option<String>,
     pub ephemeral: Option<String>,
     pub metadata: Option<String>,
@@ -187,7 +191,7 @@ impl InstanceParams {
             ip: Arc::new(self.ip.unwrap()),
             port: self.port.unwrap(),
             weight: self.weight.unwrap_or(1f32),
-            enabled: get_bool_from_string(&self.enabled, true),
+            enabled: self.enabled.unwrap_or(true),
             healthy: true,
             ephemeral: get_bool_from_string(&self.ephemeral, true),
             cluster_name: NamingUtils::default_cluster(

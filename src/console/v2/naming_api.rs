@@ -7,16 +7,26 @@ use crate::console::v2::ERROR_CODE_SYSTEM_ERROR;
 use crate::naming::api_model::InstanceVO;
 use crate::naming::core::{NamingActor, NamingCmd, NamingResult};
 use crate::naming::model::{InstanceUpdateTag, ServiceDetailDto};
+use crate::naming::NamingUtils;
+use crate::{user_namespace_privilege, user_no_namespace_permission};
 use actix::Addr;
 use actix_web::web::Data;
-use actix_web::{web, HttpResponse, Responder};
+use actix_web::HttpMessage;
+use actix_web::{web, HttpRequest, HttpResponse, Responder};
 use std::sync::Arc;
 
 pub async fn query_service_list(
+    req: HttpRequest,
     param: web::Query<ServiceQueryListRequest>,
     naming_addr: web::Data<Addr<NamingActor>>,
 ) -> impl Responder {
-    let service_param = param.0.to_param().unwrap();
+    let service_param = param.0.to_param(&req).unwrap();
+    if !service_param
+        .namespace_privilege
+        .check_option_value_permission(&service_param.namespace_id, true)
+    {
+        user_no_namespace_permission!(&service_param.namespace_id);
+    }
     match naming_addr
         .send(NamingCmd::QueryServiceInfoPage(service_param))
         .await
@@ -45,15 +55,28 @@ pub async fn query_service_list(
 }
 
 pub async fn add_service(
+    req: HttpRequest,
     appdata: Data<Arc<AppShareData>>,
     web::Json(param): web::Json<ServiceParam>,
 ) -> impl Responder {
     let service_key = param.to_key();
+    let namespace_privilege = user_namespace_privilege!(req);
+    if !namespace_privilege.check_permission(&service_key.namespace_id) {
+        user_no_namespace_permission!(&service_key.namespace_id);
+    }
+    let metadata = if let Some(metadata_str) = param.metadata {
+        match NamingUtils::parse_metadata(&metadata_str) {
+            Ok(metadata) => Some(Arc::new(metadata)),
+            Err(_) => None,
+        }
+    } else {
+        None
+    };
     let service_info = ServiceDetailDto {
         namespace_id: service_key.namespace_id,
         service_name: service_key.service_name,
         group_name: service_key.group_name,
-        metadata: param.metadata,
+        metadata,
         protect_threshold: param.protect_threshold,
     };
     if let Ok(res) = appdata
@@ -77,10 +100,15 @@ pub async fn add_service(
 }
 
 pub async fn remove_service(
+    req: HttpRequest,
     appdata: Data<Arc<AppShareData>>,
     web::Json(param): web::Json<ServiceParam>,
 ) -> impl Responder {
     let service_key = param.to_key();
+    let namespace_privilege = user_namespace_privilege!(req);
+    if !namespace_privilege.check_permission(&service_key.namespace_id) {
+        user_no_namespace_permission!(&service_key.namespace_id);
+    }
     if let Ok(res) = appdata
         .naming_addr
         .send(NamingCmd::RemoveService(service_key))
@@ -102,10 +130,15 @@ pub async fn remove_service(
 }
 
 pub async fn query_instances_list(
+    req: HttpRequest,
     param: web::Query<ServiceParam>,
     appdata: Data<Arc<AppShareData>>,
 ) -> impl Responder {
     let service_key = param.to_key();
+    let namespace_privilege = user_namespace_privilege!(req);
+    if !namespace_privilege.check_permission(&service_key.namespace_id) {
+        user_no_namespace_permission!(&service_key.namespace_id);
+    }
     match appdata
         .naming_addr
         .send(NamingCmd::QueryAllInstanceList(service_key))
@@ -137,29 +170,36 @@ pub async fn query_instances_list(
 }
 
 pub async fn get_instance(
+    req: HttpRequest,
     appdata: Data<Arc<AppShareData>>,
     web::Query(param): web::Query<InstanceParams>,
 ) -> impl Responder {
     match param.to_instance() {
-        Ok(instance) => match appdata.naming_addr.send(NamingCmd::Query(instance)).await {
-            Ok(res) => {
-                let result: NamingResult = res.unwrap();
-                match result {
-                    NamingResult::Instance(v) => {
-                        let vo = InstanceVO::from_instance(&v);
-                        HttpResponse::Ok().json(ApiResult::success(Some(vo)))
-                    }
-                    _ => HttpResponse::Ok().json(ApiResult::<()>::error(
-                        ERROR_CODE_SYSTEM_ERROR.to_string(),
-                        None,
-                    )),
-                }
+        Ok(instance) => {
+            let namespace_privilege = user_namespace_privilege!(req);
+            if !namespace_privilege.check_permission(&instance.namespace_id) {
+                user_no_namespace_permission!(&instance.namespace_id);
             }
-            Err(err) => HttpResponse::Ok().json(ApiResult::<()>::error(
-                ERROR_CODE_SYSTEM_ERROR.to_string(),
-                Some(err.to_string()),
-            )),
-        },
+            match appdata.naming_addr.send(NamingCmd::Query(instance)).await {
+                Ok(res) => {
+                    let result: NamingResult = res.unwrap();
+                    match result {
+                        NamingResult::Instance(v) => {
+                            let vo = InstanceVO::from_instance(&v);
+                            HttpResponse::Ok().json(ApiResult::success(Some(vo)))
+                        }
+                        _ => HttpResponse::Ok().json(ApiResult::<()>::error(
+                            ERROR_CODE_SYSTEM_ERROR.to_string(),
+                            None,
+                        )),
+                    }
+                }
+                Err(err) => HttpResponse::Ok().json(ApiResult::<()>::error(
+                    ERROR_CODE_SYSTEM_ERROR.to_string(),
+                    Some(err.to_string()),
+                )),
+            }
+        }
         Err(err) => HttpResponse::Ok().json(ApiResult::<()>::error(
             ERROR_CODE_SYSTEM_ERROR.to_string(),
             Some(err.to_string()),
@@ -167,6 +207,7 @@ pub async fn get_instance(
     }
 }
 pub async fn add_instance(
+    req: HttpRequest,
     appdata: Data<Arc<AppShareData>>,
     web::Json(param): web::Json<InstanceParams>,
 ) -> impl Responder {
@@ -191,6 +232,10 @@ pub async fn add_instance(
     };
     match param.to_instance() {
         Ok(instance) => {
+            let namespace_privilege = user_namespace_privilege!(req);
+            if !namespace_privilege.check_permission(&instance.namespace_id) {
+                user_no_namespace_permission!(&instance.namespace_id);
+            }
             if !instance.check_vaild() {
                 HttpResponse::Ok().json(ApiResult::<()>::error(
                     ERROR_CODE_SYSTEM_ERROR.to_string(),
@@ -218,11 +263,16 @@ pub async fn add_instance(
 }
 
 pub async fn remove_instance(
+    req: HttpRequest,
     appdata: Data<Arc<AppShareData>>,
     web::Json(param): web::Json<InstanceParams>,
 ) -> impl Responder {
     match param.to_instance() {
         Ok(instance) => {
+            let namespace_privilege = user_namespace_privilege!(req);
+            if !namespace_privilege.check_permission(&instance.namespace_id) {
+                user_no_namespace_permission!(&instance.namespace_id);
+            }
             if !instance.check_vaild() {
                 HttpResponse::Ok().json(ApiResult::<()>::error(
                     ERROR_CODE_SYSTEM_ERROR.to_string(),

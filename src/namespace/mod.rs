@@ -37,6 +37,7 @@ pub fn build_already_mark_param() -> NamespaceParam {
     }
 }
 
+#[inline]
 pub fn is_default_namespace(namespace: &str) -> bool {
     namespace.is_empty() || namespace == DEFAULT_NAMESPACE
 }
