@@ -110,11 +110,9 @@ impl CacheManager {
 
     fn user_privilege_has_changed(&self, v: &CacheValue) -> bool {
         if let CacheValue::UserSession(session) = &v {
-            if session.refresh_time > 0 {
-                if let Some(change_time) = self.user_privilege_change_time.get(&session.username) {
-                    if *change_time > session.refresh_time {
-                        return true;
-                    }
+            if let Some(change_time) = self.user_privilege_change_time.get(&session.username) {
+                if *change_time > session.refresh_time {
+                    return true;
                 }
             }
         }
