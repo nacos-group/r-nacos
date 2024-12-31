@@ -391,6 +391,7 @@ pub struct ServiceInfoDto {
 }
 
 #[derive(Debug, Default, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct SubscriberInfoDto {
     pub service_name: Arc<String>,
     pub group_name: Arc<String>,

@@ -1,6 +1,3 @@
-use actix::Addr;
-use actix_web::{web, HttpResponse, Responder, Scope};
-
 use crate::merge_web_param;
 use crate::naming::api_model::ServiceInfoParam;
 use crate::naming::core::{NamingActor, NamingCmd, NamingResult};
@@ -10,6 +7,9 @@ use crate::openapi::constant::EMPTY;
 use crate::openapi::naming::model::{
     ServiceQueryListRequest, ServiceQueryListResponce, ServiceQuerySubscribersListResponce,
 };
+use actix::Addr;
+use actix_web::http::header;
+use actix_web::{web, HttpResponse, Responder, Scope};
 
 pub(super) fn service() -> Scope {
     web::scope("/service")
@@ -152,7 +152,9 @@ pub async fn query_subscribers_list(
                         count: c,
                         subscribers: v,
                     };
-                    HttpResponse::Ok().body(serde_json::to_string(&resp).unwrap())
+                    HttpResponse::Ok()
+                        .insert_header(header::ContentType(mime::APPLICATION_JSON))
+                        .body(serde_json::to_string(&resp).unwrap())
                 }
                 _ => HttpResponse::InternalServerError().body("error"),
             }

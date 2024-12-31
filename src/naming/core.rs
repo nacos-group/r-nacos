@@ -682,7 +682,13 @@ impl NamingActor {
 
         let total = ret.len();
         let start = (page_index - 1) * page_size;
-
+        ret.sort_by(|a, b| {
+            a.service_name
+                .cmp(&b.service_name)
+                .then(a.group_name.cmp(&b.group_name))
+                .then(a.ip.cmp(&b.ip))
+                .then(a.port.cmp(&b.port))
+        });
         let paginated_result = ret
             .into_iter()
             .skip(start)

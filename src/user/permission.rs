@@ -260,6 +260,7 @@ lazy_static::lazy_static! {
         //WebResource
         R::WebResource("/manage/service"),
         R::WebResource("/manage/service/instance"),
+        R::WebResource("/manage/subscriber"),
         R::WebResource("/rnacos/manage/service"),
         R::WebResource("/rnacos/manage/service/instance"),
         //path
@@ -281,6 +282,7 @@ lazy_static::lazy_static! {
         //WebResource
         R::WebResource("/manage/service"),
         R::WebResource("/manage/service/instance"),
+        R::WebResource("/manage/subscriber"),
         R::WebResource("/rnacos/manage/service"),
         R::WebResource("/rnacos/manage/service/instance"),
         R::WebResource("SERVICE_UPDATE"),
