@@ -28,9 +28,9 @@ use super::naming_delay_nofity::DelayNotifyActor;
 use super::naming_delay_nofity::DelayNotifyCmd;
 use super::naming_subscriber::NamingListenerItem;
 use super::naming_subscriber::Subscriber;
-use super::service::Service;
 use super::service::ServiceInfoDto;
 use super::service::ServiceMetadata;
+use super::service::{Service, SubscriberInfoDto};
 use super::service_index::NamespaceIndex;
 use super::service_index::ServiceQueryParam;
 use super::NamingUtils;
@@ -647,6 +647,57 @@ impl NamingActor {
         (size, service_names)
     }
 
+    pub fn get_subscribers_list(
+        &self,
+        page_size: usize,
+        page_index: usize,
+        key: &ServiceKey,
+    ) -> (usize, Vec<Arc<SubscriberInfoDto>>) {
+        let mut ret = Vec::new();
+
+        let res = self.subscriber.fuzzy_match_listener(
+            &key.group_name,
+            &key.service_name,
+            &key.namespace_id,
+        );
+
+        for (service_key, val) in res {
+            for (ip_port, _) in val {
+                let parts: Vec<&str> = ip_port.split(':').collect();
+                if parts.len() == 2 {
+                    if let Ok(port) = parts[1].parse::<u16>() {
+                        let subscriber_info = SubscriberInfoDto {
+                            service_name: service_key.service_name.clone(),
+                            group_name: service_key.group_name.clone(),
+                            namespace_id: service_key.namespace_id.clone(),
+                            ip: Arc::new(parts[0].to_string()),
+                            port,
+                        };
+
+                        ret.push(Arc::new(subscriber_info));
+                    }
+                }
+            }
+        }
+
+        let total = ret.len();
+        let start = (page_index - 1) * page_size;
+        ret.sort_by(|a, b| {
+            a.service_name
+                .cmp(&b.service_name)
+                .then(a.group_name.cmp(&b.group_name))
+                .then(a.ip.cmp(&b.ip))
+                .then(a.port.cmp(&b.port))
+        });
+        let paginated_result = ret
+            .into_iter()
+            .skip(start)
+            .take(page_size)
+            .collect::<Vec<_>>();
+
+        (total, paginated_result)
+    }
+
     pub fn get_service_info_page(&self, param: ServiceQueryParam) -> (usize, Vec<ServiceInfoDto>) {
         let (size, list) = self.namespace_index.query_service_page(&param);
 
@@ -855,6 +906,7 @@ pub enum NamingCmd {
     QueryListString(ServiceKey, String, bool, Option<SocketAddr>),
     QueryServiceInfo(ServiceKey, String, bool),
     QueryServicePage(ServiceKey, usize, usize),
+    QueryServiceSubscribersPage(ServiceKey, usize, usize),
     //查询服务实际信息列表
     QueryServiceInfoPage(ServiceQueryParam),
     //CreateService(ServiceDetailDto),
@@ -881,6 +933,7 @@ pub enum NamingResult {
     InstanceListString(String),
     ServiceInfo(ServiceInfo),
     ServicePage((usize, Vec<Arc<String>>)),
+    ServiceSubscribersPage((usize, Vec<Arc<SubscriberInfoDto>>)),
     ServiceInfoPage((usize, Vec<ServiceInfoDto>)),
     ClientInstanceCount(Vec<(Arc<String>, usize)>),
     RewriteToCluster(u64, Instance),
@@ -974,6 +1027,11 @@ impl Handler<NamingCmd> for NamingActor {
                     page_index,
                     &service_key,
                 )))
+            }
+            NamingCmd::QueryServiceSubscribersPage(service_key, page_size, page_index) => {
+                Ok(NamingResult::ServiceSubscribersPage(
+                    self.get_subscribers_list(page_size, page_index, &service_key),
+                ))
             }
             NamingCmd::QueryServiceInfoPage(param) => Ok(NamingResult::ServiceInfoPage(
                 self.get_service_info_page(param),
@@ -1127,8 +1185,6 @@ async fn query_healthy_instances() {
 
 #[test]
 fn test_add_service() {
-    use super::*;
-    use tokio::net::UdpSocket;
     let mut naming = NamingActor::new();
     let service_key = ServiceKey::new("1", "1", "1");
     let service_info = ServiceDetailDto {
@@ -1147,8 +1203,6 @@ fn test_add_service() {
 
 #[test]
 fn test_remove_has_instance_service() {
-    use super::*;
-    use tokio::net::UdpSocket;
     let mut naming = NamingActor::new();
     let mut instance = Instance::new("127.0.0.1".to_owned(), 8080);
     instance.namespace_id = Arc::new("public".to_owned());

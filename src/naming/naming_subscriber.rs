@@ -8,7 +8,7 @@ use std::{
 use actix::prelude::*;
 
 use super::{
-    model::{Instance, ServiceInfo, ServiceKey},
+    model::ServiceKey,
     naming_delay_nofity::{DelayNotifyActor, DelayNotifyCmd},
 };
 
@@ -184,5 +184,22 @@ impl Subscriber {
             sum += item.len();
         }
         sum
+    }
+
+    pub fn fuzzy_match_listener(
+        &self,
+        group_name: &str,
+        service_name: &str,
+        namespace_id: &str,
+    ) -> HashMap<ServiceKey, HashMap<Arc<String>, Option<HashSet<String>>>> {
+        self.listener
+            .iter()
+            .filter(|(key, _)| {
+                key.group_name.contains(group_name)
+                    && key.service_name.contains(service_name)
+                    && key.namespace_id.contains(namespace_id)
+            }) // 模糊匹配
+            .map(|(key, value)| (key.clone(), value.clone()))
+            .collect()
     }
 }
