@@ -76,12 +76,6 @@ jobs:
         if: matrix.target == 'x86_64-unknown-linux-musl'
         run: |
           cargo build --release --target ${{ matrix.target }}
-
-      - name: Build linux-gnu
-        if: matrix.target == 'x86_64-unknown-linux-gnu'
-        run: |
-          cargo build --release --target ${{ matrix.target }}
-
       - name: Archive binary (windows)
         if: matrix.os == 'windows-latest'
         run: |
@@ -103,14 +97,6 @@ jobs:
           cd target/x86_64-unknown-linux-musl/release
           cp ../../../doc/conf/.env.example .env
           tar czvf ../../../${{ matrix.name }} rnacos .env
-          cd -
-      - name: Archive binary (linux-gnu)
-        if: matrix.target =='x86_64-unknown-linux-gnu'
-        run: |                                                                                                                                                                                    
-          # 注意，下面进入了三级目录，与上面两个打包操作路径不同                                                                                                                                  
-          cd target/x86_64-unknown-linux-gnu/release                                                                                                                                             
-          cp ../../../doc/conf/.env.example .env                                                                                                                                                  
-          tar czvf ../../../${{ matrix.name }} rnacos .env                                                                                                                                        
           cd -
       - name: Upload binary artifacts
         uses: actions/upload-artifact@v3
