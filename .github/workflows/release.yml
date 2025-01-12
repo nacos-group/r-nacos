@@ -20,6 +20,7 @@ jobs:
       matrix:
         target:
           - x86_64-unknown-linux-musl
+          - x86_64-unknown-linux-gnu
           - x86_64-apple-darwin
           - x86_64-pc-windows-msvc
           - i686-pc-windows-msvc
@@ -29,6 +30,9 @@ jobs:
           - target: x86_64-unknown-linux-musl
             os: ubuntu-latest
             name: rnacos-x86_64-unknown-linux-musl-${GITHUB_REF#refs/*/}.tar.gz
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            name: rnacos-x86_64-unknown-linux-gnu-${GITHUB_REF#refs/*/}.tar.gz
           - target: x86_64-apple-darwin
             os: macos-13
             name: rnacos-x86_64-apple-darwin-${GITHUB_REF#refs/*/}.tar.gz
@@ -53,8 +57,8 @@ jobs:
           targets: ${{ matrix.target }}
 
       - name: Install musl tools
-        if: matrix.os == 'ubuntu-latest'
-        run: sudo apt-get install -y musl-tools
+        if: matrix.target == 'x86_64-unknown-linux-musl'
+        run: sudo apt-get install -y musl-tools 
 
       # Install gnu-tar because BSD tar is buggy
       # https://github.com/actions/cache/issues/403
@@ -70,6 +74,11 @@ jobs:
 
       - name: Build linux-musl
         if: matrix.target == 'x86_64-unknown-linux-musl'
+        run: |
+          cargo build --release --target ${{ matrix.target }}
+
+      - name: Build linux-gnu
+        if: matrix.target == 'x86_64-unknown-linux-gnu'
         run: |
           cargo build --release --target ${{ matrix.target }}
 
@@ -95,7 +104,14 @@ jobs:
           cp ../../../doc/conf/.env.example .env
           tar czvf ../../../${{ matrix.name }} rnacos .env
           cd -
-
+      - name: Archive binary (linux-gnu)
+        if: matrix.target =='x86_64-unknown-linux-gnu'
+        run: |                                                                                                                                                                                    
+          # 注意，下面进入了三级目录，与上面两个打包操作路径不同                                                                                                                                  
+          cd target/x86_64-unknown-linux-gnu/release                                                                                                                                             
+          cp ../../../doc/conf/.env.example .env                                                                                                                                                  
+          tar czvf ../../../${{ matrix.name }} rnacos .env                                                                                                                                        
+          cd -
       - name: Upload binary artifacts
         uses: actions/upload-artifact@v3
         with:
