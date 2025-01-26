@@ -80,7 +80,7 @@ spec:
       accessModes:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      storageClassName: {{ .Values.persistence.storageClassName }}
+      storageClassName: {{ .Values.persistence.storageClass }}
       resources:
         requests:
           storage: {{ .Values.persistence.size }}
