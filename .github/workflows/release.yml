@@ -51,7 +51,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       # Largely inspired by https://github.com/starship/starship/blob/35a0a20f5c4fea6a08e1b91ff631b089eef8fc50/.github/workflows/deploy.yml
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
@@ -99,7 +99,7 @@ jobs:
           tar czvf ../../../${{ matrix.name }} rnacos .env
           cd -
       - name: Upload binary artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: binaries
           path: |
@@ -123,7 +123,7 @@ jobs:
         RUSTUP_HOME: /root/.rustup
         CARGO_HOME: /root/.cargo
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - run: rustup target add --toolchain stable ${{ matrix.platform.target }}
         if: matrix.platform.target != 'powerpc64le-unknown-linux-musl' && matrix.platform.target != 's390x-unknown-linux-gnu'
       - name: Build
@@ -134,7 +134,7 @@ jobs:
           cp doc/conf/.env.example target/${{ matrix.platform.target }}/release/.env
           tar czvf ${{ matrix.platform.name }} -C target/${{ matrix.platform.target }}/release rnacos .env
       - name: Upload binary artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: binaries
           path: |
@@ -146,7 +146,7 @@ jobs:
     if: "startsWith(github.ref, 'refs/tags/')"
     needs: [ build ]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - name: cargo login
         run: cargo login ${{ secrets.CRATES_IO_TOKEN }}
@@ -164,7 +164,7 @@ jobs:
     if: "startsWith(github.ref, 'refs/tags/')"
     needs: [ build, build-musl ]
     steps:
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
           name: binaries
       # 暂时移除签名(生成的文件比较多)

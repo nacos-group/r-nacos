@@ -48,7 +48,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       # Largely inspired by https://github.com/starship/starship/blob/35a0a20f5c4fea6a08e1b91ff631b089eef8fc50/.github/workflows/deploy.yml
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
@@ -100,7 +100,7 @@ jobs:
           echo ${{ matrix.name }}
           echo ${GITHUB_REF#refs/*/}
       - name: Upload binary artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: binaries
           path: |
@@ -124,7 +124,7 @@ jobs:
         RUSTUP_HOME: /root/.rustup
         CARGO_HOME: /root/.cargo
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - run: rustup target add --toolchain stable ${{ matrix.platform.target }}
         if: matrix.platform.target != 'powerpc64le-unknown-linux-musl' && matrix.platform.target != 's390x-unknown-linux-gnu'
       - name: Build
@@ -137,7 +137,7 @@ jobs:
           echo ${{ matrix.platform.name }}
           echo ${GITHUB_REF#refs/*/}
       - name: Upload binary artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: binaries
           path: |
