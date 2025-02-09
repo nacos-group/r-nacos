@@ -1,4 +1,5 @@
 use std::cell::Cell;
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use actix::prelude::*;
@@ -125,7 +126,7 @@ impl Handler<BiStreamSenderCmd> for BiStreamConn {
                 let request = ClientDetectionRequest {
                     module: Some("internal".to_owned()),
                     request_id: Some(request_id),
-                    ..Default::default()
+                    headers: Some(HashMap::new()),
                 };
                 let payload = PayloadUtils::build_payload(
                     "ClientDetectionRequest",
@@ -139,7 +140,7 @@ impl Handler<BiStreamSenderCmd> for BiStreamConn {
                     request_id: Some(request_id),
                     server_ip: ip,
                     server_port: port,
-                    ..Default::default()
+                    headers: Some(HashMap::new()),
                 };
                 let payload = PayloadUtils::build_payload(
                     "ConnectResetRequest",
