@@ -100,7 +100,7 @@ jobs:
           echo ${{ matrix.name }}
           echo ${GITHUB_REF#refs/*/}
       - name: Upload binary artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: binaries
           path: |
@@ -137,7 +137,7 @@ jobs:
           echo ${{ matrix.platform.name }}
           echo ${GITHUB_REF#refs/*/}
       - name: Upload binary artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: binaries
           path: |
