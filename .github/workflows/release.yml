@@ -99,7 +99,7 @@ jobs:
           tar czvf ../../../${{ matrix.name }} rnacos .env
           cd -
       - name: Upload binary artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: binaries
           path: |
@@ -134,7 +134,7 @@ jobs:
           cp doc/conf/.env.example target/${{ matrix.platform.target }}/release/.env
           tar czvf ${{ matrix.platform.name }} -C target/${{ matrix.platform.target }}/release rnacos .env
       - name: Upload binary artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: binaries
           path: |
