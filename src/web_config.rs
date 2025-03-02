@@ -9,7 +9,7 @@ use crate::openapi::auth::{login_config, mock_token};
 use crate::openapi::backup::backup_config;
 use crate::openapi::health::health_config;
 use crate::openapi::metrics::metrics_config;
-use crate::openapi::{openapi_config, v1::console as nacos_console};
+use crate::openapi::{openapi_config, v1::console as nacos_console, v2::console as nacos_console_v2};
 use crate::raft::network::raft_config;
 
 /*
@@ -148,6 +148,20 @@ pub fn nacos_console_api_config(config: &mut ServiceConfig) {
                 .route(web::delete().to(nacos_console::namespace::remove_namespace)),
         ),
     );
+
+    config.service(
+        web::scope("/nacos/v2/console").service(
+            web::resource("/namespace/list")
+                .route(web::get().to(nacos_console_v2::namespace::query_namespace_list)),
+            ).service(
+            web::resource("/namespace")
+                .route(web::get().to(nacos_console_v2::namespace::query_namespace))
+                .route(web::post().to(nacos_console_v2::namespace::add_namespace))
+                .route(web::put().to(nacos_console_v2::namespace::update_namespace))
+                .route(web::delete().to(nacos_console_v2::namespace::remove_namespace)),
+            ),
+    );
+
 }
 
 /// 独立控制台服务
