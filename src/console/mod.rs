@@ -205,6 +205,22 @@ impl NamespaceUtils {
         }
     }
 
+    pub async fn get_namespace(
+        app_share_data: &Arc<AppShareData>,
+        namespace_id: Option<Arc<String>>,
+    ) -> anyhow::Result<NamespaceInfo> {
+        let namespace_id = namespace_id.unwrap_or_default();
+        let res = app_share_data
+            .namespace_addr
+            .send(NamespaceQueryReq::Info(namespace_id.clone()))
+            .await??;
+        if let NamespaceQueryResult::Info(info) = res {
+            Ok(info.as_ref().to_owned().into())
+        } else {
+            Err(anyhow::anyhow!("NamespaceQueryResult is error"))
+        }
+    }
+
     pub async fn add_namespace(
         app_data: &Arc<AppShareData>,
         info: NamespaceInfo,
