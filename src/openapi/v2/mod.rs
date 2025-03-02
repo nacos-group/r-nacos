@@ -13,5 +13,5 @@
 //
 // }
 
-pub mod model;
 pub mod console;
+pub mod model;

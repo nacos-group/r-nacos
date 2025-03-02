@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Default, Deserialize, Serialize)]
 pub struct ApiResult<T>
 where
-    T: Sized + Default
+    T: Sized + Default,
 {
     pub code: i32,
     pub message: String,
@@ -12,7 +12,7 @@ where
 
 impl<T> ApiResult<T>
 where
-    T: Sized + Default
+    T: Sized + Default,
 {
     pub fn success(data: T) -> Self {
         Self {
