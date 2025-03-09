@@ -354,6 +354,7 @@ impl Service {
             group_name: self.group_name.clone(),
             metadata,
             protect_threshold: Some(self.protect_threshold),
+            ..Default::default()
         }
     }
 

@@ -44,6 +44,8 @@ pub enum NamingRouteRequest {
     },
     Snapshot(Vec<u8>),
     MetricsTimelineQuery(TimelineQueryParam),
+    SyncDistroServerCount(Arc<Vec<ServiceDetailDto>>),
+    QueryDistroServerSnapshot(Vec<ServiceDetailDto>),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

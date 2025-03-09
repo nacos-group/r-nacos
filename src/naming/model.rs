@@ -159,6 +159,7 @@ pub struct ServiceDetailDto {
     pub group_name: Arc<String>,
     pub metadata: Option<Arc<HashMap<String, String>>>,
     pub protect_threshold: Option<f32>,
+    pub grpc_instance_count: Option<i32>,
 }
 
 impl ServiceDetailDto {
@@ -302,4 +303,10 @@ pub enum UpdateInstanceType {
     UpdateValue,
     ///更新其它节点元信息
     UpdateOtherClusterMetaData(u64, Instance),
+}
+
+#[derive(Debug, Clone)]
+pub enum DistroData {
+    ServiceInstanceCount(HashMap<ServiceKey, u64>),
+    DiffServices(HashMap<ServiceKey, i64>),
 }

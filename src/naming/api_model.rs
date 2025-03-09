@@ -170,6 +170,7 @@ impl ServiceInfoParam {
                 )),
                 metadata,
                 protect_threshold: self.protect_threshold,
+                ..Default::default()
             })
         } else {
             Err(anyhow::anyhow!("service_name is empty"))

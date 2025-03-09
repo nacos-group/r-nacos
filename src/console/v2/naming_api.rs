@@ -78,6 +78,7 @@ pub async fn add_service(
         group_name: service_key.group_name,
         metadata,
         protect_threshold: param.protect_threshold,
+        ..Default::default()
     };
     if let Ok(res) = appdata
         .naming_addr

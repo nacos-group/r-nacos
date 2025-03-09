@@ -16,7 +16,6 @@ use super::cluster::model::{
 use super::cluster::node_manage::{InnerNodeManage, NodeManageRequest};
 use super::filter::InstanceFilterUtils;
 use super::listener::{InnerNamingListener, ListenerItem, NamingListenerCmd};
-use super::model::Instance;
 use super::model::InstanceKey;
 use super::model::InstanceShortKey;
 use super::model::InstanceUpdateTag;
@@ -24,6 +23,7 @@ use super::model::ServiceDetailDto;
 use super::model::ServiceInfo;
 use super::model::ServiceKey;
 use super::model::UpdateInstanceType;
+use super::model::{DistroData, Instance};
 use super::naming_delay_nofity::DelayNotifyActor;
 use super::naming_delay_nofity::DelayNotifyCmd;
 use super::naming_subscriber::NamingListenerItem;
@@ -810,6 +810,65 @@ impl NamingActor {
         }
     }
 
+    fn query_grpc_distro_data(&self) -> HashMap<ServiceKey, u64> {
+        let mut service_count: HashMap<ServiceKey, u64> = HashMap::new();
+        for (cluster_id, keys) in &self.client_instance_set {
+            for instance_key in keys {
+                let service_key = instance_key.get_service_key();
+                let short_key = instance_key.get_short_key();
+                if let Some(v) = self.get_instance(&service_key, &short_key) {
+                    if v.is_from_cluster() {
+                        continue;
+                    }
+                }
+                if let Some(v) = service_count.get_mut(&service_key) {
+                    *v += 1;
+                } else {
+                    service_count.insert(service_key, 1);
+                }
+            }
+        }
+        service_count
+    }
+    fn diff_grpc_distro_data(
+        &self,
+        cluster_id: u64,
+        data: HashMap<ServiceKey, u64>,
+    ) -> HashMap<ServiceKey, i64> {
+        let mut result = HashMap::new();
+        for (service_key, count) in data.iter() {
+            let mut i = *count as i64;
+            if let Some(v) = self.service_map.get(service_key) {
+                for item in v.instances.values() {
+                    if item.from_cluster == cluster_id {
+                        i -= 1;
+                    }
+                }
+            }
+            if i != 0 {
+                log::info!("diff_grpc_distro_data:{:?},{}", service_key, i);
+                result.insert(service_key.clone(), i);
+            }
+        }
+        result
+    }
+
+    fn build_distro_service_instance(&self, service_keys: Vec<ServiceKey>) -> Vec<Arc<Instance>> {
+        let mut instances = vec![];
+        for keys in self.client_instance_set.values() {
+            for instance_key in keys {
+                let service_key = instance_key.get_service_key();
+                let short_key = instance_key.get_short_key();
+                if let Some(v) = self.get_instance(&service_key, &short_key) {
+                    if !v.is_from_cluster() {
+                        instances.push(v)
+                    }
+                }
+            }
+        }
+        instances
+    }
+
     ///
     /// 刷新服务管理范围，在集群节点有变化时触发
     /// 重新管理更新后的临时实例生命周期
@@ -924,6 +983,9 @@ pub enum NamingCmd {
     QuerySnapshot(Vec<ProcessRange>),
     ClusterRefreshProcessRange(ProcessRange),
     ReceiveSnapshot(SnapshotForReceive),
+    QueryGrpcDistroData,
+    DiffGrpcDistroData { cluster_id: u64, data: DistroData },
+    QueryDistroServerSnapshot(Vec<ServiceKey>),
 }
 
 pub enum NamingResult {
@@ -938,6 +1000,9 @@ pub enum NamingResult {
     ClientInstanceCount(Vec<(Arc<String>, usize)>),
     RewriteToCluster(u64, Instance),
     Snapshot(SnapshotForSend),
+    GrpcDistroData(DistroData),
+    DiffDistroData(DistroData),
+    DistroServerSnapshot(Vec<Arc<Instance>>),
 }
 
 impl Supervised for NamingActor {
@@ -1131,6 +1196,24 @@ impl Handler<NamingCmd> for NamingActor {
                 }
                 Ok(NamingResult::NULL)
             }
+            NamingCmd::QueryGrpcDistroData => {
+                let res = self.query_grpc_distro_data();
+                Ok(NamingResult::GrpcDistroData(
+                    DistroData::ServiceInstanceCount(res),
+                ))
+            }
+            NamingCmd::DiffGrpcDistroData { data, cluster_id } => {
+                if let DistroData::ServiceInstanceCount(data) = data {
+                    let res = self.diff_grpc_distro_data(cluster_id, data);
+                    Ok(NamingResult::DiffDistroData(DistroData::DiffServices(res)))
+                } else {
+                    Ok(NamingResult::NULL)
+                }
+            }
+            NamingCmd::QueryDistroServerSnapshot(service_keys) => {
+                let instances = self.build_distro_service_instance(service_keys);
+                Ok(NamingResult::DistroServerSnapshot(instances))
+            }
         }
     }
 }
@@ -1193,6 +1276,7 @@ fn test_add_service() {
         group_name: service_key.group_name.clone(),
         metadata: Default::default(),
         protect_threshold: Some(0.5),
+        ..Default::default()
     };
     assert!(naming.namespace_index.service_size == 0);
     naming.update_service(service_info);
@@ -1218,6 +1302,7 @@ fn test_remove_has_instance_service() {
         group_name: service_key.group_name.clone(),
         metadata: Default::default(),
         protect_threshold: Some(0.5),
+        ..Default::default()
     };
     assert!(naming.namespace_index.service_size == 1);
     naming.update_service(service_info);

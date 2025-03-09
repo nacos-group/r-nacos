@@ -1,17 +1,11 @@
+use actix::prelude::*;
+use bean_factory::{bean, Inject};
+use std::collections::HashMap;
 use std::{
     collections::{hash_map::DefaultHasher, BTreeMap, HashSet},
     hash::{Hash, Hasher},
     sync::Arc,
     time::Duration,
-};
-
-use actix::prelude::*;
-use bean_factory::{bean, Inject};
-
-use crate::{
-    naming::core::{NamingActor, NamingCmd},
-    now_millis,
-    raft::network::factory::RaftClusterRequestSender,
 };
 
 use super::model::NamingRouteRequest;
@@ -21,6 +15,13 @@ use super::model::SnapshotForSend;
 use super::model::SyncSenderRequest;
 use super::model::{NamingRouteAddr, SyncSenderSetCmd};
 use super::sync_sender::ClusteSyncSender;
+use crate::naming::core::NamingResult;
+use crate::naming::model::{DistroData, ServiceDetailDto, ServiceKey};
+use crate::{
+    naming::core::{NamingActor, NamingCmd},
+    now_millis, now_second_i32,
+    raft::network::factory::RaftClusterRequestSender,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum NodeStatus {
@@ -82,6 +83,7 @@ pub struct InnerNodeManage {
     first_query_snapshot: bool,
     current_range: ProcessRange,
     history_ranges: Vec<(ProcessRange, u64)>,
+    last_send_distor_data_time: i32,
 }
 
 impl InnerNodeManage {
@@ -94,6 +96,7 @@ impl InnerNodeManage {
             first_query_snapshot: false,
             current_range: ProcessRange { index: 0, len: 1 },
             history_ranges: Vec::new(),
+            last_send_distor_data_time: 0,
         }
     }
 
@@ -153,16 +156,35 @@ impl InnerNodeManage {
         self.all_nodes.entry(self.local_id).or_insert(local_node);
         self.update_nodes_index();
         self.update_process_range();
-        //第一次需要触发从其它实例加载snapshot
-        if !self.first_query_snapshot {
-            self.first_query_snapshot = true;
-            ctx.run_later(Duration::from_millis(1000), |act, _ctx| {
-                act.load_snapshot_from_node();
-            });
-        }
+        self.first_query_snapshot(ctx);
         if is_change {
             //集群节点变更化重新刷新服务管理范围
             self.refresh_process_range();
+        }
+    }
+
+    fn first_query_snapshot(&mut self, ctx: &mut Context<InnerNodeManage>) {
+        //第一次需要触发从其它实例加载snapshot
+        if !self.first_query_snapshot {
+            self.first_query_snapshot = true;
+            //1秒
+            ctx.run_later(Duration::from_millis(1000), |act, _ctx| {
+                act.load_snapshot_from_node();
+            });
+            /*
+            //10秒
+            ctx.run_later(Duration::from_millis(10000), |act, _ctx| {
+                act.load_snapshot_from_node();
+            });
+            //1分钟
+            ctx.run_later(Duration::from_millis(60_000), |act, _ctx| {
+                act.load_snapshot_from_node();
+            });
+            //5分钟
+            ctx.run_later(Duration::from_millis(300_000), |act, _ctx| {
+                act.load_snapshot_from_node();
+            });
+             */
         }
     }
 
@@ -287,6 +309,28 @@ impl InnerNodeManage {
         }
     }
 
+    fn send_diff_service_to_node(&self, node_id: u64, diff_service: HashMap<ServiceKey, i64>) {
+        if let Some(n) = self.all_nodes.get(&node_id) {
+            let mut serivces = Vec::with_capacity(diff_service.len());
+            for (key, _) in diff_service {
+                let obj = ServiceDetailDto {
+                    namespace_id: key.namespace_id,
+                    service_name: key.service_name,
+                    group_name: key.group_name,
+                    metadata: None,
+                    protect_threshold: None,
+                    grpc_instance_count: None,
+                };
+                serivces.push(obj);
+            }
+            if let Some(sender) = n.sync_sender.as_ref() {
+                sender.do_send(SyncSenderRequest(
+                    NamingRouteRequest::QueryDistroServerSnapshot(serivces),
+                ));
+            }
+        }
+    }
+
     fn check_node_status(&mut self) {
         let timeout = now_millis() - 15000;
         let naming_actor = &self.naming_actor;
@@ -326,10 +370,67 @@ impl InnerNodeManage {
         self.send_to_other_node(req, false);
     }
 
+    fn send_distort_data(&mut self, ctx: &mut Context<Self>) {
+        let now_second = now_second_i32();
+        //间隔同步
+        if now_second - self.last_send_distor_data_time < 12 {
+            return;
+        }
+        self.last_send_distor_data_time = now_second;
+        if self.all_nodes.len() < 2 || self.naming_actor.is_none() {
+            return;
+        }
+        let naming_addr = self.naming_actor.as_ref().unwrap().clone();
+        Self::load_send_distort_data(naming_addr)
+            .into_actor(self)
+            .map(|res, act, _ctx| {
+                if let Ok(data) = res {
+                    if data.is_empty() {
+                        return;
+                    }
+                    log::info!("send_distort_data,service_count:{}", data.len());
+                    for node in act.all_nodes.values_mut() {
+                        if node.is_local {
+                            continue;
+                        }
+                        if let Some(sender) = &node.sync_sender {
+                            sender.do_send(SyncSenderRequest(
+                                NamingRouteRequest::SyncDistroServerCount(data.clone()),
+                            ));
+                        }
+                    }
+                }
+            })
+            .spawn(ctx);
+    }
+
+    async fn load_send_distort_data(
+        naming_addr: Addr<NamingActor>,
+    ) -> anyhow::Result<Arc<Vec<ServiceDetailDto>>> {
+        let mut list = vec![];
+        if let NamingResult::GrpcDistroData(DistroData::ServiceInstanceCount(server_count)) =
+            naming_addr.send(NamingCmd::QueryGrpcDistroData).await??
+        {
+            for (key, count) in server_count {
+                let obj = ServiceDetailDto {
+                    namespace_id: key.namespace_id,
+                    service_name: key.service_name,
+                    group_name: key.group_name,
+                    metadata: None,
+                    protect_threshold: None,
+                    grpc_instance_count: Some(count as i32),
+                };
+                list.push(obj);
+            }
+        }
+        Ok(Arc::new(list))
+    }
+
     fn hb(&mut self, ctx: &mut Context<Self>) {
         ctx.run_later(Duration::from_millis(3000), |act, ctx| {
             act.check_node_status();
             act.ping_other();
+            act.send_distort_data(ctx);
             act.hb(ctx);
         });
     }
@@ -402,6 +503,7 @@ pub enum NodeManageRequest {
     RemoveClientId(Arc<String>),
     QueryOwnerRange(ProcessRange),
     SendSnapshot(u64, SnapshotForSend),
+    QueryDiffService(u64, HashMap<ServiceKey, i64>),
 }
 
 pub enum NodeManageResponse {
@@ -462,6 +564,10 @@ impl Handler<NodeManageRequest> for InnerNodeManage {
             }
             NodeManageRequest::SendSnapshot(node_id, snapshot) => {
                 self.send_snapshot_to_node(node_id, snapshot);
+                Ok(NodeManageResponse::None)
+            }
+            NodeManageRequest::QueryDiffService(node_id, diff_service) => {
+                self.send_diff_service_to_node(node_id, diff_service);
                 Ok(NodeManageResponse::None)
             }
         }
