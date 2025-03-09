@@ -58,7 +58,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: use alpine dockerfile
         run: cp docker/alpine_dockerfile Dockerfile
       - name: Set up QEMU

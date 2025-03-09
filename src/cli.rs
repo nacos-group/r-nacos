@@ -2,7 +2,7 @@ use clap::{Args, Parser, Subcommand, ValueEnum};
 
 /// A fictional versioning CLI
 #[derive(Debug, Parser)] // requires `derive` feature
-#[command(name = "git")]
+#[command(name = "rnacos")]
 #[command(version, about = "rnacos cli", long_about = None)]
 pub struct Cli {
     #[command(subcommand)]
