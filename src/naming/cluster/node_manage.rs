@@ -1,13 +1,3 @@
-use actix::prelude::*;
-use bean_factory::{bean, Inject};
-use std::collections::HashMap;
-use std::{
-    collections::{hash_map::DefaultHasher, BTreeMap, HashSet},
-    hash::{Hash, Hasher},
-    sync::Arc,
-    time::Duration,
-};
-
 use super::model::NamingRouteRequest;
 use super::model::ProcessRange;
 use super::model::SnapshotDataInfo;
@@ -21,6 +11,15 @@ use crate::{
     naming::core::{NamingActor, NamingCmd},
     now_millis, now_second_i32,
     raft::network::factory::RaftClusterRequestSender,
+};
+use actix::prelude::*;
+use bean_factory::{bean, Inject};
+use std::collections::HashMap;
+use std::{
+    collections::{hash_map::DefaultHasher, BTreeMap, HashSet},
+    hash::{Hash, Hasher},
+    sync::Arc,
+    time::Duration,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -167,24 +166,28 @@ impl InnerNodeManage {
         //第一次需要触发从其它实例加载snapshot
         if !self.first_query_snapshot {
             self.first_query_snapshot = true;
+            //从其它节点同步数据
             //1秒
             ctx.run_later(Duration::from_millis(1000), |act, _ctx| {
                 act.load_snapshot_from_node();
             });
-            /*
             //10秒
             ctx.run_later(Duration::from_millis(10000), |act, _ctx| {
                 act.load_snapshot_from_node();
             });
-            //1分钟
-            ctx.run_later(Duration::from_millis(60_000), |act, _ctx| {
+            //45秒
+            ctx.run_later(Duration::from_millis(45_000), |act, _ctx| {
                 act.load_snapshot_from_node();
             });
-            //5分钟
-            ctx.run_later(Duration::from_millis(300_000), |act, _ctx| {
-                act.load_snapshot_from_node();
+            //因涉负责区域动荡，要把加入后的节点数据也同步给其它节点
+            //30秒
+            ctx.run_later(Duration::from_millis(30_000), |act, ctx| {
+                act.notify_snapshot_to_node(ctx);
             });
-             */
+            //60秒
+            ctx.run_later(Duration::from_millis(60_000), |act, ctx| {
+                act.notify_snapshot_to_node(ctx);
+            });
         }
     }
 
@@ -296,6 +299,36 @@ impl InnerNodeManage {
             if let Some(sync_sender) = node.sync_sender.as_ref() {
                 sync_sender.do_send(req.clone());
             }
+        }
+    }
+
+    fn notify_snapshot_to_node(&mut self, ctx: &mut Context<Self>) {
+        if self.naming_actor.is_none() || self.all_nodes.len() <= 1 {
+            return;
+        }
+        let naming_addr = self.naming_actor.clone().unwrap();
+        let ranges = vec![self.current_range.clone()];
+        Self::query_snapshot_data(naming_addr, ranges)
+            .into_actor(self)
+            .map(|res, act, _ctx| {
+                if let Ok(req) = res {
+                    act.send_to_other_node(req, false);
+                }
+            })
+            .spawn(ctx);
+    }
+
+    async fn query_snapshot_data(
+        naming_addr: Addr<NamingActor>,
+        ranges: Vec<ProcessRange>,
+    ) -> anyhow::Result<SyncSenderRequest> {
+        let result = naming_addr.send(NamingCmd::QuerySnapshot(ranges)).await??;
+        if let NamingResult::Snapshot(snapshot) = result {
+            let snapshot = SnapshotDataInfo::from(snapshot);
+            let data = snapshot.to_bytes()?;
+            Ok(SyncSenderRequest(NamingRouteRequest::Snapshot(data)))
+        } else {
+            Err(anyhow::anyhow!("query snapshot error"))
         }
     }
 

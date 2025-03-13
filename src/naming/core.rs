@@ -807,6 +807,7 @@ impl NamingActor {
             node_count: 0,
             services: service_details,
             instances,
+            mode: 0,
         }
     }
 
@@ -867,6 +868,50 @@ impl NamingActor {
             }
         }
         instances
+    }
+
+    fn receive_diff_service_instance(&mut self, diff_data: SnapshotForReceive, from_cluster: u64) {
+        let mut service_instance_map: HashMap<ServiceKey, HashMap<InstanceShortKey, Instance>> =
+            HashMap::new();
+        for instance in diff_data.instances {
+            let service_key = instance.get_service_key();
+            if let Some(v) = service_instance_map.get_mut(&service_key) {
+                v.insert(instance.get_short_key(), instance);
+            } else {
+                service_instance_map.insert(
+                    service_key,
+                    HashMap::from([(instance.get_short_key(), instance)]),
+                );
+            }
+        }
+        let mut delete_keys = vec![];
+        for (service_key, instance_map) in service_instance_map {
+            let service_detail = ServiceDetailDto {
+                namespace_id: service_key.namespace_id.clone(),
+                service_name: service_key.service_name.clone(),
+                group_name: service_key.group_name.clone(),
+                metadata: None,
+                protect_threshold: None,
+                grpc_instance_count: None,
+            };
+            self.update_service(service_detail);
+            if let Some(service) = self.service_map.get_mut(&service_key) {
+                for (key, instance) in &service.instances {
+                    if instance.from_cluster == from_cluster
+                        && instance.from_grpc
+                        && !instance_map.contains_key(key)
+                    {
+                        delete_keys.push((service_key.clone(), key.clone()));
+                    }
+                }
+                for (short_key, instance) in instance_map {
+                    service.update_instance(instance, None, true);
+                }
+            }
+        }
+        for (service_key, short_key) in delete_keys {
+            self.remove_instance(&service_key, &short_key, None);
+        }
     }
 
     ///
@@ -986,6 +1031,7 @@ pub enum NamingCmd {
     QueryGrpcDistroData,
     DiffGrpcDistroData { cluster_id: u64, data: DistroData },
     QueryDistroServerSnapshot(Vec<ServiceKey>),
+    ReceiveDiffServiceInstance(u64, SnapshotForReceive),
 }
 
 pub enum NamingResult {
@@ -1213,6 +1259,10 @@ impl Handler<NamingCmd> for NamingActor {
             NamingCmd::QueryDistroServerSnapshot(service_keys) => {
                 let instances = self.build_distro_service_instance(service_keys);
                 Ok(NamingResult::DistroServerSnapshot(instances))
+            }
+            NamingCmd::ReceiveDiffServiceInstance(from_cluster, diff_data) => {
+                self.receive_diff_service_instance(diff_data, from_cluster);
+                Ok(NamingResult::NULL)
             }
         }
     }

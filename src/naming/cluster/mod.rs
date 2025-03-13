@@ -128,6 +128,7 @@ pub async fn handle_naming_route(
             let cluster_id = get_cluster_id(extend_info)?;
             //接收snapshot data
             let snapshot = SnapshotDataInfo::from_bytes(&data)?;
+            let mode = snapshot.mode;
             log::info!(
                 "receive snapshot from {},instance size:{}",
                 &cluster_id,
@@ -141,8 +142,18 @@ pub async fn handle_naming_route(
             }
             app.naming_inner_node_manage
                 .do_send(NodeManageRequest::AddClientIds(cluster_id, client_sets));
-            app.naming_addr
-                .do_send(NamingCmd::ReceiveSnapshot(snapshot_receive));
+            if mode == 1u32 {
+                //diff distor服务全量数据
+                app.naming_addr
+                    .do_send(NamingCmd::ReceiveDiffServiceInstance(
+                        cluster_id,
+                        snapshot_receive,
+                    ));
+            } else {
+                //增量数据
+                app.naming_addr
+                    .do_send(NamingCmd::ReceiveSnapshot(snapshot_receive));
+            }
         }
         NamingRouteRequest::MetricsTimelineQuery(param) => {
             let resp = app
@@ -209,6 +220,7 @@ pub async fn handle_naming_route(
                     let snapshot = SnapshotForSend {
                         route_index: 0,
                         node_count: 0,
+                        mode: 1,
                         services: vec![],
                         instances,
                     };

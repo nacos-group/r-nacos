@@ -178,6 +178,8 @@ pub struct SnapshotDataInfo {
     /// Instance json
     #[prost(message, repeated, tag = "4")]
     pub instances: Vec<String>,
+    #[prost(uint32, tag = "5")]
+    pub mode: u32,
 }
 
 impl SnapshotDataInfo {
@@ -200,6 +202,7 @@ impl From<SnapshotForSend> for SnapshotDataInfo {
         Self {
             route_index: v.route_index as u32,
             node_count: v.node_count as u32,
+            mode: v.mode,
             services: v
                 .services
                 .iter()
@@ -220,6 +223,9 @@ pub struct SnapshotForSend {
     pub node_count: u64,
     pub services: Vec<ServiceDetailDto>,
     pub instances: Vec<Arc<Instance>>,
+    /// 0: 同步节点增量数据
+    /// 1: 同步diff distor服务全量实例数据（不在里面的实例需要删除）
+    pub mode: u32,
 }
 
 #[derive(Clone, Debug)]
