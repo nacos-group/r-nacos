@@ -85,8 +85,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     tokio::spawn(async move {
         let addr = grpc_addr.parse().unwrap();
         let request_server = RequestServerImpl::new(grpc_app_data.clone(), invoker);
-        let bi_request_stream_server =
-            BiRequestStreamServerImpl::new(grpc_app_data.bi_stream_manage.clone());
+        let bi_request_stream_server = BiRequestStreamServerImpl::new(grpc_app_data.clone());
         Server::builder()
             .add_service(RequestServer::new(request_server))
             .add_service(BiRequestStreamServer::new(bi_request_stream_server))

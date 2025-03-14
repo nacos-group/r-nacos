@@ -87,9 +87,11 @@ impl NamingRoute {
 
         //路由在其它节点后，立即同步本节点
         if is_update {
+            /*
             if instance.client_id.is_empty() && cluster_id > 0 {
                 instance.client_id = Arc::new(format!("{}_G", &cluster_id));
             }
+            */
             self.node_manage
                 .inner_node_manage
                 .do_send(NodeManageRequest::AddClientId(

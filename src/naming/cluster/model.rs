@@ -1,7 +1,8 @@
 use crate::metrics::timeline::model::{TimelineQueryParam, TimelineQueryResponse};
-use crate::naming::model::{Instance, InstanceUpdateTag, ServiceDetailDto};
+use crate::naming::model::{Instance, InstanceKey, InstanceUpdateTag, ServiceDetailDto};
 use actix::prelude::*;
 use serde::{Deserialize, Serialize};
+use std::collections::{HashMap, HashSet};
 use std::{convert::TryFrom, sync::Arc};
 
 #[derive(Clone, Debug)]
@@ -44,8 +45,11 @@ pub enum NamingRouteRequest {
     },
     Snapshot(Vec<u8>),
     MetricsTimelineQuery(TimelineQueryParam),
+    #[deprecated]
     SyncDistroServerCount(Arc<Vec<ServiceDetailDto>>),
+    SyncDistroClientInstances(HashMap<Arc<String>, HashSet<InstanceKey>>),
     QueryDistroServerSnapshot(Vec<ServiceDetailDto>),
+    QueryDistroInstanceSnapshot(Vec<InstanceKey>),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

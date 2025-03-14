@@ -16,7 +16,7 @@ use crate::raft::cache::model::{CacheKey, CacheType, CacheValue};
 use crate::raft::cache::{CacheManager, CacheManagerReq, CacheManagerResult};
 
 use super::bistream_conn::BiStreamConn;
-use super::bistream_manage::{BiStreamManage, BiStreamManageCmd};
+use super::bistream_manage::BiStreamManageCmd;
 use super::handler::{InvokerHandler, CLUSTER_TOKEN};
 use super::nacos_proto::bi_request_stream_server::BiRequestStream;
 
@@ -94,7 +94,11 @@ impl request_server::Request for RequestServerImpl {
         let payload = request.into_inner();
         let mut request_meta = RequestMeta {
             client_ip: remote_addr.ip().to_string(),
-            connection_id: Arc::new(remote_addr.to_string()),
+            connection_id: Arc::new(format!(
+                "{}_{}",
+                self.app.sys_config.raft_node_id,
+                remote_addr.to_string()
+            )),
             ..Default::default()
         };
         //debug
@@ -199,14 +203,12 @@ impl request_server::Request for RequestServerImpl {
 }
 
 pub struct BiRequestStreamServerImpl {
-    bistream_manage_addr: Addr<BiStreamManage>,
+    app: Arc<AppShareData>,
 }
 
 impl BiRequestStreamServerImpl {
-    pub fn new(bistream_manage_addr: Addr<BiStreamManage>) -> Self {
-        Self {
-            bistream_manage_addr,
-        }
+    pub fn new(app: Arc<AppShareData>) -> Self {
+        Self { app }
     }
 }
 
@@ -219,7 +221,11 @@ impl BiRequestStream for BiRequestStreamServerImpl {
         &self,
         request: tonic::Request<tonic::Streaming<Payload>>,
     ) -> Result<tonic::Response<Self::requestBiStreamStream>, tonic::Status> {
-        let client_id = Arc::new(request.remote_addr().unwrap().to_string());
+        let client_id = Arc::new(format!(
+            "{}_{}",
+            self.app.sys_config.raft_node_id,
+            request.remote_addr().unwrap().to_string()
+        ));
         let req = request.into_inner();
         let (tx, rx) = tokio::sync::mpsc::channel(10);
         let r_stream = tokio_stream::wrappers::ReceiverStream::new(rx);
@@ -227,9 +233,10 @@ impl BiRequestStream for BiRequestStreamServerImpl {
             tx,
             client_id.clone(),
             req,
-            self.bistream_manage_addr.clone(),
+            self.app.bi_stream_manage.clone(),
         );
-        self.bistream_manage_addr
+        self.app
+            .bi_stream_manage
             .do_send(BiStreamManageCmd::AddConn(client_id, conn));
         Ok(tonic::Response::new(r_stream))
     }

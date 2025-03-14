@@ -59,6 +59,7 @@ use crate::metrics::metrics_key::MetricsKey;
 use crate::metrics::model::{MetricsItem, MetricsQuery, MetricsRecord};
 use crate::namespace::NamespaceActor;
 use actix::prelude::*;
+use regex::Regex;
 
 //#[derive(Default)]
 #[bean(inject)]
@@ -78,6 +79,7 @@ pub struct NamingActor {
     cluster_delay_notify: Option<Addr<ClusterInstanceDelayNotifyActor>>,
     namespace_actor: Option<Addr<NamespaceActor>>,
     current_range: Option<ProcessRange>,
+    node_id: u64,
     //dal_addr: Addr<ServiceDalActor>,
 }
 
@@ -114,6 +116,7 @@ impl Inject for NamingActor {
                 sys_config.naming_health_timeout as i64 + 3000;
             self.sys_config.instance_timeout_millis =
                 sys_config.naming_instance_timeout as i64 + 3000;
+            self.node_id = sys_config.raft_node_id;
             log::info!("NamingActor change naming timeout info from env,health_timeout:{},instance_timeout:{}"
                 ,self.sys_config.instance_health_timeout_millis,self.sys_config.instance_timeout_millis)
         }
@@ -146,6 +149,7 @@ impl NamingActor {
             cluster_delay_notify: None,
             current_range: None,
             namespace_actor: None,
+            node_id: 0,
             //dal_addr,
         }
     }
@@ -811,25 +815,17 @@ impl NamingActor {
         }
     }
 
-    fn query_grpc_distro_data(&self) -> HashMap<ServiceKey, u64> {
-        let mut service_count: HashMap<ServiceKey, u64> = HashMap::new();
-        for (cluster_id, keys) in &self.client_instance_set {
-            for instance_key in keys {
-                let service_key = instance_key.get_service_key();
-                let short_key = instance_key.get_short_key();
-                if let Some(v) = self.get_instance(&service_key, &short_key) {
-                    if v.is_from_cluster() {
-                        continue;
-                    }
-                }
-                if let Some(v) = service_count.get_mut(&service_key) {
-                    *v += 1;
-                } else {
-                    service_count.insert(service_key, 1);
-                }
+    fn query_grpc_distro_data(&self) -> HashMap<Arc<String>, HashSet<InstanceKey>> {
+        let mut client_data: HashMap<Arc<String>, HashSet<InstanceKey>> = HashMap::new();
+        let client_id_pre = format!("{}_", &self.node_id);
+        for (client_id, keys) in &self.client_instance_set {
+            if !client_id.as_ref().starts_with(&client_id_pre) {
+                //不是本节点的grpc client直接跳过
+                continue;
             }
+            client_data.insert(client_id.clone(), keys.clone());
         }
-        service_count
+        client_data
     }
     fn diff_grpc_distro_data(
         &self,
@@ -854,16 +850,46 @@ impl NamingActor {
         result
     }
 
+    fn diff_grpc_distro_client_data(
+        &mut self,
+        cluster_id: u64,
+        data: HashMap<Arc<String>, HashSet<InstanceKey>>,
+    ) -> Vec<InstanceKey> {
+        let mut remove_keys = vec![];
+        let mut new_items: Vec<InstanceKey> = vec![];
+        for (client_id, instances) in data {
+            if let Some(v) = self.client_instance_set.get(&client_id) {
+                for item in v.difference(&instances) {
+                    remove_keys.push((item.get_service_key(), item.get_short_key()));
+                }
+                for item in instances.difference(v).into_iter() {
+                    new_items.push(item.clone());
+                }
+            } else {
+                for item in instances {
+                    new_items.push(item);
+                }
+            }
+        }
+        for (service_key, client_key) in remove_keys {
+            self.remove_instance(&service_key, &client_key, None);
+        }
+        new_items
+    }
+
     fn build_distro_service_instance(&self, service_keys: Vec<ServiceKey>) -> Vec<Arc<Instance>> {
         let mut instances = vec![];
-        for keys in self.client_instance_set.values() {
-            for instance_key in keys {
-                let service_key = instance_key.get_service_key();
-                let short_key = instance_key.get_short_key();
-                if let Some(v) = self.get_instance(&service_key, &short_key) {
-                    if !v.is_from_cluster() {
-                        instances.push(v)
-                    }
+        instances
+    }
+
+    fn build_distro_instances(&self, instance_keys: Vec<InstanceKey>) -> Vec<Arc<Instance>> {
+        let mut instances = vec![];
+        for instance_key in instance_keys {
+            let service_key = instance_key.get_service_key();
+            let short_key = instance_key.get_short_key();
+            if let Some(v) = self.get_instance(&service_key, &short_key) {
+                if !v.is_from_cluster() {
+                    instances.push(v)
                 }
             }
         }
@@ -1022,6 +1048,7 @@ pub enum NamingCmd {
     Subscribe(Vec<NamingListenerItem>, Arc<String>),
     RemoveSubscribe(Vec<NamingListenerItem>, Arc<String>),
     RemoveClient(Arc<String>),
+    RemoveClientsFromCluster(Vec<Arc<String>>),
     RemoveClientFromCluster(Arc<String>),
     QueryClientInstanceCount,
     QueryDalAddr,
@@ -1029,8 +1056,14 @@ pub enum NamingCmd {
     ClusterRefreshProcessRange(ProcessRange),
     ReceiveSnapshot(SnapshotForReceive),
     QueryGrpcDistroData,
-    DiffGrpcDistroData { cluster_id: u64, data: DistroData },
+    DiffGrpcDistroData {
+        cluster_id: u64,
+        data: DistroData,
+    },
+    #[deprecated]
     QueryDistroServerSnapshot(Vec<ServiceKey>),
+    QueryDistroInstanceSnapshot(Vec<InstanceKey>),
+    #[deprecated]
     ReceiveDiffServiceInstance(u64, SnapshotForReceive),
 }
 
@@ -1048,7 +1081,7 @@ pub enum NamingResult {
     Snapshot(SnapshotForSend),
     GrpcDistroData(DistroData),
     DiffDistroData(DistroData),
-    DistroServerSnapshot(Vec<Arc<Instance>>),
+    DistroInstancesSnapshot(Vec<Arc<Instance>>),
 }
 
 impl Supervised for NamingActor {
@@ -1179,6 +1212,13 @@ impl Handler<NamingCmd> for NamingActor {
                 self.notify_cluster_remove_client_id(client_id);
                 Ok(NamingResult::NULL)
             }
+            NamingCmd::RemoveClientsFromCluster(client_ids) => {
+                for client_id in client_ids {
+                    self.subscriber.remove_client_subscribe(client_id.clone());
+                    self.remove_client_instance(&client_id);
+                }
+                Ok(NamingResult::NULL)
+            }
             NamingCmd::RemoveClientFromCluster(client_id) => {
                 self.subscriber.remove_client_subscribe(client_id.clone());
                 self.remove_client_instance(&client_id);
@@ -1244,21 +1284,27 @@ impl Handler<NamingCmd> for NamingActor {
             }
             NamingCmd::QueryGrpcDistroData => {
                 let res = self.query_grpc_distro_data();
-                Ok(NamingResult::GrpcDistroData(
-                    DistroData::ServiceInstanceCount(res),
-                ))
+                Ok(NamingResult::GrpcDistroData(DistroData::ClientInstances(
+                    res,
+                )))
             }
             NamingCmd::DiffGrpcDistroData { data, cluster_id } => {
-                if let DistroData::ServiceInstanceCount(data) = data {
-                    let res = self.diff_grpc_distro_data(cluster_id, data);
-                    Ok(NamingResult::DiffDistroData(DistroData::DiffServices(res)))
+                if let DistroData::ClientInstances(data) = data {
+                    let res = self.diff_grpc_distro_client_data(cluster_id, data);
+                    Ok(NamingResult::DiffDistroData(
+                        DistroData::DiffClientInstances(res),
+                    ))
                 } else {
                     Ok(NamingResult::NULL)
                 }
             }
             NamingCmd::QueryDistroServerSnapshot(service_keys) => {
                 let instances = self.build_distro_service_instance(service_keys);
-                Ok(NamingResult::DistroServerSnapshot(instances))
+                Ok(NamingResult::DistroInstancesSnapshot(instances))
+            }
+            NamingCmd::QueryDistroInstanceSnapshot(instance_keys) => {
+                let instances = self.build_distro_instances(instance_keys);
+                Ok(NamingResult::DistroInstancesSnapshot(instances))
             }
             NamingCmd::ReceiveDiffServiceInstance(from_cluster, diff_data) => {
                 self.receive_diff_service_instance(diff_data, from_cluster);

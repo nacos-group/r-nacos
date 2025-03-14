@@ -6,7 +6,7 @@ use super::model::SyncSenderRequest;
 use super::model::{NamingRouteAddr, SyncSenderSetCmd};
 use super::sync_sender::ClusteSyncSender;
 use crate::naming::core::NamingResult;
-use crate::naming::model::{DistroData, ServiceDetailDto, ServiceKey};
+use crate::naming::model::{DistroData, InstanceKey, ServiceDetailDto, ServiceKey};
 use crate::{
     naming::core::{NamingActor, NamingCmd},
     now_millis, now_second_i32,
@@ -364,6 +364,16 @@ impl InnerNodeManage {
         }
     }
 
+    fn send_diff_instance_to_node(&self, node_id: u64, diff_instance: Vec<InstanceKey>) {
+        if let Some(n) = self.all_nodes.get(&node_id) {
+            if let Some(sender) = n.sync_sender.as_ref() {
+                sender.do_send(SyncSenderRequest(
+                    NamingRouteRequest::QueryDistroInstanceSnapshot(diff_instance),
+                ));
+            }
+        }
+    }
+
     fn check_node_status(&mut self) {
         let timeout = now_millis() - 15000;
         let naming_actor = &self.naming_actor;
@@ -418,17 +428,19 @@ impl InnerNodeManage {
             .into_actor(self)
             .map(|res, act, _ctx| {
                 if let Ok(data) = res {
-                    if data.is_empty() {
-                        return;
-                    }
-                    log::info!("send_distort_data,service_count:{}", data.len());
+                    let instance_count: usize = data.values().map(|keys| keys.len()).sum();
+                    log::info!(
+                        "send_distort_data,client_count:{},instance_count:{}",
+                        data.len(),
+                        instance_count
+                    );
                     for node in act.all_nodes.values_mut() {
                         if node.is_local {
                             continue;
                         }
                         if let Some(sender) = &node.sync_sender {
                             sender.do_send(SyncSenderRequest(
-                                NamingRouteRequest::SyncDistroServerCount(data.clone()),
+                                NamingRouteRequest::SyncDistroClientInstances(data.clone()),
                             ));
                         }
                     }
@@ -439,24 +451,14 @@ impl InnerNodeManage {
 
     async fn load_send_distort_data(
         naming_addr: Addr<NamingActor>,
-    ) -> anyhow::Result<Arc<Vec<ServiceDetailDto>>> {
-        let mut list = vec![];
-        if let NamingResult::GrpcDistroData(DistroData::ServiceInstanceCount(server_count)) =
+    ) -> anyhow::Result<HashMap<Arc<String>, HashSet<InstanceKey>>> {
+        if let NamingResult::GrpcDistroData(DistroData::ClientInstances(client_data)) =
             naming_addr.send(NamingCmd::QueryGrpcDistroData).await??
         {
-            for (key, count) in server_count {
-                let obj = ServiceDetailDto {
-                    namespace_id: key.namespace_id,
-                    service_name: key.service_name,
-                    group_name: key.group_name,
-                    metadata: None,
-                    protect_threshold: None,
-                    grpc_instance_count: Some(count as i32),
-                };
-                list.push(obj);
-            }
+            Ok(client_data)
+        } else {
+            Ok(HashMap::new())
         }
-        Ok(Arc::new(list))
     }
 
     fn hb(&mut self, ctx: &mut Context<Self>) {
@@ -492,6 +494,19 @@ impl InnerNodeManage {
             node.last_active_time = now_millis();
             node.status = NodeStatus::Valid;
             node.client_set.insert(client_id);
+        }
+    }
+
+    fn node_diff_clients(&mut self, node_id: u64, client_ids: HashSet<Arc<String>>) {
+        let mut remove_client_ids = vec![];
+        if let Some(node) = self.all_nodes.get_mut(&node_id) {
+            remove_client_ids = node.client_set.difference(&client_ids).cloned().collect();
+            for item in &remove_client_ids {
+                node.client_set.remove(item);
+            }
+        }
+        if let Some(naming_actor) = self.naming_actor.as_ref() {
+            naming_actor.do_send(NamingCmd::RemoveClientsFromCluster(remove_client_ids));
         }
     }
 }
@@ -533,10 +548,14 @@ pub enum NodeManageRequest {
     SendToOtherNodes(NamingRouteRequest),
     AddClientId(u64, Arc<String>),
     AddClientIds(u64, HashSet<Arc<String>>),
+    RemoveDiffClientIds(u64, HashSet<Arc<String>>),
     RemoveClientId(Arc<String>),
+    //QueryClusterIds(),
     QueryOwnerRange(ProcessRange),
     SendSnapshot(u64, SnapshotForSend),
+    #[deprecated]
     QueryDiffService(u64, HashMap<ServiceKey, i64>),
+    QueryDiffClientInstances(u64, Vec<InstanceKey>),
 }
 
 pub enum NodeManageResponse {
@@ -545,6 +564,7 @@ pub enum NodeManageResponse {
     Node(Option<ClusterNode>),
     AllNodes(Vec<ClusterNode>),
     OwnerRange(Vec<ProcessRange>),
+    RemoveClientIds(HashSet<Arc<String>>),
 }
 
 impl Handler<NodeManageRequest> for InnerNodeManage {
@@ -587,6 +607,10 @@ impl Handler<NodeManageRequest> for InnerNodeManage {
                 }
                 Ok(NodeManageResponse::None)
             }
+            NodeManageRequest::RemoveDiffClientIds(node_id, client_id_set) => {
+                let res = self.node_diff_clients(node_id, client_id_set);
+                Ok(NodeManageResponse::None)
+            }
             NodeManageRequest::RemoveClientId(client_id) => {
                 self.remove_client_id(client_id);
                 Ok(NodeManageResponse::None)
@@ -601,6 +625,10 @@ impl Handler<NodeManageRequest> for InnerNodeManage {
             }
             NodeManageRequest::QueryDiffService(node_id, diff_service) => {
                 self.send_diff_service_to_node(node_id, diff_service);
+                Ok(NodeManageResponse::None)
+            }
+            NodeManageRequest::QueryDiffClientInstances(node_id, diff_instances) => {
+                self.send_diff_instance_to_node(node_id, diff_instances);
                 Ok(NodeManageResponse::None)
             }
         }
