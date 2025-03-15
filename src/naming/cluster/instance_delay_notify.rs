@@ -3,12 +3,12 @@ use std::{collections::HashMap, sync::Arc, time::Duration};
 use actix::prelude::*;
 use bean_factory::{bean, Inject};
 
-use crate::naming::model::{Instance, InstanceKey};
-
 use super::{
     model::{NamingRouteRequest, SyncBatchDataInfo, SyncBatchForSend},
     node_manage::{InnerNodeManage, NodeManageRequest},
 };
+use crate::naming::model::{Instance, InstanceKey};
+use crate::now_second_u32;
 
 pub struct NotifyItem {
     instance: Arc<Instance>,
@@ -18,8 +18,10 @@ pub struct NotifyItem {
 #[bean(inject)]
 pub struct ClusterInstanceDelayNotifyActor {
     instances_map: HashMap<InstanceKey, NotifyItem>,
+    beat_instances_map: HashMap<InstanceKey, Arc<Instance>>,
     manage_addr: Option<Addr<InnerNodeManage>>,
     delay: u64,
+    beat_last_notify_time: u32,
 }
 
 impl Actor for ClusterInstanceDelayNotifyActor {
@@ -55,18 +57,29 @@ impl ClusterInstanceDelayNotifyActor {
     pub fn new() -> Self {
         Self {
             instances_map: Default::default(),
+            beat_instances_map: Default::default(),
             manage_addr: None,
             delay: 500,
+            beat_last_notify_time: 0,
         }
     }
 
     fn delay_notify(&mut self, instance: Arc<Instance>, is_update: bool) {
         let key = instance.get_instance_key();
+        self.beat_instances_map.remove(&key);
         let item = NotifyItem {
             instance,
             is_update,
         };
         self.instances_map.insert(key, item);
+    }
+
+    fn delay_beat_notify(&mut self, instance: Arc<Instance>) {
+        let key = instance.get_instance_key();
+        //如果不存在，则添加到心跳列表中
+        if !self.instances_map.contains_key(&key) {
+            self.beat_instances_map.insert(key, instance);
+        }
     }
 
     fn do_notify(&mut self) {
@@ -81,6 +94,9 @@ impl ClusterInstanceDelayNotifyActor {
             } else {
                 remove_instances.push(item.instance.clone());
             }
+        }
+        if update_instances.is_empty() && remove_instances.is_empty() {
+            return;
         }
         self.instances_map.clear();
         if let Some(manage_addr) = self.manage_addr.as_ref() {
@@ -98,9 +114,39 @@ impl ClusterInstanceDelayNotifyActor {
         }
     }
 
+    fn do_notify_beat(&mut self) {
+        let now_second = now_second_u32();
+        if now_second - self.beat_last_notify_time < 15 {
+            return;
+        }
+        self.beat_last_notify_time = now_second;
+        if self.beat_instances_map.is_empty() {
+            return;
+        }
+        let mut update_instances = vec![];
+        for instance in self.beat_instances_map.values() {
+            update_instances.push(instance.clone());
+        }
+        self.beat_instances_map.clear();
+        if let Some(manage_addr) = self.manage_addr.as_ref() {
+            let batch_for_send = SyncBatchForSend {
+                update_instances,
+                remove_instances: vec![],
+            };
+            let batch_info: SyncBatchDataInfo = batch_for_send.into();
+            if let Ok(batch_data) = batch_info.to_bytes() {
+                let req = NamingRouteRequest::SyncBatchInstances(batch_data);
+                manage_addr.do_send(NodeManageRequest::SendToOtherNodes(req));
+            } else {
+                log::error!("SyncBatchDataInfo to_bytes error!");
+            }
+        }
+    }
+
     pub fn notify_heartbeat(&self, ctx: &mut actix::Context<Self>) {
         ctx.run_later(Duration::from_millis(self.delay), |act, ctx| {
             act.do_notify();
+            act.do_notify_beat();
             act.notify_heartbeat(ctx);
         });
     }
@@ -110,6 +156,8 @@ impl ClusterInstanceDelayNotifyActor {
 #[rtype(result = "anyhow::Result<InstanceDelayNotifyResponse>")]
 pub enum InstanceDelayNotifyRequest {
     UpdateInstance(Arc<Instance>),
+    ///更新实例心跳,用于http心跳接口
+    UpdateInstanceBeat(Arc<Instance>),
     RemoveInstance(Arc<Instance>),
 }
 
@@ -128,6 +176,9 @@ impl Handler<InstanceDelayNotifyRequest> for ClusterInstanceDelayNotifyActor {
         match msg {
             InstanceDelayNotifyRequest::UpdateInstance(instance) => {
                 self.delay_notify(instance, true);
+            }
+            InstanceDelayNotifyRequest::UpdateInstanceBeat(instance) => {
+                self.delay_beat_notify(instance);
             }
             InstanceDelayNotifyRequest::RemoveInstance(instance) => {
                 self.delay_notify(instance, false);

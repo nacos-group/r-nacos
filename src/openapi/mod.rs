@@ -14,6 +14,9 @@ pub(crate) mod naming;
 pub(crate) mod v1;
 pub(crate) mod v2;
 
+#[cfg(feature = "debug")]
+pub(crate) mod debug;
+
 /// r-nacos openapi packages
 
 #[derive(Debug, Default, Clone)]

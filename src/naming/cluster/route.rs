@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::{
@@ -14,6 +15,7 @@ use super::{
     node_manage::{NodeManage, NodeManageRequest},
 };
 
+use crate::common::constant::{GRPC_HEAD_KEY_CLUSTER_ID, GRPC_HEAD_KEY_SUB_NAME};
 use crate::grpc::handler::NAMING_ROUTE_REQUEST;
 use actix::prelude::*;
 
@@ -22,18 +24,23 @@ pub struct NamingRoute {
     naming_addr: Addr<NamingActor>,
     node_manage: Arc<NodeManage>,
     cluster_sender: Arc<RaftClusterRequestSender>,
+    send_extend_infos: HashMap<String, String>,
 }
 
 impl NamingRoute {
     pub fn new(
+        local_id: u64,
         naming_addr: Addr<NamingActor>,
         node_manage: Arc<NodeManage>,
         cluster_sender: Arc<RaftClusterRequestSender>,
     ) -> Self {
+        let mut send_extend_infos = HashMap::default();
+        send_extend_infos.insert(GRPC_HEAD_KEY_CLUSTER_ID.to_owned(), local_id.to_string());
         Self {
             naming_addr,
             node_manage,
             cluster_sender,
+            send_extend_infos,
         }
     }
 
@@ -79,8 +86,14 @@ impl NamingRoute {
                 instance: instance.clone(),
             }
         };
+        let mut send_extend_infos = self.send_extend_infos.clone();
+        send_extend_infos.insert(
+            GRPC_HEAD_KEY_SUB_NAME.to_string(),
+            req.get_sub_name().to_string(),
+        );
         let request = serde_json::to_string(&req).unwrap_or_default();
-        let payload = PayloadUtils::build_payload(NAMING_ROUTE_REQUEST, request);
+        let payload =
+            PayloadUtils::build_full_payload(NAMING_ROUTE_REQUEST, request, "", send_extend_infos);
         let resp_payload = self.cluster_sender.send_request(addr, payload).await?;
         let body_vec = resp_payload.body.unwrap_or_default().value;
         let _: NamingRouterResponse = serde_json::from_slice(&body_vec)?;

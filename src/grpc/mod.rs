@@ -1,8 +1,8 @@
-use std::{collections::HashMap, sync::Arc};
-
 use self::api_model::BaseResponse;
 use crate::common::model::TokenSession;
 use async_trait::async_trait;
+use std::fmt::Display;
+use std::{collections::HashMap, sync::Arc};
 
 pub mod api_model;
 pub mod bistream_conn;
@@ -62,6 +62,36 @@ impl HandlerResult {
     }
 }
 
+pub enum HandleLogArgs {
+    /// 日志参数内容为空
+    None,
+    /// 忽略,不打印日志
+    Ignore,
+    /// 打印日志
+    Arg(String),
+}
+
+impl Display for HandleLogArgs {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let str = match self {
+            HandleLogArgs::None => "".to_string(),
+            HandleLogArgs::Ignore => "".to_string(),
+            HandleLogArgs::Arg(arg) => arg.to_string(),
+        };
+        write!(f, "{}", str)
+    }
+}
+
+impl HandleLogArgs {
+    pub fn enable_log(&self) -> bool {
+        match self {
+            HandleLogArgs::None => true,
+            HandleLogArgs::Ignore => false,
+            HandleLogArgs::Arg(_) => true,
+        }
+    }
+}
+
 #[async_trait]
 pub trait PayloadHandler {
     async fn handle(
@@ -69,6 +99,15 @@ pub trait PayloadHandler {
         request_payload: nacos_proto::Payload,
         request_meta: RequestMeta,
     ) -> anyhow::Result<HandlerResult>;
+
+    /// 获取请求日志参数
+    fn get_log_args(
+        &self,
+        request_payload: &nacos_proto::Payload,
+        request_meta: &RequestMeta,
+    ) -> HandleLogArgs {
+        HandleLogArgs::Ignore
+    }
 }
 
 pub struct PayloadUtils;

@@ -7,6 +7,8 @@ use crate::common::AppSysConfig;
 use crate::console::api::{console_api_config_v1, console_api_config_v2};
 use crate::openapi::auth::{login_config, mock_token};
 use crate::openapi::backup::backup_config;
+#[cfg(feature = "debug")]
+use crate::openapi::debug::debug_config;
 use crate::openapi::health::health_config;
 use crate::openapi::metrics::metrics_config;
 use crate::openapi::{
@@ -110,6 +112,8 @@ pub fn app_config(conf_data: AppSysConfig) -> impl FnOnce(&mut ServiceConfig) {
             raft_config(config);
             nacos_console_api_config(config);
             config.configure(openapi_config(conf_data));
+            #[cfg(feature = "debug")]
+            debug_config(config);
         } else {
             backup_config(config);
             login_config(config);
@@ -121,6 +125,8 @@ pub fn app_config(conf_data: AppSysConfig) -> impl FnOnce(&mut ServiceConfig) {
             console_api_config_v2(config);
             console_api_config_v1(config);
             console_page_config(config);
+            #[cfg(feature = "debug")]
+            debug_config(config);
         };
     }
 }

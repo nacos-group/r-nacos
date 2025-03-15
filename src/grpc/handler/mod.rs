@@ -15,7 +15,7 @@ use self::{
 use super::{
     api_model::{BaseResponse, ServerCheckResponse, SUCCESS_CODE},
     nacos_proto::Payload,
-    HandlerResult, PayloadHandler, PayloadUtils, RequestMeta,
+    HandleLogArgs, HandlerResult, PayloadHandler, PayloadUtils, RequestMeta,
 };
 use crate::grpc::handler::raft_append::RaftAppendRequestHandler;
 use crate::grpc::handler::raft_snapshot::RaftSnapshotRequestHandler;
@@ -191,6 +191,15 @@ impl InvokerHandler {
 
 #[async_trait]
 impl PayloadHandler for InvokerHandler {
+    fn get_log_args(&self, request_payload: &Payload, request_meta: &RequestMeta) -> HandleLogArgs {
+        if let Some(url) = PayloadUtils::get_payload_type(request_payload) {
+            if let Some(handler) = self.match_handler(url) {
+                return handler.get_log_args(request_payload, request_meta);
+            }
+        }
+        HandleLogArgs::Ignore
+    }
+
     async fn handle(
         &self,
         request_payload: Payload,

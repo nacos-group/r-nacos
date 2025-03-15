@@ -15,6 +15,9 @@ pub mod metrics;
 pub mod ops;
 pub mod service_index;
 
+#[cfg(feature = "debug")]
+pub mod naming_debug;
+
 pub struct NamingUtils;
 
 pub const RESPONSE_CODE_KEY: &str = "code";

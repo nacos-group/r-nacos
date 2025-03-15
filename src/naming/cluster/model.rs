@@ -52,6 +52,28 @@ pub enum NamingRouteRequest {
     QueryDistroInstanceSnapshot(Vec<InstanceKey>),
 }
 
+impl NamingRouteRequest {
+    pub fn get_sub_name(&self) -> &'static str {
+        match self {
+            NamingRouteRequest::Ping(_) => "Ping",
+            NamingRouteRequest::UpdateInstance { .. } => "UpdateInstance",
+            NamingRouteRequest::RemoveInstance { .. } => "RemoveInstance",
+            NamingRouteRequest::SyncUpdateInstance { .. } => "SyncUpdateInstance",
+            NamingRouteRequest::SyncRemoveInstance { .. } => "SyncRemoveInstance",
+            NamingRouteRequest::SyncUpdateService { .. } => "SyncUpdateService",
+            NamingRouteRequest::SyncBatchInstances(_) => "SyncBatchInstances",
+            NamingRouteRequest::RemoveClientId { .. } => "RemoveClientId",
+            NamingRouteRequest::QuerySnapshot { .. } => "QuerySnapshot",
+            NamingRouteRequest::Snapshot(_) => "Snapshot",
+            NamingRouteRequest::MetricsTimelineQuery(_) => "MetricsTimelineQuery",
+            NamingRouteRequest::SyncDistroServerCount(_) => "SyncDistroServerCount",
+            NamingRouteRequest::SyncDistroClientInstances(_) => "SyncDistroClientInstances",
+            NamingRouteRequest::QueryDistroServerSnapshot(_) => "QueryDistroServerSnapshot",
+            NamingRouteRequest::QueryDistroInstanceSnapshot(_) => "QueryDistroInstanceSnapshot",
+        }
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum NamingRouterResponse {
     None,

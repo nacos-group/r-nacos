@@ -160,6 +160,7 @@ impl request_server::Request for RequestServerImpl {
         self.fill_token_session(&payload, &mut request_meta)
             .await
             .ok();
+        let args = self.invoker.get_log_args(&payload, &request_meta);
         let handle_result = self.invoker.handle(payload, request_meta).await;
         let duration = SystemTime::now()
             .duration_since(start)
@@ -176,14 +177,18 @@ impl request_server::Request for RequestServerImpl {
                     } else {
                         ""
                     };
-                    log::error!("{}|err|{}|{}", request_log_info, duration, msg);
+                    log::error!("{}|err|{}|{}|{}", request_log_info, duration, &args, msg);
                     self.record_req_metrics(duration, false);
                 } else if duration < 1f64 {
-                    log::info!("{}|ok|{}", request_log_info, duration);
+                    if args.enable_log() {
+                        log::info!("{}|ok|{}|{}", request_log_info, duration, &args);
+                    }
                     self.record_req_metrics(duration, true);
                 } else {
-                    //slow request handle
-                    log::warn!("{}|ok|{}", request_log_info, duration);
+                    if args.enable_log() {
+                        //slow request handle
+                        log::warn!("{}|ok|{}|{}", request_log_info, duration, &args);
+                    }
                     self.record_req_metrics(duration, true);
                 }
                 Ok(tonic::Response::new(res.payload))
@@ -191,7 +196,7 @@ impl request_server::Request for RequestServerImpl {
             Err(e) => {
                 //Err(tonic::Status::aborted(e.to_string()))
                 //log::error!("request_server handler error:{:?}",e);
-                log::error!("{}|err|{}|{}", request_log_info, duration, e);
+                log::error!("{}|err|{}|{}|{}", request_log_info, duration, &args, e);
                 self.record_req_metrics(duration, false);
                 Ok(tonic::Response::new(PayloadUtils::build_error_payload(
                     500u16,

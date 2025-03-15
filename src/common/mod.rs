@@ -13,6 +13,7 @@ pub mod delay_notify;
 pub mod error_code;
 pub mod hash_utils;
 pub mod limiter_utils;
+pub mod log_utils;
 pub mod macros;
 pub mod model;
 pub mod option_utils;

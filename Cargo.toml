@@ -37,6 +37,10 @@ members = [
 name = "rnacos"
 path = "src/main.rs"
 
+[features]
+default = []
+debug=[]
+
 [dependencies]
 mimalloc = { version = "0.1", features = ["secure"] }
 serde = { version = "1", features = ["derive", "rc"] }

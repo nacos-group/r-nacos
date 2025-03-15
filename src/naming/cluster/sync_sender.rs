@@ -2,13 +2,13 @@ use std::{collections::HashMap, sync::Arc, time::Duration};
 
 use actix::prelude::*;
 
-use crate::grpc::handler::NAMING_ROUTE_REQUEST;
-use crate::{grpc::PayloadUtils, raft::network::factory::RaftClusterRequestSender};
-
 use super::model::{
     NamingRouteRequest, NamingRouterResponse, SyncSenderRequest, SyncSenderResponse,
     SyncSenderSetCmd,
 };
+use crate::common::constant::{GRPC_HEAD_KEY_CLUSTER_ID, GRPC_HEAD_KEY_SUB_NAME};
+use crate::grpc::handler::NAMING_ROUTE_REQUEST;
+use crate::{grpc::PayloadUtils, raft::network::factory::RaftClusterRequestSender};
 
 pub struct ClusteSyncSender {
     //local_id:u64,
@@ -26,7 +26,7 @@ impl ClusteSyncSender {
         cluster_sender: Option<Arc<RaftClusterRequestSender>>,
     ) -> Self {
         let mut send_extend_infos = HashMap::default();
-        send_extend_infos.insert("cluster_id".to_owned(), local_id.to_string());
+        send_extend_infos.insert(GRPC_HEAD_KEY_CLUSTER_ID.to_owned(), local_id.to_string());
         Self {
             //local_id,
             target_id,
@@ -64,7 +64,11 @@ impl Handler<SyncSenderRequest> for ClusteSyncSender {
     fn handle(&mut self, msg: SyncSenderRequest, _ctx: &mut Self::Context) -> Self::Result {
         let cluster_sender = self.cluster_sender.clone();
         let target_addr = self.target_addr.clone();
-        let send_extend_infos = self.send_extend_infos.clone();
+        let mut send_extend_infos = self.send_extend_infos.clone();
+        send_extend_infos.insert(
+            GRPC_HEAD_KEY_SUB_NAME.to_string(),
+            msg.0.get_sub_name().to_string(),
+        );
         let fut = async move {
             let cluster_sender = match cluster_sender {
                 Some(v) => v,

@@ -13,6 +13,7 @@ use self::{
     },
     node_manage::{NodeManageRequest, NodeManageResponse},
 };
+use crate::common::constant::GRPC_HEAD_KEY_CLUSTER_ID;
 use crate::metrics::model::{MetricsRequest, MetricsResponse};
 use crate::naming::cluster::model::SnapshotForSend;
 use crate::naming::model::{DistroData, Instance, ServiceKey};
@@ -28,7 +29,7 @@ pub mod route;
 pub mod sync_sender;
 
 fn get_cluster_id(extend_info: HashMap<String, String>) -> anyhow::Result<u64> {
-    if let Some(id_str) = extend_info.get("cluster_id") {
+    if let Some(id_str) = extend_info.get(GRPC_HEAD_KEY_CLUSTER_ID) {
         match id_str.parse() {
             Ok(id) => Ok(id),
             Err(_err) => Err(anyhow::anyhow!("cluster_id can't parse to u64,{}", id_str)),

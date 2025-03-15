@@ -13,6 +13,11 @@ pub const SEQ_KEY_CONFIG: &str = "SEQ_CONFIG";
 pub const AUTHORIZATION_HEADER: &str = "Authorization";
 pub const ACCESS_TOKEN_HEADER: &str = "accessToken";
 
+pub const GRPC_HEAD_KEY_CLUSTER_ID: &str = "cluster_id";
+pub const GRPC_HEAD_KEY_TRACE_ID: &str = "trace_id";
+
+pub const GRPC_HEAD_KEY_SUB_NAME: &str = "sub_name";
+
 lazy_static::lazy_static! {
     pub static ref CONFIG_TREE_NAME: Arc<String> =  Arc::new("T_CONFIG".to_string());
     pub static ref SEQUENCE_TREE_NAME: Arc<String> =  Arc::new("T_SEQUENCE".to_string());

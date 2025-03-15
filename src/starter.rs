@@ -139,6 +139,7 @@ pub async fn config_factory(sys_config: Arc<AppSysConfig>) -> anyhow::Result<Fac
     let naming_node_manage = Arc::new(NodeManage::new(naming_inner_node_manage_addr.clone()));
     factory.register(BeanDefinition::from_obj(naming_node_manage.clone()));
     let naming_route = Arc::new(NamingRoute::new(
+        sys_config.raft_node_id,
         naming_addr.clone(),
         naming_node_manage.clone(),
         cluster_sender.clone(),

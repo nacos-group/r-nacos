@@ -41,5 +41,13 @@ fn now_second_i32() -> i32 {
         .as_secs() as i32
 }
 
+fn now_second_u32() -> u32 {
+    use std::time::SystemTime;
+    SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .unwrap()
+        .as_secs() as u32
+}
+
 #[cfg(test)]
 mod tests {}

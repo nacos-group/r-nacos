@@ -65,21 +65,21 @@ use regex::Regex;
 #[bean(inject)]
 pub struct NamingActor {
     pub(crate) service_map: HashMap<ServiceKey, Service>,
-    last_id: u64,
+    pub(crate) last_id: u64,
     //用于1.x udp实例变更通知,暂时不启用
-    listener_addr: Option<Addr<InnerNamingListener>>,
-    delay_notify_addr: Option<Addr<DelayNotifyActor>>,
+    pub(crate) listener_addr: Option<Addr<InnerNamingListener>>,
+    pub(crate) delay_notify_addr: Option<Addr<DelayNotifyActor>>,
     pub(crate) subscriber: Subscriber,
-    sys_config: NamingSysConfig,
+    pub(crate) sys_config: NamingSysConfig,
     pub(crate) empty_service_set: TimeoutSet<ServiceKey>,
     pub(crate) instance_metadate_set: TimeoutSet<InstanceKey>,
     pub(crate) namespace_index: NamespaceIndex,
     pub(crate) client_instance_set: HashMap<Arc<String>, HashSet<InstanceKey>>,
-    cluster_node_manage: Option<Addr<InnerNodeManage>>,
-    cluster_delay_notify: Option<Addr<ClusterInstanceDelayNotifyActor>>,
-    namespace_actor: Option<Addr<NamespaceActor>>,
-    current_range: Option<ProcessRange>,
-    node_id: u64,
+    pub(crate) cluster_node_manage: Option<Addr<InnerNodeManage>>,
+    pub(crate) cluster_delay_notify: Option<Addr<ClusterInstanceDelayNotifyActor>>,
+    pub(crate) namespace_actor: Option<Addr<NamespaceActor>>,
+    pub(crate) current_range: Option<ProcessRange>,
+    pub(crate) node_id: u64,
     //dal_addr: Addr<ServiceDalActor>,
 }
 
@@ -295,6 +295,19 @@ impl NamingActor {
                 {
                     cluster_delay_notify
                         .do_send(InstanceDelayNotifyRequest::UpdateInstance(instance));
+                }
+            }
+            UpdateInstanceType::UpdateTime => {
+                // 更新时间,只需要通知其它集群更新信息
+                if let (Some(cluster_delay_notify), Some(instance)) =
+                    (&self.cluster_delay_notify, instance)
+                {
+                    // 非grpc的实例才更新心跳时间
+                    // grpc走独立的同步机制
+                    if !instance.from_grpc {
+                        cluster_delay_notify
+                            .do_send(InstanceDelayNotifyRequest::UpdateInstanceBeat(instance));
+                    }
                 }
             }
             _ => {}
