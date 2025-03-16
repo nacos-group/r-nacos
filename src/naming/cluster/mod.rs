@@ -16,7 +16,7 @@ use self::{
 use crate::common::constant::GRPC_HEAD_KEY_CLUSTER_ID;
 use crate::metrics::model::{MetricsRequest, MetricsResponse};
 use crate::naming::cluster::model::SnapshotForSend;
-use crate::naming::model::{DistroData, Instance, ServiceKey};
+use crate::naming::model::{DistroData, Instance};
 use crate::{
     common::appdata::AppShareData,
     naming::core::{NamingCmd, NamingResult},
@@ -129,7 +129,6 @@ pub async fn handle_naming_route(
             let cluster_id = get_cluster_id(extend_info)?;
             //接收snapshot data
             let snapshot = SnapshotDataInfo::from_bytes(&data)?;
-            let mode = snapshot.mode;
             log::info!(
                 "receive snapshot from {},instance size:{}",
                 &cluster_id,
@@ -143,18 +142,9 @@ pub async fn handle_naming_route(
             }
             app.naming_inner_node_manage
                 .do_send(NodeManageRequest::AddClientIds(cluster_id, client_sets));
-            if mode == 1u32 {
-                //diff distor服务全量数据
-                app.naming_addr
-                    .do_send(NamingCmd::ReceiveDiffServiceInstance(
-                        cluster_id,
-                        snapshot_receive,
-                    ));
-            } else {
-                //增量数据
-                app.naming_addr
-                    .do_send(NamingCmd::ReceiveSnapshot(snapshot_receive));
-            }
+            //增量数据
+            app.naming_addr
+                .do_send(NamingCmd::ReceiveSnapshot(snapshot_receive));
         }
         NamingRouteRequest::MetricsTimelineQuery(param) => {
             let resp = app
@@ -165,27 +155,6 @@ pub async fn handle_naming_route(
                 resp.from_node_id = app.sys_config.raft_node_id;
                 return Ok(NamingRouterResponse::MetricsTimeLineResponse(resp));
             }
-        }
-        NamingRouteRequest::SyncDistroServerCount(services) => {
-            let cluster_id = get_cluster_id(extend_info)?;
-            let mut data = HashMap::new();
-            for service in services.iter() {
-                let count = service.grpc_instance_count.unwrap_or_default() as u64;
-                let service_key = ServiceKey::new_by_arc(
-                    service.namespace_id.clone(),
-                    service.group_name.clone(),
-                    service.service_name.clone(),
-                );
-                data.insert(service_key, count);
-            }
-            log::info!("sync distro server count:{}", data.len());
-            let res = app
-                .naming_addr
-                .send(NamingCmd::DiffGrpcDistroData {
-                    data: DistroData::ServiceInstanceCount(data),
-                    cluster_id,
-                })
-                .await??;
         }
         NamingRouteRequest::SyncDistroClientInstances(client_instance) => {
             let cluster_id = get_cluster_id(extend_info)?;
@@ -211,39 +180,6 @@ pub async fn handle_naming_route(
                 );
                 if !diff_data.is_empty() {
                     let cmd = NodeManageRequest::QueryDiffClientInstances(cluster_id, diff_data);
-                    app.naming_inner_node_manage.send(cmd).await??;
-                }
-            }
-        }
-        NamingRouteRequest::QueryDistroServerSnapshot(services) => {
-            if services.is_empty() {
-                return Ok(NamingRouterResponse::None);
-            }
-            let cluster_id = get_cluster_id(extend_info)?;
-            let mut keys = Vec::with_capacity(services.len());
-            for service in services.iter() {
-                let service_key = ServiceKey::new_by_arc(
-                    service.namespace_id.clone(),
-                    service.group_name.clone(),
-                    service.service_name.clone(),
-                );
-                keys.push(service_key);
-            }
-            let res = app
-                .naming_addr
-                .send(NamingCmd::QueryDistroServerSnapshot(keys))
-                .await??;
-            if let NamingResult::DistroInstancesSnapshot(instances) = res {
-                if !instances.is_empty() {
-                    let snapshot = SnapshotForSend {
-                        route_index: 0,
-                        node_count: 0,
-                        mode: 1,
-                        services: vec![],
-                        instances,
-                    };
-                    //发送 snapshot data给请求方
-                    let cmd = NodeManageRequest::SendSnapshot(cluster_id, snapshot);
                     app.naming_inner_node_manage.send(cmd).await??;
                 }
             }

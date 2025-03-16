@@ -18,7 +18,11 @@ impl RaftAppendRequestHandler {
 
 #[async_trait]
 impl PayloadHandler for RaftAppendRequestHandler {
-    fn get_log_args(&self, request_payload: &Payload, request_meta: &RequestMeta) -> HandleLogArgs {
+    fn get_log_args(
+        &self,
+        _request_payload: &Payload,
+        _request_meta: &RequestMeta,
+    ) -> HandleLogArgs {
         HandleLogArgs::Ignore
     }
 

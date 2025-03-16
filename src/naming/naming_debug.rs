@@ -1,7 +1,4 @@
 use crate::naming::core::NamingActor;
-use crate::naming::model::{InstanceKey, InstanceShortKey, ServiceKey};
-use crate::naming::service::Service;
-use crate::now_millis_i64;
 use actix::prelude::*;
 
 #[derive(Debug, Message)]

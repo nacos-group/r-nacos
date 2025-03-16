@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 use std::fmt::Display;
 
+#[derive(Debug, Clone, Default)]
 pub struct LogArgs<'a> {
     args: Vec<Cow<'a, str>>,
 }
@@ -31,7 +32,7 @@ impl<'a> LogArgs<'a> {
         self
     }
 
-    pub fn append_args(&mut self, mut other_args: LogArgs<'a>) -> &mut Self {
+    pub fn append_args(&mut self, other_args: LogArgs<'a>) -> &mut Self {
         if other_args.args.is_empty() {
             return self;
         }
@@ -43,7 +44,7 @@ impl<'a> LogArgs<'a> {
         if other_args.args.is_empty() {
             return self;
         }
-        let b_first_is_split = match self.args.get(0) {
+        let b_first_is_split = match self.args.first() {
             Some(arg) => arg == &Cow::Borrowed("|"),
             None => false,
         };

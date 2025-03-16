@@ -45,10 +45,7 @@ pub enum NamingRouteRequest {
     },
     Snapshot(Vec<u8>),
     MetricsTimelineQuery(TimelineQueryParam),
-    #[deprecated]
-    SyncDistroServerCount(Arc<Vec<ServiceDetailDto>>),
     SyncDistroClientInstances(HashMap<Arc<String>, HashSet<InstanceKey>>),
-    QueryDistroServerSnapshot(Vec<ServiceDetailDto>),
     QueryDistroInstanceSnapshot(Vec<InstanceKey>),
 }
 
@@ -66,9 +63,7 @@ impl NamingRouteRequest {
             NamingRouteRequest::QuerySnapshot { .. } => "QuerySnapshot",
             NamingRouteRequest::Snapshot(_) => "Snapshot",
             NamingRouteRequest::MetricsTimelineQuery(_) => "MetricsTimelineQuery",
-            NamingRouteRequest::SyncDistroServerCount(_) => "SyncDistroServerCount",
             NamingRouteRequest::SyncDistroClientInstances(_) => "SyncDistroClientInstances",
-            NamingRouteRequest::QueryDistroServerSnapshot(_) => "QueryDistroServerSnapshot",
             NamingRouteRequest::QueryDistroInstanceSnapshot(_) => "QueryDistroInstanceSnapshot",
         }
     }

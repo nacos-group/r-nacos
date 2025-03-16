@@ -6,7 +6,7 @@ use super::model::SyncSenderRequest;
 use super::model::{NamingRouteAddr, SyncSenderSetCmd};
 use super::sync_sender::ClusteSyncSender;
 use crate::naming::core::NamingResult;
-use crate::naming::model::{DistroData, InstanceKey, ServiceDetailDto, ServiceKey};
+use crate::naming::model::{DistroData, InstanceKey};
 use crate::{
     naming::core::{NamingActor, NamingCmd},
     now_millis, now_second_i32,
@@ -171,8 +171,8 @@ impl InnerNodeManage {
             ctx.run_later(Duration::from_millis(1000), |act, _ctx| {
                 act.load_snapshot_from_node();
             });
-            //10秒
-            ctx.run_later(Duration::from_millis(10000), |act, _ctx| {
+            //15秒
+            ctx.run_later(Duration::from_millis(15000), |act, _ctx| {
                 act.load_snapshot_from_node();
             });
             //45秒
@@ -182,10 +182,6 @@ impl InnerNodeManage {
             //因涉负责区域动荡，要把加入后的节点数据也同步给其它节点
             //30秒
             ctx.run_later(Duration::from_millis(30_000), |act, ctx| {
-                act.notify_snapshot_to_node(ctx);
-            });
-            //60秒
-            ctx.run_later(Duration::from_millis(60_000), |act, ctx| {
                 act.notify_snapshot_to_node(ctx);
             });
         }
@@ -338,28 +334,6 @@ impl InnerNodeManage {
             let data = snapshot.to_bytes();
             if let (Ok(data), Some(sender)) = (data, &n.sync_sender) {
                 sender.do_send(SyncSenderRequest(NamingRouteRequest::Snapshot(data)));
-            }
-        }
-    }
-
-    fn send_diff_service_to_node(&self, node_id: u64, diff_service: HashMap<ServiceKey, i64>) {
-        if let Some(n) = self.all_nodes.get(&node_id) {
-            let mut serivces = Vec::with_capacity(diff_service.len());
-            for (key, _) in diff_service {
-                let obj = ServiceDetailDto {
-                    namespace_id: key.namespace_id,
-                    service_name: key.service_name,
-                    group_name: key.group_name,
-                    metadata: None,
-                    protect_threshold: None,
-                    grpc_instance_count: None,
-                };
-                serivces.push(obj);
-            }
-            if let Some(sender) = n.sync_sender.as_ref() {
-                sender.do_send(SyncSenderRequest(
-                    NamingRouteRequest::QueryDistroServerSnapshot(serivces),
-                ));
             }
         }
     }
@@ -553,8 +527,6 @@ pub enum NodeManageRequest {
     //QueryClusterIds(),
     QueryOwnerRange(ProcessRange),
     SendSnapshot(u64, SnapshotForSend),
-    #[deprecated]
-    QueryDiffService(u64, HashMap<ServiceKey, i64>),
     QueryDiffClientInstances(u64, Vec<InstanceKey>),
 }
 
@@ -608,7 +580,7 @@ impl Handler<NodeManageRequest> for InnerNodeManage {
                 Ok(NodeManageResponse::None)
             }
             NodeManageRequest::RemoveDiffClientIds(node_id, client_id_set) => {
-                let res = self.node_diff_clients(node_id, client_id_set);
+                self.node_diff_clients(node_id, client_id_set);
                 Ok(NodeManageResponse::None)
             }
             NodeManageRequest::RemoveClientId(client_id) => {
@@ -621,10 +593,6 @@ impl Handler<NodeManageRequest> for InnerNodeManage {
             }
             NodeManageRequest::SendSnapshot(node_id, snapshot) => {
                 self.send_snapshot_to_node(node_id, snapshot);
-                Ok(NodeManageResponse::None)
-            }
-            NodeManageRequest::QueryDiffService(node_id, diff_service) => {
-                self.send_diff_service_to_node(node_id, diff_service);
                 Ok(NodeManageResponse::None)
             }
             NodeManageRequest::QueryDiffClientInstances(node_id, diff_instances) => {

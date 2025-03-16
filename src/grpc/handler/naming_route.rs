@@ -1,9 +1,6 @@
-use std::convert::TryFrom;
-use std::sync::Arc;
+#![allow(unused_imports)]
 
-use crate::common::constant::{
-    EMPTY_STR, GRPC_HEAD_KEY_CLUSTER_ID, GRPC_HEAD_KEY_SUB_NAME, GRPC_HEAD_KEY_TRACE_ID,
-};
+use crate::common::constant::{GRPC_HEAD_KEY_CLUSTER_ID, GRPC_HEAD_KEY_TRACE_ID};
 use crate::common::log_utils::LogArgs;
 use crate::grpc::{HandleLogArgs, HandlerResult};
 use crate::naming::cluster::model::{
@@ -16,6 +13,8 @@ use crate::{
     naming::cluster::{handle_naming_route, model::NamingRouteRequest},
 };
 use async_trait::async_trait;
+use std::convert::TryFrom;
+use std::sync::Arc;
 
 pub struct NamingRouteRequestHandler {
     app_data: Arc<AppShareData>,
@@ -25,7 +24,11 @@ impl NamingRouteRequestHandler {
     pub fn new(app_data: Arc<AppShareData>) -> Self {
         Self { app_data }
     }
+}
 
+///用于debug模式构建参数日志
+#[cfg(feature = "debug")]
+impl NamingRouteRequestHandler {
     fn instance_arg<'a, 'b>(args: &'a mut LogArgs<'b>, instance: &'b Instance) {
         args.add_str(instance.namespace_id.as_str())
             .add_key_split()
@@ -128,7 +131,7 @@ impl NamingRouteRequestHandler {
             NamingRouteRequest::SyncUpdateService { .. } => {}
             NamingRouteRequest::SyncBatchInstances(data) => {
                 let snapshot = SyncBatchDataInfo::from_bytes(&data)?;
-                let mut batch_receive = SyncBatchForReceive::try_from(snapshot)?;
+                let batch_receive = SyncBatchForReceive::try_from(snapshot)?;
                 let mut tmp_args = LogArgs::new();
                 tmp_args.add_str("UPDATE").add_item_split();
                 for instance in batch_receive.update_instances {
@@ -160,7 +163,6 @@ impl NamingRouteRequestHandler {
                 }
             }
             NamingRouteRequest::MetricsTimelineQuery(_) => {}
-            NamingRouteRequest::SyncDistroServerCount(_) => {}
             NamingRouteRequest::SyncDistroClientInstances(data) => {
                 let mut tmp_args = LogArgs::new();
                 for (key, items) in data.iter() {
@@ -176,7 +178,6 @@ impl NamingRouteRequestHandler {
                 }
                 args.merge_args(tmp_args);
             }
-            NamingRouteRequest::QueryDistroServerSnapshot(_) => {}
             NamingRouteRequest::QueryDistroInstanceSnapshot(instance_key) => {
                 let mut tmp_args = LogArgs::new();
                 for item in instance_key {
@@ -230,11 +231,10 @@ impl PayloadHandler for NamingRouteRequestHandler {
             }
         }
         #[cfg(not(feature = "debug"))]
-        if let Some(Some(v)) = request_payload
-            .metadata
-            .as_ref()
-            .map(|e| e.headers.get(GRPC_HEAD_KEY_SUB_NAME))
-        {
+        if let Some(Some(v)) = request_payload.metadata.as_ref().map(|e| {
+            e.headers
+                .get(crate::common::constant::GRPC_HEAD_KEY_SUB_NAME)
+        }) {
             if v == "Ping" {
                 return HandleLogArgs::Ignore;
             }

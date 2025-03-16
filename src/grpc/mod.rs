@@ -103,8 +103,8 @@ pub trait PayloadHandler {
     /// 获取请求日志参数
     fn get_log_args(
         &self,
-        request_payload: &nacos_proto::Payload,
-        request_meta: &RequestMeta,
+        _request_payload: &nacos_proto::Payload,
+        _request_meta: &RequestMeta,
     ) -> HandleLogArgs {
         HandleLogArgs::None
     }

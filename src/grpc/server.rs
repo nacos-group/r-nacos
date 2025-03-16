@@ -96,8 +96,7 @@ impl request_server::Request for RequestServerImpl {
             client_ip: remote_addr.ip().to_string(),
             connection_id: Arc::new(format!(
                 "{}_{}",
-                self.app.sys_config.raft_node_id,
-                remote_addr.to_string()
+                self.app.sys_config.raft_node_id, &remote_addr
             )),
             ..Default::default()
         };
@@ -229,7 +228,7 @@ impl BiRequestStream for BiRequestStreamServerImpl {
         let client_id = Arc::new(format!(
             "{}_{}",
             self.app.sys_config.raft_node_id,
-            request.remote_addr().unwrap().to_string()
+            &request.remote_addr().unwrap()
         ));
         let req = request.into_inner();
         let (tx, rx) = tokio::sync::mpsc::channel(10);
