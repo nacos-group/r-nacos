@@ -221,6 +221,9 @@ impl PayloadHandler for NamingRouteRequestHandler {
         if let Some(v) = request_payload.body.as_ref() {
             let request: Result<NamingRouteRequest, _> = serde_json::from_slice(&v.value);
             if let Ok(request) = &request {
+                if let NamingRouteRequest::Ping(_) = request {
+                    return HandleLogArgs::Ignore;
+                }
                 if let Ok(v) = Self::get_req_args(request) {
                     args.add_string(v);
                 }
@@ -232,6 +235,9 @@ impl PayloadHandler for NamingRouteRequestHandler {
             .as_ref()
             .map(|e| e.headers.get(GRPC_HEAD_KEY_SUB_NAME))
         {
+            if v == "Ping" {
+                return HandleLogArgs::Ignore;
+            }
             args.add_str("NamingRoute")
                 .add_key_split()
                 .add_str(v)

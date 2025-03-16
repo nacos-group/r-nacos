@@ -80,6 +80,8 @@ pub struct NamingActor {
     pub(crate) namespace_actor: Option<Addr<NamespaceActor>>,
     pub(crate) current_range: Option<ProcessRange>,
     pub(crate) node_id: u64,
+    /// 用于注入测试异常场景
+    pub(crate) disable_notify: bool,
     //dal_addr: Addr<ServiceDalActor>,
 }
 
@@ -150,6 +152,7 @@ impl NamingActor {
             current_range: None,
             namespace_actor: None,
             node_id: 0,
+            disable_notify: false,
             //dal_addr,
         }
     }
@@ -269,6 +272,10 @@ impl NamingActor {
         key: ServiceKey,
         instance: Option<Arc<Instance>>,
     ) {
+        #[cfg(feature = "debug")]
+        if self.disable_notify {
+            return;
+        }
         match tag {
             UpdateInstanceType::New => {
                 self.subscriber.notify(key);
@@ -284,8 +291,10 @@ impl NamingActor {
                 if let (Some(cluster_delay_notify), Some(instance)) =
                     (&self.cluster_delay_notify, instance)
                 {
-                    cluster_delay_notify
-                        .do_send(InstanceDelayNotifyRequest::RemoveInstance(instance));
+                    if instance.from_cluster == 0 {
+                        cluster_delay_notify
+                            .do_send(InstanceDelayNotifyRequest::RemoveInstance(instance));
+                    }
                 }
             }
             UpdateInstanceType::UpdateValue => {

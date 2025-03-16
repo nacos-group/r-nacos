@@ -16,6 +16,7 @@ pub async fn naming_debug_req(
     let debug_cmd: Option<NamingDebugCmd> = match param.req_type.as_str() {
         "invalid_local_instance" => Some(NamingDebugCmd::SetLocalInstanceIllHealth),
         "clear_local_http_instance" => Some(NamingDebugCmd::ClearLocalHttpInstance),
+        "clear_other_grpc_instance" => Some(NamingDebugCmd::ClearOtherGrpcInstance),
         "clear_local_grpc_instance" => Some(NamingDebugCmd::ClearLocalGrpcInstance),
         _ => None,
     };

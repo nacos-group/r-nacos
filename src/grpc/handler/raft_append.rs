@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::common::appdata::AppShareData;
 use crate::grpc::nacos_proto::Payload;
-use crate::grpc::{HandlerResult, PayloadHandler, PayloadUtils, RequestMeta};
+use crate::grpc::{HandleLogArgs, HandlerResult, PayloadHandler, PayloadUtils, RequestMeta};
 use crate::raft::store::ClientRequest;
 use async_trait::async_trait;
 
@@ -18,6 +18,10 @@ impl RaftAppendRequestHandler {
 
 #[async_trait]
 impl PayloadHandler for RaftAppendRequestHandler {
+    fn get_log_args(&self, request_payload: &Payload, request_meta: &RequestMeta) -> HandleLogArgs {
+        HandleLogArgs::Ignore
+    }
+
     async fn handle(
         &self,
         request_payload: Payload,

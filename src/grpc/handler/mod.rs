@@ -249,6 +249,14 @@ impl PayloadHandler for InvokerHandler {
 
 #[async_trait]
 impl PayloadHandler for HealthCheckRequestHandler {
+    fn get_log_args(
+        &self,
+        _request_payload: &Payload,
+        _request_meta: &RequestMeta,
+    ) -> HandleLogArgs {
+        HandleLogArgs::Ignore
+    }
+
     async fn handle(
         &self,
         _request_payload: Payload,

@@ -106,7 +106,7 @@ pub trait PayloadHandler {
         request_payload: &nacos_proto::Payload,
         request_meta: &RequestMeta,
     ) -> HandleLogArgs {
-        HandleLogArgs::Ignore
+        HandleLogArgs::None
     }
 }
 
