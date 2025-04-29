@@ -226,12 +226,12 @@ pub async fn logout(
     let token = Arc::new(token);
     let cache_req = CacheManagerReq::Remove(CacheKey::new(CacheType::UserSession, token));
     app.cache_manager.do_send(cache_req);
-    return Ok(HttpResponse::Ok()
+    Ok(HttpResponse::Ok()
         .cookie(
             Cookie::build("token", "")
                 .path("/")
                 .http_only(true)
                 .finish(),
         )
-        .json(ApiResult::success(Some(true))));
+        .json(ApiResult::success(Some(true))))
 }

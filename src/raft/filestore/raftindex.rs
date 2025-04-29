@@ -118,8 +118,8 @@ pub struct RaftIndexManager {
 
 impl Drop for RaftIndexManager {
     fn drop(&mut self) {
-        use fs2::FileExt;
-        let _ = self.lock_file.unlock();
+        // 显式指定使用 fs2 crate 的实现
+        let _ = fs2::FileExt::unlock(&self.lock_file);
     }
 }
 
