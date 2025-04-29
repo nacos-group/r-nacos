@@ -11,7 +11,7 @@ r-nacos设计上完全兼容最新版本nacos面向client sdk 的协议（包含
 
 r-nacos相较于java nacos来说，是一个提供相同功能，启动更快、占用系统资源更小、性能更高、运行更稳定的服务。
 
-详细说明可以看 [r-nacos docs](https://r-nacos.github.io/docs/)
+详细说明可以看 [r-nacos docs](https://r-nacos.github.io/docs/)和[deepwiki](https://deepwiki.com/nacos-group/r-nacos/)
 
 ![Docker Pulls](https://img.shields.io/docker/pulls/qingpan/rnacos)  
 ![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/r-nacos/r-nacos/total)
@@ -474,7 +474,10 @@ nacos_rust_client = "0.3.0"
 + 只需对`RNACOS_CONFIG_DB_DIR:nacos_db`目录下的文件备份与恢复，即可实现数据的备份与恢复；
 + r-nacos控制台使用前后端分离架构；前端应用因依赖nodejs,所以单独放到另一个项目 [r-nacos-console-web](https://github.com/r-nacos/rnacos-console-web) ,再通过cargo 把打包好的前端资源引入到本项目,避免开发rust时还要依赖nodejs。
 
-r-nacos架构设计参考： [架构](https://r-nacos.github.io/docs/notes/architecture/)
+r-nacos架构设计参考： 
+
++ [架构](https://r-nacos.github.io/docs/notes/architecture/)
++ [deepwiki architecture](https://deepwiki.com/nacos-group/r-nacos/2-system-architecture)
 
 
 ## 使用登记
