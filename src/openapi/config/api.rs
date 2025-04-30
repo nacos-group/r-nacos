@@ -320,7 +320,7 @@ async fn do_search_config(
                     let page = ConfigSearchPage {
                         total_count: Some(total_count),
                         page_number: Some(page_number),
-                        pages_available: Some((total_count + page_size - 1) / page_size),
+                        pages_available: Some(total_count.div_ceil(page_size)),
                         page_items: Some(list),
                     };
                     HttpResponse::Ok().json(page)

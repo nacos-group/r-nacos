@@ -250,7 +250,7 @@ impl BeatRequest {
 
     pub fn convert_to_instance(self) -> anyhow::Result<Instance> {
         let mut beat_info = self.get_beat_info()?;
-        let use_beat = self.beat.as_ref().map_or(false, |s| !s.is_empty());
+        let use_beat = self.beat.as_ref().is_some_and(|s| !s.is_empty());
         if !use_beat {
             beat_info.ip = self.ip;
             beat_info.port = self.port;

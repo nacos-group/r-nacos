@@ -50,28 +50,28 @@ pub fn read_varint64_offset(bytes: &[u8], offset: usize) -> anyhow::Result<u64> 
     b = bytes[i];
     let mut r1 = (b & 0x7f) as u32;
     if b & 0x80 == 0 {
-        return Ok(r0 as u64 | (r1 as u64) << 28);
+        return Ok(r0 as u64 | ((r1 as u64) << 28));
     }
 
     i += 1;
     b = bytes[i];
     r1 |= ((b & 0x7f) as u32) << 7;
     if b & 0x80 == 0 {
-        return Ok(r0 as u64 | (r1 as u64) << 28);
+        return Ok(r0 as u64 | ((r1 as u64) << 28));
     }
 
     i += 1;
     b = bytes[i];
     r1 |= ((b & 0x7f) as u32) << 14;
     if b & 0x80 == 0 {
-        return Ok(r0 as u64 | (r1 as u64) << 28);
+        return Ok(r0 as u64 | ((r1 as u64) << 28));
     }
 
     i += 1;
     b = bytes[i];
     r1 |= ((b & 0x7f) as u32) << 21;
     if b & 0x80 == 0 {
-        return Ok(r0 as u64 | (r1 as u64) << 28);
+        return Ok(r0 as u64 | ((r1 as u64) << 28));
     }
 
     // part2
@@ -79,7 +79,7 @@ pub fn read_varint64_offset(bytes: &[u8], offset: usize) -> anyhow::Result<u64> 
     b = bytes[i];
     let mut r2 = (b & 0x7f) as u32;
     if b & 0x80 == 0 {
-        return Ok((r0 as u64 | (r1 as u64) << 28) | (r2 as u64) << 56);
+        return Ok(r0 as u64 | ((r1 as u64) << 28) | ((r2 as u64) << 56));
     }
 
     // WARNING ABOUT TRUNCATION:
@@ -101,7 +101,7 @@ pub fn read_varint64_offset(bytes: &[u8], offset: usize) -> anyhow::Result<u64> 
     b = bytes[i];
     r2 |= (b as u32) << 7;
     if b & 0x80 == 0 {
-        return Ok((r0 as u64 | (r1 as u64) << 28) | (r2 as u64) << 56);
+        return Ok((r0 as u64 | ((r1 as u64) << 28)) | ((r2 as u64) << 56));
     }
 
     // cannot read more than 10 bytes
