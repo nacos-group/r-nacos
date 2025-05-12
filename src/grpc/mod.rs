@@ -1,5 +1,5 @@
 use self::api_model::BaseResponse;
-use crate::common::model::TokenSession;
+use crate::common::model::{ClientVersion, TokenSession};
 use async_trait::async_trait;
 use std::fmt::Display;
 use std::{collections::HashMap, sync::Arc};
@@ -16,10 +16,10 @@ pub mod server;
 pub struct RequestMeta {
     pub connection_id: Arc<String>,
     pub client_ip: String,
-    pub client_version: String,
     pub labels: HashMap<String, String>,
     pub token_session: Option<Arc<TokenSession>>,
     pub cluster_token_is_valid: bool,
+    pub client_version: Arc<ClientVersion>,
 }
 
 pub struct HandlerResult {

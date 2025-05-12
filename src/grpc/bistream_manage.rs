@@ -20,6 +20,9 @@ use super::{
     nacos_proto::Payload,
     PayloadUtils,
 };
+use crate::common::constant::EMPTY_CLIENT_VERSION;
+use crate::common::model::ClientVersion;
+use crate::grpc::api_model::ConnectionSetupRequest;
 use actix::prelude::*;
 use bean_factory::{bean, Inject};
 use inner_mem_cache::TimeoutSet;
@@ -27,6 +30,7 @@ use inner_mem_cache::TimeoutSet;
 pub(crate) struct ConnCacheItem {
     last_active_time: u64,
     conn: Addr<BiStreamConn>,
+    pub(crate) client_version: Arc<ClientVersion>,
 }
 
 impl ConnCacheItem {
@@ -34,6 +38,7 @@ impl ConnCacheItem {
         Self {
             last_active_time,
             conn,
+            client_version: EMPTY_CLIENT_VERSION.clone(),
         }
     }
 }
@@ -72,12 +77,12 @@ impl BiStreamManage {
             .add(now + self.detection_time_out, client_id);
     }
 
-    fn active_client(&mut self, client_id: Arc<String>) -> anyhow::Result<()> {
+    fn active_client(&mut self, client_id: Arc<String>) -> anyhow::Result<Arc<ClientVersion>> {
         let now = now_millis();
         if let Some(item) = self.conn_cache.get_mut(&client_id) {
             //log::info!("active_client success client_id:{}",&client_id);
             item.last_active_time = now;
-            Ok(())
+            Ok(item.client_version.clone())
         } else {
             //log::info!("active_client empty client_id:{}",&client_id);
             Err(anyhow::anyhow!("Connection is unregistered."))
@@ -206,6 +211,7 @@ pub enum BiStreamManageCmd {
 
 pub enum BiStreamManageResult {
     ConnList(Vec<Arc<String>>),
+    ClientInfo(Arc<ClientVersion>),
     None,
 }
 
@@ -215,8 +221,27 @@ impl Handler<BiStreamManageCmd> for BiStreamManage {
     fn handle(&mut self, msg: BiStreamManageCmd, _ctx: &mut Context<Self>) -> Self::Result {
         match msg {
             BiStreamManageCmd::Response(client_id, payload) => {
-                //println!("BiStreamManageCmd payload:{},client_id:{}",PayloadUtils::get_payload_string(&payload),&client_id);
-                if let Some(_t) = PayloadUtils::get_payload_type(&payload) {
+                #[cfg(feature = "debug")]
+                log::info!(
+                    "BiStreamManageCmd payload:{},client_id:{}",
+                    PayloadUtils::get_payload_string(&payload),
+                    &client_id
+                );
+                if let Some(t) = PayloadUtils::get_payload_type(&payload) {
+                    match t.as_str() {
+                        "ConnectionSetupRequest" => {
+                            let body_vec = payload.body.unwrap_or_default().value;
+                            let request: ConnectionSetupRequest =
+                                serde_json::from_slice(&body_vec)?;
+                            if let Some(item) = self.conn_cache.get_mut(&client_id) {
+                                if let Some(client_version) = request.client_version {
+                                    item.client_version =
+                                        Arc::new(ClientVersion::from_str(&client_version));
+                                }
+                            }
+                        }
+                        _ => {}
+                    };
                     self.active_client(client_id).ok();
                     //if "ClientDetectionResponse"== t {
                     //}
@@ -237,7 +262,8 @@ impl Handler<BiStreamManageCmd> for BiStreamManage {
                 //println!("|AddConn|conn size: {}",self.conn_cache.len());
             }
             BiStreamManageCmd::ActiveClinet(client_id) => {
-                self.active_client(client_id)?;
+                let client_version = self.active_client(client_id)?;
+                return Ok(BiStreamManageResult::ClientInfo(client_version));
             }
             BiStreamManageCmd::NotifyConfig(config_key, client_id_set) => {
                 let request = ConfigChangeNotifyRequest {

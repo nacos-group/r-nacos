@@ -2,7 +2,9 @@ use std::sync::Arc;
 use std::time::SystemTime;
 
 use crate::common::appdata::AppShareData;
-use crate::common::constant::{ACCESS_TOKEN_HEADER, AUTHORIZATION_HEADER, EMPTY_ARC_STRING};
+use crate::common::constant::{
+    ACCESS_TOKEN_HEADER, AUTHORIZATION_HEADER, EMPTY_ARC_STRING, EMPTY_CLIENT_VERSION,
+};
 use crate::common::model::TokenSession;
 use actix::prelude::*;
 //use tokio_stream::StreamExt;
@@ -94,6 +96,7 @@ impl request_server::Request for RequestServerImpl {
         let payload = request.into_inner();
         let mut request_meta = RequestMeta {
             client_ip: remote_addr.ip().to_string(),
+            client_version: EMPTY_CLIENT_VERSION.clone(),
             connection_id: Arc::new(format!(
                 "{}_{}",
                 self.app.sys_config.raft_node_id, &remote_addr
@@ -101,7 +104,11 @@ impl request_server::Request for RequestServerImpl {
             ..Default::default()
         };
         //debug
-        //log::info!( "client request: {}", PayloadUtils::get_payload_string(&payload));
+        #[cfg(feature = "debug")]
+        log::info!(
+            "client request: {}",
+            PayloadUtils::get_payload_string(&payload)
+        );
         let request_type = PayloadUtils::get_payload_type(&payload).unwrap();
         let request_log_info = format!(
             "|grpc|client_request|{}|{}",
@@ -120,7 +127,11 @@ impl request_server::Request for RequestServerImpl {
             Ok(result) => {
                 let result: anyhow::Result<BiStreamManageResult> = result;
                 match result {
-                    Ok(_) => {}
+                    Ok(conn_result) => {
+                        if let BiStreamManageResult::ClientInfo(client_version) = conn_result {
+                            request_meta.client_version = client_version;
+                        }
+                    }
                     Err(err) => {
                         if !ignore_active_err {
                             let err_msg = err.to_string();

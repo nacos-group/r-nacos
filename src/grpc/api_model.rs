@@ -50,8 +50,8 @@ impl BaseResponse {
 pub struct ServerCheckResponse {
     pub result_code: u16,
     pub error_code: u16,
-    pub message: Option<String>,
-    pub request_id: Option<String>,
+    pub message: String,
+    pub request_id: String,
     pub connection_id: Option<String>,
 }
 
@@ -72,6 +72,18 @@ pub struct ConnectResetRequest {
 
     pub server_ip: Option<String>,
     pub server_port: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct ConnectionSetupRequest {
+    pub module: Option<String>,
+    pub request_id: Option<String>,
+    pub headers: Option<HashMap<String, String>>,
+
+    pub client_version: Option<String>,
+    pub tenant: Option<String>,
+    pub labels: Option<HashMap<String, String>>,
 }
 
 // --- config ---

@@ -2,6 +2,7 @@
 
 use std::sync::Arc;
 
+use crate::common::model::client_version::ClientNameType;
 use crate::config::config_type::ConfigType;
 use crate::config::ConfigUtils;
 use crate::grpc::api_model::NOT_FOUND;
@@ -36,7 +37,7 @@ impl PayloadHandler for ConfigQueryRequestHandler {
     async fn handle(
         &self,
         request_payload: crate::grpc::nacos_proto::Payload,
-        _request_meta: crate::grpc::RequestMeta,
+        request_meta: crate::grpc::RequestMeta,
     ) -> anyhow::Result<HandlerResult> {
         let body_vec = request_payload.body.unwrap_or_default().value;
         let request: ConfigQueryRequest = serde_json::from_slice(&body_vec)?;
@@ -62,6 +63,12 @@ impl PayloadHandler for ConfigQueryRequestHandler {
                         ..
                     } => {
                         //v.to_owned()
+                        if request_meta.client_version.client.is_python_sdk() {
+                            response.message = Some("".to_string());
+                            response.tag = Some("".to_string());
+                            response.encrypted_data_key = Some("".to_string());
+                            response.beta = false;
+                        }
                         response.result_code = SUCCESS_CODE;
                         response.content = content;
                         response.content_type =
@@ -73,6 +80,10 @@ impl PayloadHandler for ConfigQueryRequestHandler {
                             if !tag.is_empty() {
                                 response.tag = Some(tag);
                             }
+                        }
+                        if request_meta.client_version.client.is_go_sdk()
+                            || request_meta.client_version.client.is_python_sdk() {
+                            response.tag = None;
                         }
                         response.last_modified = last_modified;
                         response.md5 = Some(md5);

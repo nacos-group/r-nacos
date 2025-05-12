@@ -1,7 +1,9 @@
+pub mod client_version;
 pub mod privilege;
 
 use std::{collections::HashMap, sync::Arc};
 
+pub use crate::common::model::client_version::ClientVersion;
 use crate::common::model::privilege::PrivilegeGroup;
 use serde::{Deserialize, Serialize};
 

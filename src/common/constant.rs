@@ -1,3 +1,4 @@
+use crate::common::model::ClientVersion;
 use std::sync::Arc;
 
 pub const EMPTY_STR: &str = "";
@@ -26,4 +27,5 @@ lazy_static::lazy_static! {
     pub static ref NAMESPACE_TREE_NAME: Arc<String> =  Arc::new("T_NAMESPACE".to_string());
     pub static ref EMPTY_ARC_STRING: Arc<String> = Arc::new("".to_string());
     pub static ref DEFAULT_NAMESPACE_ARC_STRING: Arc<String> = Arc::new("".to_string());
+    pub static ref EMPTY_CLIENT_VERSION: Arc<ClientVersion> = Arc::new(ClientVersion::default());
 }
