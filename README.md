@@ -199,8 +199,8 @@ k8s支持使用 [helm](https://github.com/nacos-group/r-nacos/tree/master/deploy
 
 集群部署参考文档： 
 
-+ [集群部署](https://r-nacos.github.io/docs/notes/cluster_deploy)
-+ [集群部署样例](https://r-nacos.github.io/docs/notes/deploy_example/docker_cluster_deploy/)
++ [集群部署](https://r-nacos.github.io/docs/cluster_deploy/)
++ [集群部署样例](https://r-nacos.github.io/docs/deploy_example/docker_cluster_deploy/)
 
 
 ### 二、运行nacos 应用
@@ -440,7 +440,7 @@ nacos_rust_client = "0.3.0"
 ### 三、面向部署、集群的功能
 
 1. 支持单机部署
-2. 支持集群部署。集群部署配置中心数据使用raft+节点本地存储组成的分布式存储，不需要依赖mysql。具体参考 [集群部署说明](https://r-nacos.github.io/docs/notes/deploy_example/docker_cluster_deploy/)
+2. 支持集群部署。集群部署配置中心数据使用raft+节点本地存储组成的分布式存储，不需要依赖mysql。具体参考 [集群部署说明](https://r-nacos.github.io/docs/deploy_example/docker_cluster_deploy/)
 
 
 ## 性能
@@ -459,7 +459,7 @@ nacos_rust_client = "0.3.0"
 **注：** 具体结果和压测环境有关
 
 详细信息可以参考
-[性能与容量说明](https://r-nacos.github.io/docs/notes/performance/)
+[性能与容量说明](https://r-nacos.github.io/docs/performance/)
 
 
 ## r-nacos架构图
@@ -476,7 +476,7 @@ nacos_rust_client = "0.3.0"
 
 r-nacos架构设计参考： 
 
-+ [架构](https://r-nacos.github.io/docs/notes/architecture/)
++ [架构](https://r-nacos.github.io/docs/architecture/)
 + [deepwiki architecture](https://deepwiki.com/nacos-group/r-nacos/2-system-architecture)
 
 
