@@ -26,8 +26,8 @@ impl BaseResponse {
         Self {
             result_code: SUCCESS_CODE,
             error_code: 0,
-            message: None,
-            request_id: None,
+            message: Some("".to_string()),
+            request_id: Some("".to_string()),
         }
     }
 
@@ -36,7 +36,7 @@ impl BaseResponse {
             result_code: ERROR_CODE,
             error_code,
             message: Some(error_msg),
-            request_id: None,
+            request_id: Some("".to_string()),
         }
     }
 

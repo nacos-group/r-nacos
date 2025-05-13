@@ -125,6 +125,7 @@ impl PayloadHandler for InstanceRequestHandler {
         };
         let mut response = InstanceResponse {
             request_id,
+            message: Some("".to_string()),
             ..Default::default()
         };
         match self.app_data.naming_addr.send(cmd).await {

@@ -43,6 +43,7 @@ impl PayloadHandler for ServiceListRequestHandler {
         let request: ServiceListRequest = serde_json::from_slice(&body_vec)?;
         let mut response = ServiceListResponse {
             request_id: request.request_id,
+            message: Some("".to_string()),
             ..Default::default()
         };
         let namespace = NamingUtils::default_namespace(

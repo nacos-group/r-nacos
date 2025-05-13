@@ -55,6 +55,7 @@ impl PayloadHandler for ConfigChangeBatchListenRequestHandler {
         };
         let mut response = ConfigChangeBatchListenResponse {
             request_id: request.request_id,
+            message: Some("".to_string()),
             ..Default::default()
         };
         match self.app_data.config_addr.send(cmd).await {

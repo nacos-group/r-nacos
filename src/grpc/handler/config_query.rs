@@ -50,6 +50,12 @@ impl PayloadHandler for ConfigQueryRequestHandler {
             request_id: request.request_id,
             ..Default::default()
         };
+        if request_meta.client_version.client.is_python_sdk() {
+            response.message = Some("".to_string());
+            response.tag = Some("false".to_string());
+            response.encrypted_data_key = Some("".to_string());
+            response.beta = false;
+        }
         match self.app_data.config_addr.send(cmd).await {
             Ok(res) => {
                 //let res:ConfigResult = res.unwrap();
@@ -63,12 +69,6 @@ impl PayloadHandler for ConfigQueryRequestHandler {
                         ..
                     } => {
                         //v.to_owned()
-                        if request_meta.client_version.client.is_python_sdk() {
-                            response.message = Some("".to_string());
-                            response.tag = Some("".to_string());
-                            response.encrypted_data_key = Some("".to_string());
-                            response.beta = false;
-                        }
                         response.result_code = SUCCESS_CODE;
                         response.content = content;
                         response.content_type =
@@ -81,8 +81,7 @@ impl PayloadHandler for ConfigQueryRequestHandler {
                                 response.tag = Some(tag);
                             }
                         }
-                        if request_meta.client_version.client.is_go_sdk()
-                            || request_meta.client_version.client.is_python_sdk() {
+                        if request_meta.client_version.client.is_go_sdk() {
                             response.tag = None;
                         }
                         response.last_modified = last_modified;

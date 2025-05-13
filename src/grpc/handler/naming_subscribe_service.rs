@@ -68,6 +68,7 @@ impl PayloadHandler for SubscribeServiceRequestHandler {
         let request: SubscribeServiceRequest = serde_json::from_slice(&body_vec)?;
         let mut response = SubscribeServiceResponse {
             request_id: request.request_id,
+            message: Some("".to_string()),
             ..Default::default()
         };
         let cluster = if let Some(v) = request.clusters.as_ref() {

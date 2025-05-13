@@ -103,12 +103,6 @@ impl request_server::Request for RequestServerImpl {
             )),
             ..Default::default()
         };
-        //debug
-        #[cfg(feature = "debug")]
-        log::info!(
-            "client request: {}",
-            PayloadUtils::get_payload_string(&payload)
-        );
         let request_type = PayloadUtils::get_payload_type(&payload).unwrap();
         let request_log_info = format!(
             "|grpc|client_request|{}|{}",
@@ -167,6 +161,13 @@ impl request_server::Request for RequestServerImpl {
                 }
             }
         };
+        //debug
+        #[cfg(feature = "debug")]
+        log::info!(
+            "client request: {} | version: {}",
+            PayloadUtils::get_payload_string(&payload),
+            &request_meta.client_version
+        );
         self.fill_token_session(&payload, &mut request_meta)
             .await
             .ok();

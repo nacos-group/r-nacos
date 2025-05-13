@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 #[derive(Default, Debug, Clone)]
 pub struct ClientVersion {
     pub client: ClientNameType,
@@ -22,6 +24,12 @@ impl ClientVersion {
     }
 }
 
+impl Display for ClientVersion {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}:{}", self.client.name(), self.version)
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum ClientNameType {
     NacosJavaClient,
@@ -35,10 +43,20 @@ impl ClientNameType {
     pub fn from_str(s: &str) -> Self {
         match s {
             "Nacos-Java-Client" => ClientNameType::NacosJavaClient,
-            "Nacos-Python-Client" => ClientNameType::NacosGoClient,
-            "Nacos-Go-Client" => ClientNameType::NacosPythonClient,
+            "Nacos-Python-Client" => ClientNameType::NacosPythonClient,
+            "Nacos-Go-Client" => ClientNameType::NacosGoClient,
             "Nacos-Rust-Client" => ClientNameType::NacosRustClient,
             _ => ClientNameType::Unknown(s.to_string()),
+        }
+    }
+
+    pub fn name(&self) -> &str {
+        match self {
+            ClientNameType::NacosJavaClient => "Nacos-Java-Client",
+            ClientNameType::NacosGoClient => "Nacos-Go-Client",
+            ClientNameType::NacosPythonClient => "Nacos-Python-Client",
+            ClientNameType::NacosRustClient => "Nacos-Rust-Client",
+            ClientNameType::Unknown(s) => s,
         }
     }
 
