@@ -262,6 +262,7 @@ lazy_static::lazy_static! {
         R::WebResource("/manage/subscriber"),
         R::WebResource("/rnacos/manage/service"),
         R::WebResource("/rnacos/manage/service/instance"),
+        R::WebResource("/rnacos/manage/subscriber"),
         //path
         R::Path("/rnacos/manage/service",HTTP_METHOD_GET),
         R::Path("/rnacos/manage/service/instance",HTTP_METHOD_GET),
@@ -275,6 +276,7 @@ lazy_static::lazy_static! {
         R::Path("/rnacos/api/console/v2/service/list",HTTP_METHOD_GET),
         R::Path("/rnacos/api/console/v2/instance/list",HTTP_METHOD_GET),
         R::Path("/rnacos/api/console/v2/instance/info",HTTP_METHOD_GET),
+        R::Path("/rnacos/manage/subscriber", HTTP_METHOD_GET),
     ]);
 
     static ref M_NAMING_MANAGE: ModuleResource = ModuleResource::new(vec![
@@ -284,6 +286,7 @@ lazy_static::lazy_static! {
         R::WebResource("/manage/subscriber"),
         R::WebResource("/rnacos/manage/service"),
         R::WebResource("/rnacos/manage/service/instance"),
+        R::WebResource("/rnacos/manage/subscriber"),
         R::WebResource("SERVICE_UPDATE"),
         //path
         R::Path("/rnacos/manage/service",HTTP_METHOD_GET),
@@ -309,6 +312,7 @@ lazy_static::lazy_static! {
     static ref M_METRICS_VISITOR: ModuleResource = ModuleResource::new(vec![
         //WebResource
         R::WebResource("/manage/appmonitor"),
+        R::WebResource("/rnacos/manage/appmonitor"),
         //path
         R::Path("/rnacos/manage/appmonitor",HTTP_METHOD_GET),
         R::Path("/rnacos/api/console/v2/metrics/timeline",HTTP_METHOD_ALL),
@@ -319,10 +323,11 @@ lazy_static::lazy_static! {
     static ref M_TRASFER_DATE_MANAGE: ModuleResource = ModuleResource::new(vec![
         //WebResource
         R::WebResource("/manage/transfer"),
+        R::WebResource("/rnacos/manage/transfer"),
         R::WebResource("/rnacos/api/console/transfer/export"),
         R::WebResource("/rnacos/api/console/transfer/import"),
         //path
-        R::Path("/manage/transfer",HTTP_METHOD_GET),
+        R::Path("/rnacos/manage/transfer",HTTP_METHOD_GET),
         R::Path("/rnacos/api/console/transfer/export",HTTP_METHOD_GET),
         R::Path("/rnacos/api/console/transfer/import",HTTP_METHOD_ALL),
     ]);
