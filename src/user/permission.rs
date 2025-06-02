@@ -291,6 +291,7 @@ lazy_static::lazy_static! {
         //path
         R::Path("/rnacos/manage/service",HTTP_METHOD_GET),
         R::Path("/rnacos/manage/service/instance",HTTP_METHOD_GET),
+        R::Path("/rnacos/manage/subscriber",HTTP_METHOD_GET),
 
         R::Path("/rnacos/api/console/ns/services",HTTP_METHOD_GET),
         R::Path("/rnacos/api/console/ns/service",HTTP_METHOD_ALL),
