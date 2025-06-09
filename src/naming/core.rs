@@ -266,6 +266,19 @@ impl NamingActor {
         }
     }
 
+    /// 单独订阅者通知
+    fn notify_to_subscriber(&mut self, tag: &UpdateInstanceType, key: ServiceKey) {
+        match tag {
+            UpdateInstanceType::New
+            | UpdateInstanceType::Remove
+            | UpdateInstanceType::UpdateValue => {
+                self.subscriber.notify(key);
+            }
+            _ => {}
+        }
+    }
+
+    /// 变更通知，包含给其它集群节点通知和给本节点监听器通知
     fn do_notify(
         &mut self,
         tag: &UpdateInstanceType,
@@ -431,6 +444,9 @@ impl NamingActor {
             //change notify
             let instance = service.get_instance(&instance_short_key);
             self.do_notify(&tag, key.clone(), instance);
+        } else {
+            //如果不通知其它集群，则单独通知订阅者
+            self.notify_to_subscriber(&tag, key.clone());
         }
         tag
     }
