@@ -34,17 +34,17 @@ impl TryFrom<&str> for LimiterData {
         let a: i32 = if let Some(e) = iter.next() {
             e.parse()?
         } else {
-            return Err(anyhow::anyhow!("limiter is unvalid"));
+            return Err(anyhow::anyhow!("limiter is invalid"));
         };
         let b: i32 = if let Some(e) = iter.next() {
             e.parse()?
         } else {
-            return Err(anyhow::anyhow!("limiter is unvalid"));
+            return Err(anyhow::anyhow!("limiter is invalid"));
         };
         let c: i64 = if let Some(e) = iter.next() {
             e.parse()?
         } else {
-            return Err(anyhow::anyhow!("limiter is unvalid"));
+            return Err(anyhow::anyhow!("limiter is invalid"));
         };
         Ok(Self::new(a, b, c))
     }

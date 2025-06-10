@@ -36,7 +36,7 @@ impl ServiceDO {
         s
     }
 
-    pub fn check_vaild(&self) -> bool {
+    pub fn check_valid(&self) -> bool {
         if let (Some(namespace_id),Some(service_name),Some(group_name)) = 
             (self.namespace_id.as_ref(),self.service_name.as_ref(),self.group_name.as_ref()) {
             true

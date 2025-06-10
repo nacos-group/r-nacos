@@ -5,7 +5,7 @@ set -o errexit
 action=$1
 
 usage() {
-    echo "cmd args unvalid"
+    echo "cmd args invalid"
     echo "usage: $0 start | start_debug | restart | restart_debug  | kill | clean | test_naming"
     exit 2
 }

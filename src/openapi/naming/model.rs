@@ -77,12 +77,12 @@ impl InstanceWebParams {
 
         let grouped_name = self.service_name.unwrap_or_default();
         if let Some((group_name, service_name)) =
-            NamingUtils::split_group_and_serivce_name(&grouped_name)
+            NamingUtils::split_group_and_service_name(&grouped_name)
         {
             instance.service_name = Arc::new(service_name);
             instance.group_name = Arc::new(group_name);
         } else {
-            return Err("serivceName is unvaild!".to_owned());
+            return Err("serviceName is invalid!".to_owned());
         }
         if let Some(group_name) = self.group_name {
             if !group_name.is_empty() {
@@ -121,12 +121,12 @@ impl InstanceWebQueryListParams {
         let mut group_name = "".to_owned();
         let grouped_name = self.service_name.clone().unwrap_or_default();
         if let Some((_group_name, _service_name)) =
-            NamingUtils::split_group_and_serivce_name(&grouped_name)
+            NamingUtils::split_group_and_service_name(&grouped_name)
         {
             service_name = _service_name;
             group_name = _group_name;
         } else {
-            return Err("serivceName is unvaild!".to_owned());
+            return Err("serviceName is invalid!".to_owned());
         }
         if let Some(_group_name) = self.group_name.as_ref() {
             if !_group_name.is_empty() {
@@ -219,7 +219,7 @@ impl BeatRequest {
         if service_name_option.is_none() {
             let grouped_name = self.service_name.unwrap();
             if let Some((group_name, service_name)) =
-                NamingUtils::split_group_and_serivce_name(&grouped_name)
+                NamingUtils::split_group_and_service_name(&grouped_name)
             {
                 instance.service_name = Arc::new(service_name);
                 instance.group_name = Arc::new(group_name);
@@ -263,7 +263,7 @@ impl BeatRequest {
         if service_name_option.is_none() {
             if let Some(grouped_name) = self.service_name {
                 if let Some((group_name, service_name)) =
-                    NamingUtils::split_group_and_serivce_name(&grouped_name)
+                    NamingUtils::split_group_and_service_name(&grouped_name)
                 {
                     instance.service_name = Arc::new(service_name);
                     instance.group_name = Arc::new(group_name);
@@ -323,7 +323,7 @@ impl BeatInfo {
         };
         if let Some(grouped_name) = self.service_name.as_ref() {
             if let Some((group_name, service_name)) =
-                NamingUtils::split_group_and_serivce_name(grouped_name)
+                NamingUtils::split_group_and_service_name(grouped_name)
             {
                 instance.service_name = Arc::new(service_name);
                 instance.group_name = Arc::new(group_name);

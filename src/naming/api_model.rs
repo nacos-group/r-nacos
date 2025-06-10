@@ -149,7 +149,7 @@ impl ServiceInfoParam {
     pub(crate) fn build_service_info(self) -> anyhow::Result<ServiceDetailDto> {
         if let Some(service_name) = self.service_name {
             if service_name.is_empty() {
-                return Err(anyhow::anyhow!("service_name is vaild"));
+                return Err(anyhow::anyhow!("service_name is valid"));
             }
             let metadata = if let Some(metadata_str) = self.metadata {
                 match NamingUtils::parse_metadata(&metadata_str) {

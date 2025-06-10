@@ -34,7 +34,7 @@ impl NamingUtils {
         format!("{}@@{}", group_name, service_name)
     }
 
-    pub fn split_group_and_serivce_name(grouped_name: &str) -> Option<(String, String)> {
+    pub fn split_group_and_service_name(grouped_name: &str) -> Option<(String, String)> {
         let split = grouped_name.split("@@").collect::<Vec<_>>();
         if split.is_empty() {
             return None;

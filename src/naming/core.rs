@@ -385,7 +385,7 @@ impl NamingActor {
         from_sync: bool,
     ) -> UpdateInstanceType {
         instance.init();
-        //assert!(instance.check_vaild());
+        //assert!(instance.check_valid());
         self.create_empty_service(key);
         //let is_from_from_cluster = instance.is_from_cluster();
         let at_process_range = if let Some(range) = &self.current_range {
