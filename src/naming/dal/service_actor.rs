@@ -60,7 +60,7 @@ create index if not exists tb_service_key_idx on tb_service(namespace_id,service
             Ok(())
         }
         else{
-            Err(anyhow::anyhow!("update_service:unvaild service info"))
+            Err(anyhow::anyhow!("update_service:invalid service info"))
         }
     }
 }

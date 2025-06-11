@@ -66,7 +66,7 @@ impl BatchInstanceRequestHandler {
                 } else if !service_name.is_empty() {
                     service_name.clone()
                 } else {
-                    return Err(anyhow::format_err!("serivceName is unvaild!"));
+                    return Err(anyhow::format_err!("serviceName is invalid!"));
                 };
 
                 let mut instance = Instance {

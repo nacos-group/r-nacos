@@ -89,7 +89,7 @@ pub async fn update_instance(
     let instance = param.convert_to_instance();
     match instance {
         Ok(instance) => {
-            if !instance.check_vaild() {
+            if !instance.check_valid() {
                 HttpResponse::InternalServerError().body("instance check is invalid")
             } else {
                 match appdata
@@ -115,7 +115,7 @@ pub async fn del_instance(
     let instance = param.convert_to_instance();
     match instance {
         Ok(instance) => {
-            if !instance.check_vaild() {
+            if !instance.check_valid() {
                 HttpResponse::InternalServerError().body("instance check is invalid")
             } else {
                 match appdata.naming_route.delete_instance(instance).await {
@@ -140,7 +140,7 @@ pub async fn beat_instance(
     let instance = param.convert_to_instance();
     match instance {
         Ok(instance) => {
-            if !instance.check_vaild() {
+            if !instance.check_valid() {
                 HttpResponse::InternalServerError().body("instance check is invalid")
             } else {
                 let tag = InstanceUpdateTag {

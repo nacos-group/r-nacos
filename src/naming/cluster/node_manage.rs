@@ -25,7 +25,7 @@ use std::{
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum NodeStatus {
     Valid,
-    Unvalid,
+    Invalid,
 }
 
 impl Default for NodeStatus {
@@ -363,14 +363,14 @@ impl InnerNodeManage {
             */
             if !node.is_local && node.status == NodeStatus::Valid && node.last_active_time < timeout
             {
-                node.status = NodeStatus::Unvalid;
-                Self::client_unvalid_instance(naming_actor, node);
+                node.status = NodeStatus::Invalid;
+                Self::client_invalid_instance(naming_actor, node);
             }
         }
         self.update_process_range();
     }
 
-    fn client_unvalid_instance(
+    fn client_invalid_instance(
         naming_actor: &Option<Addr<NamingActor>>,
         node: &mut ClusterInnerNode,
     ) {

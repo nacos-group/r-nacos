@@ -237,7 +237,7 @@ pub async fn add_instance(
             if !namespace_privilege.check_permission(&instance.namespace_id) {
                 user_no_namespace_permission!(&instance.namespace_id);
             }
-            if !instance.check_vaild() {
+            if !instance.check_valid() {
                 HttpResponse::Ok().json(ApiResult::<()>::error(
                     ERROR_CODE_SYSTEM_ERROR.to_string(),
                     Some("instance check is invalid".to_string()),
@@ -274,7 +274,7 @@ pub async fn remove_instance(
             if !namespace_privilege.check_permission(&instance.namespace_id) {
                 user_no_namespace_permission!(&instance.namespace_id);
             }
-            if !instance.check_vaild() {
+            if !instance.check_valid() {
                 HttpResponse::Ok().json(ApiResult::<()>::error(
                     ERROR_CODE_SYSTEM_ERROR.to_string(),
                     Some("instance check is invalid".to_string()),

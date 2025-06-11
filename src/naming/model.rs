@@ -59,7 +59,7 @@ impl Instance {
         }
     }
 
-    pub fn check_vaild(&self) -> bool {
+    pub fn check_valid(&self) -> bool {
         if self.id.is_empty()
             && self.port == 0
             && self.service_name.is_empty()
@@ -210,11 +210,11 @@ pub struct ServiceKey {
 }
 
 impl ServiceKey {
-    pub fn new(namespace_id: &str, group_name: &str, serivce_name: &str) -> Self {
+    pub fn new(namespace_id: &str, group_name: &str, service_name: &str) -> Self {
         Self {
             namespace_id: Arc::new(namespace_id.to_owned()),
             group_name: Arc::new(group_name.to_owned()),
-            service_name: Arc::new(serivce_name.to_owned()),
+            service_name: Arc::new(service_name.to_owned()),
         }
     }
 
