@@ -108,19 +108,21 @@ impl Service {
                  */
                 instance.from_grpc = old_instance.from_grpc;
                 instance.client_id = old_instance.client_id.clone();
-                //instance.from_cluster = old_instance.from_cluster;
+                instance.from_cluster = old_instance.from_cluster;
             }
             if !old_instance.client_id.is_empty() && instance.client_id != old_instance.client_id {
                 replace_old_client_id = Some(old_instance.client_id.clone());
             }
             if !old_instance.healthy && instance.healthy {
                 self.healthy_instance_size += 1;
+                #[cfg(feature = "debug")]
                 log::info!(
                     "[on update_instance] instance healthy status change to healthy,{:?}",
                     instance.get_instance_key()
                 )
             } else if old_instance.healthy && !instance.healthy {
                 self.healthy_instance_size -= 1;
+                #[cfg(feature = "debug")]
                 log::info!(
                     "[on update_instance] instance healthy status change to unhealthy,{:?}",
                     instance.get_instance_key()
@@ -214,6 +216,12 @@ impl Service {
         offline_time: i64,
     ) -> (Vec<InstanceShortKey>, Vec<InstanceShortKey>) {
         let mut remove_list = vec![];
+        #[cfg(feature = "debug")]
+        log::info!(
+            "time_check,healthy_time:{},offline_time:{}",
+            healthy_time,
+            offline_time
+        );
         for key in self.unhealthy_timeout_set.timeout(offline_time as u64) {
             if let Some(instance) = self.instances.get(&key) {
                 if !instance.is_enable_timeout() || instance.last_modified_millis > offline_time {
@@ -241,6 +249,12 @@ impl Service {
         instance_key: &InstanceShortKey,
         client_id: Option<&Arc<String>>,
     ) -> Option<Arc<Instance>> {
+        #[cfg(feature = "debug")]
+        log::info!(
+            "remove_instance,instance_key:{:?},client_id:{:?}",
+            instance_key,
+            &client_id
+        );
         if let Some(client_id) = client_id {
             if let Some(old) = self.instances.get(instance_key) {
                 if !client_id.is_empty() && old.client_id.as_str() != client_id.as_str() {

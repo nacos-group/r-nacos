@@ -44,6 +44,8 @@ pub async fn handle_naming_route(
     req: NamingRouteRequest,
     extend_info: HashMap<String, String>,
 ) -> anyhow::Result<NamingRouterResponse> {
+    #[cfg(feature = "debug")]
+    log::info!("handle_naming_route req:{:?}", &req);
     match req {
         NamingRouteRequest::Ping(cluster_id) => {
             //更新node_id节点活跃状态
@@ -66,11 +68,13 @@ pub async fn handle_naming_route(
         NamingRouteRequest::SyncUpdateInstance { mut instance } => {
             let cluster_id = get_cluster_id(extend_info)?;
             reset_cluster_info(cluster_id, &mut instance);
-            app.naming_inner_node_manage
-                .do_send(NodeManageRequest::AddClientId(
-                    cluster_id,
-                    instance.client_id.clone(),
-                ));
+            if instance.from_cluster == cluster_id {
+                app.naming_inner_node_manage
+                    .do_send(NodeManageRequest::AddClientId(
+                        cluster_id,
+                        instance.client_id.clone(),
+                    ));
+            }
             let cmd = NamingCmd::Update(instance, None);
             let _: NamingResult = app.naming_addr.send(cmd).await??;
         }
@@ -89,19 +93,27 @@ pub async fn handle_naming_route(
             let mut client_sets = HashSet::new();
             for instance in &mut batch_receive.update_instances {
                 reset_cluster_info(cluster_id, instance);
-                client_sets.insert(instance.client_id.clone());
+                if instance.from_cluster == cluster_id {
+                    client_sets.insert(instance.client_id.clone());
+                }
             }
             /*
             for instance in &mut batch_receive.remove_instances {
                 reset_cluster_info(cluster_id, instance);
             }
              */
-            app.naming_inner_node_manage
-                .do_send(NodeManageRequest::AddClientIds(cluster_id, client_sets));
-            app.naming_addr
-                .do_send(NamingCmd::DeleteBatch(batch_receive.remove_instances));
-            app.naming_addr
-                .do_send(NamingCmd::UpdateBatch(batch_receive.update_instances));
+            if !client_sets.is_empty() {
+                app.naming_inner_node_manage
+                    .do_send(NodeManageRequest::AddClientIds(cluster_id, client_sets));
+            }
+            if !batch_receive.remove_instances.is_empty() {
+                app.naming_addr
+                    .do_send(NamingCmd::DeleteBatch(batch_receive.remove_instances));
+            }
+            if !batch_receive.update_instances.is_empty() {
+                app.naming_addr
+                    .do_send(NamingCmd::UpdateBatch(batch_receive.update_instances));
+            }
         }
         NamingRouteRequest::RemoveClientId { client_id } => {
             app.naming_inner_node_manage
@@ -138,10 +150,14 @@ pub async fn handle_naming_route(
             let mut client_sets = HashSet::new();
             for instance in &mut snapshot_receive.instances {
                 reset_cluster_info(cluster_id, instance);
-                client_sets.insert(instance.client_id.clone());
+                if instance.from_cluster == cluster_id {
+                    client_sets.insert(instance.client_id.clone());
+                }
             }
-            app.naming_inner_node_manage
-                .do_send(NodeManageRequest::AddClientIds(cluster_id, client_sets));
+            if !client_sets.is_empty() {
+                app.naming_inner_node_manage
+                    .do_send(NodeManageRequest::AddClientIds(cluster_id, client_sets));
+            }
             //增量数据
             app.naming_addr
                 .do_send(NamingCmd::ReceiveSnapshot(snapshot_receive));

@@ -173,6 +173,8 @@ impl Handler<InstanceDelayNotifyRequest> for ClusterInstanceDelayNotifyActor {
         msg: InstanceDelayNotifyRequest,
         _ctx: &mut Self::Context,
     ) -> Self::Result {
+        #[cfg(feature = "debug")]
+        log::info!("ClusterInstanceDelayNotifyActor handle msg:{:?}", &msg);
         match msg {
             InstanceDelayNotifyRequest::UpdateInstance(instance) => {
                 self.delay_notify(instance, true);

@@ -297,6 +297,7 @@ impl InstanceShortKey {
     }
 }
 
+#[derive(Debug, Clone)]
 pub enum UpdateInstanceType {
     None,
     New,

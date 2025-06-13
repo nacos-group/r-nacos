@@ -267,15 +267,8 @@ impl NamingActor {
     }
 
     /// 单独订阅者通知
-    fn notify_to_subscriber(&mut self, tag: &UpdateInstanceType, key: ServiceKey) {
-        match tag {
-            UpdateInstanceType::New
-            | UpdateInstanceType::Remove
-            | UpdateInstanceType::UpdateValue => {
-                self.subscriber.notify(key);
-            }
-            _ => {}
-        }
+    fn notify_to_subscriber(&mut self, _tag: &UpdateInstanceType, key: ServiceKey) {
+        self.subscriber.notify(key);
     }
 
     /// 变更通知，包含给其它集群节点通知和给本节点监听器通知
@@ -432,6 +425,13 @@ impl NamingActor {
         let instance_short_key = instance.get_short_key();
 
         let (tag, replace_old_client_id) = service.update_instance(instance, tag, from_sync);
+        #[cfg(feature = "debug")]
+        log::info!(
+            "update_instance tag:{:?},key:{:?},replace_old_client_id:{:?}",
+            &tag,
+            instance_key,
+            &replace_old_client_id
+        );
         if let UpdateInstanceType::UpdateOtherClusterMetaData(_, _) = &tag {
             return tag;
         }
@@ -1076,6 +1076,8 @@ impl Handler<NamingCmd> for NamingActor {
     type Result = anyhow::Result<NamingResult>;
 
     fn handle(&mut self, msg: NamingCmd, ctx: &mut Context<Self>) -> Self::Result {
+        #[cfg(feature = "debug")]
+        log::info!("NamingActor handle:{:?}", &msg);
         match msg {
             NamingCmd::Update(instance, tag) => {
                 let tag = self.update_instance(&instance.get_service_key(), instance, tag, false);

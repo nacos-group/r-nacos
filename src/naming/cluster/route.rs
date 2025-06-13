@@ -105,12 +105,14 @@ impl NamingRoute {
                 instance.client_id = Arc::new(format!("{}_G", &cluster_id));
             }
             */
-            self.node_manage
-                .inner_node_manage
-                .do_send(NodeManageRequest::AddClientId(
-                    cluster_id,
-                    instance.client_id.clone(),
-                ));
+            if instance.from_cluster == cluster_id && !instance.client_id.is_empty() {
+                self.node_manage
+                    .inner_node_manage
+                    .do_send(NodeManageRequest::AddClientId(
+                        cluster_id,
+                        instance.client_id.clone(),
+                    ));
+            }
             instance.from_cluster = cluster_id;
             let cmd = NamingCmd::UpdateFromSync(instance, tag);
             self.naming_addr.do_send(cmd);
