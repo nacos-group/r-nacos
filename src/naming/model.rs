@@ -202,7 +202,7 @@ impl Default for InstanceUpdateTag {
     }
 }
 
-#[derive(Debug, Clone, Default, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ServiceKey {
     pub namespace_id: Arc<String>,
     pub group_name: Arc<String>,

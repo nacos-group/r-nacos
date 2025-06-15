@@ -23,7 +23,7 @@ pub struct ServiceKeyParam{
 }
 */
 
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Serialize, Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ServiceQueryListRequest {
     pub page_no: Option<usize>,
@@ -31,6 +31,8 @@ pub struct ServiceQueryListRequest {
     pub namespace_id: Option<String>,
     pub group_name_param: Option<String>,
     pub service_name_param: Option<String>,
+    /// 节点id,在查询指定节点信息时用到
+    pub node_id: Option<u64>,
 }
 
 impl ServiceQueryListRequest {

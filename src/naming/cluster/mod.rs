@@ -224,6 +224,15 @@ pub async fn handle_naming_route(
                 }
             }
         }
+        NamingRouteRequest::QueryServiceSubscriberPage(param) => {
+            let resp = app
+                .naming_addr
+                .send(NamingCmd::QueryServiceSubscribersPageV2(param))
+                .await??;
+            if let NamingResult::ServiceSubscribersPage((total, list)) = resp {
+                return Ok(NamingRouterResponse::ServiceSubscribersPage((total, list)));
+            }
+        }
     };
     Ok(NamingRouterResponse::None)
 }

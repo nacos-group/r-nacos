@@ -4,12 +4,13 @@ use crate::common::string_utils::StringUtils;
 use crate::namespace::model::{NamespaceActorReq, WeakNamespaceFromType, WeakNamespaceParam};
 use crate::namespace::NamespaceActor;
 use actix::Addr;
+use serde::{Deserialize, Serialize};
 use std::{
     collections::{BTreeMap, BTreeSet},
     sync::Arc,
 };
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ServiceQueryParam {
     pub namespace_id: Option<Arc<String>>,
     pub group: Option<Arc<String>>,
@@ -22,6 +23,14 @@ pub struct ServiceQueryParam {
 }
 
 impl ServiceQueryParam {
+    pub fn match_namespace_id(&self, g: &Arc<String>) -> bool {
+        if let Some(namespace_id) = &self.namespace_id {
+            namespace_id.is_empty() || StringUtils::eq(g, namespace_id)
+        } else {
+            true
+        }
+    }
+
     pub fn match_group(&self, g: &Arc<String>) -> bool {
         if let Some(group) = &self.group {
             group.is_empty() || StringUtils::eq(g, group)

@@ -356,5 +356,5 @@ pub struct ServiceQueryListResponce {
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct ServiceQuerySubscribersListResponce {
     pub count: usize,
-    pub subscribers: Vec<Arc<SubscriberInfoDto>>,
+    pub subscribers: Vec<SubscriberInfoDto>,
 }

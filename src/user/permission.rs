@@ -274,6 +274,7 @@ lazy_static::lazy_static! {
         R::Path("/rnacos/api/console/ns/instance",HTTP_METHOD_GET),
 
         R::Path("/rnacos/api/console/v2/service/list",HTTP_METHOD_GET),
+        R::Path("/rnacos/api/console/v2/service/subscriber/list",HTTP_METHOD_GET),
         R::Path("/rnacos/api/console/v2/instance/list",HTTP_METHOD_GET),
         R::Path("/rnacos/api/console/v2/instance/info",HTTP_METHOD_GET),
         R::Path("/rnacos/manage/subscriber", HTTP_METHOD_GET),
@@ -300,6 +301,7 @@ lazy_static::lazy_static! {
         R::Path("/rnacos/api/console/ns/instance",HTTP_METHOD_ALL),
 
         R::Path("/rnacos/api/console/v2/service/list",HTTP_METHOD_GET),
+        R::Path("/rnacos/api/console/v2/service/subscriber/list",HTTP_METHOD_GET),
         R::Path("/rnacos/api/console/v2/service/add",HTTP_METHOD_ALL),
         R::Path("/rnacos/api/console/v2/service/update",HTTP_METHOD_ALL),
         R::Path("/rnacos/api/console/v2/service/remove",HTTP_METHOD_ALL),

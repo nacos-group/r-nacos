@@ -4,9 +4,14 @@ use crate::console::model::naming_model::{
     InstanceParams, ServiceDto, ServiceParam, ServiceQueryListRequest,
 };
 use crate::console::v2::ERROR_CODE_SYSTEM_ERROR;
+use crate::grpc::handler::NAMING_ROUTE_REQUEST;
+use crate::grpc::PayloadUtils;
 use crate::naming::api_model::InstanceVO;
+use crate::naming::cluster::model::{NamingRouteRequest, NamingRouterResponse};
 use crate::naming::core::{NamingActor, NamingCmd, NamingResult};
 use crate::naming::model::{InstanceUpdateTag, ServiceDetailDto};
+use crate::naming::service::SubscriberInfoDto;
+use crate::naming::service_index::ServiceQueryParam;
 use crate::naming::NamingUtils;
 use crate::{user_namespace_privilege, user_no_namespace_permission};
 use actix::Addr;
@@ -293,5 +298,61 @@ pub async fn remove_instance(
             ERROR_CODE_SYSTEM_ERROR.to_string(),
             Some(err.to_string()),
         )),
+    }
+}
+
+pub async fn query_subscribers_list(
+    app: Data<Arc<AppShareData>>,
+    req: HttpRequest,
+    param: web::Query<ServiceQueryListRequest>,
+) -> impl Responder {
+    let node_id = param.node_id.unwrap_or(0);
+    let service_param = param.0.to_param(&req).unwrap();
+    if !service_param
+        .namespace_privilege
+        .check_option_value_permission(&service_param.namespace_id, true)
+    {
+        user_no_namespace_permission!(&service_param.namespace_id);
+    }
+    match do_query_subscribers_list(app, service_param, node_id).await {
+        Ok(res) => HttpResponse::Ok().json(ApiResult::success(Some(res))),
+        Err(err) => HttpResponse::Ok().json(ApiResult::<()>::error(
+            ERROR_CODE_SYSTEM_ERROR.to_string(),
+            Some(err.to_string()),
+        )),
+    }
+}
+
+async fn do_query_subscribers_list(
+    app: Data<Arc<AppShareData>>,
+    param: ServiceQueryParam,
+    node_id: u64,
+) -> anyhow::Result<PageResult<SubscriberInfoDto>> {
+    if node_id == 0 || node_id == app.sys_config.raft_node_id {
+        if let NamingResult::ServiceSubscribersPage((total_count, list)) = app
+            .naming_addr
+            .send(NamingCmd::QueryServiceSubscribersPageV2(param))
+            .await??
+        {
+            Ok(PageResult { total_count, list })
+        } else {
+            Err(anyhow::anyhow!("query subscribers error"))
+        }
+    } else {
+        let addr = app.naming_node_manage.get_node_addr(node_id).await?;
+        let req = NamingRouteRequest::QueryServiceSubscriberPage(param);
+        let request = serde_json::to_string(&req).unwrap_or_default();
+        let payload = PayloadUtils::build_payload(NAMING_ROUTE_REQUEST, request);
+        let resp_payload = app
+            .cluster_sender
+            .send_request(addr.clone(), payload)
+            .await?;
+        let body_vec = resp_payload.body.unwrap_or_default().value;
+        let resp: NamingRouterResponse = serde_json::from_slice(&body_vec)?;
+        if let NamingRouterResponse::ServiceSubscribersPage((total_count, list)) = resp {
+            Ok(PageResult { total_count, list })
+        } else {
+            Err(anyhow::anyhow!("query subscribers error"))
+        }
     }
 }

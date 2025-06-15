@@ -186,6 +186,7 @@ impl NamingRouteRequestHandler {
                 }
                 args.merge_args(tmp_args);
             }
+            NamingRouteRequest::QueryServiceSubscriberPage(param) => {}
         }
         Ok(args.to_string())
     }

@@ -1,5 +1,7 @@
 use crate::metrics::timeline::model::{TimelineQueryParam, TimelineQueryResponse};
 use crate::naming::model::{Instance, InstanceKey, InstanceUpdateTag, ServiceDetailDto};
+use crate::naming::service::SubscriberInfoDto;
+use crate::naming::service_index::ServiceQueryParam;
 use actix::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
@@ -47,6 +49,7 @@ pub enum NamingRouteRequest {
     MetricsTimelineQuery(TimelineQueryParam),
     SyncDistroClientInstances(HashMap<Arc<String>, HashSet<InstanceKey>>),
     QueryDistroInstanceSnapshot(Vec<InstanceKey>),
+    QueryServiceSubscriberPage(ServiceQueryParam),
 }
 
 impl NamingRouteRequest {
@@ -65,6 +68,7 @@ impl NamingRouteRequest {
             NamingRouteRequest::MetricsTimelineQuery(_) => "MetricsTimelineQuery",
             NamingRouteRequest::SyncDistroClientInstances(_) => "SyncDistroClientInstances",
             NamingRouteRequest::QueryDistroInstanceSnapshot(_) => "QueryDistroInstanceSnapshot",
+            NamingRouteRequest::QueryServiceSubscriberPage(_) => "QueryServiceSubscriberPage",
         }
     }
 }
@@ -73,6 +77,7 @@ impl NamingRouteRequest {
 pub enum NamingRouterResponse {
     None,
     MetricsTimeLineResponse(TimelineQueryResponse),
+    ServiceSubscribersPage((usize, Vec<SubscriberInfoDto>)),
 }
 
 #[derive(Message, Debug, Clone)]

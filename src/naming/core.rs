@@ -50,11 +50,13 @@ use std::collections::BTreeSet;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::collections::LinkedList;
+use std::default::Default;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
 
 use crate::common::constant::EMPTY_ARC_STRING;
+use crate::common::model::privilege::NamespacePrivilegeGroup;
 use crate::metrics::metrics_key::MetricsKey;
 use crate::metrics::model::{MetricsItem, MetricsQuery, MetricsRecord};
 use crate::namespace::NamespaceActor;
@@ -689,6 +691,8 @@ impl NamingActor {
         (size, service_names)
     }
 
+    ///过程生成的不必要的临时对象过多,使用v2版本
+    #[deprecated]
     pub fn get_subscribers_list(
         &self,
         page_size: usize,
@@ -738,6 +742,35 @@ impl NamingActor {
             .collect::<Vec<_>>();
 
         (total, paginated_result)
+    }
+
+    pub fn get_subscribers_list_v2(
+        &self,
+        page_size: usize,
+        page_index: usize,
+        key: &ServiceKey,
+    ) -> (usize, Vec<SubscriberInfoDto>) {
+        let offset = if page_index == 0 {
+            0
+        } else {
+            page_size * (page_index - 1)
+        };
+        let param = ServiceQueryParam {
+            offset,
+            limit: page_size,
+            namespace_id: Some(key.namespace_id.clone()),
+            like_group: Some(key.group_name.as_ref().clone()),
+            like_service: Some(key.service_name.as_ref().clone()),
+            ..Default::default()
+        };
+        self.subscriber.query_service_listener_page(&param)
+    }
+
+    pub fn get_subscribers_list_by_param(
+        &self,
+        param: ServiceQueryParam,
+    ) -> (usize, Vec<SubscriberInfoDto>) {
+        self.subscriber.query_service_listener_page(&param)
     }
 
     pub fn get_service_info_page(&self, param: ServiceQueryParam) -> (usize, Vec<ServiceInfoDto>) {
@@ -1026,6 +1059,7 @@ pub enum NamingCmd {
     QueryServiceInfo(ServiceKey, String, bool),
     QueryServicePage(ServiceKey, usize, usize),
     QueryServiceSubscribersPage(ServiceKey, usize, usize),
+    QueryServiceSubscribersPageV2(ServiceQueryParam),
     //查询服务实际信息列表
     QueryServiceInfoPage(ServiceQueryParam),
     //CreateService(ServiceDetailDto),
@@ -1056,7 +1090,7 @@ pub enum NamingResult {
     InstanceListString(String),
     ServiceInfo(ServiceInfo),
     ServicePage((usize, Vec<Arc<String>>)),
-    ServiceSubscribersPage((usize, Vec<Arc<SubscriberInfoDto>>)),
+    ServiceSubscribersPage((usize, Vec<SubscriberInfoDto>)),
     ServiceInfoPage((usize, Vec<ServiceInfoDto>)),
     ClientInstanceCount(Vec<(Arc<String>, usize)>),
     RewriteToCluster(u64, Instance),
@@ -1158,12 +1192,15 @@ impl Handler<NamingCmd> for NamingActor {
             }
             NamingCmd::QueryServiceSubscribersPage(service_key, page_size, page_index) => {
                 Ok(NamingResult::ServiceSubscribersPage(
-                    self.get_subscribers_list(page_size, page_index, &service_key),
+                    self.get_subscribers_list_v2(page_size, page_index, &service_key),
                 ))
             }
             NamingCmd::QueryServiceInfoPage(param) => Ok(NamingResult::ServiceInfoPage(
                 self.get_service_info_page(param),
             )),
+            NamingCmd::QueryServiceSubscribersPageV2(param) => Ok(
+                NamingResult::ServiceSubscribersPage(self.get_subscribers_list_by_param(param)),
+            ),
             NamingCmd::PeekListenerTimeout => {
                 self.time_check();
                 //self.notify_check();

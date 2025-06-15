@@ -111,6 +111,8 @@ pub async fn query_service_list(
     }
 }
 
+/// 控制台的接口应该走v2的接口,标记废弃
+/// #[deprecated]
 pub async fn query_subscribers_list(
     param: web::Query<ServiceQueryListRequest>,
     naming_addr: web::Data<Addr<NamingActor>>,

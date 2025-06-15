@@ -1,15 +1,17 @@
 #![allow(unused_imports)]
 
-use std::{
-    collections::{HashMap, HashSet},
-    sync::Arc,
-};
-
-use actix::prelude::*;
-
 use super::{
     model::ServiceKey,
     naming_delay_nofity::{DelayNotifyActor, DelayNotifyCmd},
+};
+use crate::common::constant::EMPTY_ARC_STRING;
+use crate::naming::service::SubscriberInfoDto;
+use crate::naming::service_index::ServiceQueryParam;
+use actix::prelude::*;
+use std::collections::BTreeMap;
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
 };
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
@@ -40,7 +42,7 @@ pub struct NamingListenerItem {
 
 #[derive(Default)]
 pub struct Subscriber {
-    listener: HashMap<ServiceKey, HashMap<Arc<String>, Option<HashSet<String>>>>,
+    listener: BTreeMap<ServiceKey, BTreeMap<Arc<String>, Option<HashSet<String>>>>,
     client_keys: HashMap<Arc<String>, HashSet<ServiceKey>>,
     notify_addr: Option<Addr<DelayNotifyActor>>,
 }
@@ -79,7 +81,7 @@ impl Subscriber {
                     set.insert(client_id.clone(), item.clusters);
                 }
                 None => {
-                    let mut set = HashMap::new();
+                    let mut set = BTreeMap::new();
                     set.insert(client_id.clone(), item.clusters);
                     self.listener.insert(item.service_key, set);
                 }
@@ -191,7 +193,7 @@ impl Subscriber {
         group_name: &str,
         service_name: &str,
         namespace_id: &str,
-    ) -> HashMap<ServiceKey, HashMap<Arc<String>, Option<HashSet<String>>>> {
+    ) -> BTreeMap<ServiceKey, BTreeMap<Arc<String>, Option<HashSet<String>>>> {
         self.listener
             .iter()
             .filter(|(key, _)| {
@@ -201,5 +203,48 @@ impl Subscriber {
             }) // 模糊匹配
             .map(|(key, value)| (key.clone(), value.clone()))
             .collect()
+    }
+
+    pub fn query_service_listener_page(
+        &self,
+        param: &ServiceQueryParam,
+    ) -> (usize, Vec<SubscriberInfoDto>) {
+        let mut rlist = vec![];
+        let end_index = param.offset + param.limit;
+        let mut index = 0;
+        for (key, value) in self.listener.iter() {
+            if param.match_namespace_id(&key.namespace_id)
+                && param.match_group(&key.group_name)
+                && param.match_service(&key.service_name)
+            {
+                for (ip_port, _) in value.iter() {
+                    if index >= param.offset && index < end_index {
+                        let (ip, port) = Self::parse_ip_port(ip_port.as_ref());
+                        rlist.push(SubscriberInfoDto {
+                            service_name: key.service_name.clone(),
+                            group_name: key.group_name.clone(),
+                            namespace_id: key.namespace_id.clone(),
+                            ip,
+                            port,
+                        });
+                    }
+                    index += 1;
+                }
+            }
+        }
+        (index, rlist)
+    }
+
+    fn parse_ip_port(ip_port: &str) -> (Arc<String>, u16) {
+        let parts: Vec<&str> = ip_port.split(':').collect();
+        let mut ip = EMPTY_ARC_STRING.clone();
+        let mut port = 0;
+        if parts.len() == 2 {
+            ip = Arc::new(parts[0].to_string());
+            if let Ok(p) = parts[1].parse::<u16>() {
+                port = p;
+            }
+        }
+        (ip, port)
     }
 }

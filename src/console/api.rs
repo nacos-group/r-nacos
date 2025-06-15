@@ -285,6 +285,10 @@ pub fn console_api_config_v2(config: &mut web::ServiceConfig) {
                     .route(web::get().to(v2::naming_api::query_service_list)),
             )
             .service(
+                web::resource("/service/subscriber/list")
+                    .route(web::get().to(v2::naming_api::query_subscribers_list)),
+            )
+            .service(
                 web::resource("/service/add").route(web::post().to(v2::naming_api::add_service)),
             )
             .service(
