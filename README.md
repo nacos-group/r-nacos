@@ -490,3 +490,11 @@ r-nacos架构设计参考：
 
 <img style="width: 200px;" width="200" src="https://github.com/r-nacos/r-nacos/raw/master/doc/assets/imgs/wechat.jpg" alt="qingpan2014" />
 
+
+## 贡献者
+
+Thanks goes to these wonderful people:
+
+<!-- START_CONTRIBUTORS -->
+[![Contributors](http://contrib.nn.ci/api?repo=nacos-group/r-nacos&repo=r-nacos/rnacos-console-web&repo=r-nacos/docs)](https://github.com/nacos-group/r-nacos/graphs/contributors)
+<!-- END_CONTRIBUTORS -->
