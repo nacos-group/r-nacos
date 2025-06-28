@@ -65,6 +65,7 @@ impl HistoryItem {
             data_id: Some(key.data_id.to_string()),
             content: Some(self.content.to_string()),
             modified_time: Some(self.modified_time),
+            op_user: self.op_user.as_ref().map(|e| e.to_string()),
         }
     }
 }
