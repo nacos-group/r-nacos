@@ -1,5 +1,7 @@
+use crate::common::string_utils::StringUtils;
 use crate::ldap::model::actor_model::{LdapMsgActorReq, LdapMsgReq, LdapMsgResult};
 use crate::ldap::model::{LdapConfig, LdapUserMeta};
+use crate::user::permission;
 use actix::prelude::*;
 use ldap3::{Ldap, SearchEntry};
 use std::sync::Arc;
@@ -60,11 +62,30 @@ impl LdapMsgActor {
                 if rs.len() > 0 {
                     let entry = rs.remove(0);
                     let mut entry = SearchEntry::construct(entry);
+                    let mut role = ldap_config.ldap_user_default_role.clone();
                     let groups = entry.attrs.remove("memberOf").unwrap_or_default();
-                    let meta = LdapUserMeta::new(bind_req.user_name, groups);
+                    let groups = groups
+                        .iter()
+                        .map(|s| StringUtils::extract_ldap_value_cn(s))
+                        .filter(|s| s.is_some())
+                        .map(|s| s.unwrap())
+                        .collect::<Vec<_>>();
+                    for group in groups.iter() {
+                        if ldap_config.ldap_user_developer_groups.contains(group) {
+                            role = permission::USER_ROLE_DEVELOPER.clone();
+                            break;
+                        }
+                    }
+                    for group in groups.iter() {
+                        if ldap_config.ldap_user_admin_groups.contains(group) {
+                            role = permission::USER_ROLE_MANAGER.clone();
+                            break;
+                        }
+                    }
+                    let meta = LdapUserMeta::new(bind_req.user_name, groups, role);
                     Ok(LdapMsgResult::UserMeta(meta))
                 } else {
-                    Err(anyhow::anyhow!("no user"))
+                    Err(anyhow::anyhow!("search user result is empty"))
                 }
             }
         }

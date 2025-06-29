@@ -1,5 +1,8 @@
 use crate::common::string_utils::StringUtils;
 use crate::ldap::model::LdapConfig;
+use crate::user::permission;
+use crate::user::permission::UserRoleHelper;
+use std::collections::HashSet;
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -96,6 +99,9 @@ pub struct AppSysConfig {
     pub ldap_url: Arc<String>,
     pub ldap_user_base_dn: Arc<String>,
     pub ldap_user_filter: Arc<String>,
+    pub ldap_user_developer_groups: Arc<HashSet<String>>,
+    pub ldap_user_admin_groups: Arc<HashSet<String>>,
+    pub ldap_user_default_role: Arc<String>,
 }
 
 impl AppSysConfig {
@@ -242,6 +248,18 @@ impl AppSysConfig {
         let ldap_user_filter = std::env::var("RNACOS_LDAP_USER_FILTER")
             .map(Arc::new)
             .unwrap_or(constant::EMPTY_ARC_STRING.clone());
+        let ldap_user_developer_groups = Arc::new(StringUtils::split_to_hashset(
+            &std::env::var("RNACOS_LDAP_USER_DEVELOPER_GROUP").unwrap_or_default(),
+        ));
+        let ldap_user_admin_groups = Arc::new(StringUtils::split_to_hashset(
+            &std::env::var("RNACOS_LDAP_USER_ADMIN_GROUP").unwrap_or_default(),
+        ));
+        let ldap_user_default_role = std::env::var("RNACOS_LDAP_USER_DEFAULT_ROLE")
+            .map(|v| {
+                let upper = v.to_uppercase();
+                UserRoleHelper::get_role_by_name(&upper, permission::USER_ROLE_VISITOR.clone())
+            })
+            .unwrap_or(permission::USER_ROLE_VISITOR.clone());
         Self {
             local_db_dir,
             config_db_file,
@@ -278,6 +296,9 @@ impl AppSysConfig {
             ldap_url,
             ldap_user_base_dn,
             ldap_user_filter,
+            ldap_user_developer_groups,
+            ldap_user_admin_groups,
+            ldap_user_default_role,
         }
     }
 
@@ -320,6 +341,9 @@ impl AppSysConfig {
             ldap_url: self.ldap_url.clone(),
             ldap_user_base_dn: self.ldap_user_base_dn.clone(),
             ldap_user_filter: self.ldap_user_filter.clone(),
+            ldap_user_developer_groups: self.ldap_user_developer_groups.clone(),
+            ldap_user_admin_groups: self.ldap_user_admin_groups.clone(),
+            ldap_user_default_role: self.ldap_user_default_role.clone(),
         })
     }
 }

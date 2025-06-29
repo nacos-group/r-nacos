@@ -172,7 +172,7 @@ async fn ldap_login(
         Some(Arc::new(UserSession {
             username: param.username.clone(),
             nickname: Some(meta.user_name),
-            roles: vec![USER_ROLE_DEVELOPER.clone()],
+            roles: vec![meta.role],
             refresh_time: now_second_i32() as u32,
             ..UserSession::default()
         }))

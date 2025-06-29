@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::sync::Arc;
 
 pub mod actor_model;
@@ -7,6 +8,9 @@ pub struct LdapConfig {
     pub ldap_url: Arc<String>,
     pub ldap_user_base_dn: Arc<String>,
     pub ldap_user_filter: Arc<String>,
+    pub ldap_user_developer_groups: Arc<HashSet<String>>,
+    pub ldap_user_admin_groups: Arc<HashSet<String>>,
+    pub ldap_user_default_role: Arc<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -26,10 +30,15 @@ pub struct LdapUserBindParam {
 pub struct LdapUserMeta {
     pub user_name: String,
     pub groups: Vec<String>,
+    pub role: Arc<String>,
 }
 
 impl LdapUserMeta {
-    pub fn new(user_name: String, groups: Vec<String>) -> Self {
-        Self { user_name, groups }
+    pub fn new(user_name: String, groups: Vec<String>, role: Arc<String>) -> Self {
+        Self {
+            user_name,
+            groups,
+            role,
+        }
     }
 }
