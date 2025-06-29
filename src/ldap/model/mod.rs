@@ -18,7 +18,6 @@ pub struct LdapUserParam {
 
 #[derive(Clone, Debug)]
 pub struct LdapUserBindParam {
-    pub dn: String,
     pub user_name: String,
     pub password: String,
 }

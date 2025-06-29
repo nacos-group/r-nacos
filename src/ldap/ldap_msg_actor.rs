@@ -44,14 +44,15 @@ impl LdapMsgActor {
                     .simple_bind(&bind_dn, &bind_req.password)
                     .await?
                     .success()?;
+                let filter = format!(
+                    "(&{}(cn={}))",
+                    ldap_config.ldap_user_filter, &bind_req.user_name
+                );
                 let (mut rs, _res) = ldap
                     .search(
                         &ldap_config.ldap_user_base_dn,
                         ldap3::Scope::Subtree,
-                        &format!(
-                            "(&{}(cn={})",
-                            ldap_config.ldap_user_filter, &bind_req.user_name
-                        ),
+                        &filter,
                         vec!["cn", "memberOf"],
                     )
                     .await?

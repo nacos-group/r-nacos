@@ -6,6 +6,7 @@ use crate::ldap::model::{LdapConfig, LdapUserParam};
 use actix::prelude::*;
 use ldap3::{Ldap, LdapConnAsync};
 use std::sync::Arc;
+use std::time::Duration;
 
 pub struct LdapConnActor {
     ldap_config: Arc<LdapConfig>,
@@ -47,20 +48,25 @@ impl LdapConnActor {
                     Self::drive_conn(conn)
                         .into_actor(act)
                         .map(|_, act, ctx| {
-                            log::info!("LDAP connection closed");
+                            log::warn!("LDAP connection closed");
                             if act.stop {
                                 log::error!("LDAP connection stopped");
                                 ctx.stop();
                             } else {
                                 log::warn!("LDAP reconnecting");
-                                act.ldap_msg_actor = None;
-                                act.init_conn(ctx);
+                                ctx.run_later(Duration::from_millis(1000), |act, ctx| {
+                                    act.init_conn(ctx);
+                                });
                             }
                         })
                         .spawn(ctx);
                 }
                 Err(e) => {
                     log::error!("LDAP connection error: {}", e);
+                    log::warn!("LDAP reconnecting");
+                    ctx.run_later(Duration::from_millis(2000), |act, ctx| {
+                        act.init_conn(ctx);
+                    });
                 }
             })
             .wait(ctx);

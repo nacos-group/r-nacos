@@ -32,6 +32,7 @@ pub enum LdapManagerReq {
     Auth(LdapUserParam),
 }
 
+#[derive(Clone, Debug)]
 pub enum LdapMsgResult {
     None,
     UserMeta(LdapUserMeta),
