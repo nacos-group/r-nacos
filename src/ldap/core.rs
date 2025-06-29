@@ -2,6 +2,7 @@ use crate::ldap::ldap_conn::LdapConnActorAddr;
 use crate::ldap::ldap_msg_actor::LdapMsgActor;
 use crate::ldap::model::actor_model::{LdapMsgReq, LdapMsgResult};
 use crate::ldap::model::LdapConfig;
+use crate::user::UserManager;
 use actix::prelude::*;
 use bean_factory::{bean, BeanFactory, FactoryData, Inject};
 use std::sync::Arc;
@@ -11,6 +12,7 @@ pub struct LdapManager {
     ldap_config: Arc<LdapConfig>,
     ldap_conn_addr: Option<LdapConnActorAddr>,
     enable_ldap: bool,
+    user_manager_addr: Option<Addr<UserManager>>,
 }
 
 impl LdapManager {
@@ -19,6 +21,7 @@ impl LdapManager {
             ldap_config,
             ldap_conn_addr: None,
             enable_ldap,
+            user_manager_addr: None,
         }
     }
 
@@ -27,7 +30,8 @@ impl LdapManager {
             return;
         }
         let ldap_config = self.ldap_config.clone();
-        async move { LdapConnActorAddr::new_from_config(ldap_config).await }
+        let user_manager_addr = self.user_manager_addr.clone();
+        async move { LdapConnActorAddr::new_from_config(ldap_config, user_manager_addr).await }
             .into_actor(self)
             .map(|res, act, ctx| match res {
                 Ok(res) => {
@@ -57,7 +61,6 @@ impl Actor for LdapManager {
     type Context = Context<Self>;
     fn started(&mut self, ctx: &mut Self::Context) {
         log::info!("LdapManager started");
-        self.init(ctx);
     }
 }
 
@@ -66,10 +69,12 @@ impl Inject for LdapManager {
 
     fn inject(
         &mut self,
-        _factory_data: FactoryData,
+        factory_data: FactoryData,
         _factory: BeanFactory,
-        _ctx: &mut Self::Context,
+        ctx: &mut Self::Context,
     ) {
+        self.user_manager_addr = factory_data.get_actor();
+        self.init(ctx);
     }
 }
 

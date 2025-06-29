@@ -1,7 +1,8 @@
 use crate::common::string_utils::StringUtils;
 use crate::ldap::model::actor_model::{LdapMsgActorReq, LdapMsgReq, LdapMsgResult};
 use crate::ldap::model::{LdapConfig, LdapUserMeta};
-use crate::user::permission;
+use crate::user::model::{UserDto, UserSourceType};
+use crate::user::{permission, UserManager, UserManagerReq, UserManagerResult};
 use actix::prelude::*;
 use ldap3::{Ldap, SearchEntry};
 use std::sync::Arc;
@@ -12,16 +13,22 @@ pub struct LdapMsgActor {
     /// ldap备份；ldap每次使用时使用值传递，减少clone次数；ldap_backup用于并发时ldap为None后可以使用；
     ldap_backup: Option<Ldap>,
     ldap_config: Arc<LdapConfig>,
+    user_manager_addr: Option<Addr<UserManager>>,
 }
 
 impl LdapMsgActor {
-    pub(crate) fn new(ldap: Ldap, ldap_config: Arc<LdapConfig>) -> Self {
+    pub(crate) fn new(
+        ldap: Ldap,
+        ldap_config: Arc<LdapConfig>,
+        user_manager_addr: Option<Addr<UserManager>>,
+    ) -> Self {
         let ldap_backup = Some(ldap.clone());
         Self {
             ldap: Some(ldap),
             ldap_version: 0,
             ldap_backup,
             ldap_config,
+            user_manager_addr,
         }
     }
 
@@ -35,6 +42,7 @@ impl LdapMsgActor {
         ldap: &mut Ldap,
         ldap_config: Arc<LdapConfig>,
         msg: LdapMsgReq,
+        user_manager_addr: Option<Addr<UserManager>>,
     ) -> anyhow::Result<LdapMsgResult> {
         match msg {
             LdapMsgReq::Bind(bind_req) => {
@@ -63,6 +71,7 @@ impl LdapMsgActor {
                     let entry = rs.remove(0);
                     let mut entry = SearchEntry::construct(entry);
                     let mut role = ldap_config.ldap_user_default_role.clone();
+                    let mut namespace_privilege = None;
                     let groups = entry.attrs.remove("memberOf").unwrap_or_default();
                     let groups = groups
                         .iter()
@@ -82,7 +91,28 @@ impl LdapMsgActor {
                             break;
                         }
                     }
-                    let meta = LdapUserMeta::new(bind_req.user_name, groups, role);
+                    if let Some(user_manager_addr) = user_manager_addr {
+                        //init user
+                        let user = UserDto {
+                            username: Arc::new(bind_req.user_name.clone()),
+                            nickname: Some(bind_req.user_name.clone()),
+                            source: Some(UserSourceType::Inner.to_str().to_owned()),
+                            roles: Some(vec![role.clone()]),
+                            ..Default::default()
+                        };
+                        if let Ok(Ok(UserManagerResult::QueryUser(Some(user_dto)))) =
+                            user_manager_addr
+                                .send(UserManagerReq::InitUser {
+                                    user,
+                                    namespace_privilege_param: None,
+                                })
+                                .await
+                        {
+                            namespace_privilege = user_dto.namespace_privilege;
+                        }
+                    }
+                    let meta =
+                        LdapUserMeta::new(bind_req.user_name, groups, role, namespace_privilege);
                     Ok(LdapMsgResult::UserMeta(meta))
                 } else {
                     Err(anyhow::anyhow!("search user result is empty"))
@@ -112,9 +142,10 @@ impl Handler<LdapMsgReq> for LdapMsgActor {
         }
         let version = self.ldap_version;
         let config = self.ldap_config.clone();
+        let user_manager_addr = self.user_manager_addr.clone();
         async move {
             let r = if let Some(ldap) = ldap.as_mut() {
-                Self::handle_req(ldap, config, msg).await
+                Self::handle_req(ldap, config, msg, user_manager_addr).await
             } else {
                 Err(anyhow::anyhow!("ldap not init"))
             };

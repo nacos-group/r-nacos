@@ -3,6 +3,7 @@ use crate::ldap::model::actor_model::{
     LdapConnReq, LdapConnResult, LdapMsgActorReq, LdapMsgReq, LdapMsgResult,
 };
 use crate::ldap::model::{LdapConfig, LdapUserParam};
+use crate::user::UserManager;
 use actix::prelude::*;
 use ldap3::{Ldap, LdapConnAsync};
 use std::sync::Arc;
@@ -11,15 +12,17 @@ use std::time::Duration;
 pub struct LdapConnActor {
     ldap_config: Arc<LdapConfig>,
     ldap_msg_actor: Option<Addr<LdapMsgActor>>,
+    user_manager_addr: Option<Addr<UserManager>>,
     stop: bool,
 }
 
 impl LdapConnActor {
-    pub fn new(ldap_config: Arc<LdapConfig>) -> Self {
+    pub fn new(ldap_config: Arc<LdapConfig>, user_manager_addr: Option<Addr<UserManager>>) -> Self {
         Self {
             ldap_config,
             ldap_msg_actor: None,
             stop: false,
+            user_manager_addr,
         }
     }
 
@@ -41,8 +44,14 @@ impl LdapConnActor {
                         ldap_msg.do_send(LdapMsgActorReq::SetLdap(ldap));
                     } else {
                         //创建ldap
-                        act.ldap_msg_actor =
-                            Some(LdapMsgActor::new(ldap, act.ldap_config.clone()).start());
+                        act.ldap_msg_actor = Some(
+                            LdapMsgActor::new(
+                                ldap,
+                                act.ldap_config.clone(),
+                                act.user_manager_addr.clone(),
+                            )
+                            .start(),
+                        );
                     }
                     log::info!("LDAP connection established");
                     Self::drive_conn(conn)
@@ -116,8 +125,11 @@ impl LdapConnActorAddr {
         }
     }
 
-    pub async fn new_from_config(config: Arc<LdapConfig>) -> anyhow::Result<Self> {
-        let ldap_conn_actor = LdapConnActor::new(config).start();
+    pub async fn new_from_config(
+        config: Arc<LdapConfig>,
+        user_manager_addr: Option<Addr<UserManager>>,
+    ) -> anyhow::Result<Self> {
+        let ldap_conn_actor = LdapConnActor::new(config, user_manager_addr).start();
         if let LdapConnResult::MsgActor(ldap_msg_actor) =
             ldap_conn_actor.send(LdapConnReq::GetMsgActor).await??
         {

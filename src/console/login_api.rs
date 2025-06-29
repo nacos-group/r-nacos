@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use super::model::login_model::{LoginParam, LoginToken};
@@ -173,8 +174,9 @@ async fn ldap_login(
             username: param.username.clone(),
             nickname: Some(meta.user_name),
             roles: vec![meta.role],
+            namespace_privilege: meta.namespace_privilege,
+            extend_infos: HashMap::default(),
             refresh_time: now_second_i32() as u32,
-            ..UserSession::default()
         }))
     } else {
         None
