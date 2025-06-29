@@ -103,28 +103,38 @@ impl Actor for LdapMsgActor {
 impl Handler<LdapMsgReq> for LdapMsgActor {
     type Result = ResponseActFuture<Self, anyhow::Result<LdapMsgResult>>;
 
-    fn handle(&mut self, msg: LdapMsgReq, _ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, msg: LdapMsgReq, ctx: &mut Self::Context) -> Self::Result {
+        let (tx, rx) = tokio::sync::oneshot::channel();
+
         let mut ldap = self.ldap.take();
         if ldap.is_none() {
             ldap = self.ldap_backup.clone();
         }
         let version = self.ldap_version;
         let config = self.ldap_config.clone();
-        let fut = async move {
+        async move {
             let r = if let Some(ldap) = ldap.as_mut() {
                 Self::handle_req(ldap, config, msg).await
             } else {
                 Err(anyhow::anyhow!("ldap not init"))
             };
-            (ldap, version, r)
+            (ldap, version, tx, r)
         }
         .into_actor(self)
-        .map(|(ldap, version, r), act, ctx| {
+        .map(|(ldap, version, tx, r), act, ctx| {
             if act.ldap_version == version {
                 act.ldap = ldap;
             }
-            r
-        });
+            tx.send(r).ok();
+        })
+        .wait(ctx); //使用wait执行，保证handle_req内能依次执行，避免出现异步插队可能引发的问题。
+
+        let fut = async move { rx.await }
+            .into_actor(self)
+            .map(|r, act, ctx| match r {
+                Ok(v) => v,
+                Err(r) => Err(anyhow::anyhow!(r.to_string())),
+            });
         Box::pin(fut)
     }
 }
