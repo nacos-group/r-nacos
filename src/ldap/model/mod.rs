@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 pub mod actor_model;
 
+#[derive(Clone, Debug, Default)]
 pub struct LdapConfig {
     pub ldap_url: Arc<String>,
     pub ldap_user_base_dn: Arc<String>,

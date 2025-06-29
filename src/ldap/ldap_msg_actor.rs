@@ -1,4 +1,4 @@
-use crate::ldap::model::actor_model::{LdapConnReq, LdapMsgResult};
+use crate::ldap::model::actor_model::{LdapMsgActorReq, LdapMsgReq, LdapMsgResult};
 use crate::ldap::model::{LdapConfig, LdapUserMeta};
 use actix::prelude::*;
 use ldap3::{Ldap, SearchEntry};
@@ -6,24 +6,36 @@ use std::sync::Arc;
 
 pub struct LdapMsgActor {
     ldap: Option<Ldap>,
+    ldap_version: u64,
+    /// ldap备份；ldap每次使用时使用值传递，减少clone次数；ldap_backup用于并发时ldap为None后可以使用；
+    ldap_backup: Option<Ldap>,
     ldap_config: Arc<LdapConfig>,
 }
 
 impl LdapMsgActor {
-    fn new(ldap: Ldap, ldap_config: Arc<LdapConfig>) -> Self {
+    pub(crate) fn new(ldap: Ldap, ldap_config: Arc<LdapConfig>) -> Self {
+        let ldap_backup = Some(ldap.clone());
         Self {
             ldap: Some(ldap),
+            ldap_version: 0,
+            ldap_backup,
             ldap_config,
         }
+    }
+
+    fn set_ldap(&mut self, ldap: Ldap) {
+        self.ldap_backup = Some(ldap.clone());
+        self.ldap = Some(ldap);
+        self.ldap_version += 1;
     }
 
     async fn handle_req(
         ldap: &mut Ldap,
         ldap_config: Arc<LdapConfig>,
-        msg: LdapConnReq,
+        msg: LdapMsgReq,
     ) -> anyhow::Result<LdapMsgResult> {
         match msg {
-            LdapConnReq::Bind(bind_req) => {
+            LdapMsgReq::Bind(bind_req) => {
                 let bind_dn = format!(
                     "cn={},{}",
                     bind_req.user_name, &ldap_config.ldap_user_base_dn
@@ -66,11 +78,15 @@ impl Actor for LdapMsgActor {
     }
 }
 
-impl Handler<LdapConnReq> for LdapMsgActor {
+impl Handler<LdapMsgReq> for LdapMsgActor {
     type Result = ResponseActFuture<Self, anyhow::Result<LdapMsgResult>>;
 
-    fn handle(&mut self, msg: LdapConnReq, _ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, msg: LdapMsgReq, _ctx: &mut Self::Context) -> Self::Result {
         let mut ldap = self.ldap.take();
+        if ldap.is_none() {
+            ldap = self.ldap_backup.clone();
+        }
+        let version = self.ldap_version;
         let config = self.ldap_config.clone();
         let fut = async move {
             let r = if let Some(ldap) = ldap.as_mut() {
@@ -78,13 +94,27 @@ impl Handler<LdapConnReq> for LdapMsgActor {
             } else {
                 Err(anyhow::anyhow!("ldap not init"))
             };
-            (ldap, r)
+            (ldap, version, r)
         }
         .into_actor(self)
-        .map(|(ldap, r), act, ctx| {
-            act.ldap = ldap;
+        .map(|(ldap, version, r), act, ctx| {
+            if act.ldap_version == version {
+                act.ldap = ldap;
+            }
             r
         });
         Box::pin(fut)
+    }
+}
+
+impl Handler<LdapMsgActorReq> for LdapMsgActor {
+    type Result = anyhow::Result<()>;
+    fn handle(&mut self, msg: LdapMsgActorReq, _ctx: &mut Self::Context) -> Self::Result {
+        match msg {
+            LdapMsgActorReq::SetLdap(ldap) => {
+                self.set_ldap(ldap);
+            }
+        }
+        Ok(())
     }
 }

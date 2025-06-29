@@ -1,4 +1,5 @@
 use crate::common::string_utils::StringUtils;
+use crate::ldap::model::LdapConfig;
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -91,6 +92,10 @@ pub struct AppSysConfig {
     pub run_in_docker: bool,
     pub naming_health_timeout: u64,
     pub naming_instance_timeout: u64,
+    pub ldap_enable: bool,
+    pub ldap_url: Arc<String>,
+    pub ldap_user_base_dn: Arc<String>,
+    pub ldap_user_filter: Arc<String>,
 }
 
 impl AppSysConfig {
@@ -224,6 +229,19 @@ impl AppSysConfig {
             //如果配置不合理，则默认使过期时间大于心跳时间15秒
             naming_instance_timeout = naming_health_timeout + 15 * 1000;
         }
+        let ldap_enable = std::env::var("RNACOS_LDAP_ENABLE")
+            .unwrap_or("false".to_owned())
+            .parse()
+            .unwrap_or(false);
+        let ldap_url = std::env::var("RNACOS_LDAP_URL")
+            .map(Arc::new)
+            .unwrap_or(constant::EMPTY_ARC_STRING.clone());
+        let ldap_user_base_dn = std::env::var("RNACOS_LDAP_USER_BASE_DN")
+            .map(Arc::new)
+            .unwrap_or(constant::EMPTY_ARC_STRING.clone());
+        let ldap_user_filter = std::env::var("RNACOS_LDAP_USER_FILTER")
+            .map(Arc::new)
+            .unwrap_or(constant::EMPTY_ARC_STRING.clone());
         Self {
             local_db_dir,
             config_db_file,
@@ -256,6 +274,10 @@ impl AppSysConfig {
             run_in_docker,
             naming_health_timeout,
             naming_instance_timeout,
+            ldap_enable,
+            ldap_url,
+            ldap_user_base_dn,
+            ldap_user_filter,
         }
     }
 
@@ -291,6 +313,14 @@ impl AppSysConfig {
 
     pub fn get_http_console_addr(&self) -> String {
         format!("0.0.0.0:{}", &self.http_console_port)
+    }
+
+    pub fn get_ldap_config(&self) -> Arc<LdapConfig> {
+        Arc::new(LdapConfig {
+            ldap_url: self.ldap_url.clone(),
+            ldap_user_base_dn: self.ldap_user_base_dn.clone(),
+            ldap_user_filter: self.ldap_user_filter.clone(),
+        })
     }
 }
 

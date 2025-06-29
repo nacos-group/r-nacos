@@ -1,15 +1,15 @@
-use crate::ldap::model::actor_model::LdapConnReq;
+use crate::ldap::ldap_msg_actor::LdapMsgActor;
+use crate::ldap::model::actor_model::{
+    LdapConnReq, LdapConnResult, LdapMsgActorReq, LdapMsgReq, LdapMsgResult,
+};
 use crate::ldap::model::{LdapConfig, LdapUserParam};
 use actix::prelude::*;
-use futures_util::task::SpawnExt;
-use futures_util::StreamExt;
 use ldap3::{Ldap, LdapConnAsync};
 use std::sync::Arc;
-use tokio_stream::wrappers::ReceiverStream;
 
 pub struct LdapConnActor {
     ldap_config: Arc<LdapConfig>,
-    ldap_inner: Option<Ldap>,
+    ldap_msg_actor: Option<Addr<LdapMsgActor>>,
     stop: bool,
 }
 
@@ -17,7 +17,7 @@ impl LdapConnActor {
     pub fn new(ldap_config: Arc<LdapConfig>) -> Self {
         Self {
             ldap_config,
-            ldap_inner: None,
+            ldap_msg_actor: None,
             stop: false,
         }
     }
@@ -35,7 +35,14 @@ impl LdapConnActor {
             .into_actor(self)
             .map(|result, act, ctx| match result {
                 Ok((conn, ldap)) => {
-                    act.ldap_inner = Some(ldap);
+                    if let Some(ldap_msg) = &act.ldap_msg_actor {
+                        //更新ldap
+                        ldap_msg.do_send(LdapMsgActorReq::SetLdap(ldap));
+                    } else {
+                        //创建ldap
+                        act.ldap_msg_actor =
+                            Some(LdapMsgActor::new(ldap, act.ldap_config.clone()).start());
+                    }
                     log::info!("LDAP connection established");
                     Self::drive_conn(conn)
                         .into_actor(act)
@@ -46,7 +53,7 @@ impl LdapConnActor {
                                 ctx.stop();
                             } else {
                                 log::warn!("LDAP reconnecting");
-                                act.ldap_inner = None;
+                                act.ldap_msg_actor = None;
                                 act.init_conn(ctx);
                             }
                         })
@@ -71,5 +78,46 @@ impl Actor for LdapConnActor {
     fn stopping(&mut self, ctx: &mut Self::Context) -> Running {
         self.stop = true;
         Running::Stop
+    }
+}
+
+impl Handler<LdapConnReq> for LdapConnActor {
+    type Result = anyhow::Result<LdapConnResult>;
+    fn handle(&mut self, msg: LdapConnReq, _ctx: &mut Self::Context) -> Self::Result {
+        match msg {
+            LdapConnReq::GetMsgActor => {
+                if let Some(addr) = self.ldap_msg_actor.as_ref() {
+                    Ok(LdapConnResult::MsgActor(addr.clone()))
+                } else {
+                    Err(anyhow::anyhow!("ldap_msg_actor is None"))
+                }
+            }
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct LdapConnActorAddr {
+    pub ldap_conn_actor: Addr<LdapConnActor>,
+    pub ldap_msg_actor: Addr<LdapMsgActor>,
+}
+
+impl LdapConnActorAddr {
+    pub fn new(ldap_conn_actor: Addr<LdapConnActor>, ldap_msg_actor: Addr<LdapMsgActor>) -> Self {
+        Self {
+            ldap_conn_actor,
+            ldap_msg_actor,
+        }
+    }
+
+    pub async fn new_from_config(config: Arc<LdapConfig>) -> anyhow::Result<Self> {
+        let ldap_conn_actor = LdapConnActor::new(config).start();
+        if let LdapConnResult::MsgActor(ldap_msg_actor) =
+            ldap_conn_actor.send(LdapConnReq::GetMsgActor).await??
+        {
+            Ok(Self::new(ldap_conn_actor, ldap_msg_actor))
+        } else {
+            Err(anyhow::anyhow!("Get ldap msg actor error"))
+        }
     }
 }
