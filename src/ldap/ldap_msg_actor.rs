@@ -53,10 +53,7 @@ impl LdapMsgActor {
                 ldap.simple_bind(&bind_dn, &bind_req.password)
                     .await?
                     .success()?;
-                let filter = format!(
-                    "(&{}(cn={}))",
-                    ldap_config.ldap_user_filter, &bind_req.user_name
-                );
+                let filter = ldap_config.ldap_user_filter.replace("%s", &bind_req.user_name);
                 let (mut rs, _res) = ldap
                     .search(
                         &ldap_config.ldap_user_base_dn,
