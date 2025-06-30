@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use super::cluster_api::query_cluster_info;
-use super::config_api::query_config_list;
+use super::config_api::{download_config_by_keys, query_config_list};
 use super::{
     config_api::{download_config, import_config, query_history_config_page},
     connection_api::query_grpc_connection,
@@ -171,7 +171,10 @@ pub fn console_api_config_v1(config: &mut web::ServiceConfig) {
             )
             .service(web::resource("/configs").route(web::get().to(query_config_list)))
             .service(web::resource("/config/import").route(web::post().to(import_config)))
-            .service(web::resource("/config/download").route(web::get().to(download_config)))
+            .service(web::resource("/config/download")
+                .route(web::get().to(download_config))
+                .route(web::post().to(download_config_by_keys))
+            )
             .service(
                 web::resource("/config/history").route(web::get().to(query_history_config_page)),
             )

@@ -26,6 +26,14 @@ pub struct OpsConfigQueryListRequest {
     pub data_id: Option<String>,
 }
 
+#[derive(Debug, Serialize, Deserialize, Default, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ConfigKeyParam {
+    pub data_id: Arc<String>,
+    pub group: Arc<String>,
+    pub tenant: Arc<String>,
+}
+
 impl OpsConfigQueryListRequest {
     pub fn to_param(self, req: &HttpRequest) -> anyhow::Result<ConfigQueryParam> {
         let limit = self.page_size.unwrap_or(0xffff_ffff);

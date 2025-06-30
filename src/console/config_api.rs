@@ -7,26 +7,21 @@ use std::sync::Arc;
 use actix_multipart::form::tempfile::TempFile;
 use actix_multipart::form::text::Text;
 use actix_multipart::form::MultipartForm;
-use actix_multipart::Multipart;
 use actix_web::{http::header, web, Error, HttpMessage, HttpRequest, HttpResponse, Responder};
 use zip::write::FileOptions;
 
 use crate::common::appdata::AppShareData;
 use crate::config::core::{
-    ConfigActor, ConfigAsyncCmd, ConfigCmd, ConfigInfoDto, ConfigKey, ConfigResult,
+    ConfigActor, ConfigCmd, ConfigInfoDto, ConfigKey, ConfigResult,
 };
 use crate::config::ConfigUtils;
-use crate::console::model::config_model::{
-    OpsConfigOptQueryListResponse, OpsConfigQueryListRequest,
-};
+use crate::console::model::config_model::{ConfigKeyParam, OpsConfigOptQueryListResponse, OpsConfigQueryListRequest};
 use crate::raft::cluster::model::SetConfigReq;
 use crate::{now_millis, user_namespace_privilege};
 use actix::prelude::Addr;
 use tokio_stream::StreamExt;
-use uuid::Uuid;
-use zip::{ZipArchive, ZipWriter};
+use zip::ZipWriter;
 
-use super::model::config_model::OpsConfigImportInfo;
 use super::model::PageResult;
 
 pub async fn query_config_list(
@@ -215,6 +210,46 @@ pub async fn download_config(
                         zip_file(zip, list).ok();
                     }
                     // Seek to start
+                    tmpfile.seek(SeekFrom::Start(0)).unwrap();
+                    let mut buf = vec![];
+                    tmpfile.read_to_end(&mut buf).unwrap();
+
+                    let filename = format!("rnacos_config_export_{}.zip", now_millis());
+                    HttpResponse::Ok()
+                        .insert_header(header::ContentType::octet_stream())
+                        .insert_header(header::ContentDisposition::attachment(filename))
+                        .body(buf)
+                }
+                _ => HttpResponse::InternalServerError().body("config result error"),
+            }
+        }
+        Err(err) => HttpResponse::InternalServerError().body(err.to_string()),
+    }
+}
+
+/// 按 key 导出配置
+pub async fn download_config_by_keys(
+    request: web::Json<Vec<ConfigKeyParam>>,
+    config_addr: web::Data<Addr<ConfigActor>>,
+) -> impl Responder {
+    let keys = request.into_inner();
+    if keys.is_empty() {
+        return HttpResponse::BadRequest().body("keys cannot be empty");
+    }
+
+    let cmd = ConfigCmd::QueryInfoByKeys(Box::new(keys.to_vec()));
+
+    match config_addr.send(cmd).await {
+        Ok(res) => {
+            let r: ConfigResult = res.unwrap();
+            match r {
+                ConfigResult::ConfigInfoPage(_, list) => {
+                    let mut tmpfile: File = tempfile::tempfile().unwrap();
+                    {
+                        let write = std::io::Write::by_ref(&mut tmpfile);
+                        let zip = ZipWriter::new(write);
+                        zip_file(zip, list).ok();
+                    }
                     tmpfile.seek(SeekFrom::Start(0)).unwrap();
                     let mut buf = vec![];
                     tmpfile.read_to_end(&mut buf).unwrap();
