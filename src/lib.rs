@@ -15,6 +15,8 @@ pub mod web_config;
 pub mod health;
 pub mod transfer;
 
+pub mod ldap;
+
 pub use inner_mem_cache::TimeoutSet;
 
 fn now_millis() -> u64 {

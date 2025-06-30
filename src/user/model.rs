@@ -4,6 +4,44 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::{collections::HashMap, sync::Arc};
 
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum UserSourceType {
+    Inner,
+    Ldap,
+}
+
+impl Default for UserSourceType {
+    fn default() -> Self {
+        UserSourceType::Inner
+    }
+}
+
+impl UserSourceType {
+    pub fn is_inner(&self) -> bool {
+        match self {
+            UserSourceType::Inner => true,
+            _ => false,
+        }
+    }
+
+    pub fn from_name(name: &str) -> Option<Self> {
+        match name {
+            "" => Some(UserSourceType::Inner),
+            "INNER" => Some(UserSourceType::Inner),
+            "LDAP" => Some(UserSourceType::Ldap),
+            _ => None,
+        }
+    }
+
+    pub fn to_str(&self) -> &'static str {
+        match self {
+            UserSourceType::Inner => "INNER",
+            UserSourceType::Ldap => "LDAP",
+        }
+    }
+}
+
 #[derive(Clone, prost::Message, Serialize, Deserialize)]
 pub struct UserDo {
     #[prost(string, tag = "1")]
@@ -31,6 +69,8 @@ pub struct UserDo {
     pub namespace_white_list: ::prost::alloc::vec::Vec<String>,
     #[prost(string, repeated, tag = "12")]
     pub namespace_black_list: ::prost::alloc::vec::Vec<String>,
+    #[prost(string, optional, tag = "13")]
+    pub source: Option<String>,
 }
 
 impl UserDo {
@@ -79,6 +119,7 @@ pub struct UserDto {
     pub roles: Option<Vec<Arc<String>>>,
     pub extend_info: Option<HashMap<String, String>>,
     pub namespace_privilege: Option<PrivilegeGroup<Arc<String>>>,
+    pub source: Option<String>,
 }
 
 impl From<UserDo> for UserDto {
@@ -101,6 +142,7 @@ impl From<UserDo> for UserDto {
             roles: Some(roles),
             extend_info: Some(value.extend_info),
             namespace_privilege,
+            source: value.source,
         }
     }
 }

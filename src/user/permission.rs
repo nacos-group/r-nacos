@@ -278,6 +278,7 @@ lazy_static::lazy_static! {
         R::Path("/rnacos/api/console/v2/instance/list",HTTP_METHOD_GET),
         R::Path("/rnacos/api/console/v2/instance/info",HTTP_METHOD_GET),
         R::Path("/rnacos/manage/subscriber", HTTP_METHOD_GET),
+        R::Path("/rnacos/api/console/v2/cluster/cluster_node_list",HTTP_METHOD_GET),
     ]);
 
     static ref M_NAMING_MANAGE: ModuleResource = ModuleResource::new(vec![
@@ -479,5 +480,15 @@ impl UserRoleHelper {
             }
         }
         Arc::new(role_value.to_owned())
+    }
+
+    pub fn get_role_by_name(role_name: &str, default: Arc<String>) -> Arc<String> {
+        match role_name {
+            "VISITOR" => USER_ROLE_VISITOR.clone(),
+            "DEVELOPER" => USER_ROLE_DEVELOPER.clone(),
+            "ADMIN" => USER_ROLE_MANAGER.clone(),
+            "MANAGER" => USER_ROLE_MANAGER.clone(),
+            _ => default,
+        }
     }
 }

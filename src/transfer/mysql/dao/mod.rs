@@ -32,6 +32,7 @@ impl From<UserDO> for UserDo {
             namespace_privilege_flags: None,
             namespace_white_list: Default::default(),
             namespace_black_list: Default::default(),
+            source: None,
         }
     }
 }

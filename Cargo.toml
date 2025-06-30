@@ -1,6 +1,6 @@
 [package]
 name = "rnacos"
-version = "0.6.18"
+version = "0.6.19"
 authors = ["heqingpan <heqingpan@126.com>"]
 edition = "2018"
 license = "Apache-2.0"
@@ -115,6 +115,7 @@ binrw = "0.13.3"
 binrw_derive = "0.13.3"
 sysinfo = "0.30.12"
 bcrypt = "0.15"
+ldap3 = { version="0.11", default-features = false, features = ["tls-rustls"] }
 
 [target.'cfg(any(target_os = "linux", target_os = "macos", target_os="windows"))'.dependencies]
 fs2 = "0.4.3"

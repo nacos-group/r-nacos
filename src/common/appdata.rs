@@ -2,6 +2,7 @@ use crate::common::AppSysConfig;
 use crate::config::core::ConfigActor;
 use crate::grpc::bistream_manage::BiStreamManage;
 use crate::health::core::HealthManager;
+use crate::ldap::core::LdapManager;
 use crate::metrics::core::MetricsManager;
 use crate::namespace::NamespaceActor;
 use crate::naming::cluster::node_manage::{InnerNodeManage, NodeManage};
@@ -48,4 +49,5 @@ pub struct AppShareData {
     pub transfer_writer_manager: Addr<TransferWriterManager>,
     pub transfer_import_manager: Addr<TransferImportManager>,
     pub health_manager: Addr<HealthManager>,
+    pub ldap_manager: Addr<LdapManager>,
 }

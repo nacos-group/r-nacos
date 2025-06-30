@@ -1,3 +1,5 @@
+use regex::Regex;
+use std::collections::HashSet;
 use std::sync::Arc;
 
 pub struct StringUtils;
@@ -40,5 +42,20 @@ impl StringUtils {
             }
         }
         v
+    }
+
+    pub fn extract_ldap_value_cn(ldap_str: &str) -> Option<String> {
+        let re = Regex::new(r"(?:^|,)cn=([^,]+)").unwrap();
+        re.captures(ldap_str)
+            .and_then(|cap| cap.get(1))
+            .map(|m| m.as_str().to_string())
+    }
+
+    pub fn split_to_hashset(input: &str) -> HashSet<String> {
+        input
+            .split(',')
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty()) // 过滤空字符串
+            .collect() // HashSet自动去重
     }
 }

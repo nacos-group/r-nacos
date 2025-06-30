@@ -192,6 +192,13 @@ k8s支持使用 [helm](https://github.com/nacos-group/r-nacos/tree/master/deploy
 |RNACOS_METRICS_COLLECT_INTERVAL_SECOND|监控指标采集指标间隔,单位秒,最小间隔为1秒,不能小于RNACOS_METRICS_LOG_INTERVAL_SECOND|15|5|0.5.14|
 |RNACOS_METRICS_LOG_INTERVAL_SECOND|监控指标采集打印到日志的间隔,单位秒,最小间隔为5秒|60|30|0.5.13|
 |RNACOS_CONSOLE_ENABLE_CAPTCHA| 验证码的开关| true|true|0.5.14|
+|RNACOS_LDAP_ENABLE|是否启用LDAP认证|false|false|0.6.19|
+|RNACOS_LDAP_URL|LDAP服务器地址|空字符串|ldap://localhost:389|0.6.19|
+|RNACOS_LDAP_USER_BASE_DN|LDAP用户基础DN|空字符串|ou=people,dc=example,dc=com|0.6.19|
+|RNACOS_LDAP_USER_FILTER|LDAP用户过滤器|空字符串|(objectClass=person)|0.6.19|
+|RNACOS_LDAP_USER_DEVELOPER_GROUP|LDAP开发者角色包含的用户组(多个用逗号分隔，用户只要包含一个就是开发者)|空集合|dev_group1,dev_group2|0.6.19|
+|RNACOS_LDAP_USER_ADMIN_GROUP|LDAP管理员角色包含的用户组(多个用逗号分隔，用户只要包含一个就是管理员)|空集合|admin_group1,admin_group2|0.6.19|
+|RNACOS_LDAP_USER_DEFAULT_ROLE|LDAP用户默认角色,支持的值有：访客:VISITOR,开发者:DEVELOPER,管理员:ADMIN|VISITOR|DEVELOPER|0.6.19|
 
 启动配置方式可以参考： [运行参数说明](https://r-nacos.github.io/docs/notes/env_config/)
 
