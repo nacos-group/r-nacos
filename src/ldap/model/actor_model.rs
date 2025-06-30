@@ -1,5 +1,5 @@
 use crate::ldap::ldap_msg_actor::LdapMsgActor;
-use crate::ldap::model::{LdapUserBindParam, LdapUserMeta, LdapUserParam};
+use crate::ldap::model::{LdapUserMeta, LdapUserParam};
 use actix::prelude::*;
 use ldap3::Ldap;
 

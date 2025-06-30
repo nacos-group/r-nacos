@@ -50,8 +50,7 @@ impl LdapMsgActor {
                     "cn={},{}",
                     bind_req.user_name, &ldap_config.ldap_user_base_dn
                 );
-                let bind_result = ldap
-                    .simple_bind(&bind_dn, &bind_req.password)
+                ldap.simple_bind(&bind_dn, &bind_req.password)
                     .await?
                     .success()?;
                 let filter = format!(
@@ -152,7 +151,7 @@ impl Handler<LdapMsgReq> for LdapMsgActor {
             (ldap, version, tx, r)
         }
         .into_actor(self)
-        .map(|(ldap, version, tx, r), act, ctx| {
+        .map(|(ldap, version, tx, r), act, _ctx| {
             if act.ldap_version == version {
                 act.ldap = ldap;
             }
@@ -162,7 +161,7 @@ impl Handler<LdapMsgReq> for LdapMsgActor {
 
         let fut = async move { rx.await }
             .into_actor(self)
-            .map(|r, act, ctx| match r {
+            .map(|r, _act, _ctx| match r {
                 Ok(v) => v,
                 Err(r) => Err(anyhow::anyhow!(r.to_string())),
             });

@@ -33,7 +33,7 @@ impl LdapManager {
         let user_manager_addr = self.user_manager_addr.clone();
         async move { LdapConnActorAddr::new_from_config(ldap_config, user_manager_addr).await }
             .into_actor(self)
-            .map(|res, act, ctx| match res {
+            .map(|res, act, _ctx| match res {
                 Ok(res) => {
                     act.ldap_conn_addr = Some(res);
                 }
@@ -59,7 +59,7 @@ impl LdapManager {
 
 impl Actor for LdapManager {
     type Context = Context<Self>;
-    fn started(&mut self, ctx: &mut Self::Context) {
+    fn started(&mut self, _ctx: &mut Self::Context) {
         log::info!("LdapManager started");
     }
 }
@@ -88,7 +88,7 @@ impl Handler<LdapMsgReq> for LdapManager {
             .map(|v| v.ldap_msg_actor.clone());
         let fut = Self::handle_req(msg, msg_addr)
             .into_actor(self)
-            .map(|result, act, ctx| result);
+            .map(|result, _act, _ctx| result);
         Box::pin(fut)
     }
 }

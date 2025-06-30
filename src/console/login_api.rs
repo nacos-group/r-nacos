@@ -3,8 +3,7 @@ use std::sync::Arc;
 
 use super::model::login_model::{LoginParam, LoginToken};
 use crate::ldap::model::actor_model::{LdapMsgReq, LdapMsgResult};
-use crate::ldap::model::{LdapUserBindParam, LdapUserParam};
-use crate::user::permission::USER_ROLE_DEVELOPER;
+use crate::ldap::model::LdapUserParam;
 use crate::{
     common::{
         appdata::AppShareData,
@@ -26,7 +25,6 @@ use actix_web::{
 };
 use captcha::filters::{Grid, Noise};
 use captcha::Captcha;
-use rsql_builder::PlaceholderMode::Default;
 
 pub async fn login(
     request: HttpRequest,
@@ -131,7 +129,7 @@ fn apply_session(
     let login_token = LoginToken {
         token: token.to_string(),
     };
-    return Some(
+    Some(
         HttpResponse::Ok()
             .cookie(
                 Cookie::build("token", token.as_str())
@@ -147,8 +145,7 @@ fn apply_session(
             )
             .insert_header(header::ContentType(mime::APPLICATION_JSON))
             .json(ApiResult::success(Some(login_token))),
-    );
-    None
+    )
 }
 
 async fn ldap_login(
@@ -160,16 +157,11 @@ async fn ldap_login(
         .ldap_manager
         .send(LdapMsgReq::Bind(LdapUserParam {
             user_name: param.username.as_ref().to_owned(),
-            password: password,
+            password,
             query_meta: true,
         }))
         .await??;
     let v = if let LdapMsgResult::UserMeta(meta) = res {
-        //增加长度避免遍历
-        let token = Arc::new(
-            uuid::Uuid::new_v4().to_string().replace('-', "")
-                + &uuid::Uuid::new_v4().to_string().replace('-', ""),
-        );
         Some(Arc::new(UserSession {
             username: param.username.clone(),
             nickname: Some(meta.user_name),

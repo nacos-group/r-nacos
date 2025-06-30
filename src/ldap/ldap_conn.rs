@@ -1,11 +1,9 @@
 use crate::ldap::ldap_msg_actor::LdapMsgActor;
-use crate::ldap::model::actor_model::{
-    LdapConnReq, LdapConnResult, LdapMsgActorReq, LdapMsgReq, LdapMsgResult,
-};
-use crate::ldap::model::{LdapConfig, LdapUserParam};
+use crate::ldap::model::actor_model::{LdapConnReq, LdapConnResult, LdapMsgActorReq};
+use crate::ldap::model::LdapConfig;
 use crate::user::UserManager;
 use actix::prelude::*;
-use ldap3::{Ldap, LdapConnAsync};
+use ldap3::LdapConnAsync;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -90,7 +88,7 @@ impl Actor for LdapConnActor {
         self.init_conn(ctx);
     }
 
-    fn stopping(&mut self, ctx: &mut Self::Context) -> Running {
+    fn stopping(&mut self, _ctx: &mut Self::Context) -> Running {
         self.stop = true;
         Running::Stop
     }
