@@ -5,7 +5,8 @@
 /// 2）http请求路径，由后端拦截器控制否支持请求；
 use std::{collections::HashSet, hash::Hash, sync::Arc};
 
-use crate::common::constant::{EMPTY_STR, HTTP_METHOD_ALL, HTTP_METHOD_GET};
+
+use crate::common::constant::{EMPTY_STR, HTTP_METHOD_ALL, HTTP_METHOD_GET, HTTP_METHOD_POST};
 
 pub enum Resource {
     WebResource(&'static str),
@@ -241,6 +242,7 @@ lazy_static::lazy_static! {
 
         R::Path("/rnacos/api/console/configs",HTTP_METHOD_GET),
         R::Path("/rnacos/api/console/config/download",HTTP_METHOD_GET),
+        R::Path("/rnacos/api/console/config/download",HTTP_METHOD_POST),
         R::Path("/rnacos/api/console/config/import",HTTP_METHOD_ALL),
         R::Path("/rnacos/api/console/cs/configs",HTTP_METHOD_ALL),
         R::Path("/rnacos/api/console/config/history",HTTP_METHOD_GET),

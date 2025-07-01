@@ -570,6 +570,33 @@ impl ConfigActor {
         (size, info_list)
     }
 
+    pub fn get_config_info_by_keys(&self, keys: &Vec<ConfigKey>) -> (usize, Vec<ConfigInfoDto>) {
+        let mut info_list = Vec::with_capacity(keys.len());
+
+        for key in keys.iter() {
+            let key: ConfigKey = ConfigKey {
+                tenant: key.tenant.clone(),
+                data_id: key.data_id.clone(),
+                group: key.group.clone(),
+            };
+
+            if let Some(value) = self.cache.get(&key) {
+                let info = ConfigInfoDto {
+                    tenant: key.tenant.clone(),
+                    group: key.group.clone(),
+                    data_id: key.data_id.clone(),
+                    desc: value.desc.clone(),
+                    content: Some(value.content.clone()),
+                    md5: Some(value.md5.clone()),
+                    ..Default::default()
+                };
+                info_list.push(info);
+            }
+        }
+
+        let size = info_list.len();
+        (size, info_list)
+    }
     /*
     pub(crate) fn get_history_info_page_old(
         &self,
@@ -688,6 +715,7 @@ pub enum ConfigCmd {
     InnerSetLastId(u64),
     GET(ConfigKey),
     QueryPageInfo(Box<ConfigQueryParam>),
+    QueryInfoByKeys(Box<Vec<ConfigKey>>),
     QueryHistoryPageInfo(Box<ConfigHistoryParam>),
     LISTENER(Vec<ListenerItem>, ListenerSenderType, i64),
     Subscribe(Vec<ListenerItem>, Arc<String>),
@@ -815,6 +843,10 @@ impl Handler<ConfigCmd> for ConfigActor {
                 let (size, list) = self.get_config_info_page(config_query_param.as_ref());
                 return Ok(ConfigResult::ConfigInfoPage(size, list));
             }
+            ConfigCmd::QueryInfoByKeys(config_keys) => {
+                let (size, list) = self.get_config_info_by_keys(config_keys.as_ref());
+                return Ok(ConfigResult::ConfigInfoPage(size, list));
+            }
             ConfigCmd::QueryHistoryPageInfo(query_param) => {
                 let (size, list) = self.get_history_info_page(query_param.as_ref());
                 return Ok(ConfigResult::ConfigHistoryInfoPage(size, list));
@@ -876,8 +908,8 @@ impl Handler<ConfigAsyncCmd> for ConfigActor {
             }
             Ok(ConfigResult::NULL)
         }
-        .into_actor(self)
-        .map(|r, _act, _ctx| r);
+            .into_actor(self)
+            .map(|r, _act, _ctx| r);
         Box::pin(fut)
     }
 }
