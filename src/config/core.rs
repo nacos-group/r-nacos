@@ -27,7 +27,6 @@ use crate::config::model::{
     ConfigRaftCmd, ConfigRaftResult, ConfigValueDO, HistoryItem, SetConfigParam,
 };
 use crate::config::utils::param_utils;
-use crate::console::model::config_model::ConfigKeyParam;
 use crate::namespace::NamespaceActor;
 use crate::now_millis_i64;
 use crate::raft::filestore::model::SnapshotRecordDto;
@@ -571,7 +570,7 @@ impl ConfigActor {
         (size, info_list)
     }
 
-    pub fn get_config_info_by_keys(&self, keys: &Vec<ConfigKeyParam>) -> (usize, Vec<ConfigInfoDto>) {
+    pub fn get_config_info_by_keys(&self, keys: &Vec<ConfigKey>) -> (usize, Vec<ConfigInfoDto>) {
         let mut info_list = Vec::with_capacity(keys.len());
 
         for key in keys.iter() {
@@ -716,7 +715,7 @@ pub enum ConfigCmd {
     InnerSetLastId(u64),
     GET(ConfigKey),
     QueryPageInfo(Box<ConfigQueryParam>),
-    QueryInfoByKeys(Box<Vec<ConfigKeyParam>>),
+    QueryInfoByKeys(Box<Vec<ConfigKey>>),
     QueryHistoryPageInfo(Box<ConfigHistoryParam>),
     LISTENER(Vec<ListenerItem>, ListenerSenderType, i64),
     Subscribe(Vec<ListenerItem>, Arc<String>),

@@ -10,19 +10,18 @@ use actix_multipart::form::MultipartForm;
 use actix_web::{http::header, web, Error, HttpMessage, HttpRequest, HttpResponse, Responder};
 use zip::write::FileOptions;
 
+use super::model::PageResult;
 use crate::common::appdata::AppShareData;
 use crate::config::core::{
     ConfigActor, ConfigCmd, ConfigInfoDto, ConfigKey, ConfigResult,
 };
 use crate::config::ConfigUtils;
-use crate::console::model::config_model::{ConfigKeyParam, OpsConfigOptQueryListResponse, OpsConfigQueryListRequest};
+use crate::console::model::config_model::{ConfigParams, OpsConfigOptQueryListResponse, OpsConfigQueryListRequest};
 use crate::raft::cluster::model::SetConfigReq;
 use crate::{now_millis, user_namespace_privilege};
 use actix::prelude::Addr;
 use tokio_stream::StreamExt;
 use zip::ZipWriter;
-
-use super::model::PageResult;
 
 pub async fn query_config_list(
     req: HttpRequest,
@@ -229,16 +228,26 @@ pub async fn download_config(
 
 /// 按 key 导出配置
 pub async fn download_config_by_keys(
-    request: web::Json<Vec<ConfigKeyParam>>,
+    request: web::Json<Vec<ConfigParams>>,
     config_addr: web::Data<Addr<ConfigActor>>,
 ) -> impl Responder {
-    let keys = request.into_inner();
-    if keys.is_empty() {
+    let params = request.into_inner();
+    if params.is_empty() {
         return HttpResponse::BadRequest().body("keys cannot be empty");
     }
 
-    let cmd = ConfigCmd::QueryInfoByKeys(Box::new(keys.to_vec()));
+    let keys = params
+        .into_iter()
+        .map(|k| {
+            let k = k.to_key();
+            ConfigKey {
+                tenant: Arc::new(ConfigUtils::default_tenant(k.tenant.to_string())),
+                ..k
+            }
+        })
+        .collect();
 
+    let cmd = ConfigCmd::QueryInfoByKeys(Box::new(keys));
     match config_addr.send(cmd).await {
         Ok(res) => {
             let r: ConfigResult = res.unwrap();
