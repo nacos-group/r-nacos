@@ -1,5 +1,5 @@
 use crate::common::appdata::AppShareData;
-use crate::common::model::{ApiResult, PageResult};
+use crate::common::model::{ApiResult, PageResult, UserSession};
 use crate::config::core::{ConfigActor, ConfigCmd, ConfigResult};
 pub use crate::console::config_api::{download_config, import_config};
 use crate::console::model::config_model::{ConfigInfo, ConfigParams, OpsConfigQueryListRequest};
@@ -122,6 +122,11 @@ pub async fn add_config(
     appdata: Data<Arc<AppShareData>>,
     web::Json(param): web::Json<ConfigParams>,
 ) -> impl Responder {
+    let op_user = req
+        .extensions()
+        .get::<Arc<UserSession>>()
+        .map(|session| session.username.clone());
+
     let content = param.content.clone().unwrap_or_default();
     let config_key = param.to_key();
     let namespace_privilege = user_namespace_privilege!(req);
@@ -137,6 +142,7 @@ pub async fn add_config(
     let mut req = SetConfigReq::new(config_key, content);
     req.config_type = param.config_type;
     req.desc = param.desc;
+    req.op_user = op_user;
     if appdata.config_route.set_config(req).await.is_ok() {
         HttpResponse::Ok().json(ApiResult::success(Some(true)))
     } else {

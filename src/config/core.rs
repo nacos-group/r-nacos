@@ -211,6 +211,7 @@ pub struct ConfigHistoryInfoDto {
     pub data_id: Option<String>,
     pub content: Option<String>,
     pub modified_time: Option<i64>, //给历史记录使用
+    pub op_user: Option<String>,
 }
 
 #[derive(Debug)]
