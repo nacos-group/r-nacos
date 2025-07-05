@@ -68,6 +68,7 @@ pub async fn login(
         name: param.username.clone(),
         password: password.clone(),
     };
+    let mut error_code = "USER_CHECK_ERROR".to_owned();
     if let Ok(Ok(res)) = app.user_manager.send(msg).await {
         if let UserManagerResult::CheckUserResult(valid, user) = res {
             if valid {
@@ -82,9 +83,10 @@ pub async fn login(
             }
         }
         if !app.sys_config.ldap_enable && session.is_none() {
-            return HttpResponse::Ok()
-                .json(ApiResult::<()>::error("USER_CHECK_ERROR".to_owned(), None));
+            return HttpResponse::Ok().json(ApiResult::<()>::error(error_code, None));
         }
+    } else {
+        error_code = "SYSTEM_ERROR".to_owned();
     }
     if session.is_none() && app.sys_config.ldap_enable {
         match ldap_login(&app, param.clone(), password).await {
@@ -92,10 +94,8 @@ pub async fn login(
                 session = v;
             }
             Err(e) => {
-                return HttpResponse::Ok().json(ApiResult::<()>::error(
-                    "SYSTEM_ERROR".to_owned(),
-                    Some(e.to_string()),
-                ));
+                return HttpResponse::Ok()
+                    .json(ApiResult::<()>::error(error_code, Some(e.to_string())));
             }
         }
     }
@@ -104,7 +104,7 @@ pub async fn login(
             return value;
         }
     }
-    HttpResponse::Ok().json(ApiResult::<()>::error("SYSTEM_ERROR".to_owned(), None))
+    HttpResponse::Ok().json(ApiResult::<()>::error(error_code, None))
 }
 
 fn apply_session(
