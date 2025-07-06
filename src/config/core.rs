@@ -909,8 +909,8 @@ impl Handler<ConfigAsyncCmd> for ConfigActor {
             }
             Ok(ConfigResult::NULL)
         }
-            .into_actor(self)
-            .map(|r, _act, _ctx| r);
+        .into_actor(self)
+        .map(|r, _act, _ctx| r);
         Box::pin(fut)
     }
 }

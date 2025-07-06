@@ -12,11 +12,11 @@ use zip::write::FileOptions;
 
 use super::model::PageResult;
 use crate::common::appdata::AppShareData;
-use crate::config::core::{
-    ConfigActor, ConfigCmd, ConfigInfoDto, ConfigKey, ConfigResult,
-};
+use crate::config::core::{ConfigActor, ConfigCmd, ConfigInfoDto, ConfigKey, ConfigResult};
 use crate::config::ConfigUtils;
-use crate::console::model::config_model::{ConfigParams, OpsConfigOptQueryListResponse, OpsConfigQueryListRequest};
+use crate::console::model::config_model::{
+    ConfigParams, OpsConfigOptQueryListResponse, OpsConfigQueryListRequest,
+};
 use crate::raft::cluster::model::SetConfigReq;
 use crate::{now_millis, user_namespace_privilege};
 use actix::prelude::Addr;
