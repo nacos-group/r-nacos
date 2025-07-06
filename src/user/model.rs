@@ -19,10 +19,7 @@ impl Default for UserSourceType {
 
 impl UserSourceType {
     pub fn is_inner(&self) -> bool {
-        match self {
-            UserSourceType::Inner => true,
-            _ => false,
-        }
+        matches!(self, UserSourceType::Inner)
     }
 
     pub fn from_name(name: &str) -> Option<Self> {

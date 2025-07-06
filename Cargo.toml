@@ -41,6 +41,9 @@ path = "src/main.rs"
 default = []
 debug=[]
 
+[lints.clippy]
+uninlined_format_args = "allow"
+
 [dependencies]
 mimalloc = { version = "0.1", features = ["secure"] }
 serde = { version = "1", features = ["derive", "rc"] }
@@ -75,7 +78,7 @@ mime_guess = { version = "2" }
 rusqlite = { version = "0.25", features = ["bundled"] }
 rsql_builder = "0.1.5"
 inner-mem-cache = "0.1.7"
-rnacos-web-dist-wrap = "=0.5.13"
+rnacos-web-dist-wrap = "=0.6.1"
 nacos_rust_client = "0.3.2"
 zip = "0.6"
 tempfile = "3"

@@ -5,10 +5,7 @@ use std::sync::Arc;
 use rusqlite::{params_from_iter, Connection, Row};
 
 fn result2option<T>(r: rusqlite::Result<T>) -> Option<T> {
-    match r {
-        Ok(v) => Some(v),
-        _ => None,
-    }
+    r.ok()
 }
 
 fn result_to_arc_option<T>(r: rusqlite::Result<T>) -> Option<Arc<T>> {

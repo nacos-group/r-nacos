@@ -196,16 +196,15 @@ impl UserManager {
                 table_name: USER_TREE_NAME.clone(),
                 key: user.username.clone(),
             };
-            match raft_table_route.get_leader_data(query_req).await? {
-                TableManagerResult::Value(old_value) => {
-                    let old_user = UserDo::from_bytes(&old_value)?;
-                    //exist user
-                    return Ok(UserManagerInnerCtx::QueryUser(
-                        user.username,
-                        Some(old_user),
-                    ));
-                }
-                _ => {}
+            if let TableManagerResult::Value(old_value) =
+                raft_table_route.get_leader_data(query_req).await?
+            {
+                let old_user = UserDo::from_bytes(&old_value)?;
+                //exist user
+                return Ok(UserManagerInnerCtx::QueryUser(
+                    user.username,
+                    Some(old_user),
+                ));
             }
         };
         Self::add_user(
@@ -351,8 +350,7 @@ impl UserManager {
         let mut check_success = last_user.enable && source.is_inner();
         if !StringUtils::is_option_empty(&last_user.password_hash) {
             check_success = check_success
-                && verify_password_hash_option(&password, &last_user.password_hash)
-                    .unwrap_or(false);
+                && verify_password_hash_option(password, &last_user.password_hash).unwrap_or(false);
             //debug info
             /*
             println!(

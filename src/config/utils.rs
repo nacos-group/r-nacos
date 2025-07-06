@@ -67,7 +67,7 @@ pub mod param_utils {
     }
 
     fn is_valid_char(ch: char) -> bool {
-        VALID_CHARS.iter().any(|&c| c == ch)
+        VALID_CHARS.contains(&ch)
     }
 
     pub fn is_valid(param: &str) -> bool {

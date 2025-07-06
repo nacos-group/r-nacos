@@ -9,12 +9,12 @@ pub struct ClientVersion {
 impl ClientVersion {
     pub fn new(client: &str, version: String) -> Self {
         Self {
-            client: ClientNameType::from_str(client),
+            client: ClientNameType::from_string(client),
             version,
         }
     }
 
-    pub fn from_str(s: &str) -> Self {
+    pub fn from_string(s: &str) -> Self {
         let parts = s.split(':').collect::<Vec<_>>();
         if parts.len() < 2 {
             Self::default()
@@ -40,7 +40,7 @@ pub enum ClientNameType {
 }
 
 impl ClientNameType {
-    pub fn from_str(s: &str) -> Self {
+    pub fn from_string(s: &str) -> Self {
         match s {
             "Nacos-Java-Client" => ClientNameType::NacosJavaClient,
             "Nacos-Python-Client" => ClientNameType::NacosPythonClient,
@@ -61,38 +61,23 @@ impl ClientNameType {
     }
 
     pub fn is_unknown(&self) -> bool {
-        match self {
-            ClientNameType::Unknown(_) => true,
-            _ => false,
-        }
+        matches!(self, ClientNameType::Unknown(_))
     }
 
     pub fn is_java_sdk(&self) -> bool {
-        match self {
-            ClientNameType::NacosJavaClient => true,
-            _ => false,
-        }
+        matches!(self, ClientNameType::NacosJavaClient)
     }
 
     pub fn is_go_sdk(&self) -> bool {
-        match self {
-            ClientNameType::NacosGoClient => true,
-            _ => false,
-        }
+        matches!(self, ClientNameType::NacosGoClient)
     }
 
     pub fn is_python_sdk(&self) -> bool {
-        match self {
-            ClientNameType::NacosPythonClient => true,
-            _ => false,
-        }
+        matches!(self, ClientNameType::NacosPythonClient)
     }
 
     pub fn is_rust_sdk(&self) -> bool {
-        match self {
-            ClientNameType::NacosRustClient => true,
-            _ => false,
-        }
+        matches!(self, ClientNameType::NacosRustClient)
     }
 }
 

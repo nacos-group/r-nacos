@@ -65,7 +65,7 @@ impl LdapMsgActor {
                     )
                     .await?
                     .success()?;
-                if rs.len() > 0 {
+                if !rs.is_empty() {
                     let entry = rs.remove(0);
                     let mut entry = SearchEntry::construct(entry);
                     let mut role = ldap_config.ldap_user_default_role.clone();
@@ -158,12 +158,10 @@ impl Handler<LdapMsgReq> for LdapMsgActor {
         })
         .wait(ctx); //使用wait执行，保证handle_req内能依次执行，避免出现异步插队可能引发的问题。
 
-        let fut = async move { rx.await }
-            .into_actor(self)
-            .map(|r, _act, _ctx| match r {
-                Ok(v) => v,
-                Err(r) => Err(anyhow::anyhow!(r.to_string())),
-            });
+        let fut = rx.into_actor(self).map(|r, _act, _ctx| match r {
+            Ok(v) => v,
+            Err(r) => Err(anyhow::anyhow!(r.to_string())),
+        });
         Box::pin(fut)
     }
 }

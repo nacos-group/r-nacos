@@ -45,11 +45,7 @@ impl CounterValue {
     }
 
     pub fn diff(&self, old_value: &Self) -> Self {
-        let v = if self.0 < old_value.0 {
-            0
-        } else {
-            self.0 - old_value.0
-        };
+        let v = self.0.saturating_sub(old_value.0);
         CounterValue(v)
     }
 }

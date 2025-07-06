@@ -61,7 +61,7 @@ impl ConfigKey {
     }
 
     pub fn build_key(&self) -> String {
-        if self.tenant.len() == 0 {
+        if self.tenant.is_empty() {
             return format!("{}\x02{}", self.data_id, self.group);
         }
         format!("{}\x02{}\x02{}", self.data_id, self.group, self.tenant)
@@ -571,7 +571,7 @@ impl ConfigActor {
         (size, info_list)
     }
 
-    pub fn get_config_info_by_keys(&self, keys: &Vec<ConfigKey>) -> (usize, Vec<ConfigInfoDto>) {
+    pub fn get_config_info_by_keys(&self, keys: &[ConfigKey]) -> (usize, Vec<ConfigInfoDto>) {
         let mut info_list = Vec::with_capacity(keys.len());
 
         for key in keys.iter() {
@@ -589,7 +589,6 @@ impl ConfigActor {
                     desc: value.desc.clone(),
                     content: Some(value.content.clone()),
                     md5: Some(value.md5.clone()),
-                    ..Default::default()
                 };
                 info_list.push(info);
             }
@@ -870,10 +869,7 @@ impl Handler<ConfigAsyncCmd> for ConfigActor {
     fn handle(&mut self, msg: ConfigAsyncCmd, _ctx: &mut Context<Self>) -> Self::Result {
         let raft = self.raft.clone();
         let history_info = if let ConfigAsyncCmd::Add { .. } = &msg {
-            match self.sequence.next_state() {
-                Ok(v) => Some(v),
-                Err(_) => None,
-            }
+            self.sequence.next_state().ok()
         } else {
             None
         };

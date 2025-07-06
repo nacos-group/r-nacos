@@ -54,7 +54,7 @@ impl Instance {
 
     pub fn init(&mut self) {
         self.last_modified_millis = now_millis_i64();
-        if self.id.len() == 0 {
+        if self.id.is_empty() {
             self.generate_key();
         }
     }

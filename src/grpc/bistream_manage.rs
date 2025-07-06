@@ -228,23 +228,17 @@ impl Handler<BiStreamManageCmd> for BiStreamManage {
                     &client_id
                 );
                 if let Some(t) = PayloadUtils::get_payload_type(&payload) {
-                    match t.as_str() {
-                        "ConnectionSetupRequest" => {
-                            let body_vec = payload.body.unwrap_or_default().value;
-                            let request: ConnectionSetupRequest =
-                                serde_json::from_slice(&body_vec)?;
-                            if let Some(item) = self.conn_cache.get_mut(&client_id) {
-                                if let Some(client_version) = request.client_version {
-                                    item.client_version =
-                                        Arc::new(ClientVersion::from_str(&client_version));
-                                }
+                    if t.as_str() == "ConnectionSetupRequest" {
+                        let body_vec = payload.body.unwrap_or_default().value;
+                        let request: ConnectionSetupRequest = serde_json::from_slice(&body_vec)?;
+                        if let Some(item) = self.conn_cache.get_mut(&client_id) {
+                            if let Some(client_version) = request.client_version {
+                                item.client_version =
+                                    Arc::new(ClientVersion::from_string(&client_version));
                             }
                         }
-                        _ => {}
-                    };
+                    }
                     self.active_client(client_id).ok();
-                    //if "ClientDetectionResponse"== t {
-                    //}
                 }
             }
             BiStreamManageCmd::ConnClose(client_id) => {
