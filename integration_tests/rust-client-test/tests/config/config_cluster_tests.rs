@@ -580,6 +580,8 @@ async fn test_config_batch_add_query(
         let key = ConfigKey::new(data_id, &group, "");
         add_client.set_config(&key, value).await.unwrap();
     }
+    
+    tokio::time::sleep(Duration::from_millis(100)).await;
 
     // Query all configs
     for (data_id, expected_value) in &configs {
