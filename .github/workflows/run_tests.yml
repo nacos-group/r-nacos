@@ -1,4 +1,4 @@
-name: build
+name: run integration tests
 
 on:
   workflow_dispatch:
@@ -7,7 +7,6 @@ on:
   pull_request:
     branches: [ "master" ]
 
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -15,7 +14,9 @@ jobs:
       group: ${{ github.workflow }}-${{ github.ref }}
     steps:
       - uses: actions/checkout@v4
-      - name: run test
-        run: | 
+      - name: build 
+        run: |
           cargo build
+      - name: run test
+        run: |
           python3 integration_tests/scripts/run_test.py
