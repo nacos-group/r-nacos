@@ -9,8 +9,6 @@ on:
         default: 'warning'
       tags:
         description: 'Test scenario tags'
-#  push:
-#    branches: [ "master" ]
   pull_request:
     branches: [ "master" ]
 
