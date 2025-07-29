@@ -4,7 +4,7 @@ use crate::common::constant::{
     USER_TREE_NAME,
 };
 use crate::common::tempfile::TempFile;
-use crate::raft::filestore::raftdata::RaftDataWrap;
+use crate::raft::filestore::raftdata::RaftDataHandler;
 use crate::transfer::model::{
     TransferBackupParam, TransferDataRequest, TransferHeaderDto, TransferManagerAsyncRequest,
     TransferManagerResponse, TransferPrefix, TransferRecordDto, TransferWriterAsyncRequest,
@@ -179,7 +179,7 @@ impl Handler<TransferWriterAsyncRequest> for TransferWriterActor {
 
 #[bean(inject)]
 pub struct TransferWriterManager {
-    data_wrap: Option<Arc<RaftDataWrap>>,
+    data_wrap: Option<Arc<RaftDataHandler>>,
     tmp_dir: PathBuf,
     version: u64,
 }
@@ -217,7 +217,7 @@ impl TransferWriterManager {
     }
 
     async fn do_backup(
-        data_wrap: Option<Arc<RaftDataWrap>>,
+        data_wrap: Option<Arc<RaftDataHandler>>,
         backup_param: TransferBackupParam,
         writer_actor: Addr<TransferWriterActor>,
     ) -> anyhow::Result<PathBuf> {

@@ -20,7 +20,7 @@ use crate::config::core::{ConfigCmd, ConfigKey, ConfigValue};
 use crate::config::model::{ConfigRaftCmd, ConfigValueDO};
 use crate::raft::db::table::{TableManagerInnerReq, TableManagerReq};
 use crate::raft::filestore::model::SnapshotRecordDto;
-use crate::raft::filestore::raftdata::RaftDataWrap;
+use crate::raft::filestore::raftdata::RaftDataHandler;
 use crate::raft::filestore::raftsnapshot::SnapshotWriterActor;
 use crate::raft::store::{ClientRequest, ClientResponse};
 use actix::prelude::*;
@@ -30,12 +30,12 @@ use async_trait::async_trait;
 use bean_factory::{bean, Inject};
 
 pub struct LogRecordLoaderInstance {
-    pub(crate) data_wrap: Arc<RaftDataWrap>,
+    pub(crate) data_wrap: Arc<RaftDataHandler>,
     pub(crate) index_manager: Addr<RaftIndexManager>,
 }
 
 impl LogRecordLoaderInstance {
-    fn new(data_wrap: Arc<RaftDataWrap>, index_manager: Addr<RaftIndexManager>) -> Self {
+    fn new(data_wrap: Arc<RaftDataHandler>, index_manager: Addr<RaftIndexManager>) -> Self {
         Self {
             data_wrap,
             index_manager,
@@ -48,72 +48,12 @@ impl LogRecordLoader for LogRecordLoaderInstance {
     async fn load(&self, record: super::model::LogRecordDto) -> anyhow::Result<()> {
         let entry = StoreUtils::log_record_to_entry(record)?;
         match entry.payload {
-            EntryPayload::Normal(req) => match req.data {
-                ClientRequest::NodeAddr { id, addr } => {
-                    self.index_manager
-                        .send(RaftIndexRequest::AddNodeAddr(id, addr))
-                        .await
-                        .ok();
-                }
-                ClientRequest::Members(member) => {
-                    self.index_manager
-                        .send(RaftIndexRequest::SaveMember {
-                            member: member.clone(),
-                            member_after_consensus: None,
-                            node_addr: None,
-                        })
-                        .await
-                        .ok();
-                }
-                ClientRequest::ConfigSet {
-                    key,
-                    value,
-                    config_type,
-                    desc,
-                    history_id,
-                    history_table_id,
-                    op_time,
-                    op_user,
-                } => {
-                    let cmd = ConfigRaftCmd::ConfigAdd {
-                        key,
-                        value,
-                        config_type,
-                        desc,
-                        history_id,
-                        history_table_id,
-                        op_time,
-                        op_user,
-                    };
-                    self.data_wrap.config.send(cmd).await.ok();
-                }
-                ClientRequest::ConfigFullValue {
-                    key,
-                    value,
-                    last_seq_id: last_id,
-                } => {
-                    let key = String::from_utf8_lossy(&key).to_string();
-                    let key: ConfigKey = (&key as &str).into();
-                    let value_do = ConfigValueDO::from_bytes(&value)?;
-                    let config_value: ConfigValue = value_do.into();
-                    let cmd = ConfigRaftCmd::SetFullValue {
-                        key,
-                        value: config_value,
-                        last_id,
-                    };
-                    self.data_wrap.config.send(cmd).await.ok();
-                }
-                ClientRequest::ConfigRemove { key } => {
-                    let cmd = ConfigRaftCmd::ConfigRemove { key };
-                    self.data_wrap.config.send(cmd).await.ok();
-                }
-                ClientRequest::TableManagerReq(req) => {
-                    self.data_wrap.table.send(req).await.ok();
-                }
-                ClientRequest::NamespaceReq(req) => {
-                    self.data_wrap.namespace.send(req).await.ok();
-                }
-            },
+            EntryPayload::Normal(req) => {
+                self.data_wrap
+                    .load_log(req.data, &self.index_manager)
+                    .await
+                    .ok();
+            }
             _ => {}
         }
         Ok(())
@@ -125,7 +65,7 @@ pub struct StateApplyManager {
     index_manager: Option<Addr<RaftIndexManager>>,
     snapshot_manager: Option<Addr<RaftSnapshotManager>>,
     log_manager: Option<Addr<RaftLogManager>>,
-    data_wrap: Option<Arc<RaftDataWrap>>,
+    data_wrap: Option<Arc<RaftDataHandler>>,
     snapshot_next_index: u64,
     last_applied_log: u64,
 }
@@ -242,54 +182,12 @@ impl StateApplyManager {
     }
 
     async fn do_load_snapshot(
-        data_wrap: Arc<RaftDataWrap>,
+        data_wrap: Arc<RaftDataHandler>,
         mut reader: SnapshotReader,
     ) -> anyhow::Result<()> {
         while let Ok(Some(record)) = reader.read_record().await {
-            if record.tree.as_str() == CONFIG_TREE_NAME.as_str() {
-                let config_key = ConfigKey::from(&String::from_utf8(record.key)? as &str);
-                let value_do = ConfigValueDO::from_bytes(&record.value)?;
-                data_wrap
-                    .config
-                    .send(ConfigCmd::SetFullValue(config_key, value_do.into()))
-                    .await??;
-            } else if record.tree.as_str() == SEQUENCE_TREE_NAME.as_str() {
-                let key = String::from_utf8(record.key)?;
-                let last_id = bin_to_id(&record.value);
-                if &key as &str == SEQ_KEY_CONFIG {
-                    data_wrap
-                        .config
-                        .send(ConfigCmd::InnerSetLastId(last_id))
-                        .await??;
-                };
-            } else if record.tree.as_str() == USER_TREE_NAME.as_str() {
-                let key = record.key;
-                let value = record.value;
-                let req = TableManagerReq::Set {
-                    table_name: USER_TREE_NAME.clone(),
-                    key,
-                    value,
-                    last_seq_id: None,
-                };
-                data_wrap.table.send(req).await??;
-            } else if record.tree.as_str() == CACHE_TREE_NAME.as_str() {
-                let key = record.key;
-                let value = record.value;
-                let req = TableManagerReq::Set {
-                    table_name: CACHE_TREE_NAME.clone(),
-                    key,
-                    value,
-                    last_seq_id: None,
-                };
-                data_wrap.table.send(req).await??;
-            } else if record.tree.as_str() == NAMESPACE_TREE_NAME.as_str() {
-                let req = RaftApplyDataRequest::LoadSnapshotRecord(record);
-                data_wrap.namespace.send(req).await??;
-            } else {
-                log::warn!(
-                    "do_load_snapshot ignore data,table name:{}",
-                    record.tree.as_str()
-                );
+            if let Err(e) = data_wrap.load_snapshot(record).await {
+                log::warn!("load_snapshot,{:?}", e);
             }
         }
         Ok(())
@@ -325,176 +223,38 @@ impl StateApplyManager {
 
     /// raft数据加载完成通知
     fn load_complete(&mut self, _ctx: &mut Context<Self>) {
-        log::info!("raft data load finished.");
         if let Some(data_wrap) = self.data_wrap.as_ref() {
-            data_wrap
-                .namespace
-                .do_send(RaftApplyDataRequest::LoadCompleted);
+            data_wrap.load_complete().ok();
         }
+        log::info!("raft data load finished.");
     }
 
     fn apply_request_to_state_machine(&mut self, request: ApplyRequestDto) -> anyhow::Result<()> {
         //self.last_applied_log = request.index;
-        //todo
-        match request.request {
-            ClientRequest::NodeAddr { id, addr } => {
-                if let Some(index_manager) = &self.index_manager {
-                    index_manager.do_send(RaftIndexRequest::AddNodeAddr(id, addr));
-                }
-            }
-            ClientRequest::Members(member) => {
-                if let Some(index_manager) = &self.index_manager {
-                    index_manager.do_send(RaftIndexRequest::SaveMember {
-                        member: member.clone(),
-                        member_after_consensus: None,
-                        node_addr: None,
-                    });
-                }
-            }
-            ClientRequest::ConfigSet {
-                key,
-                value,
-                config_type,
-                desc,
-                history_id,
-                history_table_id,
-                op_time,
-                op_user,
-            } => {
-                if let Some(raft_data_wrap) = &self.data_wrap {
-                    let cmd = ConfigRaftCmd::ConfigAdd {
-                        key,
-                        value,
-                        config_type,
-                        desc,
-                        history_id,
-                        history_table_id,
-                        op_time,
-                        op_user,
-                    };
-                    raft_data_wrap.config.do_send(cmd);
-                }
-            }
-            ClientRequest::ConfigFullValue {
-                key,
-                value,
-                last_seq_id: last_id,
-            } => {
-                if let Some(raft_data_wrap) = &self.data_wrap {
-                    let key = String::from_utf8_lossy(&key).to_string();
-                    let key: ConfigKey = (&key as &str).into();
-                    let value_do = ConfigValueDO::from_bytes(&value)?;
-                    let config_value: ConfigValue = value_do.into();
-                    let cmd = ConfigRaftCmd::SetFullValue {
-                        key,
-                        value: config_value,
-                        last_id,
-                    };
-                    raft_data_wrap.config.do_send(cmd);
-                }
-            }
-            ClientRequest::ConfigRemove { key } => {
-                if let Some(raft_data_wrap) = &self.data_wrap {
-                    let cmd = ConfigRaftCmd::ConfigRemove { key };
-                    raft_data_wrap.config.do_send(cmd);
-                }
-            }
-            ClientRequest::TableManagerReq(req) => {
-                if let Some(raft_data_wrap) = &self.data_wrap {
-                    raft_data_wrap.table.do_send(req);
-                }
-            }
-            ClientRequest::NamespaceReq(req) => {
-                if let Some(raft_data_wrap) = &self.data_wrap {
-                    raft_data_wrap.namespace.do_send(req);
-                }
-            }
-        };
+        if let (Some(data_wrap), Some(index_mangeer)) = (&self.data_wrap, &self.index_manager) {
+            data_wrap.do_send_log(request.request, index_mangeer)?;
+        }
         Ok(())
     }
 
     async fn async_apply_request_to_state_machine(
         request: ApplyRequestDto,
-        raft_data_wrap: &RaftDataWrap,
+        raft_data_wrap: &RaftDataHandler,
         index_manager: Addr<RaftIndexManager>,
     ) -> anyhow::Result<ClientResponse> {
         let last_applied_log = request.index;
-        let r = match request.request {
-            ClientRequest::NodeAddr { id, addr } => {
-                index_manager.do_send(RaftIndexRequest::AddNodeAddr(id, addr));
-                Ok(ClientResponse::Success)
-            }
-            ClientRequest::Members(member) => {
-                index_manager.do_send(RaftIndexRequest::SaveMember {
-                    member: member.clone(),
-                    member_after_consensus: None,
-                    node_addr: None,
-                });
-                Ok(ClientResponse::Success)
-            }
-            ClientRequest::ConfigSet {
-                key,
-                value,
-                config_type,
-                desc,
-                history_id,
-                history_table_id,
-                op_time,
-                op_user,
-            } => {
-                let cmd = ConfigRaftCmd::ConfigAdd {
-                    key,
-                    value,
-                    config_type,
-                    desc,
-                    history_id,
-                    history_table_id,
-                    op_time,
-                    op_user,
-                };
-                raft_data_wrap.config.send(cmd).await??;
-                Ok(ClientResponse::Success)
-            }
-            ClientRequest::ConfigFullValue {
-                key,
-                value,
-                last_seq_id: last_id,
-            } => {
-                let key = String::from_utf8_lossy(&key).to_string();
-                let key: ConfigKey = (&key as &str).into();
-                let value_do = ConfigValueDO::from_bytes(&value)?;
-                let config_value: ConfigValue = value_do.into();
-                let cmd = ConfigRaftCmd::SetFullValue {
-                    key,
-                    value: config_value,
-                    last_id,
-                };
-                raft_data_wrap.config.send(cmd).await??;
-                Ok(ClientResponse::Success)
-            }
-            ClientRequest::ConfigRemove { key } => {
-                let cmd = ConfigRaftCmd::ConfigRemove { key };
-                raft_data_wrap.config.send(cmd).await??;
-                Ok(ClientResponse::Success)
-            }
-            ClientRequest::TableManagerReq(req) => {
-                raft_data_wrap.table.send(req).await??;
-                Ok(ClientResponse::Success)
-            }
-            ClientRequest::NamespaceReq(req) => {
-                raft_data_wrap.namespace.send(req).await??;
-                Ok(ClientResponse::Success)
-            }
-        };
+        let r = raft_data_wrap
+            .apply_log_to_state_machine(request.request, &index_manager)
+            .await?;
         index_manager.do_send(RaftIndexRequest::SaveLastAppliedLog(last_applied_log));
-        r
+        Ok(r)
     }
 
     async fn do_build_snapshot(
         log_manager: Addr<RaftLogManager>,
         index_manager: Addr<RaftIndexManager>,
         snapshot_manager: Addr<RaftSnapshotManager>,
-        data_wrap: Arc<RaftDataWrap>,
+        data_wrap: Arc<RaftDataHandler>,
         last_index: u64,
     ) -> anyhow::Result<(SnapshotHeaderDto, Arc<String>, u64)> {
         //1. get last applied log
@@ -542,18 +302,7 @@ impl StateApplyManager {
             _ => return Err(anyhow::anyhow!("RaftSnapshotResponse is error")),
         };
         //4. write data
-        data_wrap
-            .config
-            .send(ConfigCmd::BuildSnapshot(writer.clone()))
-            .await??;
-        data_wrap
-            .table
-            .send(TableManagerInnerReq::BuildSnapshot(writer.clone()))
-            .await??;
-        data_wrap
-            .namespace
-            .send(RaftApplyDataRequest::BuildSnapshot(writer.clone()))
-            .await??;
+        data_wrap.build_snapshot(writer.clone()).await?;
 
         //5. flush to file
         writer

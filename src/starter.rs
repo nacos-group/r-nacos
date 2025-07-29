@@ -9,7 +9,7 @@ use crate::namespace::NamespaceActor;
 use crate::raft::cluster::route::RaftRequestRoute;
 use crate::raft::filestore::core::FileStore;
 use crate::raft::filestore::raftapply::StateApplyManager;
-use crate::raft::filestore::raftdata::RaftDataWrap;
+use crate::raft::filestore::raftdata::RaftDataHandler;
 use crate::raft::filestore::raftindex::RaftIndexManager;
 use crate::raft::filestore::raftlog::RaftLogManager;
 use crate::raft::filestore::raftsnapshot::RaftSnapshotManager;
@@ -183,7 +183,7 @@ pub async fn config_factory(sys_config: Arc<AppSysConfig>) -> anyhow::Result<Fac
         transfer_import_addr.clone(),
     ));
     factory.register(BeanDefinition::from_obj(raft_request_route));
-    let raft_data_wrap = Arc::new(RaftDataWrap {
+    let raft_data_wrap = Arc::new(RaftDataHandler {
         config: config_addr.clone(),
         table: table_manage.clone(),
         namespace: namespace_addr.clone(),

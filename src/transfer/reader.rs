@@ -10,7 +10,7 @@ use crate::namespace::model::{
     Namespace, NamespaceDO, NamespaceFromFlags, NamespaceParam, NamespaceRaftReq,
 };
 use crate::raft::db::table::TableManagerReq;
-use crate::raft::filestore::raftdata::RaftDataWrap;
+use crate::raft::filestore::raftdata::RaftDataHandler;
 use crate::raft::store::ClientRequest;
 use crate::raft::NacosRaft;
 use crate::transfer::model::{
@@ -156,7 +156,7 @@ impl ConfigCacheSequence {
 
 #[bean(inject)]
 pub struct TransferImportManager {
-    data_wrap: Option<Arc<RaftDataWrap>>,
+    data_wrap: Option<Arc<RaftDataHandler>>,
     raft: Option<Arc<NacosRaft>>,
     importing: bool,
 }
@@ -180,7 +180,7 @@ impl TransferImportManager {
         data: Vec<u8>,
         param: TransferImportParam,
         raft: Option<Arc<NacosRaft>>,
-        data_wrap: Option<Arc<RaftDataWrap>>,
+        data_wrap: Option<Arc<RaftDataHandler>>,
     ) -> anyhow::Result<()> {
         if let (Some(raft), Some(data_wrap)) = (&raft, data_wrap) {
             let mut count = 0;
