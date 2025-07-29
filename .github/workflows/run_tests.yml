@@ -3,9 +3,9 @@ name: run integration tests
 on:
   workflow_dispatch:
   push:
-    branches: [ "master" ]
+    branches: [ "master", "develop" ]
   pull_request:
-    branches: [ "master" ]
+    branches: [ "master", "develop" ]
 
 jobs:
   deploy:
