@@ -16,6 +16,8 @@ use crate::raft::db::table::TableManager;
 use crate::raft::filestore::core::FileStore;
 use crate::raft::network::factory::RaftClusterRequestSender;
 use crate::raft::NacosRaft;
+use crate::sequence::core::SequenceDbManager;
+use crate::sequence::SequenceManager;
 use crate::transfer::reader::TransferImportManager;
 use crate::transfer::writer::TransferWriterManager;
 use crate::user::UserManager;
@@ -50,4 +52,6 @@ pub struct AppShareData {
     pub transfer_import_manager: Addr<TransferImportManager>,
     pub health_manager: Addr<HealthManager>,
     pub ldap_manager: Addr<LdapManager>,
+    pub sequence_db_manager: Addr<SequenceDbManager>,
+    pub sequence_manager: Addr<SequenceManager>,
 }

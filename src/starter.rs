@@ -14,6 +14,7 @@ use crate::raft::filestore::raftindex::RaftIndexManager;
 use crate::raft::filestore::raftlog::RaftLogManager;
 use crate::raft::filestore::raftsnapshot::RaftSnapshotManager;
 use crate::sequence::core::SequenceDbManager;
+use crate::sequence::SequenceManager;
 use crate::transfer::reader::TransferImportManager;
 use crate::transfer::writer::TransferWriterManager;
 use crate::{
@@ -186,6 +187,10 @@ pub async fn config_factory(sys_config: Arc<AppSysConfig>) -> anyhow::Result<Fac
     factory.register(BeanDefinition::from_obj(raft_request_route));
     let sequence_db_addr = SequenceDbManager::new().start();
     factory.register(BeanDefinition::actor_from_obj(sequence_db_addr.clone()));
+    factory.register(BeanDefinition::actor_with_inject_from_obj(
+        SequenceManager::new().start(),
+    ));
+    factory.register(BeanDefinition::actor_from_obj(sequence_db_addr.clone()));
 
     let raft_data_wrap = Arc::new(RaftDataHandler {
         sequence_db: sequence_db_addr,
@@ -242,6 +247,8 @@ pub fn build_share_data(factory_data: FactoryData) -> anyhow::Result<Arc<AppShar
         transfer_import_manager: factory_data.get_actor().unwrap(),
         health_manager: factory_data.get_actor().unwrap(),
         ldap_manager: factory_data.get_actor().unwrap(),
+        sequence_manager: factory_data.get_actor().unwrap(),
+        sequence_db_manager: factory_data.get_actor().unwrap(),
         factory_data,
     });
     Ok(app_data)

@@ -1110,8 +1110,8 @@ impl Handler<NamingCmd> for NamingActor {
     type Result = anyhow::Result<NamingResult>;
 
     fn handle(&mut self, msg: NamingCmd, ctx: &mut Context<Self>) -> Self::Result {
-        #[cfg(feature = "debug")]
-        log::info!("NamingActor handle:{:?}", &msg);
+        //#[cfg(feature = "debug")]
+        //log::info!("NamingActor handle:{:?}", &msg);
         match msg {
             NamingCmd::Update(instance, tag) => {
                 let tag = self.update_instance(&instance.get_service_key(), instance, tag, false);
