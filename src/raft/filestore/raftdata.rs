@@ -6,7 +6,6 @@ use crate::common::constant::{
 use crate::config::core::{ConfigActor, ConfigCmd, ConfigKey, ConfigValue};
 use crate::config::model::{ConfigRaftCmd, ConfigValueDO};
 use crate::namespace::NamespaceActor;
-use crate::raft::cache::CacheManager;
 use crate::raft::db::table::{TableManager, TableManagerInnerReq, TableManagerReq};
 use crate::raft::filestore::model::SnapshotRecordDto;
 use crate::raft::filestore::raftapply::RaftApplyDataRequest;

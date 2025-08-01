@@ -1,19 +1,15 @@
 pub mod core;
 pub mod model;
 
-use crate::common::sequence_utils::SimpleSequence;
-use crate::raft::cluster::route::{RaftAddrRouter, RaftRequestRoute};
+use crate::raft::cluster::route::RaftRequestRoute;
 use crate::raft::store::{ClientRequest, ClientResponse};
-use crate::raft::NacosRaft;
-use crate::sequence::core::SequenceDbManager;
 use crate::sequence::model::{SeqGroup, SeqRange, SequenceRaftReq, SequenceRaftResult};
 use actix::prelude::*;
-use async_raft_ext::raft::ClientWriteRequest;
 use bean_factory::{bean, BeanFactory, FactoryData, Inject};
 use serde::{Deserialize, Serialize};
 /// 获取顺序递增的id功能
 use std::collections::HashMap;
-use std::sync::{Arc, Weak};
+use std::sync::Arc;
 
 ///
 /// 序号管理器
@@ -60,8 +56,8 @@ impl SequenceManager {
                 if let Some(raft_router) = raft_router {
                     let (start, len) =
                         Self::get_next_range(&raft_router, key.clone(), step).await?;
-                    let mut simple_sequence = SimpleSequence::new(start, len);
-                    let v = simple_sequence.next_id();
+                    //let mut simple_sequence = SimpleSequence::new(start, len);
+                    //let v = simple_sequence.next_id();
                     Ok(SequenceBeforeResult::UseFromRange { key, start, len })
                 } else {
                     Err(anyhow::anyhow!("SequenceManager|raft_router is none"))
@@ -71,8 +67,8 @@ impl SequenceManager {
                 if let Some(raft_router) = raft_router {
                     let (start, len) =
                         Self::get_next_range(&raft_router, key.clone(), step).await?;
-                    let mut simple_sequence = SimpleSequence::new(start, len);
-                    let v = simple_sequence.next_id();
+                    //let mut simple_sequence = SimpleSequence::new(start, len);
+                    //let v = simple_sequence.next_id();
                     Ok(SequenceBeforeResult::FillRange { key, start, len })
                 } else {
                     Err(anyhow::anyhow!("SequenceManager|raft_router is none"))
@@ -162,7 +158,7 @@ impl Inject for SequenceManager {
         &mut self,
         factory_data: FactoryData,
         _factory: BeanFactory,
-        ctx: &mut Self::Context,
+        _ctx: &mut Self::Context,
     ) {
         self.raft_router = factory_data.get_bean();
     }
