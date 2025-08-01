@@ -4,7 +4,10 @@ use async_raft_ext::raft::ClientWriteRequest;
 
 use self::model::{RouterRequest, RouterResponse};
 use super::{db::table::TableManagerAsyncReq, join_node, store::ClientRequest};
+use crate::grpc::handler::RAFT_ROUTE_REQUEST;
+use crate::grpc::PayloadUtils;
 use crate::namespace::model::NamespaceRaftResult;
+use crate::raft::network::factory::RaftClusterRequestSender;
 use crate::raft::store::ClientResponse;
 use crate::transfer::model::TransferImportRequest;
 use crate::{
@@ -21,6 +24,10 @@ pub async fn handle_route(
     req: RouterRequest,
 ) -> anyhow::Result<RouterResponse> {
     match req {
+        RouterRequest::RaftRequest(req) => {
+            let r = app.raft.client_write(ClientWriteRequest::new(req)).await?;
+            Ok(RouterResponse::RaftResponse(r.data))
+        }
         RouterRequest::ConfigSet {
             key,
             value,
@@ -39,6 +46,7 @@ pub async fn handle_route(
                     desc,
                 })
                 .await??;
+            Ok(RouterResponse::None)
         }
         RouterRequest::ConfigDel {
             key,
@@ -48,6 +56,7 @@ pub async fn handle_route(
             app.config_addr
                 .send(ConfigAsyncCmd::Delete(config_key))
                 .await??;
+            Ok(RouterResponse::None)
         }
         RouterRequest::JoinNode {
             node_id,
@@ -61,21 +70,22 @@ pub async fn handle_route(
                 .await?;
             app.raft.add_non_voter(node_id).await?;
             join_node(app.raft.as_ref(), app.raft_store.as_ref(), node_id).await?;
+            Ok(RouterResponse::None)
         }
         RouterRequest::TableManagerReq { req } => {
             let result = app
                 .raft_table_manage
                 .send(TableManagerAsyncReq(req))
                 .await??;
-            return Ok(RouterResponse::TableManagerResult { result });
+            Ok(RouterResponse::TableManagerResult { result })
         }
         RouterRequest::TableManagerQueryReq { req } => {
             let result = app.raft_table_manage.send(req).await??;
-            return Ok(RouterResponse::TableManagerResult { result });
+            Ok(RouterResponse::TableManagerResult { result })
         }
         RouterRequest::CacheLimiterReq { req } => {
             let result = app.cache_manager.send(req).await??;
-            return Ok(RouterResponse::CacheManagerResult { result });
+            Ok(RouterResponse::CacheManagerResult { result })
         }
         RouterRequest::NamespaceReq { req } => {
             let resp = app
@@ -87,14 +97,27 @@ pub async fn handle_route(
                     result: NamespaceRaftResult::None,
                 });
             }
+            Ok(RouterResponse::None)
         }
         RouterRequest::ImportData { data, param } => {
             let result = app
                 .transfer_import_manager
                 .send(TransferImportRequest::Import(data, param))
                 .await??;
-            return Ok(RouterResponse::ImportResult { result });
+            Ok(RouterResponse::ImportResult { result })
         }
-    };
-    Ok(RouterResponse::None)
+    }
+}
+
+pub async fn router_request(
+    req: RouterRequest,
+    addr: Arc<String>,
+    cluster_sender: &Arc<RaftClusterRequestSender>,
+) -> anyhow::Result<RouterResponse> {
+    let request = serde_json::to_string(&req).unwrap_or_default();
+    let payload = PayloadUtils::build_payload(RAFT_ROUTE_REQUEST, request);
+    let resp_payload = cluster_sender.send_request(addr, payload).await?;
+    let body_vec = resp_payload.body.unwrap_or_default().value;
+    let router_resp: RouterResponse = serde_json::from_slice(&body_vec)?;
+    Ok(router_resp)
 }

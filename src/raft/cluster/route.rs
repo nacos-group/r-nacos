@@ -1,8 +1,7 @@
-use std::{fmt::Debug, sync::Arc};
-
 use super::model::{DelConfigReq, RouteAddr, RouterRequest, RouterResponse, SetConfigReq};
 use crate::grpc::handler::RAFT_ROUTE_REQUEST;
 use crate::namespace::model::{NamespaceRaftReq, NamespaceRaftResult};
+use crate::raft::cluster::router_request;
 use crate::raft::filestore::core::FileStore;
 use crate::raft::store::{ClientRequest, ClientResponse};
 use crate::transfer::model::{TransferImportParam, TransferImportRequest, TransferImportResponse};
@@ -14,6 +13,8 @@ use crate::{
 };
 use actix::prelude::*;
 use async_raft_ext::raft::ClientWriteRequest;
+use std::convert::TryInto;
+use std::{fmt::Debug, sync::Arc};
 
 #[derive(Clone)]
 pub struct RaftAddrRouter {
@@ -217,6 +218,22 @@ impl RaftRequestRoute {
                     RouterResponse::ImportResult { result } => Ok(result),
                     _ => Err(anyhow::anyhow!("response type is error!")),
                 }
+            }
+            RouteAddr::Unknown => Err(self.unknown_err()),
+        }
+    }
+
+    pub async fn request(&self, req: ClientRequest) -> anyhow::Result<ClientResponse> {
+        match self.raft_addr_route.get_route_addr().await? {
+            RouteAddr::Local => {
+                let resp = self.raft.client_write(ClientWriteRequest::new(req)).await?;
+                Ok(resp.data)
+            }
+            RouteAddr::Remote(_, addr) => {
+                let req: RouterRequest = req.into();
+                let router_resp = router_request(req, addr, &self.cluster_sender).await?;
+                let resp: ClientResponse = router_resp.try_into()?;
+                Ok(resp)
             }
             RouteAddr::Unknown => Err(self.unknown_err()),
         }

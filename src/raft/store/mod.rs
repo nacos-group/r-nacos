@@ -5,6 +5,7 @@ use std::sync::Arc;
 
 use super::db::table::TableManagerReq;
 use crate::namespace::model::NamespaceRaftReq;
+use crate::sequence::model::{SequenceRaftReq, SequenceRaftResult};
 use async_raft_ext::AppData;
 use async_raft_ext::AppDataResponse;
 use serde::Deserialize;
@@ -40,6 +41,9 @@ pub enum ClientRequest {
     },
     TableManagerReq(TableManagerReq),
     NamespaceReq(NamespaceRaftReq),
+    SequenceReq {
+        req: SequenceRaftReq,
+    },
 }
 
 impl AppData for ClientRequest {}
@@ -48,6 +52,7 @@ impl AppData for ClientRequest {}
 pub enum ClientResponse {
     Success,
     Fail,
+    SequenceResp { resp: SequenceRaftResult },
 }
 
 impl Default for ClientResponse {

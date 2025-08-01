@@ -13,6 +13,7 @@ use crate::raft::filestore::raftdata::RaftDataHandler;
 use crate::raft::filestore::raftindex::RaftIndexManager;
 use crate::raft::filestore::raftlog::RaftLogManager;
 use crate::raft::filestore::raftsnapshot::RaftSnapshotManager;
+use crate::sequence::core::SequenceDbManager;
 use crate::transfer::reader::TransferImportManager;
 use crate::transfer::writer::TransferWriterManager;
 use crate::{
@@ -183,7 +184,11 @@ pub async fn config_factory(sys_config: Arc<AppSysConfig>) -> anyhow::Result<Fac
         transfer_import_addr.clone(),
     ));
     factory.register(BeanDefinition::from_obj(raft_request_route));
+    let sequence_db_addr = SequenceDbManager::new().start();
+    factory.register(BeanDefinition::actor_from_obj(sequence_db_addr.clone()));
+
     let raft_data_wrap = Arc::new(RaftDataHandler {
+        sequence_db: sequence_db_addr,
         config: config_addr.clone(),
         table: table_manage.clone(),
         namespace: namespace_addr.clone(),

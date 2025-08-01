@@ -13,6 +13,7 @@ use crate::raft::filestore::raftapply::RaftApplyDataRequest;
 use crate::raft::filestore::raftindex::{RaftIndexManager, RaftIndexRequest};
 use crate::raft::filestore::raftsnapshot::SnapshotWriterActor;
 use crate::raft::store::{ClientRequest, ClientResponse};
+use crate::sequence::core::SequenceDbManager;
 use actix::prelude::*;
 
 #[derive(Clone)]
@@ -20,26 +21,15 @@ pub struct RaftDataHandler {
     pub config: Addr<ConfigActor>,
     pub table: Addr<TableManager>,
     pub namespace: Addr<NamespaceActor>,
-    //pub(crate) cache: Addr<CacheManager>,
+    pub sequence_db: Addr<SequenceDbManager>,
 }
 
 impl RaftDataHandler {
-    pub fn new(
-        config: Addr<ConfigActor>,
-        table: Addr<TableManager>,
-        namespace: Addr<NamespaceActor>,
-        _cache: Addr<CacheManager>,
-    ) -> Self {
-        Self {
-            config,
-            table,
-            namespace,
-            //cache,
-        }
-    }
-
     pub async fn build_snapshot(&self, writer: Addr<SnapshotWriterActor>) -> anyhow::Result<()> {
         log::info!("RaftDataHandler|build_snapshot");
+        self.sequence_db
+            .send(RaftApplyDataRequest::BuildSnapshot(writer.clone()))
+            .await??;
         self.config
             .send(ConfigCmd::BuildSnapshot(writer.clone()))
             .await??;
@@ -60,13 +50,16 @@ impl RaftDataHandler {
                 .send(ConfigCmd::SetFullValue(config_key, value_do.into()))
                 .await??;
         } else if record.tree.as_str() == SEQUENCE_TREE_NAME.as_str() {
-            let key = String::from_utf8(record.key)?;
+            let key = String::from_utf8_lossy(&record.key);
             let last_id = bin_to_id(&record.value);
             if &key as &str == SEQ_KEY_CONFIG {
                 self.config
                     .send(ConfigCmd::InnerSetLastId(last_id))
                     .await??;
-            };
+            } else {
+                let req = RaftApplyDataRequest::LoadSnapshotRecord(record);
+                self.sequence_db.send(req).await??;
+            }
         } else if record.tree.as_str() == USER_TREE_NAME.as_str() {
             let key = record.key;
             let value = record.value;
@@ -100,7 +93,10 @@ impl RaftDataHandler {
     }
 
     pub fn load_complete(&self) -> anyhow::Result<()> {
+        log::info!("RaftDataHandler|load_complete");
         self.namespace.do_send(RaftApplyDataRequest::LoadCompleted);
+        self.sequence_db
+            .do_send(RaftApplyDataRequest::LoadCompleted);
         Ok(())
     }
 
@@ -126,6 +122,9 @@ impl RaftDataHandler {
                     })
                     .await
                     .ok();
+            }
+            ClientRequest::SequenceReq { req } => {
+                self.sequence_db.send(req).await.ok();
             }
             ClientRequest::ConfigSet {
                 key,
@@ -198,6 +197,10 @@ impl RaftDataHandler {
                 });
                 Ok(ClientResponse::Success)
             }
+            ClientRequest::SequenceReq { req } => {
+                let r = self.sequence_db.send(req).await??;
+                Ok(ClientResponse::SequenceResp { resp: r })
+            }
             ClientRequest::ConfigSet {
                 key,
                 value,
@@ -269,6 +272,9 @@ impl RaftDataHandler {
                     member_after_consensus: None,
                     node_addr: None,
                 });
+            }
+            ClientRequest::SequenceReq { req } => {
+                self.sequence_db.do_send(req);
             }
             ClientRequest::ConfigSet {
                 key,

@@ -1,9 +1,10 @@
-use std::{collections::HashMap, sync::Arc};
-
 use serde::{Deserialize, Serialize};
+use std::convert::TryFrom;
+use std::{collections::HashMap, sync::Arc};
 
 use crate::config::config_type::ConfigType;
 use crate::namespace::model::{NamespaceRaftReq, NamespaceRaftResult};
+use crate::raft::store::{ClientRequest, ClientResponse};
 use crate::transfer::model::{TransferImportParam, TransferImportResponse};
 use crate::{
     config::core::ConfigKey,
@@ -83,6 +84,7 @@ impl DelConfigReq {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum RouterRequest {
+    RaftRequest(ClientRequest),
     ConfigSet {
         key: String,
         value: Arc<String>,
@@ -151,11 +153,35 @@ impl From<NamespaceRaftReq> for RouterRequest {
     }
 }
 
+impl From<ClientRequest> for RouterRequest {
+    fn from(req: ClientRequest) -> Self {
+        RouterRequest::RaftRequest(req)
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum RouterResponse {
     None,
+    RaftResponse(ClientResponse),
     TableManagerResult { result: TableManagerResult },
     CacheManagerResult { result: CacheManagerResult },
     NamespaceResult { result: NamespaceRaftResult },
     ImportResult { result: TransferImportResponse },
+}
+
+impl From<ClientResponse> for RouterResponse {
+    fn from(resp: ClientResponse) -> Self {
+        RouterResponse::RaftResponse(resp)
+    }
+}
+
+impl TryFrom<RouterResponse> for ClientResponse {
+    type Error = anyhow::Error;
+
+    fn try_from(value: RouterResponse) -> Result<Self, Self::Error> {
+        match value {
+            RouterResponse::RaftResponse(resp) => Ok(resp),
+            _ => Err(anyhow::anyhow!("Invalid RaftResponse")),
+        }
+    }
 }

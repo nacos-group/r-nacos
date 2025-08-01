@@ -16,6 +16,7 @@ pub mod health;
 pub mod transfer;
 
 pub mod ldap;
+pub mod sequence;
 
 pub use inner_mem_cache::TimeoutSet;
 
