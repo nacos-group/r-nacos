@@ -4,6 +4,7 @@
 use std::sync::Arc;
 
 use super::db::table::TableManagerReq;
+use crate::mcp::model::actor_model::{McpManagerRaftReq, McpManagerRaftResult};
 use crate::namespace::model::NamespaceRaftReq;
 use crate::sequence::model::{SequenceRaftReq, SequenceRaftResult};
 use async_raft_ext::AppData;
@@ -44,6 +45,9 @@ pub enum ClientRequest {
     SequenceReq {
         req: SequenceRaftReq,
     },
+    McpReq {
+        req: McpManagerRaftReq,
+    },
 }
 
 impl AppData for ClientRequest {}
@@ -53,6 +57,7 @@ pub enum ClientResponse {
     Success,
     Fail,
     SequenceResp { resp: SequenceRaftResult },
+    McpResp { resp: McpManagerRaftResult },
 }
 
 impl Default for ClientResponse {

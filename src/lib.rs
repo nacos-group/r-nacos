@@ -16,41 +16,14 @@ pub mod health;
 pub mod transfer;
 
 pub mod ldap;
+pub mod mcp;
 pub mod sequence;
 
 pub use inner_mem_cache::TimeoutSet;
 
-fn now_millis() -> u64 {
-    use std::time::SystemTime;
-    SystemTime::now()
-        .duration_since(SystemTime::UNIX_EPOCH)
-        .unwrap()
-        .as_millis() as u64
-}
-
-fn now_millis_i64() -> i64 {
-    use std::time::SystemTime;
-    SystemTime::now()
-        .duration_since(SystemTime::UNIX_EPOCH)
-        .unwrap()
-        .as_millis() as i64
-}
-
-fn now_second_i32() -> i32 {
-    use std::time::SystemTime;
-    SystemTime::now()
-        .duration_since(SystemTime::UNIX_EPOCH)
-        .unwrap()
-        .as_secs() as i32
-}
-
-fn now_second_u32() -> u32 {
-    use std::time::SystemTime;
-    SystemTime::now()
-        .duration_since(SystemTime::UNIX_EPOCH)
-        .unwrap()
-        .as_secs() as u32
-}
+pub use crate::common::datetime_utils::{
+    now_millis, now_millis_i64, now_second_i32, now_second_u32,
+};
 
 #[cfg(test)]
 mod tests {}

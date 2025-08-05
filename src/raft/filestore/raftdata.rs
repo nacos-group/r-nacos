@@ -1,10 +1,11 @@
 use crate::common::byte_utils::bin_to_id;
 use crate::common::constant::{
-    CACHE_TREE_NAME, CONFIG_TREE_NAME, NAMESPACE_TREE_NAME, SEQUENCE_TREE_NAME, SEQ_KEY_CONFIG,
-    USER_TREE_NAME,
+    CACHE_TREE_NAME, CONFIG_TREE_NAME, MCP_SERVER_TABLE_NAME, MCP_TOOL_SPEC_TABLE_NAME,
+    NAMESPACE_TREE_NAME, SEQUENCE_TREE_NAME, SEQ_KEY_CONFIG, USER_TREE_NAME,
 };
 use crate::config::core::{ConfigActor, ConfigCmd, ConfigKey, ConfigValue};
 use crate::config::model::{ConfigRaftCmd, ConfigValueDO};
+use crate::mcp::core::McpManager;
 use crate::namespace::NamespaceActor;
 use crate::raft::db::table::{TableManager, TableManagerInnerReq, TableManagerReq};
 use crate::raft::filestore::model::SnapshotRecordDto;
@@ -21,6 +22,7 @@ pub struct RaftDataHandler {
     pub table: Addr<TableManager>,
     pub namespace: Addr<NamespaceActor>,
     pub sequence_db: Addr<SequenceDbManager>,
+    pub mcp_manager: Addr<McpManager>,
 }
 
 impl RaftDataHandler {
@@ -36,6 +38,9 @@ impl RaftDataHandler {
             .send(TableManagerInnerReq::BuildSnapshot(writer.clone()))
             .await??;
         self.namespace
+            .send(RaftApplyDataRequest::BuildSnapshot(writer.clone()))
+            .await??;
+        self.mcp_manager
             .send(RaftApplyDataRequest::BuildSnapshot(writer.clone()))
             .await??;
         Ok(())
@@ -82,6 +87,11 @@ impl RaftDataHandler {
         } else if record.tree.as_str() == NAMESPACE_TREE_NAME.as_str() {
             let req = RaftApplyDataRequest::LoadSnapshotRecord(record);
             self.namespace.send(req).await??;
+        } else if record.tree.as_str() == MCP_SERVER_TABLE_NAME.as_str()
+            || record.tree.as_str() == MCP_TOOL_SPEC_TABLE_NAME.as_str()
+        {
+            let req = RaftApplyDataRequest::LoadSnapshotRecord(record);
+            self.mcp_manager.send(req).await??;
         } else {
             log::warn!(
                 "do_load_snapshot ignore data,table name:{}",
@@ -95,6 +105,8 @@ impl RaftDataHandler {
         log::info!("RaftDataHandler|load_complete");
         self.namespace.do_send(RaftApplyDataRequest::LoadCompleted);
         self.sequence_db
+            .do_send(RaftApplyDataRequest::LoadCompleted);
+        self.mcp_manager
             .do_send(RaftApplyDataRequest::LoadCompleted);
         Ok(())
     }
@@ -172,6 +184,9 @@ impl RaftDataHandler {
             }
             ClientRequest::NamespaceReq(req) => {
                 self.namespace.send(req).await.ok();
+            }
+            ClientRequest::McpReq { req } => {
+                self.mcp_manager.send(req).await.ok();
             }
         }
         Ok(())
@@ -253,6 +268,10 @@ impl RaftDataHandler {
                 self.namespace.send(req).await??;
                 Ok(ClientResponse::Success)
             }
+            ClientRequest::McpReq { req } => {
+                let resp = self.mcp_manager.send(req).await??;
+                Ok(ClientResponse::McpResp { resp })
+            }
         }
     }
 
@@ -322,6 +341,9 @@ impl RaftDataHandler {
             }
             ClientRequest::NamespaceReq(req) => {
                 self.namespace.do_send(req);
+            }
+            ClientRequest::McpReq { req } => {
+                self.mcp_manager.do_send(req);
             }
         };
         Ok(())

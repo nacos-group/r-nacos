@@ -1,0 +1,39 @@
+// 用于生成 data_object.rs
+// pb-rs data_object.proto
+
+syntax = "proto3";
+
+package data_object;
+
+
+message McpServerDo {
+  uint64 id = 1;
+  string namespace = 2;
+  string name = 3;
+  string description = 4;
+  string token = 5;
+}
+
+message McpToolSpecDo {
+  string namespace = 1;
+  string group = 2;
+  string tool_name = 3;
+  uint64 version = 4;
+  string name = 5;
+  string description = 6;
+}
+
+message McpToolDo {
+  uint64 id = 1;
+  string tool_name = 2;
+  string namespace = 3;
+  string group = 4;
+  uint64 version = 5;
+}
+
+message ToolRouteRuleDo {
+  string protocol = 1;
+  string url = 2;
+  string method = 3;
+}
+
