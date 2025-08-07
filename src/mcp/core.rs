@@ -6,8 +6,7 @@ use crate::mcp::model::actor_model::{
     McpToolSpecQueryParam, ToolSpecDto,
 };
 use crate::mcp::model::mcp::{
-    McpQueryParam, McpServer, McpServerDto, McpServerParam, McpServerWrap, ToolKey, ToolSpec,
-    ToolSpecParam,
+    McpQueryParam, McpServer, McpServerDto, McpServerParam, McpServerWrap,
 };
 use crate::raft::filestore::model::SnapshotRecordDto;
 use crate::raft::filestore::raftapply::{RaftApplyDataRequest, RaftApplyDataResponse};
@@ -18,6 +17,7 @@ use bean_factory::{bean, BeanFactory, FactoryData, Inject};
 use quick_protobuf::{BytesReader, Writer};
 use std::collections::BTreeMap;
 use std::sync::Arc;
+use crate::mcp::model::tools::{ToolKey, ToolSpec, ToolSpecParam};
 
 #[bean(inject)]
 pub struct McpManager {

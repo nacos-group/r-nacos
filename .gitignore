@@ -9,3 +9,5 @@ naming.db
 nacos_db/
 .env
 cluster_example/
+.kiro/
+

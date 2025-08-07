@@ -1,9 +1,10 @@
 use crate::mcp::model::mcp::{
-    McpQueryParam, McpServer, McpServerDto, McpServerParam, ToolSpec, ToolSpecParam,
+    McpQueryParam, McpServer, McpServerDto, McpServerParam,
 };
 use actix::Message;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use crate::mcp::model::tools::{ToolSpec, ToolSpecParam};
 
 /// MCP 查询请求
 #[derive(Debug, Message)]
@@ -60,27 +61,28 @@ pub struct McpToolSpecQueryParam {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ToolSpecDto {
-    pub namespace: String,
-    pub group: String,
-    pub tool_name: String,
+    pub namespace: Arc<String>,
+    pub group: Arc<String>,
+    pub tool_name: Arc<String>,
     pub version: u64,
     pub name: String,
     pub description: String,
-    pub create_time: u64,
-    pub last_modified_millis: u64,
+    pub create_time: i64,
+    pub last_modified_millis: i64,
 }
 
 impl ToolSpecDto {
     pub fn new_from(tool_spec: &ToolSpec) -> Self {
+        let current_version = tool_spec.get_current_version().unwrap_or_default();
         Self {
-            namespace: tool_spec.key.namespace.to_string(),
-            group: tool_spec.key.group.to_string(),
-            tool_name: tool_spec.key.tool_name.to_string(),
-            version: tool_spec.version,
-            name: tool_spec.name.to_string(),
-            description: tool_spec.description.to_string(),
-            create_time: 0,          // 实际实现中需要从 tool_spec 获取
-            last_modified_millis: 0, // 实际实现中需要从 tool_spec 获取
+            namespace: tool_spec.key.namespace.clone(),
+            group: tool_spec.key.group.clone(),
+            tool_name: tool_spec.key.tool_name.clone(),
+            version: tool_spec.current_version,
+            name: current_version.parameters.name.clone(),
+            description: current_version.parameters.name.clone(),
+            create_time: 0, // 实际实现中需要从 tool_spec 获取
+            last_modified_millis: current_version.update_time, // 实际实现中需要从 tool_spec 获取
         }
     }
 }

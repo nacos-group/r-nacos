@@ -14,26 +14,59 @@ message McpServerDo {
   string token = 5;
 }
 
+// 工具规范版本
+message ToolSpecVersionDo {
+  uint64 version = 1;
+  string parameters_json = 2;
+  string op_user = 3;
+  int64 update_time = 4;
+  int64 ref_count = 5;
+}
+
+// 工具键
+message ToolKey {
+  string namespace = 1;
+  string group = 2;
+  string tool_name = 3;
+}
+
+// MCP 工具规范
 message McpToolSpecDo {
   string namespace = 1;
   string group = 2;
   string tool_name = 3;
-  uint64 version = 4;
-  string name = 5;
-  string description = 6;
+  uint64 current_version = 4;
+  int64 create_time = 5;
+  string create_user = 6;
+  repeated ToolSpecVersionDo versions = 7;
 }
 
+// 转换类型
+enum ConvertType {
+  NONE = 0;
+  FORM_TO_JSON = 1;
+  CUSTOM = 2;
+}
+
+// 工具路由规则
+message ToolRouteRuleDo {
+  string protocol = 1;
+  string url = 2;
+  string method = 3;
+  string addition_headers_json = 4;
+  string convert_type = 5;
+  string service_namespace = 6;
+  string service_group = 7;
+  string service_name = 8;
+}
+
+// MCP 工具
 message McpToolDo {
   uint64 id = 1;
   string tool_name = 2;
   string namespace = 3;
   string group = 4;
   uint64 version = 5;
+  string spec_json = 6;
+  string route_rule_json = 7;
 }
-
-message ToolRouteRuleDo {
-  string protocol = 1;
-  string url = 2;
-  string method = 3;
-}
-
