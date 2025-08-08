@@ -4,6 +4,7 @@
 use std::sync::Arc;
 
 use super::db::table::TableManagerReq;
+use crate::lock::model::LockRaftReq;
 use crate::namespace::model::NamespaceRaftReq;
 use async_raft_ext::AppData;
 use async_raft_ext::AppDataResponse;
@@ -40,6 +41,7 @@ pub enum ClientRequest {
     },
     TableManagerReq(TableManagerReq),
     NamespaceReq(NamespaceRaftReq),
+    LockReq(LockRaftReq),
 }
 
 impl AppData for ClientRequest {}
@@ -48,6 +50,7 @@ impl AppData for ClientRequest {}
 pub enum ClientResponse {
     Success,
     Fail,
+    LockResp(bool),
 }
 
 impl Default for ClientResponse {

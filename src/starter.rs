@@ -4,6 +4,7 @@ use crate::common::actor_utils::{create_actor_at_thread, create_actor_at_thread2
 use crate::grpc::handler::RAFT_ROUTE_REQUEST;
 use crate::health::core::HealthManager;
 use crate::ldap::core::LdapManager;
+use crate::lock::LockActor;
 use crate::metrics::core::MetricsManager;
 use crate::namespace::NamespaceActor;
 use crate::raft::cluster::route::RaftRequestRoute;
@@ -132,6 +133,7 @@ pub async fn config_factory(sys_config: Arc<AppSysConfig>) -> anyhow::Result<Fac
     ));
     factory.register(BeanDefinition::from_obj(config_route.clone()));
 
+
     let naming_inner_node_manage_addr =
         InnerNodeManage::new(sys_config.raft_node_id.to_owned()).start();
     factory.register(BeanDefinition::actor_with_inject_from_obj(
@@ -146,6 +148,7 @@ pub async fn config_factory(sys_config: Arc<AppSysConfig>) -> anyhow::Result<Fac
         cluster_sender.clone(),
     ));
     factory.register(BeanDefinition::from_obj(naming_route.clone()));
+
     let naming_cluster_delay_notify_addr = ClusterInstanceDelayNotifyActor::new().start();
     factory.register(BeanDefinition::actor_with_inject_from_obj(
         naming_cluster_delay_notify_addr.clone(),
@@ -172,6 +175,7 @@ pub async fn config_factory(sys_config: Arc<AppSysConfig>) -> anyhow::Result<Fac
     factory.register(BeanDefinition::actor_with_inject_from_obj(
         namespace_addr.clone(),
     ));
+    let lock_addr = LockActor::new().start();
     let transfer_import_addr = TransferImportManager::new().start();
     factory.register(BeanDefinition::actor_with_inject_from_obj(
         transfer_import_addr.clone(),
@@ -187,6 +191,7 @@ pub async fn config_factory(sys_config: Arc<AppSysConfig>) -> anyhow::Result<Fac
         config: config_addr.clone(),
         table: table_manage.clone(),
         namespace: namespace_addr.clone(),
+        lock: lock_addr.clone(),
         //cache: cache_manager.clone(),
     });
     factory.register(BeanDefinition::from_obj(raft_data_wrap));

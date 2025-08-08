@@ -12,10 +12,7 @@ use super::{
     StoreUtils,
 };
 use crate::common::byte_utils::bin_to_id;
-use crate::common::constant::{
-    CACHE_TREE_NAME, CONFIG_TREE_NAME, NAMESPACE_TREE_NAME, SEQUENCE_TREE_NAME, SEQ_KEY_CONFIG,
-    USER_TREE_NAME,
-};
+use crate::common::constant::{CACHE_TREE_NAME, CONFIG_TREE_NAME, NAMESPACE_TREE_NAME, SEQUENCE_TREE_NAME, SEQ_KEY_CONFIG, USER_TREE_NAME};
 use crate::config::core::{ConfigCmd, ConfigKey, ConfigValue};
 use crate::config::model::{ConfigRaftCmd, ConfigValueDO};
 use crate::raft::db::table::{TableManagerInnerReq, TableManagerReq};
@@ -112,6 +109,9 @@ impl LogRecordLoader for LogRecordLoaderInstance {
                 }
                 ClientRequest::NamespaceReq(req) => {
                     self.data_wrap.namespace.send(req).await.ok();
+                }
+                ClientRequest::LockReq(req) => {
+                    self.data_wrap.lock.send(req).await.ok();
                 }
             },
             _ => {}
@@ -409,6 +409,11 @@ impl StateApplyManager {
                     raft_data_wrap.namespace.do_send(req);
                 }
             }
+            ClientRequest::LockReq(req) => {
+                if let Some(raft_data_wrap) = &self.data_wrap {
+                    raft_data_wrap.lock.do_send(req);
+                }
+            }
         };
         Ok(())
     }
@@ -484,6 +489,10 @@ impl StateApplyManager {
             ClientRequest::NamespaceReq(req) => {
                 raft_data_wrap.namespace.send(req).await??;
                 Ok(ClientResponse::Success)
+            }
+            ClientRequest::LockReq(req) => {
+                let res = raft_data_wrap.lock.send(req).await??;
+                Ok(ClientResponse::LockResp(res))
             }
         };
         index_manager.do_send(RaftIndexRequest::SaveLastAppliedLog(last_applied_log));
@@ -715,3 +724,5 @@ impl Handler<StateApplyAsyncRequest> for StateApplyManager {
         Box::pin(fut)
     }
 }
+
+

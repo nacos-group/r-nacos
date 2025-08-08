@@ -17,7 +17,10 @@ pub mod transfer;
 
 pub mod ldap;
 
+pub mod lock;
+
 pub use inner_mem_cache::TimeoutSet;
+
 
 fn now_millis() -> u64 {
     use std::time::SystemTime;

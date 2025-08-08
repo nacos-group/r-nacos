@@ -31,12 +31,12 @@ use std::sync::Arc;
 use std::time::Duration;
 use tonic::transport::Server;
 
+//use mimalloc::MiMalloc;
+use crate::cli::{Cli, Commands};
 use actix_web::{middleware, HttpServer};
 use clap::Parser;
 use env_logger::TimestampPrecision;
 use env_logger_timezone_fmt::{TimeZoneFormat, TimeZoneFormatEnv};
-//use mimalloc::MiMalloc;
-use crate::cli::{Cli, Commands};
 use rnacos::common::appdata::AppShareData;
 use rnacos::openapi::middle::auth_middle::ApiCheckAuth;
 use rnacos::raft::NacosRaft;
@@ -78,6 +78,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let mut invoker = InvokerHandler::new(app_data.clone());
     invoker.add_config_handler(&app_data);
     invoker.add_naming_handler(&app_data);
+    invoker.add_lock_handler(&app_data);
     invoker.add_raft_handler(&app_data);
 
     let grpc_app_data = app_data.clone();

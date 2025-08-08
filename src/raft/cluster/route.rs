@@ -2,8 +2,10 @@ use std::{fmt::Debug, sync::Arc};
 
 use super::model::{DelConfigReq, RouteAddr, RouterRequest, RouterResponse, SetConfigReq};
 use crate::grpc::handler::RAFT_ROUTE_REQUEST;
+use crate::lock::model::LockRaftReq;
 use crate::namespace::model::{NamespaceRaftReq, NamespaceRaftResult};
 use crate::raft::filestore::core::FileStore;
+use crate::raft::store::ClientRequest::LockReq;
 use crate::raft::store::{ClientRequest, ClientResponse};
 use crate::transfer::model::{TransferImportParam, TransferImportRequest, TransferImportResponse};
 use crate::transfer::reader::TransferImportManager;
@@ -218,6 +220,35 @@ impl RaftRequestRoute {
                     _ => Err(anyhow::anyhow!("response type is error!")),
                 }
             }
+            RouteAddr::Unknown => Err(self.unknown_err()),
+        }
+    }
+    pub async fn request_lock(&self, req: LockRaftReq) -> anyhow::Result<bool> {
+        match self.raft_addr_route.get_route_addr().await? {
+            RouteAddr::Local => {
+                let resp = self
+                    .raft
+                    .client_write(ClientWriteRequest::new(LockReq(req)))
+                    .await?;
+                match resp.data {
+                    ClientResponse::LockResp(lock_resp) => Ok(lock_resp),
+                    _ => Err(anyhow::anyhow!("Unexpected response type")),
+                }
+            }
+
+            RouteAddr::Remote(_, addr) => {
+                let req: RouterRequest = req.into();
+                let request = serde_json::to_string(&req).unwrap_or_default();
+                let payload = PayloadUtils::build_payload(RAFT_ROUTE_REQUEST, request);
+                let resp_payload = self.cluster_sender.send_request(addr, payload).await?;
+                let body_vec = resp_payload.body.unwrap_or_default().value;
+                let resp: RouterResponse = serde_json::from_slice(&body_vec)?;
+                match resp {
+                    RouterResponse::LockResult { result } => Ok(result),
+                    _ => Err(anyhow::anyhow!("response type is error!")),
+                }
+            }
+
             RouteAddr::Unknown => Err(self.unknown_err()),
         }
     }
