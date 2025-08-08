@@ -1,5 +1,6 @@
 use std::{collections::HashMap, sync::Arc};
 
+use crate::lock::model::LockInstance;
 use serde::{Deserialize, Serialize};
 
 pub const SUCCESS_CODE: u16 = 200u16;
@@ -53,6 +54,7 @@ pub struct ServerCheckResponse {
     pub message: String,
     pub request_id: String,
     pub connection_id: Option<String>,
+    pub support_ability_negotiation: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize, Default)]
@@ -84,6 +86,13 @@ pub struct ConnectionSetupRequest {
     pub client_version: Option<String>,
     pub tenant: Option<String>,
     pub labels: Option<HashMap<String, String>>,
+    pub ability_table: Option<HashMap<String, bool>>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct SetupAckRequest {
+    pub ability_table: Option<HashMap<String, bool>>,
 }
 
 // --- config ---
@@ -398,4 +407,31 @@ pub struct ServiceListResponse {
 
     pub count: usize,
     pub service_names: Option<Vec<Arc<String>>>,
+}
+
+// --- lock ---
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LockOperationRequest {
+    pub lock_instance: LockInstance,
+    pub lock_operation_enum: LockOperationEnum,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum LockOperationEnum {
+    Acquire,
+    Release,
+    Expire,
+}
+
+#[derive(Debug, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct LockOperationResponse {
+    pub result_code: u16,
+    pub error_code: u16,
+    pub message: Option<String>,
+    pub request_id: Option<String>,
+
+    pub result: bool,
 }

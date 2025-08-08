@@ -1,10 +1,12 @@
 use crate::common::byte_utils::bin_to_id;
 use crate::common::constant::{
-    CACHE_TREE_NAME, CONFIG_TREE_NAME, MCP_SERVER_TABLE_NAME, MCP_TOOL_SPEC_TABLE_NAME,
-    NAMESPACE_TREE_NAME, SEQUENCE_TREE_NAME, SEQ_KEY_CONFIG, USER_TREE_NAME,
+    CACHE_TREE_NAME, CONFIG_TREE_NAME, LOCK_TREE_NAME, MCP_SERVER_TABLE_NAME,
+    MCP_TOOL_SPEC_TABLE_NAME, NAMESPACE_TREE_NAME, SEQUENCE_TREE_NAME, SEQ_KEY_CONFIG,
+    USER_TREE_NAME,
 };
 use crate::config::core::{ConfigActor, ConfigCmd, ConfigKey, ConfigValue};
 use crate::config::model::{ConfigRaftCmd, ConfigValueDO};
+use crate::lock::LockActor;
 use crate::mcp::core::McpManager;
 use crate::namespace::NamespaceActor;
 use crate::raft::db::table::{TableManager, TableManagerInnerReq, TableManagerReq};
@@ -23,6 +25,7 @@ pub struct RaftDataHandler {
     pub namespace: Addr<NamespaceActor>,
     pub sequence_db: Addr<SequenceDbManager>,
     pub mcp_manager: Addr<McpManager>,
+    pub lock: Addr<LockActor>,
 }
 
 impl RaftDataHandler {
@@ -188,6 +191,9 @@ impl RaftDataHandler {
             ClientRequest::McpReq { req } => {
                 self.mcp_manager.send(req).await.ok();
             }
+            ClientRequest::LockReq(req) => {
+                self.lock.send(req).await.ok();
+            }
         }
         Ok(())
     }
@@ -272,9 +278,14 @@ impl RaftDataHandler {
                 let resp = self.mcp_manager.send(req).await??;
                 Ok(ClientResponse::McpResp { resp })
             }
+            ClientRequest::LockReq(req) => {
+                let res = self.lock.send(req).await??;
+                Ok(ClientResponse::LockResp(res))
+            }
         }
     }
 
+    /// 发送raft请求到状态机(不等待结果)
     pub fn do_send_log(
         &self,
         req: ClientRequest,
@@ -344,6 +355,9 @@ impl RaftDataHandler {
             }
             ClientRequest::McpReq { req } => {
                 self.mcp_manager.do_send(req);
+            }
+            ClientRequest::LockReq(req) => {
+                self.lock.do_send(req);
             }
         };
         Ok(())

@@ -19,6 +19,8 @@ pub mod ldap;
 pub mod mcp;
 pub mod sequence;
 
+pub mod lock;
+
 pub use inner_mem_cache::TimeoutSet;
 
 pub use crate::common::datetime_utils::{

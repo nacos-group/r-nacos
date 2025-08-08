@@ -22,7 +22,7 @@ use super::{
 };
 use crate::common::constant::EMPTY_CLIENT_VERSION;
 use crate::common::model::ClientVersion;
-use crate::grpc::api_model::ConnectionSetupRequest;
+use crate::grpc::api_model::{ConnectionSetupRequest, SetupAckRequest};
 use actix::prelude::*;
 use bean_factory::{bean, Inject};
 use inner_mem_cache::TimeoutSet;
@@ -31,6 +31,7 @@ pub(crate) struct ConnCacheItem {
     last_active_time: u64,
     conn: Addr<BiStreamConn>,
     pub(crate) client_version: Arc<ClientVersion>,
+    pub(crate) ability_table: Option<HashMap<String, bool>>,
 }
 
 impl ConnCacheItem {
@@ -39,6 +40,7 @@ impl ConnCacheItem {
             last_active_time,
             conn,
             client_version: EMPTY_CLIENT_VERSION.clone(),
+            ability_table: None,
         }
     }
 }
@@ -236,6 +238,15 @@ impl Handler<BiStreamManageCmd> for BiStreamManage {
                                 item.client_version =
                                     Arc::new(ClientVersion::from_string(&client_version));
                             }
+                            item.ability_table = request.ability_table;
+                            let ack = SetupAckRequest {
+                                ability_table: item.ability_table.clone(),
+                            };
+                            let ack_payload = Arc::new(PayloadUtils::build_payload(
+                                "SetupAckRequest",
+                                serde_json::to_string(&ack)?,
+                            ));
+                            item.conn.do_send(BiStreamSenderCmd::Send(ack_payload));
                         }
                     }
                     self.active_client(client_id).ok();

@@ -3,6 +3,7 @@ use std::convert::TryFrom;
 use std::{collections::HashMap, sync::Arc};
 
 use crate::config::config_type::ConfigType;
+use crate::lock::model::LockRaftReq;
 use crate::namespace::model::{NamespaceRaftReq, NamespaceRaftResult};
 use crate::raft::store::{ClientRequest, ClientResponse};
 use crate::transfer::model::{TransferImportParam, TransferImportResponse};
@@ -113,6 +114,9 @@ pub enum RouterRequest {
     NamespaceReq {
         req: NamespaceRaftReq,
     },
+    LockReq {
+        req: LockRaftReq,
+    },
     ImportData {
         data: Vec<u8>,
         param: TransferImportParam,
@@ -159,6 +163,12 @@ impl From<ClientRequest> for RouterRequest {
     }
 }
 
+impl From<LockRaftReq> for RouterRequest {
+    fn from(req: LockRaftReq) -> Self {
+        Self::LockReq { req }
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum RouterResponse {
     None,
@@ -167,6 +177,7 @@ pub enum RouterResponse {
     CacheManagerResult { result: CacheManagerResult },
     NamespaceResult { result: NamespaceRaftResult },
     ImportResult { result: TransferImportResponse },
+    LockResult { result: bool },
 }
 
 impl From<ClientResponse> for RouterResponse {
