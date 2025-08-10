@@ -26,8 +26,7 @@ impl RaftDataWrap {
             config,
             table,
             namespace,
-            lock
-            //cache,
+            lock, //cache,
         }
     }
 }

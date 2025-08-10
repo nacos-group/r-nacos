@@ -29,6 +29,7 @@ pub mod config_query;
 pub mod config_remove;
 
 pub mod converter;
+mod lock;
 pub mod naming_batch_instance;
 pub mod naming_instance;
 pub mod naming_route;
@@ -39,7 +40,6 @@ pub mod raft_append;
 pub mod raft_route;
 mod raft_snapshot;
 mod raft_vote;
-mod lock;
 
 pub(crate) const CLUSTER_TOKEN: &str = "ClusterToken";
 
