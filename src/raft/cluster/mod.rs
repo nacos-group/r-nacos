@@ -109,6 +109,7 @@ pub async fn handle_route(
                     result: lock_status,
                 });
             }
+            Ok(RouterResponse::None)
         }
         RouterRequest::ImportData { data, param } => {
             let result = app

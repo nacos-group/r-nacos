@@ -35,10 +35,20 @@ impl PayloadHandler for LockRequestHandler {
 
         let result = match request.lock_operation_enum {
             LockOperationEnum::Acquire => {
-                self.app_data.raft_request_route.request_lock(LockRaftReq::Acquire { instance: request.lock_instance }).await?
+                self.app_data
+                    .raft_request_route
+                    .request_lock(LockRaftReq::Acquire {
+                        instance: request.lock_instance,
+                    })
+                    .await?
             }
             LockOperationEnum::Release => {
-                self.app_data.raft_request_route.request_lock(LockRaftReq::Release { instance: request.lock_instance }).await?
+                self.app_data
+                    .raft_request_route
+                    .request_lock(LockRaftReq::Release {
+                        instance: request.lock_instance,
+                    })
+                    .await?
             }
             LockOperationEnum::Expire => {
                 // 暂不支持
