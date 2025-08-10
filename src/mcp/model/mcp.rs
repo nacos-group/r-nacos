@@ -1,10 +1,10 @@
 use crate::common::constant::EMPTY_ARC_STRING;
-use crate::common::pb::data_object::{McpServerDo};
+use crate::common::pb::data_object::McpServerDo;
+use crate::mcp::model::tools::{McpTool, ToolSpec};
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::sync::Arc;
-use crate::mcp::model::tools::{McpTool, ToolSpec};
 
 /// MCP 服务器值
 #[derive(Clone, Debug, Serialize, Deserialize)]

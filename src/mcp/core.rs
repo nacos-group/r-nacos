@@ -8,6 +8,7 @@ use crate::mcp::model::actor_model::{
 use crate::mcp::model::mcp::{
     McpQueryParam, McpServer, McpServerDto, McpServerParam, McpServerWrap,
 };
+use crate::mcp::model::tools::{ToolKey, ToolSpec, ToolSpecParam};
 use crate::raft::filestore::model::SnapshotRecordDto;
 use crate::raft::filestore::raftapply::{RaftApplyDataRequest, RaftApplyDataResponse};
 use crate::raft::filestore::raftsnapshot::{SnapshotWriterActor, SnapshotWriterRequest};
@@ -17,7 +18,6 @@ use bean_factory::{bean, BeanFactory, FactoryData, Inject};
 use quick_protobuf::{BytesReader, Writer};
 use std::collections::BTreeMap;
 use std::sync::Arc;
-use crate::mcp::model::tools::{ToolKey, ToolSpec, ToolSpecParam};
 
 #[bean(inject)]
 pub struct McpManager {
@@ -94,63 +94,47 @@ impl McpManager {
         }
     }
 
-    fn create_tool_spec(
-        &mut self,
-        tool_spec_param: ToolSpecParam,
-    ) -> anyhow::Result<Arc<ToolSpec>> {
-        let tool_key = ToolKey {
-            namespace: tool_spec_param.namespace.clone().unwrap_or_default(),
-            group: tool_spec_param.group.clone().unwrap_or_default(),
-            tool_name: tool_spec_param.tool_name.clone().unwrap_or_default(),
-        };
-
-        if self.tool_spec_map.contains_key(&tool_key) {
-            return Err(anyhow::anyhow!("ToolSpec already exists"));
-        }
-
-        let tool_spec: ToolSpec = tool_spec_param.into();
-        tool_spec.check_valid()?;
-
-        //let now = now_millis();
-        // TODO 在实际实现中，需要设置 create_time 和 last_modified_millis
-
-        let value = Arc::new(tool_spec);
-        self.tool_spec_map.insert(tool_key, value.clone());
-
-        Ok(value)
-    }
-
     fn update_tool_spec(&mut self, tool_spec_param: ToolSpecParam) -> anyhow::Result<()> {
-        let tool_key = ToolKey {
-            namespace: tool_spec_param.namespace.clone().unwrap_or_default(),
-            group: tool_spec_param.group.clone().unwrap_or_default(),
-            tool_name: tool_spec_param.tool_name.clone().unwrap_or_default(),
-        };
+        let tool_key = tool_spec_param.build_key();
 
-        if let Some(tool_spec) = self.tool_spec_map.get_mut(&tool_key) {
-            let mut new_tool_spec = tool_spec.as_ref().clone();
-            new_tool_spec.update_param(tool_spec_param);
-            new_tool_spec.check_valid()?;
-
-            let value = Arc::new(new_tool_spec);
-            *tool_spec = value;
+        if let Some(tool_spec) = self.tool_spec_map.get(&tool_key) {
+            let mut mul_tool_spec = tool_spec.as_ref().to_owned();
+            mul_tool_spec.update_param(tool_spec_param);
+            self.tool_spec_map.insert(tool_key, Arc::new(mul_tool_spec));
         } else {
-            return Err(anyhow::anyhow!("UpdateToolSpec, Nonexistent tool spec"));
+            let tool_key = tool_spec_param.build_key();
+            let tool_spec: ToolSpec = tool_spec_param.into();
+            self.tool_spec_map.insert(tool_key, Arc::new(tool_spec));
         }
         Ok(())
     }
 
-    fn remove_tool_spec(&mut self, namespace: String, group: String, tool_name: String) {
-        let tool_key = ToolKey {
-            namespace: Arc::new(namespace),
-            group: Arc::new(group),
-            tool_name: Arc::new(tool_name),
-        };
-        self.tool_spec_map.remove(&tool_key);
+    fn update_tool_spec_ref(
+        &mut self,
+        tool_key: ToolKey,
+        version: u64,
+        ref_count: i64,
+    ) -> anyhow::Result<()> {
+        if let Some(tool_spec) = self.tool_spec_map.get(&tool_key) {
+            let mut mul_tool_spec = tool_spec.as_ref().to_owned();
+            if let Some(tool_spec_version) = mul_tool_spec.versions.get_mut(&version) {
+                tool_spec_version.ref_count = ref_count;
+            }
+            if ref_count != 0 || version == tool_spec.current_version {
+                self.tool_spec_map.insert(tool_key, Arc::new(mul_tool_spec));
+            }
+            Ok(())
+        } else {
+            Err(anyhow::anyhow!("not found the tool spec"))
+        }
     }
 
     fn do_update_tool_spec(&mut self, tool_spec: Arc<ToolSpec>) {
         self.tool_spec_map.insert(tool_spec.key.clone(), tool_spec);
+    }
+
+    fn remove_tool_spec(&mut self, tool_key: ToolKey) {
+        self.tool_spec_map.remove(&tool_key);
     }
 
     fn query_servers(&self, query_param: &McpQueryParam) -> (usize, Vec<McpServerDto>) {
@@ -232,7 +216,7 @@ impl McpManager {
             let mut buf = Vec::new();
             {
                 let mut writer = Writer::new(&mut buf);
-                let value_do = tool_spec.as_ref().to_do();
+                let value_do = tool_spec.to_do();
                 writer.write_message(&value_do)?;
             }
             // 使用 tool_key 生成唯一键
@@ -261,8 +245,8 @@ impl McpManager {
         } else if record.tree.as_str() == MCP_TOOL_SPEC_TABLE_NAME.as_str() {
             let mut reader = BytesReader::from_bytes(&record.value);
             let value_do: McpToolSpecDo = reader.read_message(&record.value)?;
-            let value: Arc<ToolSpec> = Arc::new(value_do.into());
-            self.do_update_tool_spec(value);
+            let value: ToolSpec = value_do.into();
+            self.do_update_tool_spec(Arc::new(value));
         }
         Ok(())
     }
@@ -311,12 +295,7 @@ impl Handler<McpManagerReq> for McpManager {
                 let (size, list) = self.query_servers(&query_param);
                 Ok(McpManagerResult::ServerPageInfo(size, list))
             }
-            McpManagerReq::GetToolSpec(namespace, group, tool_name) => {
-                let tool_key = ToolKey {
-                    namespace: Arc::new(namespace),
-                    group: Arc::new(group),
-                    tool_name: Arc::new(tool_name),
-                };
+            McpManagerReq::GetToolSpec(tool_key) => {
                 let tool_spec = self.tool_spec_map.get(&tool_key).cloned();
                 Ok(McpManagerResult::ToolSpecInfo(tool_spec))
             }
@@ -345,16 +324,20 @@ impl Handler<McpManagerRaftReq> for McpManager {
                 self.remove_server(id);
                 Ok(McpManagerRaftResult::None)
             }
-            McpManagerRaftReq::AddToolSpec(tool_spec_param) => {
-                let value = self.create_tool_spec(tool_spec_param)?;
-                Ok(McpManagerRaftResult::ToolSpecInfo(value))
-            }
             McpManagerRaftReq::UpdateToolSpec(tool_spec_param) => {
                 self.update_tool_spec(tool_spec_param)?;
                 Ok(McpManagerRaftResult::None)
             }
-            McpManagerRaftReq::RemoveToolSpec(namespace, group, tool_name) => {
-                self.remove_tool_spec(namespace, group, tool_name);
+            McpManagerRaftReq::UpdateToolSpecRef {
+                tool_key,
+                version,
+                ref_count,
+            } => {
+                self.update_tool_spec_ref(tool_key, version, ref_count)?;
+                Ok(McpManagerRaftResult::None)
+            }
+            McpManagerRaftReq::RemoveToolSpec(tool_key) => {
+                self.remove_tool_spec(tool_key);
                 Ok(McpManagerRaftResult::None)
             }
         }

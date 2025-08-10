@@ -1,10 +1,8 @@
-use crate::mcp::model::mcp::{
-    McpQueryParam, McpServer, McpServerDto, McpServerParam,
-};
+use crate::mcp::model::mcp::{McpQueryParam, McpServer, McpServerDto, McpServerParam};
+use crate::mcp::model::tools::{ToolKey, ToolSpec, ToolSpecParam};
 use actix::Message;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use crate::mcp::model::tools::{ToolSpec, ToolSpecParam};
 
 /// MCP 查询请求
 #[derive(Debug, Message)]
@@ -12,7 +10,7 @@ use crate::mcp::model::tools::{ToolSpec, ToolSpecParam};
 pub enum McpManagerReq {
     GetServer(u64),
     QueryServer(McpQueryParam),
-    GetToolSpec(String, String, String),
+    GetToolSpec(ToolKey),
     QueryToolSpec(McpToolSpecQueryParam),
 }
 
@@ -33,9 +31,13 @@ pub enum McpManagerRaftReq {
     AddServer(McpServerParam),
     UpdateServer(McpServerParam),
     RemoveServer(u64),
-    AddToolSpec(ToolSpecParam),
     UpdateToolSpec(ToolSpecParam),
-    RemoveToolSpec(String, String, String),
+    UpdateToolSpecRef {
+        tool_key: ToolKey,
+        version: u64,
+        ref_count: i64,
+    },
+    RemoveToolSpec(ToolKey),
 }
 
 /// MCP Raft 结果
@@ -65,8 +67,8 @@ pub struct ToolSpecDto {
     pub group: Arc<String>,
     pub tool_name: Arc<String>,
     pub version: u64,
-    pub name: String,
-    pub description: String,
+    pub name: Arc<String>,
+    pub description: Arc<String>,
     pub create_time: i64,
     pub last_modified_millis: i64,
 }
@@ -81,8 +83,8 @@ impl ToolSpecDto {
             version: tool_spec.current_version,
             name: current_version.parameters.name.clone(),
             description: current_version.parameters.name.clone(),
-            create_time: 0, // 实际实现中需要从 tool_spec 获取
-            last_modified_millis: current_version.update_time, // 实际实现中需要从 tool_spec 获取
+            create_time: tool_spec.create_time,
+            last_modified_millis: current_version.update_time,
         }
     }
 }

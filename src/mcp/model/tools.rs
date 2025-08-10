@@ -1,9 +1,11 @@
+use crate::common::constant::EMPTY_ARC_STRING;
+use crate::common::pb::data_object::{
+    McpToolDo, McpToolSpecDo, ToolRouteRuleDo, ToolSpecVersionDo,
+};
+use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::sync::Arc;
-use serde::{Deserialize, Serialize};
-use crate::common::constant::EMPTY_ARC_STRING;
-use crate::common::pb::data_object::{McpToolDo, McpToolSpecDo, ToolRouteRuleDo, ToolSpecVersionDo};
 
 /// MCP 工具键，用于唯一标识一个工具规范
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
@@ -133,8 +135,8 @@ pub struct ToolFunctionWrap {
 /// 对应function 内容
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct ToolFunctionValue {
-    pub name: String,
-    pub description: String,
+    pub name: Arc<String>,
+    pub description: Arc<String>,
     pub parameters: std::collections::HashMap<String, Box<JsonSchema>>,
 }
 
@@ -146,15 +148,27 @@ pub struct ToolSpecVersion {
     pub update_time: i64,
     pub ref_count: i64,
 }
- 
-impl ToolSpecVersion{
+
+impl ToolSpecVersion {
     pub fn to_do(&self) -> ToolSpecVersionDo {
         ToolSpecVersionDo {
             version: self.version,
-            parameters_json: Cow::Owned(serde_json::to_string(&self.parameters).unwrap_or_default()),
+            parameters_json: Cow::Owned(
+                serde_json::to_string(&self.parameters).unwrap_or_default(),
+            ),
             op_user: Cow::Borrowed(self.op_user.as_ref()),
             update_time: self.update_time,
             ref_count: self.ref_count,
+        }
+    }
+
+    pub fn from_param(param: ToolSpecParam) -> Self {
+        Self {
+            version: param.version,
+            parameters: Arc::new(param.parameters),
+            op_user: param.op_user.unwrap_or_default(),
+            update_time: param.update_time,
+            ref_count: param.ref_count,
         }
     }
 }
@@ -181,43 +195,19 @@ impl ToolSpec {
     }
 
     pub fn update_param(&mut self, param: ToolSpecParam) {
-        // 计算新版本号(当前最大版本号+1)
-        let new_version = self.versions.keys().max().unwrap_or(&0) + 1;
-
+        let old_version = self.current_version;
+        let old_ref_count = self
+            .get_current_version()
+            .map(|v| v.ref_count)
+            .unwrap_or_default();
+        let new_version = param.version;
         // 获取当前版本的参数作为基础
-        let current_params = self.get_current_value().unwrap_or_default();
-
-        // 创建新版本，使用提供的参数或保持现有值
-        let new_params = ToolFunctionValue {
-            name: param
-                .name
-                .map(|n| n.to_string())
-                .unwrap_or(current_params.name.clone()),
-            description: param
-                .description
-                .map(|d| d.to_string())
-                .unwrap_or(current_params.description.clone()),
-            parameters: param
-                .parameters
-                .map(|p| p.parameters)
-                .unwrap_or(current_params.parameters.clone()),
-        };
-
-        let spec_version = ToolSpecVersion {
-            version: new_version,
-            parameters: Arc::new(new_params),
-            op_user: param
-                .op_user
-                .unwrap_or_else(|| Arc::new("system".to_string())),
-            update_time: param
-                .update_time
-                .unwrap_or_else(|| chrono::Utc::now().timestamp_millis()),
-            ref_count: 0,
-        };
-
-        // 添加新版本并更新当前版本
+        let spec_version = ToolSpecVersion::from_param(param);
         self.versions.insert(new_version, spec_version);
         self.current_version = new_version;
+        if old_ref_count == 0 {
+            self.versions.remove(&old_version);
+        }
     }
 
     pub fn check_valid(&self) -> anyhow::Result<()> {
@@ -254,11 +244,9 @@ impl<'a> From<McpToolSpecDo<'a>> for ToolSpec {
         );
 
         let mut versions = BTreeMap::new();
-        for version in do_obj.versions{
-            let parameters = serde_json::from_str::<ToolFunctionValue>(
-                &version.parameters_json,
-            )
-            .unwrap_or_default();
+        for version in do_obj.versions {
+            let parameters = serde_json::from_str::<ToolFunctionValue>(&version.parameters_json)
+                .unwrap_or_default();
             let spec_version = ToolSpecVersion {
                 version: version.version,
                 parameters: Arc::new(parameters),
@@ -268,7 +256,6 @@ impl<'a> From<McpToolSpecDo<'a>> for ToolSpec {
             };
             versions.insert(spec_version.version, spec_version);
         }
-
 
         Self {
             key: tool_key,
@@ -284,34 +271,39 @@ impl<'a> From<McpToolSpecDo<'a>> for ToolSpec {
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ToolSpecParam {
-    pub namespace: Option<Arc<String>>,
-    pub group: Option<Arc<String>>,
-    pub tool_name: Option<Arc<String>>,
-    pub name: Option<Arc<String>>,
-    pub description: Option<Arc<String>>,
-    pub parameters: Option<ToolFunctionValue>,
-    pub update_time: Option<i64>,
+    pub namespace: Arc<String>,
+    pub group: Arc<String>,
+    pub tool_name: Arc<String>,
+    pub parameters: ToolFunctionValue,
+    pub version: u64,
+    pub update_time: i64,
     pub op_user: Option<Arc<String>>,
+    pub ref_count: i64,
+}
+
+impl ToolSpecParam {
+    pub fn build_key(&self) -> ToolKey {
+        ToolKey::new(
+            self.namespace.clone(),
+            self.group.clone(),
+            self.tool_name.clone(),
+        )
+    }
 }
 
 impl From<ToolSpecParam> for ToolSpec {
     fn from(param: ToolSpecParam) -> Self {
-        let tool_key = ToolKey::new(
-            param.namespace.unwrap_or_else(|| Arc::new(String::new())),
-            param.group.unwrap_or_else(|| Arc::new(String::new())),
-            param.tool_name.unwrap_or_else(|| Arc::new(String::new())),
-        );
-
-        let current_time = chrono::Utc::now().timestamp_millis();
+        let tool_key = ToolKey::new(param.namespace, param.group, param.tool_name);
 
         let mut versions = BTreeMap::new();
+        let op_user = param
+            .op_user
+            .unwrap_or_else(|| Arc::new("system".to_string()));
         let spec_version = ToolSpecVersion {
             version: 1,
-            parameters: Arc::new(param.parameters.unwrap_or_default()),
-            op_user: param
-                .op_user
-                .unwrap_or_else(|| Arc::new("system".to_string())),
-            update_time: param.update_time.unwrap_or(current_time),
+            parameters: Arc::new(param.parameters),
+            op_user: op_user.clone(),
+            update_time: param.update_time,
             ref_count: 0,
         };
 
@@ -319,9 +311,9 @@ impl From<ToolSpecParam> for ToolSpec {
 
         Self {
             key: tool_key,
-            current_version: 1,
-            create_time: current_time,
-            create_user: Arc::new("system".to_string()),
+            current_version: param.version,
+            create_time: param.update_time,
+            create_user: op_user,
             versions,
         }
     }
@@ -397,10 +389,10 @@ impl<'a> From<ToolRouteRuleDo<'a>> for ToolRouteRule {
         let addition_headers = serde_json::from_str::<std::collections::HashMap<String, String>>(
             &do_obj.addition_headers_json,
         )
-            .unwrap_or_default()
-            .into_iter()
-            .map(|(k, v)| (k, Arc::new(v)))
-            .collect();
+        .unwrap_or_default()
+        .into_iter()
+        .map(|(k, v)| (k, Arc::new(v)))
+        .collect();
 
         // 转换ConvertType
         let convert_type = match do_obj.convert_type.as_ref() {
