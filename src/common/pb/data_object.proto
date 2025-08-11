@@ -5,15 +5,6 @@ syntax = "proto3";
 
 package data_object;
 
-
-message McpServerDo {
-  uint64 id = 1;
-  string namespace = 2;
-  string name = 3;
-  string description = 4;
-  string token = 5;
-}
-
 // 工具规范版本
 message ToolSpecVersionDo {
   uint64 version = 1;
@@ -21,13 +12,6 @@ message ToolSpecVersionDo {
   string op_user = 3;
   int64 update_time = 4;
   int64 ref_count = 5;
-}
-
-// 工具键
-message ToolKey {
-  string namespace = 1;
-  string group = 2;
-  string tool_name = 3;
 }
 
 // MCP 工具规范
@@ -41,25 +25,6 @@ message McpToolSpecDo {
   repeated ToolSpecVersionDo versions = 7;
 }
 
-// 转换类型
-enum ConvertType {
-  NONE = 0;
-  FORM_TO_JSON = 1;
-  CUSTOM = 2;
-}
-
-// 工具路由规则
-message ToolRouteRuleDo {
-  string protocol = 1;
-  string url = 2;
-  string method = 3;
-  string addition_headers_json = 4;
-  string convert_type = 5;
-  string service_namespace = 6;
-  string service_group = 7;
-  string service_name = 8;
-}
-
 // MCP 工具
 message McpToolDo {
   uint64 id = 1;
@@ -67,6 +32,26 @@ message McpToolDo {
   string namespace = 3;
   string group = 4;
   uint64 version = 5;
-  string spec_json = 6;
-  string route_rule_json = 7;
+  string route_rule_json = 6;
+}
+
+message McpServerValueDo {
+  uint64 id = 1;
+  string description = 2;
+  repeated McpToolDo tools = 3;
+  string op_user = 4;
+  int64 update_time = 5;
+}
+
+message McpServerDo {
+  uint64 id = 1;
+  string namespace = 2;
+  string name = 3;
+  string description = 4;
+  repeated string auth_keys = 5;
+  int64 create_time = 6;
+  string create_user = 7;
+  McpServerValueDo current_value = 8;
+  McpServerValueDo release_value = 9;
+  repeated McpServerValueDo histories = 10;
 }

@@ -1,112 +1,214 @@
-use crate::common::constant::EMPTY_ARC_STRING;
-use crate::common::pb::data_object::McpServerDo;
-use crate::mcp::model::tools::{McpTool, ToolSpec};
+use crate::common::pb::data_object::{McpServerDo, McpServerValueDo};
+use crate::mcp::model::tools::{McpSimpleTool, McpTool, ToolKey, ToolSpec};
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
 /// MCP 服务器值
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Default, Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct McpServerValue {
+    pub id: u64,
     pub description: Arc<String>,
     pub tools: Vec<McpTool>,
+    pub op_user: Arc<String>,
+    pub update_time: i64,
 }
 
 impl McpServerValue {
-    pub fn new(description: Arc<String>) -> Self {
+    pub fn update_param(
+        &mut self,
+        param: McpServerParam,
+        tool_spec_map: &BTreeMap<ToolKey, Arc<ToolSpec>>,
+    ) {
+        if let Some(description) = param.description {
+            self.description = description;
+        }
+        let mut tools = Vec::with_capacity(param.tools.len());
+        for item in param.tools {
+            let tool = item.to_mcp_tool(tool_spec_map);
+            tools.push(tool);
+        }
+        if param.value_id > 0 {
+            self.id = param.value_id;
+        }
+        self.tools = tools;
+        self.op_user = param.op_user;
+        self.update_time = param.update_time;
+    }
+
+    pub fn to_do(&self) -> McpServerValueDo {
+        McpServerValueDo {
+            id: self.id,
+            description: Cow::Borrowed(self.description.as_str()),
+            tools: self.tools.iter().map(|tool| tool.to_do()).collect(),
+            op_user: Cow::Borrowed(self.op_user.as_str()),
+            update_time: self.update_time,
+        }
+    }
+
+    pub fn from_do(
+        record_do: McpServerValueDo,
+        tool_spec_map: &BTreeMap<ToolKey, Arc<ToolSpec>>,
+    ) -> Self {
+        let mut tools = Vec::with_capacity(record_do.tools.len());
+        for item in record_do.tools {
+            let simple_tool = McpSimpleTool::from(item);
+            let tool = simple_tool.to_mcp_tool(tool_spec_map);
+            tools.push(tool);
+        }
         Self {
-            description,
-            tools: Vec::new(),
+            id: record_do.id,
+            description: Arc::new(record_do.description.to_string()),
+            tools,
+            op_user: Arc::new(record_do.op_user.to_string()),
+            update_time: record_do.update_time,
         }
     }
 }
 
 /// MCP 服务器
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Default, Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct McpServer {
     pub id: u64,
     pub namespace: Arc<String>,
     pub name: Arc<String>,
     pub description: Arc<String>,
-    pub token: Arc<String>,
     pub auth_keys: Vec<Arc<String>>,
-    pub current_value: Option<Arc<McpServerValue>>,
-    pub draft_value: Option<Arc<McpServerValue>>,
+    pub create_time: i64,
+    pub create_user: Arc<String>,
+    pub current_value: Arc<McpServerValue>,
+    pub release_value: Arc<McpServerValue>,
     pub histories: Vec<Arc<McpServerValue>>,
 }
 
 impl McpServer {
-    pub fn new(id: u64, namespace: Arc<String>, name: Arc<String>, token: Arc<String>) -> Self {
+    pub fn new(id: u64) -> Self {
         Self {
             id,
-            namespace,
-            name,
-            description: EMPTY_ARC_STRING.clone(),
-            token,
-            auth_keys: Vec::new(),
-            current_value: None,
-            draft_value: None,
-            histories: Vec::new(),
+            ..Self::default()
         }
     }
 
-    pub fn update_param(&mut self, param: McpServerParam) {
-        if let Some(name) = param.name {
-            self.name = name;
+    pub fn update_param(
+        &mut self,
+        param: McpServerParam,
+        tool_spec_map: &BTreeMap<ToolKey, Arc<ToolSpec>>,
+    ) {
+        if let Some(description) = param.description.as_ref() {
+            self.description = description.clone();
         }
-        if let Some(description) = param.description {
-            self.description = description;
+        if let Some(namespace) = param.namespace.as_ref() {
+            self.namespace = namespace.clone();
         }
-        if let Some(token) = param.token {
-            self.token = token;
+        if let Some(name) = param.name.as_ref() {
+            self.name = name.clone();
         }
-        if let Some(_update_time) = param.update_time {
-            // TODO 在实际实现中，这里应该更新时间戳
+        if let Some(auth_keys) = param.auth_keys.as_ref() {
+            self.auth_keys = auth_keys.clone();
         }
+        if self.create_time == 0 {
+            self.create_time = param.update_time;
+            self.create_user = param.op_user.clone();
+        }
+        let mut current_value = self.current_value.as_ref().to_owned();
+        current_value.update_param(param, tool_spec_map);
+        self.current_value = Arc::new(current_value);
     }
 
     pub fn check_valid(&self) -> anyhow::Result<()> {
         if self.id == 0 {
             return Err(anyhow::anyhow!("id is empty!"));
         }
-        if self.namespace.is_empty() {
-            return Err(anyhow::anyhow!("namespace is empty!"));
-        }
         if self.name.is_empty() {
             return Err(anyhow::anyhow!("name is empty!"));
         }
-        if self.token.is_empty() {
-            return Err(anyhow::anyhow!("token is empty!"));
+        if self.auth_keys.is_empty() {
+            return Err(anyhow::anyhow!("auth_keys is empty!"));
         }
         Ok(())
+    }
+
+    pub fn publish(&mut self) -> Option<Arc<McpServerValue>> {
+        self.release_value = self.current_value.clone();
+        self.histories.push(self.current_value.clone());
+        if self.histories.len() > 10 {
+            Some(self.histories.remove(0))
+        } else {
+            None
+        }
+    }
+
+    pub fn public_history(&mut self, history_id: u64) -> anyhow::Result<()> {
+        if let Some(v) = self.histories.iter().find(|value| value.id == history_id) {
+            self.current_value = v.clone();
+            Ok(())
+        } else {
+            Err(anyhow::anyhow!("value not found"))
+        }
     }
 
     pub fn to_do(&self) -> McpServerDo {
         McpServerDo {
             id: self.id,
-            namespace: Cow::Borrowed(&self.namespace),
-            name: Cow::Borrowed(&self.name),
-            description: Cow::Borrowed(&self.description),
-            token: Cow::Borrowed(&self.token),
+            namespace: Cow::Borrowed(self.namespace.as_str()),
+            name: Cow::Borrowed(self.name.as_str()),
+            description: Cow::Borrowed(self.description.as_str()),
+            auth_keys: self
+                .auth_keys
+                .iter()
+                .map(|key| Cow::Borrowed(key.as_str()))
+                .collect(),
+            create_time: self.create_time,
+            create_user: Cow::Borrowed(self.create_user.as_str()),
+            current_value: Some(self.current_value.to_do()),
+            release_value: Some(self.release_value.to_do()),
+            histories: self
+                .histories
+                .iter()
+                .map(|history| history.to_do())
+                .collect(),
         }
     }
-}
 
-impl<'a> From<McpServerDo<'a>> for McpServer {
-    fn from(do_obj: McpServerDo<'a>) -> Self {
+    pub fn from_do(
+        record_do: McpServerDo,
+        tool_spec_map: &BTreeMap<ToolKey, Arc<ToolSpec>>,
+    ) -> Self {
+        let current_value = if let Some(current_value_do) = record_do.current_value {
+            McpServerValue::from_do(current_value_do, tool_spec_map)
+        } else {
+            McpServerValue::default()
+        };
+
+        let release_value = if let Some(release_value_do) = record_do.release_value {
+            McpServerValue::from_do(release_value_do, tool_spec_map)
+        } else {
+            McpServerValue::default()
+        };
+
+        let mut histories = Vec::with_capacity(record_do.histories.len());
+        for history_do in record_do.histories {
+            histories.push(Arc::new(McpServerValue::from_do(history_do, tool_spec_map)));
+        }
+
         Self {
-            id: do_obj.id,
-            namespace: Arc::new(do_obj.namespace.to_string()),
-            name: Arc::new(do_obj.name.to_string()),
-            description: Arc::new(do_obj.description.to_string()),
-            token: Arc::new(do_obj.token.to_string()),
-            auth_keys: Vec::new(),
-            current_value: None,
-            draft_value: None,
-            histories: Vec::new(),
+            id: record_do.id,
+            namespace: Arc::new(record_do.namespace.to_string()),
+            name: Arc::new(record_do.name.to_string()),
+            description: Arc::new(record_do.description.to_string()),
+            auth_keys: record_do
+                .auth_keys
+                .into_iter()
+                .map(|key| Arc::new(key.to_string()))
+                .collect(),
+            create_time: record_do.create_time,
+            create_user: Arc::new(record_do.create_user.to_string()),
+            current_value: Arc::new(current_value),
+            release_value: Arc::new(release_value),
+            histories,
         }
     }
 }
@@ -115,30 +217,16 @@ impl<'a> From<McpServerDo<'a>> for McpServer {
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct McpServerParam {
-    pub id: Option<u64>,
+    pub id: u64,
+    pub value_id: u64,
+    pub tools: Vec<McpSimpleTool>,
+    pub op_user: Arc<String>,
+    pub update_time: i64,
     pub namespace: Option<Arc<String>>,
     pub name: Option<Arc<String>>,
     pub description: Option<Arc<String>>,
     pub token: Option<Arc<String>>,
-    pub update_time: Option<u64>,
-}
-
-impl From<McpServerParam> for McpServer {
-    fn from(param: McpServerParam) -> Self {
-        Self {
-            id: param.id.unwrap_or_default(),
-            namespace: param.namespace.unwrap_or_default(),
-            name: param.name.unwrap_or_default(),
-            description: param.description.unwrap_or_default(),
-            token: param
-                .token
-                .unwrap_or_else(|| Arc::new(uuid::Uuid::new_v4().to_string())),
-            auth_keys: Vec::new(),
-            current_value: None,
-            draft_value: None,
-            histories: Vec::new(),
-        }
-    }
+    pub auth_keys: Option<Vec<Arc<String>>>,
 }
 
 /// MCP 服务器 DTO
@@ -149,9 +237,9 @@ pub struct McpServerDto {
     pub namespace: Arc<String>,
     pub name: Arc<String>,
     pub description: Arc<String>,
-    pub token: Arc<String>,
-    pub create_time: u64,
-    pub last_modified_millis: u64,
+    pub auth_keys: Vec<Arc<String>>,
+    pub create_time: i64,
+    pub last_modified_millis: i64,
 }
 
 impl McpServerDto {
@@ -161,9 +249,9 @@ impl McpServerDto {
             namespace: server.namespace.clone(),
             name: server.name.clone(),
             description: server.description.clone(),
-            token: server.token.clone(),
-            create_time: 0,          // 实际实现中需要从 server 获取
-            last_modified_millis: 0, // 实际实现中需要从 server 获取
+            auth_keys: server.auth_keys.clone(),
+            create_time: server.create_time, // 实际实现中需要从 server 获取
+            last_modified_millis: server.current_value.update_time, // 实际实现中需要从 server 获取
         }
     }
 }
@@ -192,21 +280,6 @@ impl McpQueryParam {
             name.contains(filter.as_str())
         } else {
             true
-        }
-    }
-}
-
-/// MCP 服务器包装器
-pub struct McpServerWrap {
-    pub server: Arc<McpServer>,
-    pub related_data: BTreeMap<u64, Arc<ToolSpec>>,
-}
-
-impl McpServerWrap {
-    pub fn new(server: Arc<McpServer>) -> Self {
-        Self {
-            server,
-            related_data: BTreeMap::new(),
         }
     }
 }

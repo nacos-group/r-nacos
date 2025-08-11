@@ -30,6 +30,8 @@ pub enum McpManagerResult {
 pub enum McpManagerRaftReq {
     AddServer(McpServerParam),
     UpdateServer(McpServerParam),
+    PublishCurrentServer(u64),
+    PublishHistoryServer(u64, u64),
     RemoveServer(u64),
     UpdateToolSpec(ToolSpecParam),
     UpdateToolSpecRef {

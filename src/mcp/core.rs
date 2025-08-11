@@ -5,9 +5,7 @@ use crate::mcp::model::actor_model::{
     McpManagerRaftReq, McpManagerRaftResult, McpManagerReq, McpManagerResult,
     McpToolSpecQueryParam, ToolSpecDto,
 };
-use crate::mcp::model::mcp::{
-    McpQueryParam, McpServer, McpServerDto, McpServerParam, McpServerWrap,
-};
+use crate::mcp::model::mcp::{McpQueryParam, McpServer, McpServerDto, McpServerParam};
 use crate::mcp::model::tools::{ToolKey, ToolSpec, ToolSpecParam};
 use crate::raft::filestore::model::SnapshotRecordDto;
 use crate::raft::filestore::raftapply::{RaftApplyDataRequest, RaftApplyDataResponse};
@@ -21,7 +19,7 @@ use std::sync::Arc;
 
 #[bean(inject)]
 pub struct McpManager {
-    pub(crate) server_map: BTreeMap<u64, McpServerWrap>,
+    pub(crate) server_map: BTreeMap<u64, Arc<McpServer>>,
     pub(crate) tool_spec_map: BTreeMap<ToolKey, Arc<ToolSpec>>,
     sequence_manager: Option<Addr<SequenceManager>>,
 }
@@ -35,50 +33,46 @@ impl McpManager {
         }
     }
 
-    fn create_server(&mut self, server_param: McpServerParam) -> anyhow::Result<Arc<McpServer>> {
-        let id = server_param.id.unwrap_or_default();
-        if id == 0 {
-            return Err(anyhow::anyhow!(
-                "CreateServer McpServerParam.id==0 is invalid!"
-            ));
-        }
-        if self.server_map.contains_key(&id) {
-            return Err(anyhow::anyhow!("Server already exists"));
-        }
-
-        let server_info: McpServer = server_param.into();
-        server_info.check_valid()?;
-
-        //let now = now_millis();
-        // TODO 在实际实现中，需要设置 create_time 和 last_modified_millis
-
-        let value = Arc::new(server_info);
-        self.server_map
-            .insert(value.id, McpServerWrap::new(value.clone()));
-
-        Ok(value)
-    }
-
-    fn update_server(&mut self, server_param: McpServerParam) -> anyhow::Result<()> {
-        let id = server_param.id.unwrap_or_default();
+    fn update_server(&mut self, server_param: McpServerParam) -> anyhow::Result<Arc<McpServer>> {
+        let id = server_param.id;
         if id == 0 {
             return Err(anyhow::anyhow!(
                 "UpdateServer McpServerParam.id==0 is invalid!"
             ));
         }
-
-        if let Some(server_wrap) = self.server_map.get_mut(&id) {
-            let server = &server_wrap.server;
+        let v = if let Some(server) = self.server_map.get(&id) {
             let mut new_server = server.as_ref().clone();
-            new_server.update_param(server_param);
+            new_server.update_param(server_param, &self.tool_spec_map);
             new_server.check_valid()?;
 
             let value = Arc::new(new_server);
-            server_wrap.server = value.clone();
+            self.server_map.insert(id, value.clone());
+            value
         } else {
-            return Err(anyhow::anyhow!("UpdateServer, Nonexistent server"));
+            let mut server = McpServer::new(server_param.id);
+            server.update_param(server_param, &self.tool_spec_map);
+            server.check_valid()?;
+            let value = Arc::new(server);
+            self.server_map.insert(id, value.clone());
+            value
+        };
+        Ok(v)
+    }
+
+    fn publish_server(&mut self, id: u64) {
+        if let Some(server) = self.server_map.get(&id) {
+            let mut new_server = server.as_ref().to_owned();
+            new_server.publish();
+            self.do_update_server(Arc::new(new_server));
         }
-        Ok(())
+    }
+
+    fn publish_history_server(&mut self, id: u64, history_id: u64) {
+        if let Some(server) = self.server_map.get(&id) {
+            let mut new_server = server.as_ref().to_owned();
+            new_server.public_history(history_id).ok();
+            self.do_update_server(Arc::new(new_server));
+        }
     }
 
     fn remove_server(&mut self, id: u64) {
@@ -86,12 +80,7 @@ impl McpManager {
     }
 
     fn do_update_server(&mut self, server: Arc<McpServer>) {
-        if let Some(server_wrap) = self.server_map.get_mut(&server.id) {
-            server_wrap.server = server;
-        } else {
-            self.server_map
-                .insert(server.id, McpServerWrap::new(server.clone()));
-        }
+        self.server_map.insert(server.id, server);
     }
 
     fn update_tool_spec(&mut self, tool_spec_param: ToolSpecParam) -> anyhow::Result<()> {
@@ -142,8 +131,7 @@ impl McpManager {
         let end_index = query_param.offset + query_param.limit;
         let mut index = 0;
 
-        for server_wrap in self.server_map.values() {
-            let server = &server_wrap.server;
+        for server in self.server_map.values() {
             if query_param.match_namespace(&server.namespace)
                 && query_param.match_name(&server.name)
             {
@@ -194,23 +182,6 @@ impl McpManager {
     }
 
     fn build_snapshot(&self, writer: Addr<SnapshotWriterActor>) -> anyhow::Result<()> {
-        // 服务器快照
-        for (key, server_wrap) in &self.server_map {
-            let mut buf = Vec::new();
-            {
-                let mut writer = Writer::new(&mut buf);
-                let value_do = server_wrap.server.as_ref().to_do();
-                writer.write_message(&value_do)?;
-            }
-            let record = SnapshotRecordDto {
-                tree: MCP_SERVER_TABLE_NAME.clone(),
-                key: id_to_bin(*key),
-                value: buf,
-                op_type: 0,
-            };
-            writer.do_send(SnapshotWriterRequest::Record(record));
-        }
-
         // 工具规范快照
         for (tool_key, tool_spec) in &self.tool_spec_map {
             let mut buf = Vec::new();
@@ -233,6 +204,23 @@ impl McpManager {
             writer.do_send(SnapshotWriterRequest::Record(record));
         }
 
+        // 服务快照
+        for (key, server) in &self.server_map {
+            let mut buf = Vec::new();
+            {
+                let mut writer = Writer::new(&mut buf);
+                let value_do = server.as_ref().to_do();
+                writer.write_message(&value_do)?;
+            }
+            let record = SnapshotRecordDto {
+                tree: MCP_SERVER_TABLE_NAME.clone(),
+                key: id_to_bin(*key),
+                value: buf,
+                op_type: 0,
+            };
+            writer.do_send(SnapshotWriterRequest::Record(record));
+        }
+
         Ok(())
     }
 
@@ -240,7 +228,7 @@ impl McpManager {
         if record.tree.as_str() == MCP_SERVER_TABLE_NAME.as_str() {
             let mut reader = BytesReader::from_bytes(&record.value);
             let value_do: McpServerDo = reader.read_message(&record.value)?;
-            let value = Arc::new(value_do.into());
+            let value = Arc::new(McpServer::from_do(value_do, &self.tool_spec_map));
             self.do_update_server(value);
         } else if record.tree.as_str() == MCP_TOOL_SPEC_TABLE_NAME.as_str() {
             let mut reader = BytesReader::from_bytes(&record.value);
@@ -284,8 +272,8 @@ impl Handler<McpManagerReq> for McpManager {
     fn handle(&mut self, msg: McpManagerReq, _ctx: &mut Self::Context) -> Self::Result {
         match msg {
             McpManagerReq::GetServer(id) => {
-                let server_info = if let Some(server_wrap) = self.server_map.get(&id) {
-                    Some(server_wrap.server.clone())
+                let server_info = if let Some(server) = self.server_map.get(&id) {
+                    Some(server.clone())
                 } else {
                     None
                 };
@@ -313,11 +301,19 @@ impl Handler<McpManagerRaftReq> for McpManager {
     fn handle(&mut self, msg: McpManagerRaftReq, _ctx: &mut Self::Context) -> Self::Result {
         match msg {
             McpManagerRaftReq::AddServer(server_param) => {
-                let value = self.create_server(server_param)?;
+                let value = self.update_server(server_param)?;
                 Ok(McpManagerRaftResult::ServerInfo(value))
             }
             McpManagerRaftReq::UpdateServer(server_param) => {
                 self.update_server(server_param)?;
+                Ok(McpManagerRaftResult::None)
+            }
+            McpManagerRaftReq::PublishCurrentServer(id) => {
+                self.publish_server(id);
+                Ok(McpManagerRaftResult::None)
+            }
+            McpManagerRaftReq::PublishHistoryServer(id, history_id) => {
+                self.publish_history_server(id, history_id);
                 Ok(McpManagerRaftResult::None)
             }
             McpManagerRaftReq::RemoveServer(id) => {

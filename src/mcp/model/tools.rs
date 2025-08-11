@@ -1,7 +1,5 @@
 use crate::common::constant::EMPTY_ARC_STRING;
-use crate::common::pb::data_object::{
-    McpToolDo, McpToolSpecDo, ToolRouteRuleDo, ToolSpecVersionDo,
-};
+use crate::common::pb::data_object::{McpToolDo, McpToolSpecDo, ToolSpecVersionDo};
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::collections::BTreeMap;
@@ -296,9 +294,7 @@ impl From<ToolSpecParam> for ToolSpec {
         let tool_key = ToolKey::new(param.namespace, param.group, param.tool_name);
 
         let mut versions = BTreeMap::new();
-        let op_user = param
-            .op_user
-            .unwrap_or_else(|| Arc::new("system".to_string()));
+        let op_user = param.op_user.unwrap_or_else(|| EMPTY_ARC_STRING.clone());
         let spec_version = ToolSpecVersion {
             version: 1,
             parameters: Arc::new(param.parameters),
@@ -321,7 +317,7 @@ impl From<ToolSpecParam> for ToolSpec {
 
 /// 路由规则转换类型
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ConvertType {
     None,
     FormToJson,
@@ -342,32 +338,6 @@ pub struct ToolRouteRule {
     pub service_name: Arc<String>,
 }
 
-impl ToolRouteRule {
-    pub fn to_do(&self) -> ToolRouteRuleDo {
-        // 序列化additional_headers为JSON
-        let headers_json =
-            serde_json::to_string(&self.addition_headers).unwrap_or_else(|_| "{}".to_string());
-
-        // 转换ConvertType为字符串
-        let convert_type_str = match self.convert_type {
-            ConvertType::None => "none",
-            ConvertType::FormToJson => "formtojson",
-            ConvertType::Custom => "custom",
-        };
-
-        ToolRouteRuleDo {
-            protocol: Cow::Borrowed(&self.protocol),
-            url: Cow::Borrowed(&self.url),
-            method: Cow::Borrowed(&self.method),
-            addition_headers_json: Cow::Owned(headers_json),
-            convert_type: Cow::Borrowed(convert_type_str),
-            service_namespace: Cow::Borrowed(&self.service_namespace),
-            service_group: Cow::Borrowed(&self.service_group),
-            service_name: Cow::Borrowed(&self.service_name),
-        }
-    }
-}
-
 impl Default for ToolRouteRule {
     fn default() -> Self {
         Self {
@@ -383,72 +353,42 @@ impl Default for ToolRouteRule {
     }
 }
 
-impl<'a> From<ToolRouteRuleDo<'a>> for ToolRouteRule {
-    fn from(do_obj: ToolRouteRuleDo<'a>) -> Self {
-        // 反序列化additional_headers
-        let addition_headers = serde_json::from_str::<std::collections::HashMap<String, String>>(
-            &do_obj.addition_headers_json,
-        )
-        .unwrap_or_default()
-        .into_iter()
-        .map(|(k, v)| (k, Arc::new(v)))
-        .collect();
-
-        // 转换ConvertType
-        let convert_type = match do_obj.convert_type.as_ref() {
-            "formtojson" => ConvertType::FormToJson,
-            "custom" => ConvertType::Custom,
-            _ => ConvertType::None,
-        };
-
-        Self {
-            protocol: Arc::new(do_obj.protocol.to_string()),
-            url: Arc::new(do_obj.url.to_string()),
-            method: Arc::new(do_obj.method.to_string()),
-            addition_headers,
-            convert_type,
-            service_namespace: Arc::new(do_obj.service_namespace.to_string()),
-            service_group: Arc::new(do_obj.service_group.to_string()),
-            service_name: Arc::new(do_obj.service_name.to_string()),
-        }
-    }
-}
-
-/// MCP 工具
+/// MCP 工具轻量对象
+/// 不包含spec字段
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct McpTool {
+pub struct McpSimpleTool {
     pub id: u64,
     pub tool_name: Arc<String>,
     pub tool_key: ToolKey,
-    pub version: u64,
-    pub spec: Arc<ToolFunctionValue>,
+    pub tool_version: u64,
     pub route_rule: ToolRouteRule,
 }
 
-impl McpTool {
-    pub fn to_do(&self) -> McpToolDo {
-        McpToolDo {
+impl McpSimpleTool {
+    pub fn to_mcp_tool(self, tool_spec_map: &BTreeMap<ToolKey, Arc<ToolSpec>>) -> McpTool {
+        let tool_value = if let Some(tool_spec) = tool_spec_map.get(&self.tool_key) {
+            if let Some(v) = tool_spec.versions.get(&self.tool_version) {
+                v.parameters.clone()
+            } else {
+                Arc::new(ToolFunctionValue::default())
+            }
+        } else {
+            Arc::new(ToolFunctionValue::default())
+        };
+        McpTool {
             id: self.id,
-            tool_name: Cow::Borrowed(&self.tool_name),
-            namespace: Cow::Borrowed(&self.tool_key.namespace),
-            group: Cow::Borrowed(&self.tool_key.group),
-            version: self.version,
-            spec_json: Cow::Owned(
-                serde_json::to_string(&*self.spec).unwrap_or_else(|_| "{}".to_string()),
-            ),
-            route_rule_json: Cow::Owned(
-                serde_json::to_string(&self.route_rule).unwrap_or_else(|_| "{}".to_string()),
-            ),
+            tool_name: self.tool_name,
+            tool_key: self.tool_key,
+            tool_version: self.tool_version,
+            spec: tool_value,
+            route_rule: self.route_rule,
         }
     }
 }
 
-impl<'a> From<McpToolDo<'a>> for McpTool {
+impl<'a> From<McpToolDo<'a>> for McpSimpleTool {
     fn from(do_obj: McpToolDo<'a>) -> Self {
-        // 反序列化spec
-        let spec = serde_json::from_str::<ToolFunctionValue>(&do_obj.spec_json).unwrap_or_default();
-
         // 反序列化route_rule
         let route_rule =
             serde_json::from_str::<ToolRouteRule>(&do_obj.route_rule_json).unwrap_or_default();
@@ -461,9 +401,35 @@ impl<'a> From<McpToolDo<'a>> for McpTool {
                 group: Arc::new(do_obj.group.to_string()),
                 tool_name: Arc::new(do_obj.tool_name.to_string()),
             },
-            version: do_obj.version,
-            spec: Arc::new(spec),
+            tool_version: do_obj.version,
             route_rule,
+        }
+    }
+}
+
+/// MCP 工具
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct McpTool {
+    pub id: u64,
+    pub tool_name: Arc<String>,
+    pub tool_key: ToolKey,
+    pub tool_version: u64,
+    pub spec: Arc<ToolFunctionValue>,
+    pub route_rule: ToolRouteRule,
+}
+
+impl McpTool {
+    pub fn to_do(&self) -> McpToolDo {
+        McpToolDo {
+            id: self.id,
+            tool_name: Cow::Borrowed(&self.tool_name),
+            namespace: Cow::Borrowed(&self.tool_key.namespace),
+            group: Cow::Borrowed(&self.tool_key.group),
+            version: self.tool_version,
+            route_rule_json: Cow::Owned(
+                serde_json::to_string(&self.route_rule).unwrap_or_else(|_| "{}".to_string()),
+            ),
         }
     }
 }
