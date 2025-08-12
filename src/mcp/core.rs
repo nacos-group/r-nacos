@@ -163,18 +163,18 @@ impl McpManager {
     }
 
     fn match_tool_spec_filter(query_param: &McpToolSpecQueryParam, tool_spec: &ToolSpec) -> bool {
-        if let Some(ref namespace_filter) = query_param.namespace_filter {
-            if !tool_spec.key.namespace.contains(namespace_filter) {
+        if let Some(ref namespace_id) = query_param.namespace_id {
+            if !tool_spec.key.namespace.as_str().eq(namespace_id) {
                 return false;
             }
         }
         if let Some(ref group_filter) = query_param.group_filter {
-            if !tool_spec.key.group.contains(group_filter) {
+            if !group_filter.is_empty() && !tool_spec.key.group.contains(group_filter) {
                 return false;
             }
         }
         if let Some(ref tool_name_filter) = query_param.tool_name_filter {
-            if !tool_spec.key.tool_name.contains(tool_name_filter) {
+            if !tool_name_filter.is_empty() && !tool_spec.key.tool_name.contains(tool_name_filter) {
                 return false;
             }
         }

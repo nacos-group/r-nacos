@@ -42,6 +42,14 @@ pub fn is_default_namespace(namespace: &str) -> bool {
     namespace.is_empty() || namespace == DEFAULT_NAMESPACE
 }
 
+pub fn default_namespace(val: String) -> String {
+    if val.is_empty() {
+        crate::naming::DEFAULT_NAMESPACE.to_owned()
+    } else {
+        val
+    }
+}
+
 #[bean(inject)]
 #[derive(Clone)]
 pub struct NamespaceActor {

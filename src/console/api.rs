@@ -332,6 +332,26 @@ pub fn console_api_config_v2(config: &mut web::ServiceConfig) {
                 web::resource("/metrics/timeline")
                     .route(web::get().to(v2::metrics_api::query_metrics_timeline))
                     .route(web::post().to(v2::metrics_api::query_metrics_timeline_json)),
+            )
+            .service(
+                web::resource("/toolspec/list")
+                    .route(web::get().to(v2::mcp_tool_spec_api::query_tool_spec_list)),
+            )
+            .service(
+                web::resource("/toolspec/info")
+                    .route(web::get().to(v2::mcp_tool_spec_api::get_tool_spec)),
+            )
+            .service(
+                web::resource("/toolspec/add")
+                    .route(web::post().to(v2::mcp_tool_spec_api::add_or_update_tool_spec)),
+            )
+            .service(
+                web::resource("/toolspec/update")
+                    .route(web::post().to(v2::mcp_tool_spec_api::add_or_update_tool_spec)),
+            )
+            .service(
+                web::resource("/toolspec/remove")
+                    .route(web::post().to(v2::mcp_tool_spec_api::remove_tool_spec)),
             ),
     );
 }

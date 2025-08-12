@@ -56,13 +56,13 @@ pub enum McpManagerRaftResult {
 pub struct McpToolSpecQueryParam {
     pub offset: usize,
     pub limit: usize,
-    pub namespace_filter: Option<String>,
+    pub namespace_id: Option<String>,
     pub group_filter: Option<String>,
     pub tool_name_filter: Option<String>,
 }
 
 /// MCP 工具规范 DTO
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ToolSpecDto {
     pub namespace: Arc<String>,
