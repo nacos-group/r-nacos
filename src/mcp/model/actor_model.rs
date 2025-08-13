@@ -1,5 +1,5 @@
 use crate::mcp::model::mcp::{McpQueryParam, McpServer, McpServerDto, McpServerParam};
-use crate::mcp::model::tools::{ToolKey, ToolSpec, ToolSpecParam};
+use crate::mcp::model::tools::{ToolFunctionValue, ToolKey, ToolSpec, ToolSpecParam};
 use actix::Message;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -73,6 +73,7 @@ pub struct ToolSpecDto {
     pub description: Arc<String>,
     pub create_time: i64,
     pub last_modified_millis: i64,
+    pub function: Arc<ToolFunctionValue>,
 }
 
 impl ToolSpecDto {
@@ -87,6 +88,7 @@ impl ToolSpecDto {
             description: current_version.parameters.name.clone(),
             create_time: tool_spec.create_time,
             last_modified_millis: current_version.update_time,
+            function: current_version.parameters.clone(),
         }
     }
 }
