@@ -1,9 +1,9 @@
 use crate::mcp::model::actor_model::McpToolSpecQueryParam;
 use crate::mcp::model::tools::{ToolFunctionValue, ToolKey, ToolSpecParam};
+use crate::namespace;
 use actix_web::{HttpMessage, HttpRequest};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use crate::namespace;
 
 /// ToolSpec查询请求参数
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -21,8 +21,9 @@ impl ToolSpecQueryRequest {
     pub fn to_query_param(&self) -> McpToolSpecQueryParam {
         let limit = self.page_size.unwrap_or(20);
         let offset = (self.page_no.unwrap_or(1) - 1) * limit;
-        let namespace_id = namespace::default_namespace(self.namespace_id.clone().unwrap_or_default());
-        
+        let namespace_id =
+            namespace::default_namespace(self.namespace_id.clone().unwrap_or_default());
+
         McpToolSpecQueryParam {
             offset,
             limit,
@@ -39,7 +40,7 @@ impl ToolSpecQueryRequest {
                 return Err(anyhow::anyhow!("页码不能为0"));
             }
         }
-        
+
         if let Some(page_size) = self.page_size {
             if page_size == 0 {
                 return Err(anyhow::anyhow!("页面大小不能为0"));
@@ -48,7 +49,7 @@ impl ToolSpecQueryRequest {
                 return Err(anyhow::anyhow!("页面大小不能超过1000"));
             }
         }
-        
+
         Ok(())
     }
 }
@@ -61,7 +62,6 @@ pub struct ToolSpecParams {
     pub group: Arc<String>,
     pub tool_name: Arc<String>,
     pub parameters: Option<ToolFunctionValue>,
-    pub version: Option<u64>,
     pub op_user: Option<Arc<String>>,
 }
 
@@ -85,7 +85,7 @@ impl ToolSpecParams {
         if self.tool_name.is_empty() {
             return Err(anyhow::anyhow!("tool_name不能为空"));
         }
-        
+
         Ok(())
     }
 
@@ -93,8 +93,7 @@ impl ToolSpecParams {
     pub fn to_tool_spec_param(&self, op_user: Option<Arc<String>>) -> ToolSpecParam {
         let namespace = if self.namespace.is_empty() {
             Arc::new(namespace::default_namespace("".to_string()))
-        }
-        else{
+        } else {
             self.namespace.clone()
         };
         ToolSpecParam {
@@ -102,7 +101,7 @@ impl ToolSpecParams {
             group: self.group.clone(),
             tool_name: self.tool_name.clone(),
             parameters: self.parameters.clone().unwrap_or_default(),
-            version: self.version.unwrap_or(1),
+            version: 0,
             update_time: chrono::Utc::now().timestamp_millis(),
             op_user,
             ref_count: 0,
@@ -113,15 +112,10 @@ impl ToolSpecParams {
     pub fn to_tool_key(&self) -> ToolKey {
         let namespace = if self.namespace.is_empty() {
             Arc::new(namespace::default_namespace("".to_string()))
-        }
-        else{
+        } else {
             self.namespace.clone()
         };
-        ToolKey::new(
-            namespace,
-            self.group.clone(),
-            self.tool_name.clone(),
-        )
+        ToolKey::new(namespace, self.group.clone(), self.tool_name.clone())
     }
 
     /// 从HttpRequest中提取用户信息并设置op_user

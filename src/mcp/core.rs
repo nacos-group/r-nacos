@@ -85,7 +85,6 @@ impl McpManager {
 
     fn update_tool_spec(&mut self, tool_spec_param: ToolSpecParam) -> anyhow::Result<()> {
         let tool_key = tool_spec_param.build_key();
-
         if let Some(tool_spec) = self.tool_spec_map.get(&tool_key) {
             let mut mul_tool_spec = tool_spec.as_ref().to_owned();
             mul_tool_spec.update_param(tool_spec_param);

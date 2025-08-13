@@ -1,4 +1,5 @@
 use crate::common::appdata::AppShareData;
+use crate::common::constant::SEQ_TOOL_SPEC_VERSION;
 use crate::common::model::{ApiResult, PageResult, UserSession};
 use crate::console::model::mcp_tool_spec_model::{ToolSpecParams, ToolSpecQueryRequest};
 use crate::console::v2::{
@@ -9,6 +10,7 @@ use crate::mcp::model::actor_model::{
     McpManagerRaftReq, McpManagerReq, McpManagerResult, ToolSpecDto,
 };
 use crate::raft::store::{ClientRequest, ClientResponse};
+use crate::sequence::{SequenceRequest, SequenceResult};
 use actix_web::{web, HttpMessage, HttpRequest, HttpResponse, Responder};
 use std::sync::Arc;
 
@@ -125,8 +127,21 @@ pub async fn add_or_update_tool_spec(
         op_user
     );
 
+    let version = if let Ok(Ok(SequenceResult::NextId(id))) = appdata
+        .sequence_manager
+        .send(SequenceRequest::GetNextId(SEQ_TOOL_SPEC_VERSION.clone()))
+        .await
+    {
+        id
+    } else {
+        return handle_system_error(
+            "Unable to get next id from SequenceManager".to_string(),
+            "Failed to get next id from SequenceManager",
+        );
+    };
     // 转换为ToolSpecParam
-    let tool_spec_param = param.to_tool_spec_param(op_user);
+    let mut tool_spec_param = param.to_tool_spec_param(op_user);
+    tool_spec_param.version = version;
 
     // 构建McpManagerRaftReq::UpdateToolSpec请求
     let raft_req = McpManagerRaftReq::UpdateToolSpec(tool_spec_param);
