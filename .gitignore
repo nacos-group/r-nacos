@@ -11,3 +11,5 @@ nacos_db/
 cluster_example/
 .kiro/
 
+__pycache__/
+
