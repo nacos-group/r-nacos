@@ -352,6 +352,39 @@ pub fn console_api_config_v2(config: &mut web::ServiceConfig) {
             .service(
                 web::resource("/toolspec/remove")
                     .route(web::post().to(v2::mcp_tool_spec_api::remove_tool_spec)),
+            )
+            // McpServer控制台接口路由
+            .service(
+                web::resource("/mcp/server/list")
+                    .route(web::get().to(v2::mcp_server_api::query_mcp_server_list)),
+            )
+            .service(
+                web::resource("/mcp/server")
+                    .route(web::get().to(v2::mcp_server_api::get_mcp_server)),
+            )
+            .service(
+                web::resource("/mcp/server/add")
+                    .route(web::post().to(v2::mcp_server_api::add_mcp_server)),
+            )
+            .service(
+                web::resource("/mcp/server/update")
+                    .route(web::post().to(v2::mcp_server_api::update_mcp_server)),
+            )
+            .service(
+                web::resource("/mcp/server/remove")
+                    .route(web::post().to(v2::mcp_server_api::remove_mcp_server)),
+            )
+            .service(
+                web::resource("/mcp/server/history")
+                    .route(web::get().to(v2::mcp_server_api::query_mcp_server_history)),
+            )
+            .service(
+                web::resource("/mcp/server/publish")
+                    .route(web::post().to(v2::mcp_server_api::publish_current_mcp_server)),
+            )
+            .service(
+                web::resource("/mcp/server/publish/history")
+                    .route(web::post().to(v2::mcp_server_api::publish_history_mcp_server)),
             ),
     );
 }
