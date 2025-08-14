@@ -157,17 +157,9 @@ pub async fn add_mcp_server(
     // 通过RaftRequestRoute.request发送写入请求
     match appdata.raft_request_route.request(client_req).await {
         Ok(response) => match response {
-            ClientResponse::Success => {
-                log::debug!(
-                    "Successfully added McpServer: name={:?}, namespace={:?}",
-                    param.name,
-                    param.namespace
-                );
-                HttpResponse::Ok().json(ApiResult::success(Some(true)))
-            }
             ClientResponse::McpResp { resp } => {
                 log::debug!("MCP Raft add server response: {:?}", resp);
-                HttpResponse::Ok().json(ApiResult::success(Some(true)))
+                HttpResponse::Ok().json(ApiResult::success(Some(server_id)))
             }
             _ => handle_unexpected_response_error("Raft add McpServer"),
         },
