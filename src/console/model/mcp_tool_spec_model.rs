@@ -104,7 +104,6 @@ impl ToolSpecParams {
             version: 0,
             update_time: chrono::Utc::now().timestamp_millis(),
             op_user,
-            ref_count: 0,
         }
     }
 

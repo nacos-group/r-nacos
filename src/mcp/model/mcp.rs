@@ -1,8 +1,9 @@
 use crate::common::pb::data_object::{McpServerDo, McpServerValueDo};
 use crate::mcp::model::tools::{McpSimpleTool, McpTool, ToolKey, ToolSpec};
+use crate::mcp::utils::ToolSpecUtils;
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 
 /// MCP 服务器值
@@ -21,21 +22,37 @@ impl McpServerValue {
         &mut self,
         param: McpServerParam,
         tool_spec_map: &BTreeMap<ToolKey, Arc<ToolSpec>>,
-    ) {
+    ) -> HashMap<ToolKey, HashMap<u64, i64>> {
+        let mut tool_spec_version_ref_map = HashMap::new();
         if let Some(description) = param.description {
             self.description = description;
         }
         let mut tools = Vec::with_capacity(param.tools.len());
         for item in param.tools {
             let tool = item.to_mcp_tool(tool_spec_map);
+            ToolSpecUtils::add_tool_ref_to_map(
+                &mut tool_spec_version_ref_map,
+                &tool.tool_key,
+                tool.tool_version,
+                1,
+            );
             tools.push(tool);
         }
         if param.value_id > 0 {
             self.id = param.value_id;
         }
+        for old_tool in &self.tools {
+            ToolSpecUtils::add_tool_ref_to_map(
+                &mut tool_spec_version_ref_map,
+                &old_tool.tool_key,
+                old_tool.tool_version,
+                -1,
+            );
+        }
         self.tools = tools;
         self.op_user = param.op_user;
         self.update_time = param.update_time;
+        tool_spec_version_ref_map
     }
 
     pub fn to_do(&self) -> McpServerValueDo {
@@ -96,7 +113,7 @@ impl McpServer {
         &mut self,
         param: McpServerParam,
         tool_spec_map: &BTreeMap<ToolKey, Arc<ToolSpec>>,
-    ) {
+    ) -> HashMap<ToolKey, HashMap<u64, i64>> {
         if let Some(description) = param.description.as_ref() {
             self.description = description.clone();
         }
@@ -114,8 +131,9 @@ impl McpServer {
             self.create_user = param.op_user.clone();
         }
         let mut current_value = self.current_value.as_ref().to_owned();
-        current_value.update_param(param, tool_spec_map);
+        let ref_map = current_value.update_param(param, tool_spec_map);
         self.current_value = Arc::new(current_value);
+        ref_map
     }
 
     pub fn check_valid(&self) -> anyhow::Result<()> {

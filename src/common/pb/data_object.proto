@@ -11,7 +11,6 @@ message ToolSpecVersionDo {
   string parameters_json = 2;
   string op_user = 3;
   int64 update_time = 4;
-  int64 ref_count = 5;
 }
 
 // MCP 工具规范

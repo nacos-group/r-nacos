@@ -21,7 +21,6 @@ pub struct ToolSpecVersionDo<'a> {
     pub parameters_json: Cow<'a, str>,
     pub op_user: Cow<'a, str>,
     pub update_time: i64,
-    pub ref_count: i64,
 }
 
 impl<'a> MessageRead<'a> for ToolSpecVersionDo<'a> {
@@ -33,7 +32,6 @@ impl<'a> MessageRead<'a> for ToolSpecVersionDo<'a> {
                 Ok(18) => msg.parameters_json = r.read_string(bytes).map(Cow::Borrowed)?,
                 Ok(26) => msg.op_user = r.read_string(bytes).map(Cow::Borrowed)?,
                 Ok(32) => msg.update_time = r.read_int64(bytes)?,
-                Ok(40) => msg.ref_count = r.read_int64(bytes)?,
                 Ok(t) => { r.read_unknown(bytes, t)?; }
                 Err(e) => return Err(e),
             }
@@ -49,7 +47,6 @@ impl<'a> MessageWrite for ToolSpecVersionDo<'a> {
         + if self.parameters_json == "" { 0 } else { 1 + sizeof_len((&self.parameters_json).len()) }
         + if self.op_user == "" { 0 } else { 1 + sizeof_len((&self.op_user).len()) }
         + if self.update_time == 0i64 { 0 } else { 1 + sizeof_varint(*(&self.update_time) as u64) }
-        + if self.ref_count == 0i64 { 0 } else { 1 + sizeof_varint(*(&self.ref_count) as u64) }
     }
 
     fn write_message<W: WriterBackend>(&self, w: &mut Writer<W>) -> Result<()> {
@@ -57,7 +54,6 @@ impl<'a> MessageWrite for ToolSpecVersionDo<'a> {
         if self.parameters_json != "" { w.write_with_tag(18, |w| w.write_string(&**&self.parameters_json))?; }
         if self.op_user != "" { w.write_with_tag(26, |w| w.write_string(&**&self.op_user))?; }
         if self.update_time != 0i64 { w.write_with_tag(32, |w| w.write_int64(*&self.update_time))?; }
-        if self.ref_count != 0i64 { w.write_with_tag(40, |w| w.write_int64(*&self.ref_count))?; }
         Ok(())
     }
 }

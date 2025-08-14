@@ -151,12 +151,9 @@ impl ToolSpecVersion {
     pub fn to_do(&self) -> ToolSpecVersionDo {
         ToolSpecVersionDo {
             version: self.version,
-            parameters_json: Cow::Owned(
-                serde_json::to_string(&self.function).unwrap_or_default(),
-            ),
+            parameters_json: Cow::Owned(serde_json::to_string(&self.function).unwrap_or_default()),
             op_user: Cow::Borrowed(self.op_user.as_ref()),
             update_time: self.update_time,
-            ref_count: self.ref_count,
         }
     }
 
@@ -166,7 +163,7 @@ impl ToolSpecVersion {
             function: Arc::new(param.parameters),
             op_user: param.op_user.unwrap_or_default(),
             update_time: param.update_time,
-            ref_count: param.ref_count,
+            ref_count: 0,
         }
     }
 }
@@ -250,7 +247,7 @@ impl<'a> From<McpToolSpecDo<'a>> for ToolSpec {
                 function: Arc::new(parameters),
                 op_user: Arc::new(version.op_user.to_string()),
                 update_time: version.update_time,
-                ref_count: version.ref_count,
+                ref_count: 0,
             };
             versions.insert(spec_version.version, spec_version);
         }
@@ -276,7 +273,6 @@ pub struct ToolSpecParam {
     pub version: u64,
     pub update_time: i64,
     pub op_user: Option<Arc<String>>,
-    pub ref_count: i64,
 }
 
 impl ToolSpecParam {

@@ -7,6 +7,7 @@ use crate::mcp::model::actor_model::{
 };
 use crate::mcp::model::mcp::{McpQueryParam, McpServer, McpServerDto, McpServerParam};
 use crate::mcp::model::tools::{ToolKey, ToolSpec, ToolSpecParam};
+use crate::mcp::utils::ToolSpecUtils;
 use crate::raft::filestore::model::SnapshotRecordDto;
 use crate::raft::filestore::raftapply::{RaftApplyDataRequest, RaftApplyDataResponse};
 use crate::raft::filestore::raftsnapshot::{SnapshotWriterActor, SnapshotWriterRequest};
@@ -14,13 +15,14 @@ use crate::sequence::SequenceManager;
 use actix::prelude::*;
 use bean_factory::{bean, BeanFactory, FactoryData, Inject};
 use quick_protobuf::{BytesReader, Writer};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::Arc;
 
 #[bean(inject)]
 pub struct McpManager {
     pub(crate) server_map: BTreeMap<u64, Arc<McpServer>>,
     pub(crate) tool_spec_map: BTreeMap<ToolKey, Arc<ToolSpec>>,
+    pub(crate) tool_spec_version_ref_map: HashMap<ToolKey, HashMap<u64, i64>>,
     sequence_manager: Option<Addr<SequenceManager>>,
 }
 
@@ -29,7 +31,38 @@ impl McpManager {
         McpManager {
             server_map: BTreeMap::new(),
             tool_spec_map: BTreeMap::new(),
+            tool_spec_version_ref_map: HashMap::new(),
             sequence_manager: None,
+        }
+    }
+
+    /// 根据服务引用，初始化计算引用计数
+    fn init_tool_spec_version_ref_map(&mut self) {
+        let mut server_value_id_set = HashSet::new();
+        for mcp_server in self.server_map.values() {
+            for server_value in &mcp_server.histories {
+                server_value_id_set.insert(server_value.id);
+                ToolSpecUtils::update_server_ref_to_map(
+                    &mut self.tool_spec_version_ref_map,
+                    &server_value,
+                );
+            }
+            let server_value = &mcp_server.current_value;
+            if server_value_id_set.contains(&server_value.id) {
+                server_value_id_set.insert(server_value.id);
+                ToolSpecUtils::update_server_ref_to_map(
+                    &mut self.tool_spec_version_ref_map,
+                    server_value.as_ref(),
+                );
+            }
+            let server_value = &mcp_server.release_value;
+            if server_value_id_set.contains(&server_value.id) {
+                server_value_id_set.insert(server_value.id);
+                ToolSpecUtils::update_server_ref_to_map(
+                    &mut self.tool_spec_version_ref_map,
+                    server_value.as_ref(),
+                );
+            }
         }
     }
 
@@ -42,18 +75,22 @@ impl McpManager {
         }
         let v = if let Some(server) = self.server_map.get(&id) {
             let mut new_server = server.as_ref().clone();
-            new_server.update_param(server_param, &self.tool_spec_map);
+            let ref_map = new_server.update_param(server_param, &self.tool_spec_map);
             new_server.check_valid()?;
 
             let value = Arc::new(new_server);
             self.server_map.insert(id, value.clone());
+            ToolSpecUtils::merge_ref_map(&mut self.tool_spec_version_ref_map, &ref_map);
+            self.update_tool_spec_ref_by_diff_map(&ref_map);
             value
         } else {
             let mut server = McpServer::new(server_param.id);
-            server.update_param(server_param, &self.tool_spec_map);
+            let ref_map = server.update_param(server_param, &self.tool_spec_map);
             server.check_valid()?;
             let value = Arc::new(server);
             self.server_map.insert(id, value.clone());
+            ToolSpecUtils::merge_ref_map(&mut self.tool_spec_version_ref_map, &ref_map);
+            self.update_tool_spec_ref_by_diff_map(&ref_map);
             value
         };
         Ok(v)
@@ -108,13 +145,39 @@ impl McpManager {
             if let Some(tool_spec_version) = mul_tool_spec.versions.get_mut(&version) {
                 tool_spec_version.ref_count = ref_count;
             }
-            if ref_count != 0 || version == tool_spec.current_version {
+            if ref_count > 0 || version == tool_spec.current_version {
                 self.tool_spec_map.insert(tool_key, Arc::new(mul_tool_spec));
             }
             Ok(())
         } else {
             Err(anyhow::anyhow!("not found the tool spec"))
         }
+    }
+
+    fn update_tool_spec_ref_by_diff_map(&mut self, diff_map: &HashMap<ToolKey, HashMap<u64, i64>>) {
+        for (tool_key, version_map) in diff_map {
+            for (version, count) in version_map {
+                self.add_tool_spec_ref(tool_key.clone(), *version, *count)
+                    .ok();
+            }
+        }
+    }
+
+    /// 增加tool_spec的引用计数
+    /// add_ref_count为负数时，表示减少引用计数
+    fn add_tool_spec_ref(
+        &mut self,
+        tool_key: ToolKey,
+        version: u64,
+        add_ref_count: i64,
+    ) -> anyhow::Result<()> {
+        let mut ref_count = add_ref_count;
+        if let Some(tool_spec) = self.tool_spec_map.get(&tool_key) {
+            if let Some(tool_spec_version) = tool_spec.versions.get(&version) {
+                ref_count = tool_spec_version.ref_count + add_ref_count;
+            }
+        }
+        self.update_tool_spec_ref(tool_key, version, ref_count)
     }
 
     fn do_update_tool_spec(&mut self, tool_spec: Arc<ToolSpec>) {
@@ -239,6 +302,7 @@ impl McpManager {
     }
 
     fn load_completed(&mut self, _ctx: &mut Context<Self>) -> anyhow::Result<()> {
+        self.init_tool_spec_version_ref_map();
         log::info!("McpManager load snapshot completed");
         Ok(())
     }
@@ -321,14 +385,6 @@ impl Handler<McpManagerRaftReq> for McpManager {
             }
             McpManagerRaftReq::UpdateToolSpec(tool_spec_param) => {
                 self.update_tool_spec(tool_spec_param)?;
-                Ok(McpManagerRaftResult::None)
-            }
-            McpManagerRaftReq::UpdateToolSpecRef {
-                tool_key,
-                version,
-                ref_count,
-            } => {
-                self.update_tool_spec_ref(tool_key, version, ref_count)?;
                 Ok(McpManagerRaftResult::None)
             }
             McpManagerRaftReq::RemoveToolSpec(tool_key) => {

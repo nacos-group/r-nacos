@@ -34,11 +34,6 @@ pub enum McpManagerRaftReq {
     PublishHistoryServer(u64, u64),
     RemoveServer(u64),
     UpdateToolSpec(ToolSpecParam),
-    UpdateToolSpecRef {
-        tool_key: ToolKey,
-        version: u64,
-        ref_count: i64,
-    },
     RemoveToolSpec(ToolKey),
 }
 
