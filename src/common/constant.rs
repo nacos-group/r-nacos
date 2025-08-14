@@ -29,6 +29,8 @@ lazy_static::lazy_static! {
     pub static ref MCP_TOOL_SPEC_TABLE_NAME: Arc<String> =  Arc::new("T_MCP_TOOL_SPEC".to_string());
     pub static ref EMPTY_ARC_STRING: Arc<String> = Arc::new("".to_string());
     pub static ref SEQ_TOOL_SPEC_VERSION: Arc<String> =  Arc::new("TOOL_SPEC_VERSION".to_string());
+    pub static ref SEQ_MCP_SERVER_ID: Arc<String> =  Arc::new("MCP_SERVER_ID".to_string());
+    pub static ref SEQ_MCP_SERVER_VALUE_ID: Arc<String> =  Arc::new("MCP_SERVER_VALUE_ID".to_string());
     pub static ref DEFAULT_NAMESPACE_ARC_STRING: Arc<String> = Arc::new("".to_string());
     pub static ref EMPTY_CLIENT_VERSION: Arc<ClientVersion> = Arc::new(ClientVersion::default());
 }

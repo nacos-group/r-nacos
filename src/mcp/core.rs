@@ -5,7 +5,9 @@ use crate::mcp::model::actor_model::{
     McpManagerRaftReq, McpManagerRaftResult, McpManagerReq, McpManagerResult,
     McpToolSpecQueryParam, ToolSpecDto,
 };
-use crate::mcp::model::mcp::{McpQueryParam, McpServer, McpServerDto, McpServerParam};
+use crate::mcp::model::mcp::{
+    McpQueryParam, McpServer, McpServerDto, McpServerParam, McpServerValue,
+};
 use crate::mcp::model::tools::{ToolKey, ToolSpec, ToolSpecParam};
 use crate::mcp::utils::ToolSpecUtils;
 use crate::raft::filestore::model::SnapshotRecordDto;
@@ -96,10 +98,14 @@ impl McpManager {
         Ok(v)
     }
 
-    fn publish_server(&mut self, id: u64) {
+    fn publish_server(&mut self, id: u64, new_value_id: u64) {
         if let Some(server) = self.server_map.get(&id) {
             let mut new_server = server.as_ref().to_owned();
-            new_server.publish();
+            new_server.publish(new_value_id);
+            let mut ref_map = HashMap::new();
+            ToolSpecUtils::update_server_ref_to_map(&mut ref_map, &new_server.release_value);
+            ToolSpecUtils::merge_ref_map(&mut self.tool_spec_version_ref_map, &ref_map);
+            self.update_tool_spec_ref_by_diff_map(&ref_map);
             self.do_update_server(Arc::new(new_server));
         }
     }
@@ -205,6 +211,53 @@ impl McpManager {
         }
 
         (index, rlist)
+    }
+
+    fn query_server_history(
+        &self,
+        server_id: u64,
+        offset: usize,
+        limit: usize,
+        start_time: Option<i64>,
+        end_time: Option<i64>,
+    ) -> (usize, Vec<McpServerValue>) {
+        let mut rlist = Vec::new();
+
+        if let Some(server) = self.server_map.get(&server_id) {
+            let mut filtered_histories: Vec<_> = server
+                .histories
+                .iter()
+                .filter(|history| {
+                    // 时间范围筛选
+                    if let Some(start) = start_time {
+                        if history.update_time < start {
+                            return false;
+                        }
+                    }
+                    if let Some(end) = end_time {
+                        if history.update_time > end {
+                            return false;
+                        }
+                    }
+                    true
+                })
+                .collect();
+
+            // 按时间倒序排列（最新的在前面）
+            filtered_histories.sort_by(|a, b| b.update_time.cmp(&a.update_time));
+
+            let total_count = filtered_histories.len();
+
+            if offset < total_count {
+                for history in filtered_histories.iter().skip(offset).take(limit) {
+                    rlist.push(history.as_ref().clone());
+                }
+            }
+
+            (total_count, rlist)
+        } else {
+            (0, rlist)
+        }
     }
 
     fn query_tool_specs(&self, query_param: &McpToolSpecQueryParam) -> (usize, Vec<ToolSpecDto>) {
@@ -346,6 +399,11 @@ impl Handler<McpManagerReq> for McpManager {
                 let (size, list) = self.query_servers(&query_param);
                 Ok(McpManagerResult::ServerPageInfo(size, list))
             }
+            McpManagerReq::QueryServerHistory(id, offset, limit, start_time, end_time) => {
+                let (size, list) =
+                    self.query_server_history(id, offset, limit, start_time, end_time);
+                Ok(McpManagerResult::ServerHistoryPageInfo(size, list))
+            }
             McpManagerReq::GetToolSpec(tool_key) => {
                 let tool_spec = self.tool_spec_map.get(&tool_key).cloned();
                 Ok(McpManagerResult::ToolSpecInfo(tool_spec))
@@ -371,8 +429,8 @@ impl Handler<McpManagerRaftReq> for McpManager {
                 self.update_server(server_param)?;
                 Ok(McpManagerRaftResult::None)
             }
-            McpManagerRaftReq::PublishCurrentServer(id) => {
-                self.publish_server(id);
+            McpManagerRaftReq::PublishCurrentServer(id, new_value_id) => {
+                self.publish_server(id, new_value_id);
                 Ok(McpManagerRaftResult::None)
             }
             McpManagerRaftReq::PublishHistoryServer(id, history_id) => {

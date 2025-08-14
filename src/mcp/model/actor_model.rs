@@ -1,4 +1,6 @@
-use crate::mcp::model::mcp::{McpQueryParam, McpServer, McpServerDto, McpServerParam};
+use crate::mcp::model::mcp::{
+    McpQueryParam, McpServer, McpServerDto, McpServerParam, McpServerValue,
+};
 use crate::mcp::model::tools::{ToolFunctionValue, ToolKey, ToolSpec, ToolSpecParam};
 use actix::Message;
 use serde::{Deserialize, Serialize};
@@ -10,6 +12,7 @@ use std::sync::Arc;
 pub enum McpManagerReq {
     GetServer(u64),
     QueryServer(McpQueryParam),
+    QueryServerHistory(u64, usize, usize, Option<i64>, Option<i64>),
     GetToolSpec(ToolKey),
     QueryToolSpec(McpToolSpecQueryParam),
 }
@@ -19,6 +22,7 @@ pub enum McpManagerReq {
 pub enum McpManagerResult {
     ServerInfo(Option<Arc<McpServer>>),
     ServerPageInfo(usize, Vec<McpServerDto>),
+    ServerHistoryPageInfo(usize, Vec<McpServerValue>),
     ToolSpecInfo(Option<Arc<ToolSpec>>),
     ToolSpecPageInfo(usize, Vec<ToolSpecDto>),
     None,
@@ -30,7 +34,7 @@ pub enum McpManagerResult {
 pub enum McpManagerRaftReq {
     AddServer(McpServerParam),
     UpdateServer(McpServerParam),
-    PublishCurrentServer(u64),
+    PublishCurrentServer(u64, u64),
     PublishHistoryServer(u64, u64),
     RemoveServer(u64),
     UpdateToolSpec(ToolSpecParam),

@@ -149,9 +149,12 @@ impl McpServer {
         Ok(())
     }
 
-    pub fn publish(&mut self) -> Option<Arc<McpServerValue>> {
+    pub fn publish(&mut self, new_value_id: u64) -> Option<Arc<McpServerValue>> {
+        let mut new_value = self.current_value.as_ref().to_owned();
+        new_value.id = new_value_id;
         self.release_value = self.current_value.clone();
-        self.histories.push(self.current_value.clone());
+        self.current_value = Arc::new(new_value);
+        self.histories.push(self.release_value.clone());
         if self.histories.len() > 10 {
             Some(self.histories.remove(0))
         } else {
@@ -248,7 +251,7 @@ pub struct McpServerParam {
 }
 
 /// MCP 服务器 DTO
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct McpServerDto {
     pub id: u64,
