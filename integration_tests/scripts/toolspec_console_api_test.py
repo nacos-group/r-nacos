@@ -9,10 +9,11 @@ localhost:8848.
 Test Coverage:
 - Query ToolSpec list with pagination and filtering
 - Get single ToolSpec by key
-- Create/Update ToolSpec
+- Create/Update ToolSpec using 'function' field structure
 - Delete ToolSpec
 - Error handling and edge cases
 - Data consistency validation
+- Structure validation for 'function' field format
 """
 
 import json
@@ -56,12 +57,12 @@ class ToolSpecAPITester:
     
     def _create_test_tool_spec(self, namespace: str = None, group: str = None, 
                               tool_name: str = None) -> Dict[str, Any]:
-        """Create test ToolSpec data"""
+        """Create test ToolSpec data with 'function' field structure"""
         return {
             "namespace": namespace or self.config.test_namespace,
             "group": group or self.config.test_group,
             "toolName": tool_name or self.config.test_tool_name,
-            "parameters": {
+            "function": {
                 "name": f"{tool_name or self.config.test_tool_name}",
                 "description": f"Test tool for {tool_name or self.config.test_tool_name}",
                 "parameters": {
@@ -159,6 +160,12 @@ class ToolSpecAPITester:
         # Test 1: Create valid ToolSpec
         print("Test 1: Create valid ToolSpec")
         tool_spec = self._create_test_tool_spec()
+        
+        # Validate the test data structure before sending
+        if not self.validate_tool_spec_structure(tool_spec):
+            print(f"❌ Test data validation failed")
+            return False
+        
         response = self._make_request("POST", "/toolspec/add", json=tool_spec)
         
         if response.status_code != 200:
@@ -179,7 +186,7 @@ class ToolSpecAPITester:
             "namespace": "",
             "group": "",
             "toolName": "",
-            "parameters": {}
+            "function": {}
         }
         response = self._make_request("POST", "/toolspec/add", json=invalid_tool_spec)
         
@@ -202,6 +209,12 @@ class ToolSpecAPITester:
             tool_spec = self._create_test_tool_spec(
                 tool_name=f"{self.config.test_tool_name}-{i}"
             )
+            
+            # Validate each test data structure
+            if not self.validate_tool_spec_structure(tool_spec):
+                print(f"❌ Test data validation failed for ToolSpec {i}")
+                return False
+            
             response = self._make_request("POST", "/toolspec/add", json=tool_spec)
             
             if response.status_code != 200:
@@ -249,6 +262,15 @@ class ToolSpecAPITester:
         if not retrieved_spec:
             print(f"❌ Get ToolSpec returned no data")
             return False
+        
+        # Validate the response structure contains the expected function field
+        spec_data = retrieved_spec.get("spec", {})
+        if "function" in spec_data:
+            print(f"✅ Get ToolSpec successful: response contains 'function' field")
+        elif "parameters" in spec_data:
+            print(f"⚠️ Get ToolSpec: response still uses 'parameters' field instead of 'function'")
+        else:
+            print(f"⚠️ Get ToolSpec: response structure unclear, available keys: {spec_data.keys()}")
         
         print(f"✅ Get ToolSpec successful: {retrieved_spec.get('key', {})}")
         
@@ -307,7 +329,12 @@ class ToolSpecAPITester:
         # Test 1: Update existing ToolSpec
         print("Test 1: Update existing ToolSpec")
         tool_spec = self.test_data[0].copy()
-        tool_spec["parameters"]["description"] = "Updated description"
+        tool_spec["function"]["description"] = "Updated description"
+        
+        # Validate the update data structure
+        if not self.validate_tool_spec_structure(tool_spec):
+            print(f"❌ Update data validation failed")
+            return False
         
         response = self._make_request("POST", "/toolspec/update", json=tool_spec)
         
@@ -335,14 +362,14 @@ class ToolSpecAPITester:
             data = response.json()
             if data.get("success", False):
                 retrieved_spec = data.get("data", {})
-                # Check if the description was updated - look in the spec parameters
-                spec_params = retrieved_spec.get("spec", {}).get("parameters", {})
-                if spec_params.get("description") == "Updated description":
+                # Check if the description was updated - look in the spec function
+                spec_function = retrieved_spec.get("spec", {}).get("function", {})
+                if spec_function.get("description") == "Updated description":
                     print(f"✅ Update verification successful, description updated")
                 else:
                     # Try alternative structure
-                    alt_params = retrieved_spec.get("parameters", {})
-                    if alt_params.get("description") == "Updated description":
+                    alt_function = retrieved_spec.get("function", {})
+                    if alt_function.get("description") == "Updated description":
                         print(f"✅ Update verification successful, description updated")
                     else:
                         print(f"⚠️ Update verification: description not updated as expected")
@@ -463,6 +490,12 @@ class ToolSpecAPITester:
         
         # Create
         tool_spec = self._create_test_tool_spec(tool_name="consistency-test")
+        
+        # Validate the test data structure
+        if not self.validate_tool_spec_structure(tool_spec):
+            print(f"❌ CRUD cycle: Test data validation failed")
+            return False
+        
         response = self._make_request("POST", "/toolspec/add", json=tool_spec)
         if response.status_code != 200 or not response.json().get("success", False):
             print("❌ CRUD cycle: Create failed")
@@ -483,7 +516,7 @@ class ToolSpecAPITester:
         original_version = retrieved_spec.get("currentVersion", 0)
         
         # Update
-        tool_spec["parameters"]["description"] = "Updated for consistency test"
+        tool_spec["function"]["description"] = "Updated for consistency test"
         response = self._make_request("POST", "/toolspec/update", json=tool_spec)
         if response.status_code != 200 or not response.json().get("success", False):
             print("❌ CRUD cycle: Update failed")
@@ -544,6 +577,12 @@ class ToolSpecAPITester:
         import time
         unique_name = f"list-consistency-test-{int(time.time())}"
         tool_spec = self._create_test_tool_spec(tool_name=unique_name)
+        
+        # Validate the test data structure
+        if not self.validate_tool_spec_structure(tool_spec):
+            print(f"❌ List consistency: Test data validation failed")
+            return False
+        
         response = self._make_request("POST", "/toolspec/add", json=tool_spec)
         if response.status_code != 200 or not response.json().get("success", False):
             print("❌ List consistency: Create failed")
@@ -599,6 +638,29 @@ class ToolSpecAPITester:
             print("✅ Delete decreased count correctly")
         
         print("✅ List consistency test passed")
+        
+        return True
+    
+    def validate_tool_spec_structure(self, tool_spec_data: Dict[str, Any]) -> bool:
+        """Validate ToolSpec data structure with 'function' field"""
+        required_fields = ["namespace", "group", "toolName", "function"]
+        
+        for field in required_fields:
+            if field not in tool_spec_data:
+                print(f"❌ Missing required field: {field}")
+                return False
+        
+        # Validate function field structure
+        function_data = tool_spec_data.get("function", {})
+        if not isinstance(function_data, dict):
+            print(f"❌ 'function' field must be an object")
+            return False
+            
+        function_required = ["name", "description", "parameters"]
+        for field in function_required:
+            if field not in function_data:
+                print(f"❌ Missing required field in function: {field}")
+                return False
         
         return True
     

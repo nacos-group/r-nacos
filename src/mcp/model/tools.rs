@@ -141,7 +141,7 @@ pub struct ToolFunctionValue {
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct ToolSpecVersion {
     pub version: u64,
-    pub parameters: Arc<ToolFunctionValue>,
+    pub function: Arc<ToolFunctionValue>,
     pub op_user: Arc<String>,
     pub update_time: i64,
     pub ref_count: i64,
@@ -152,7 +152,7 @@ impl ToolSpecVersion {
         ToolSpecVersionDo {
             version: self.version,
             parameters_json: Cow::Owned(
-                serde_json::to_string(&self.parameters).unwrap_or_default(),
+                serde_json::to_string(&self.function).unwrap_or_default(),
             ),
             op_user: Cow::Borrowed(self.op_user.as_ref()),
             update_time: self.update_time,
@@ -163,7 +163,7 @@ impl ToolSpecVersion {
     pub fn from_param(param: ToolSpecParam) -> Self {
         Self {
             version: param.version,
-            parameters: Arc::new(param.parameters),
+            function: Arc::new(param.parameters),
             op_user: param.op_user.unwrap_or_default(),
             update_time: param.update_time,
             ref_count: param.ref_count,
@@ -185,7 +185,7 @@ impl ToolSpec {
     pub fn get_current_value(&self) -> Option<Arc<ToolFunctionValue>> {
         self.versions
             .get(&self.current_version)
-            .map(|v| v.parameters.clone())
+            .map(|v| v.function.clone())
     }
 
     pub fn get_current_version(&self) -> Option<ToolSpecVersion> {
@@ -247,7 +247,7 @@ impl<'a> From<McpToolSpecDo<'a>> for ToolSpec {
                 .unwrap_or_default();
             let spec_version = ToolSpecVersion {
                 version: version.version,
-                parameters: Arc::new(parameters),
+                function: Arc::new(parameters),
                 op_user: Arc::new(version.op_user.to_string()),
                 update_time: version.update_time,
                 ref_count: version.ref_count,
@@ -297,7 +297,7 @@ impl From<ToolSpecParam> for ToolSpec {
         let op_user = param.op_user.unwrap_or_else(|| EMPTY_ARC_STRING.clone());
         let spec_version = ToolSpecVersion {
             version: 1,
-            parameters: Arc::new(param.parameters),
+            function: Arc::new(param.parameters),
             op_user: op_user.clone(),
             update_time: param.update_time,
             ref_count: 0,
@@ -369,7 +369,7 @@ impl McpSimpleTool {
     pub fn to_mcp_tool(self, tool_spec_map: &BTreeMap<ToolKey, Arc<ToolSpec>>) -> McpTool {
         let tool_value = if let Some(tool_spec) = tool_spec_map.get(&self.tool_key) {
             if let Some(v) = tool_spec.versions.get(&self.tool_version) {
-                v.parameters.clone()
+                v.function.clone()
             } else {
                 Arc::new(ToolFunctionValue::default())
             }

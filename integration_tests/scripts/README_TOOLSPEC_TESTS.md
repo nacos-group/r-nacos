@@ -83,7 +83,12 @@ cargo run
 - 更新后版本一致性
 - 通过后续读取验证操作结果
 
-### 6. 错误处理测试
+### 6. 数据结构验证测试
+- 验证 ToolSpec 数据使用正确的 `function` 字段结构
+- 验证 `function` 字段包含必需的子字段（name, description, parameters）
+- 确保测试数据符合预期的 API 格式
+
+### 7. 错误处理测试
 - 参数验证错误
 - 未找到错误
 - 系统错误
@@ -91,14 +96,14 @@ cargo run
 
 ## 测试数据结构
 
-测试使用以下 ToolSpec 结构：
+测试使用以下 ToolSpec 结构（注意：使用 `function` 字段而不是旧的 `parameters` 字段）：
 
 ```json
 {
   "namespace": "test-namespace",
   "group": "test-group", 
   "toolName": "test-tool",
-  "parameters": {
+  "function": {
     "name": "test-tool",
     "description": "Test tool for test-tool",
     "parameters": {

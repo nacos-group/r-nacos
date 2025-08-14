@@ -144,8 +144,29 @@ def main():
     parser.add_argument("--host", default="127.0.0.1", help="Server host")
     parser.add_argument("--port", default=8848, type=int, help="Server port")
     parser.add_argument("--keep-running", action="store_true", help="Keep server running after tests")
+    parser.add_argument("--skip-server", action="store_true", help="Skip starting server, test against existing server")
+    parser.add_argument("--no-cleanup", action="store_true", help="Skip cleanup of test data and processes")
     
     args = parser.parse_args()
+    
+    # Skip server setup if requested
+    if args.skip_server:
+        print(f"⏭️ Skipping server startup, testing against {args.host}:{args.port}")
+        
+        # Wait for server to be ready
+        if not wait_for_server(args.host, args.port):
+            print("❌ Target server is not ready")
+            sys.exit(1)
+        
+        # Run tests directly
+        test_result = run_toolspec_tests(args.host, args.port)
+        
+        if test_result == 0:
+            print("🎉 All tests passed!")
+        else:
+            print("💥 Some tests failed!")
+        
+        sys.exit(test_result)
     
     # Check if rnacos binary exists
     exe = Path(RNACOS_BIN)
@@ -164,8 +185,9 @@ def main():
     work_dir = Path(tempfile.mkdtemp(prefix="rnacos_toolspec_test_"))
     print(f"📁 Working directory: {work_dir}")
     
-    # Clean up any existing processes
-    cleanup(work_dir)
+    # Clean up any existing processes (unless no-cleanup is specified)
+    if not args.no_cleanup:
+        cleanup(work_dir)
     
     proc = None
     test_result = 1
@@ -215,32 +237,37 @@ def main():
     
     finally:
         # Cleanup
-        print("🧹 Cleaning up...")
-        if proc:
-            try:
-                if SYSTEM == "windows":
-                    proc.kill()
-                else:
-                    proc.send_signal(signal.SIGTERM)
-                proc.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                if SYSTEM == "windows":
-                    proc.kill()
-                else:
-                    proc.send_signal(signal.SIGKILL)
-                proc.wait()
-            except Exception:
-                pass
+        if args.no_cleanup:
+            print("⏭️ Skipping cleanup (--no-cleanup specified)")
+            if work_dir:
+                print(f"📁 Test data preserved in: {work_dir}")
+        else:
+            print("🧹 Cleaning up...")
+            if proc:
+                try:
+                    if SYSTEM == "windows":
+                        proc.kill()
+                    else:
+                        proc.send_signal(signal.SIGTERM)
+                    proc.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    if SYSTEM == "windows":
+                        proc.kill()
+                    else:
+                        proc.send_signal(signal.SIGKILL)
+                    proc.wait()
+                except Exception:
+                    pass
+                
+                if proc.stdout and not proc.stdout.closed:
+                    proc.stdout.close()
             
-            if proc.stdout and not proc.stdout.closed:
-                proc.stdout.close()
-        
-        kill_rnacos()
-        
-        try:
-            cleanup(work_dir)
-        except Exception as e:
-            print(f"⚠️ Cleanup warning: {e}")
+            kill_rnacos()
+            
+            try:
+                cleanup(work_dir)
+            except Exception as e:
+                print(f"⚠️ Cleanup warning: {e}")
     
     sys.exit(test_result)
 

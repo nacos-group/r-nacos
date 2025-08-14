@@ -61,7 +61,7 @@ pub struct ToolSpecParams {
     pub namespace: Arc<String>,
     pub group: Arc<String>,
     pub tool_name: Arc<String>,
-    pub parameters: Option<ToolFunctionValue>,
+    pub function: Option<ToolFunctionValue>,
     pub op_user: Option<Arc<String>>,
 }
 
@@ -100,7 +100,7 @@ impl ToolSpecParams {
             namespace,
             group: self.group.clone(),
             tool_name: self.tool_name.clone(),
-            parameters: self.parameters.clone().unwrap_or_default(),
+            parameters: self.function.clone().unwrap_or_default(),
             version: 0,
             update_time: chrono::Utc::now().timestamp_millis(),
             op_user,
