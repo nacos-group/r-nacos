@@ -119,13 +119,7 @@ pub async fn add_or_update_tool_spec(
         .get::<Arc<UserSession>>()
         .map(|session| session.username.clone());
 
-    log::debug!(
-        "Create/Update ToolSpec: namespace={}, group={}, tool_name={}, op_user={:?}",
-        param.namespace,
-        param.group,
-        param.tool_name,
-        op_user
-    );
+    log::info!("add_or_update_tool_spec param:{:?}", &param);
 
     let version = if let Ok(Ok(SequenceResult::NextId(id))) = appdata
         .sequence_manager

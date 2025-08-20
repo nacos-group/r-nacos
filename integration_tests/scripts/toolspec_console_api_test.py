@@ -55,7 +55,7 @@ class ToolSpecAPITester:
             print(f"Request failed: {e}")
             raise
     
-    def _create_test_tool_spec(self, namespace: str = None, group: str = None, 
+    def _create_test_tool_spec(self, namespace: str = None, group: str = None,
                               tool_name: str = None) -> Dict[str, Any]:
         """Create test ToolSpec data with 'function' field structure"""
         return {
@@ -66,20 +66,18 @@ class ToolSpecAPITester:
                 "name": f"{tool_name or self.config.test_tool_name}",
                 "description": f"Test tool for {tool_name or self.config.test_tool_name}",
                 "parameters": {
-                    "input": {
-                        "type": "object",
-                        "properties": {
-                            "query": {
-                                "type": "string",
-                                "description": "The query string"
-                            },
-                            "limit": {
-                                "type": "integer",
-                                "description": "Maximum number of results"
-                            }
+                    "type": "object",
+                    "properties": {
+                        "query": {
+                            "type": "string",
+                            "description": "The query string"
                         },
-                        "required": ["query"]
-                    }
+                        "limit": {
+                            "type": "integer",
+                            "description": "Maximum number of results"
+                        }
+                    },
+                    "required": ["query"]
                 }
             }
         }

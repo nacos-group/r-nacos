@@ -75,6 +75,12 @@ pub struct JsonSchema {
     pub max_items: Option<u32>,
 }
 
+impl Default for JsonSchema {
+    fn default() -> Self {
+        Self::new_object()
+    }
+}
+
 impl JsonSchema {
     pub fn new_object() -> Self {
         Self {
@@ -135,7 +141,7 @@ pub struct ToolFunctionWrap {
 pub struct ToolFunctionValue {
     pub name: Arc<String>,
     pub description: Arc<String>,
-    pub parameters: std::collections::HashMap<String, Box<JsonSchema>>,
+    pub parameters: Box<JsonSchema>,
 }
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]

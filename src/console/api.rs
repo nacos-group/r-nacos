@@ -359,7 +359,7 @@ pub fn console_api_config_v2(config: &mut web::ServiceConfig) {
                     .route(web::get().to(v2::mcp_server_api::query_mcp_server_list)),
             )
             .service(
-                web::resource("/mcp/server")
+                web::resource("/mcp/server/info")
                     .route(web::get().to(v2::mcp_server_api::get_mcp_server)),
             )
             .service(

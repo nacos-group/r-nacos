@@ -167,7 +167,7 @@ class McpServerAPITester:
         server = self.test_data[0]
         params = {"id": server["id"]}
         print(f"Get params: {params}")
-        response = self._make_request("GET", "/mcp/server", params=params)
+        response = self._make_request("GET", "/mcp/server/info", params=params)
         
         if response.status_code != 200:
             print(f"❌ Get McpServer failed with status {response.status_code}")
@@ -189,7 +189,7 @@ class McpServerAPITester:
         # Test 2: Get non-existent McpServer
         print("Test 2: Get non-existent McpServer")
         params = {"id": 999999}
-        response = self._make_request("GET", "/mcp/server", params=params)
+        response = self._make_request("GET", "/mcp/server/info", params=params)
         
         if response.status_code != 200:
             print(f"❌ Get non-existent McpServer failed with status {response.status_code}")
@@ -205,7 +205,7 @@ class McpServerAPITester:
         # Test 3: Get with invalid parameters
         print("Test 3: Get with invalid parameters")
         params = {"id": 0}
-        response = self._make_request("GET", "/mcp/server", params=params)
+        response = self._make_request("GET", "/mcp/server/info", params=params)
         
         # Server can return either 400 (bad request) or 200 with error in response
         if response.status_code == 400:
@@ -342,7 +342,7 @@ class McpServerAPITester:
         # Verify the update by getting the McpServer
         print("Verifying update...")
         params = {"id": server["id"]}
-        response = self._make_request("GET", "/mcp/server", params=params)
+        response = self._make_request("GET", "/mcp/server/info", params=params)
         
         if response.status_code == 200:
             data = response.json()
@@ -407,7 +407,7 @@ class McpServerAPITester:
         # Verify the deletion by trying to get the McpServer
         print("Verifying deletion...")
         params = {"id": server["id"]}
-        response = self._make_request("GET", "/mcp/server", params=params)
+        response = self._make_request("GET", "/mcp/server/info", params=params)
         
         if response.status_code == 200:
             data = response.json()
@@ -743,7 +743,7 @@ class McpServerAPITester:
         
         # Read
         params = {"id": server["id"]}
-        response = self._make_request("GET", "/mcp/server", params=params)
+        response = self._make_request("GET", "/mcp/server/info", params=params)
         if response.status_code != 200 or not response.json().get("success", False):
             print("❌ CRUD cycle: Read failed")
             return False
@@ -759,7 +759,7 @@ class McpServerAPITester:
             return False
         
         # Read again to verify update
-        response = self._make_request("GET", "/mcp/server", params=params)
+        response = self._make_request("GET", "/mcp/server/info", params=params)
         if response.status_code != 200 or not response.json().get("success", False):
             print("❌ CRUD cycle: Read after update failed")
             return False
@@ -778,7 +778,7 @@ class McpServerAPITester:
             return False
         
         # Verify deletion
-        response = self._make_request("GET", "/mcp/server", params=params)
+        response = self._make_request("GET", "/mcp/server/info", params=params)
         if response.status_code == 200 and response.json().get("success", True):
             print("❌ CRUD cycle: McpServer still exists after deletion")
             return False
