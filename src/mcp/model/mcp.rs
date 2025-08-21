@@ -261,9 +261,27 @@ pub struct McpServerDto {
     pub auth_keys: Vec<Arc<String>>,
     pub create_time: i64,
     pub last_modified_millis: i64,
+    pub current_value: Option<Arc<McpServerValue>>,
+    pub release_value: Option<Arc<McpServerValue>>,
+    pub histories: Option<Vec<Arc<McpServerValue>>>,
 }
 
 impl McpServerDto {
+
+    pub fn new_simple_from(server: &McpServer) -> Self {
+        Self {
+            id: server.id,
+            namespace: server.namespace.clone(),
+            name: server.name.clone(),
+            description: server.description.clone(),
+            auth_keys: server.auth_keys.clone(),
+            create_time: server.create_time, // 实际实现中需要从 server 获取
+            last_modified_millis: server.current_value.update_time, // 实际实现中需要从 server 获取
+            current_value: None,
+            release_value: None,
+            histories: None,
+        }
+    }
     pub fn new_from(server: &McpServer) -> Self {
         Self {
             id: server.id,
@@ -273,6 +291,9 @@ impl McpServerDto {
             auth_keys: server.auth_keys.clone(),
             create_time: server.create_time, // 实际实现中需要从 server 获取
             last_modified_millis: server.current_value.update_time, // 实际实现中需要从 server 获取
+            current_value: Some(server.current_value.clone()),
+            release_value: Some(server.release_value.clone()),
+            histories: Some(server.histories.clone()),
         }
     }
 }
