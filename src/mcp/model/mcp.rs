@@ -164,7 +164,7 @@ impl McpServer {
 
     pub fn public_history(&mut self, history_id: u64) -> anyhow::Result<()> {
         if let Some(v) = self.histories.iter().find(|value| value.id == history_id) {
-            self.current_value = v.clone();
+            self.release_value = v.clone();
             Ok(())
         } else {
             Err(anyhow::anyhow!("value not found"))
@@ -267,7 +267,6 @@ pub struct McpServerDto {
 }
 
 impl McpServerDto {
-
     pub fn new_simple_from(server: &McpServer) -> Self {
         Self {
             id: server.id,
@@ -283,6 +282,11 @@ impl McpServerDto {
         }
     }
     pub fn new_from(server: &McpServer) -> Self {
+        let release_value = if server.release_value.id > 0 {
+            Some(server.release_value.clone())
+        } else {
+            None
+        };
         Self {
             id: server.id,
             namespace: server.namespace.clone(),
@@ -292,7 +296,7 @@ impl McpServerDto {
             create_time: server.create_time, // 实际实现中需要从 server 获取
             last_modified_millis: server.current_value.update_time, // 实际实现中需要从 server 获取
             current_value: Some(server.current_value.clone()),
-            release_value: Some(server.release_value.clone()),
+            release_value,
             histories: Some(server.histories.clone()),
         }
     }
