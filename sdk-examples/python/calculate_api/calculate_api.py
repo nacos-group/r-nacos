@@ -15,6 +15,9 @@ class CalculateRequest(BaseModel):
 # 创建FastAPI应用
 app = FastAPI(title="计算服务API", description="提供加、减、乘、除运算的API服务")
 
+server_addresses = "127.0.0.1:8848"  # 默认Nacos地址，可根据实际情况修改
+namespace = "dev"
+
 # 加法API
 @app.post("/add", response_model=float)
 async def add(request: CalculateRequest):
@@ -69,19 +72,15 @@ def get_local_ip():
         # 如果获取失败，返回回环地址
         return "127.0.0.1"
 
-def register_to_nacos(port=8002):
+def register_to_nacos(client,port=8002):
     """将服务注册到Nacos"""
     # Nacos服务器地址
-    server_addresses = "127.0.0.1:8848"  # 默认Nacos地址，可根据实际情况修改
-    namespace = "dev"
     group = "nacos-sdk-python"
     service_name = "calculate"
     
     # 获取本机IP
     local_ip = get_local_ip()
     
-    # 创建Nacos客户端
-    client = NacosClient(server_addresses=server_addresses, namespace=namespace)
     
     # 服务实例信息
     instance_config = {
@@ -106,7 +105,6 @@ def register_to_nacos(port=8002):
             ip=instance_config["ip"],
             port=instance_config["port"],
             weight=instance_config["weight"],
-            enabled=instance_config["enabled"],
             healthy=instance_config["healthy"],
             metadata=instance_config["metadata"],
             cluster_name=instance_config["cluster_name"],
@@ -127,7 +125,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     # 注册服务到Nacos
-    register_to_nacos(args.port)
+    # 创建Nacos客户端
+    client = NacosClient(server_addresses=server_addresses, namespace=namespace)
+    register_to_nacos(client,args.port)
     
     # 启动FastAPI服务器
     print(f"启动计算服务API服务器，端口: {args.port}...")
