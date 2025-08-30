@@ -16,6 +16,7 @@ pub(crate) mod v2;
 
 #[cfg(feature = "debug")]
 pub(crate) mod debug;
+pub mod mcp;
 
 /// r-nacos openapi packages
 
