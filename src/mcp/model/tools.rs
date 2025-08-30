@@ -365,6 +365,23 @@ impl Default for ToolRouteRule {
     }
 }
 
+impl ToolRouteRule {
+    pub fn is_need_host(&self) -> bool {
+        self.url.find("{IP_PORT}").is_some()
+    }
+    pub fn build_url(&self, host: Option<(Arc<String>, u16)>) -> anyhow::Result<String> {
+        if let Some((ip, port)) = host {
+            Ok(self.url.replace("{IP_PORT}", &format!("{}:{}", ip, port)))
+        } else {
+            if self.is_need_host() {
+                Err(anyhow::anyhow!("build url error: host is empty"))
+            } else {
+                Ok(self.url.as_ref().to_string())
+            }
+        }
+    }
+}
+
 /// MCP 工具轻量对象
 /// 不包含spec字段
 #[derive(Clone, Debug, Serialize, Deserialize)]

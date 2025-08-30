@@ -56,4 +56,5 @@ pub struct AppShareData {
     pub sequence_db_manager: Addr<SequenceDbManager>,
     pub sequence_manager: Addr<SequenceManager>,
     pub mcp_manager: Addr<McpManager>,
+    pub common_client: reqwest::Client,
 }

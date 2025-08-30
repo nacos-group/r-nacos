@@ -3,12 +3,13 @@ use crate::common::appdata::AppShareData;
 use crate::common::get_app_version;
 use crate::mcp::model::actor_model::{McpManagerReq, McpManagerResult};
 use crate::mcp::model::mcp::McpServer;
-use crate::mcp::model::tools::ToolFunctionWrap;
+use crate::mcp::model::tools::{McpTool, ToolFunctionWrap};
+use crate::naming::core::{NamingCmd, NamingResult};
+use crate::naming::model::ServiceKey;
 use actix_web::{web, HttpRequest, HttpResponse, Result};
 use serde_json::{json, Value};
 use std::sync::Arc;
 use uuid::Uuid;
-
 // 统一的流式返回处理函数
 /*
 fn create_streaming_response(response: JsonRpcResponse, session_id: String) -> Result<HttpResponse> {
@@ -139,7 +140,26 @@ pub async fn mcp_handler(
         }
         "tools/call" => {
             // tools/call 使用 SSE 格式的流式返回
-            handle_tools_call(request.params, request.id)
+            match handle_tools_call(
+                request.params,
+                request.id.clone(),
+                &mcp_server,
+                &app_share_data,
+            )
+            .await
+            {
+                Ok(response) => response,
+                Err(error) => JsonRpcResponse {
+                    jsonrpc: "2.0".to_string(),
+                    result: None,
+                    error: Some(JsonRpcError {
+                        code: -32000,
+                        message: error.to_string(),
+                        data: None,
+                    }),
+                    id: request.id,
+                },
+            }
         }
         "tools/list" => {
             // tools/list
@@ -220,39 +240,57 @@ fn handle_initialize(params: Option<Value>, id: Option<Value>) -> JsonRpcRespons
 }
 
 // 处理 tools/call 方法
-fn handle_tools_call(params: Option<Value>, id: Option<Value>) -> JsonRpcResponse {
+async fn handle_tools_call(
+    params: Option<Value>,
+    id: Option<Value>,
+    mcp_server: &Arc<McpServer>,
+    app_share_data: &Arc<AppShareData>,
+) -> anyhow::Result<JsonRpcResponse> {
     if let Some(params_value) = params {
         if let (Some(tool_name), Some(args)) = (
             params_value.get("name").and_then(|v| v.as_str()),
             params_value.get("arguments"),
         ) {
-            //TODO 根据mcp server调用工具接口
-            match tool_name {
-                "add" => {
-                    if let Some(args) = params_value.get("arguments") {
-                        if let (Some(a), Some(b)) = (
-                            args.get("a").and_then(|v| v.as_f64()),
-                            args.get("b").and_then(|v| v.as_f64()),
-                        ) {
-                            let result = a + b;
-                            return JsonRpcResponse {
-                                jsonrpc: "2.0".to_string(),
-                                result: Some(
-                                    json!({ "content": [{"type":"text","text":result.to_string()}]}),
-                                ),
-                                error: None,
-                                id,
-                            };
-                        }
-                    }
-                }
-                _ => {}
+            let (tool, url) = select_tool_and_url(tool_name, &mcp_server, app_share_data).await?;
+            let client = &app_share_data.common_client;
+            let mut req = client
+                .request(
+                    reqwest::Method::from_bytes(tool.route_rule.method.as_str().as_bytes())?,
+                    url.clone(),
+                )
+                .body(serde_json::to_string(args)?);
+            for (k, v) in tool.route_rule.addition_headers.iter() {
+                req = req.header(k, v.as_str());
+            }
+            let res = req.send().await?;
+            let response_status = res.status().as_u16();
+            if response_status == 200 {
+                let content = res.text().await?;
+                let result = json!({ "content": [{"type":"text","text":content}]});
+                return Ok(JsonRpcResponse {
+                    jsonrpc: "2.0".to_string(),
+                    result: Some(result),
+                    error: None,
+                    id,
+                });
+            } else {
+                let content = res.text().await?;
+                return Ok(JsonRpcResponse {
+                    jsonrpc: "2.0".to_string(),
+                    result: None,
+                    error: Some(JsonRpcError {
+                        code: -32000,
+                        message: content,
+                        data: None,
+                    }),
+                    id,
+                });
             }
         }
     }
 
     // 如果参数无效或工具不存在，返回错误
-    JsonRpcResponse {
+    Ok(JsonRpcResponse {
         jsonrpc: "2.0".to_string(),
         result: None,
         error: Some(JsonRpcError {
@@ -261,7 +299,33 @@ fn handle_tools_call(params: Option<Value>, id: Option<Value>) -> JsonRpcRespons
             data: None,
         }),
         id,
+    })
+}
+
+async fn select_tool_and_url<'a>(
+    tool_name: &str,
+    server: &'a Arc<McpServer>,
+    app_share_data: &Arc<AppShareData>,
+) -> anyhow::Result<(&'a McpTool, String)> {
+    for tool in server.release_value.tools.iter() {
+        if tool.tool_name.as_ref() == tool_name {
+            let service_key = ServiceKey::new_by_arc(
+                tool.tool_key.namespace.clone(),
+                tool.route_rule.service_group.clone(),
+                tool.route_rule.service_name.clone(),
+            );
+            if let Ok(Ok(NamingResult::SelectInstance(instance))) = app_share_data
+                .naming_addr
+                .send(NamingCmd::SelectOneInstance(service_key))
+                .await
+            {
+                let host = instance.map(|i| (i.ip.clone(), i.port as u16));
+                let url = tool.route_rule.build_url(host)?;
+                return Ok((tool, url));
+            }
+        }
     }
+    Err(anyhow::anyhow!("mcp server tool not found: {}", tool_name))
 }
 
 // 处理 tools/list 方法

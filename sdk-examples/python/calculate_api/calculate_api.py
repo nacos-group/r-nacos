@@ -75,7 +75,7 @@ def get_local_ip():
 def register_to_nacos(client,port=8002):
     """将服务注册到Nacos"""
     # Nacos服务器地址
-    group = "nacos-sdk-python"
+    group = "dev"
     service_name = "calculate"
     
     # 获取本机IP
@@ -108,7 +108,8 @@ def register_to_nacos(client,port=8002):
             healthy=instance_config["healthy"],
             metadata=instance_config["metadata"],
             cluster_name=instance_config["cluster_name"],
-            ephemeral=instance_config["ephemeral"]
+            ephemeral=instance_config["ephemeral"],
+            heartbeat_interval=5
         )
         print(f"服务 {service_name} 已成功注册到Nacos，IP: {local_ip}，端口: {port}")
     except Exception as e:

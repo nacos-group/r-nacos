@@ -11,6 +11,7 @@ use crate::naming::cluster::model::ProcessRange;
 use crate::now_millis;
 use actix_web::rt;
 use inner_mem_cache::TimeoutSet;
+use rand::prelude::IteratorRandom;
 use serde::{Deserialize, Serialize};
 
 use super::{
@@ -304,6 +305,19 @@ impl Service {
             .filter(|x| (x.enabled || !only_enable) && (x.healthy || !only_healthy))
             .cloned()
             .collect::<Vec<_>>()
+    }
+
+    pub(crate) fn select_one_instance(
+        &self,
+        only_healthy: bool,
+        only_enable: bool,
+    ) -> Option<Arc<Instance>> {
+        //后续可以考虑支持按权重随机选择
+        self.instances
+            .values()
+            .filter(|x| (x.enabled || !only_enable) && (x.healthy || !only_healthy))
+            .cloned()
+            .choose(&mut rand::thread_rng())
     }
 
     /*

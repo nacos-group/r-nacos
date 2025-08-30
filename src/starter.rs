@@ -227,6 +227,12 @@ pub fn build_share_data(factory_data: FactoryData) -> anyhow::Result<Arc<AppShar
         } else {
             Local::now().offset().fix()
         };
+    let reqwest_client = reqwest::Client::builder()
+        .timeout(Duration::from_millis(5000))
+        .danger_accept_invalid_certs(true)
+        .redirect(reqwest::redirect::Policy::none())
+        .build()
+        .unwrap();
     let app_data = Arc::new(AppShareData {
         config_addr: factory_data.get_actor().unwrap(),
         naming_addr: factory_data.get_actor().unwrap(),
@@ -256,6 +262,7 @@ pub fn build_share_data(factory_data: FactoryData) -> anyhow::Result<Arc<AppShar
         sequence_db_manager: factory_data.get_actor().unwrap(),
         mcp_manager: factory_data.get_actor().unwrap(),
         factory_data,
+        common_client: reqwest_client,
     });
     Ok(app_data)
 }

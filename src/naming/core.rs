@@ -1054,6 +1054,7 @@ pub enum NamingCmd {
     DeleteBatch(Vec<Instance>),
     Query(Instance),
     QueryList(ServiceKey, String, bool, Option<SocketAddr>),
+    SelectOneInstance(ServiceKey),
     QueryAllInstanceList(ServiceKey),
     QueryListString(ServiceKey, String, bool, Option<SocketAddr>),
     QueryServiceInfo(ServiceKey, String, bool),
@@ -1086,6 +1087,7 @@ pub enum NamingCmd {
 pub enum NamingResult {
     NULL,
     Instance(Arc<Instance>),
+    SelectInstance(Option<Arc<Instance>>),
     InstanceList(Vec<Arc<Instance>>),
     InstanceListString(String),
     ServiceInfo(ServiceInfo),
@@ -1280,6 +1282,14 @@ impl Handler<NamingCmd> for NamingActor {
                 } else {
                     Ok(NamingResult::InstanceList(vec![]))
                 }
+            }
+            NamingCmd::SelectOneInstance(service_key) => {
+                let v = if let Some(service) = self.service_map.get(&service_key) {
+                    service.select_one_instance(true, true)
+                } else {
+                    None
+                };
+                Ok(NamingResult::SelectInstance(v))
             }
             NamingCmd::QueryClientInstanceCount => {
                 let mut client_instance_count = Vec::with_capacity(self.client_instance_set.len());
