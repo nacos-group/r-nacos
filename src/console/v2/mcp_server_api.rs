@@ -34,7 +34,7 @@ pub async fn query_mcp_server_list(
         "Query McpServer list: offset={}, limit={}, namespace_filter={:?}, name_filter={:?}",
         query_param.offset,
         query_param.limit,
-        query_param.namespace_filter,
+        query_param.namespace_id,
         query_param.name_filter
     );
 

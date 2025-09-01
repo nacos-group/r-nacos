@@ -308,14 +308,14 @@ impl McpServerDto {
 pub struct McpQueryParam {
     pub offset: usize,
     pub limit: usize,
-    pub namespace_filter: Option<Arc<String>>,
+    pub namespace_id: Option<Arc<String>>,
     pub name_filter: Option<Arc<String>>,
 }
 
 impl McpQueryParam {
     pub fn match_namespace(&self, namespace: &Arc<String>) -> bool {
-        if let Some(ref filter) = self.namespace_filter {
-            namespace.contains(filter.as_str())
+        if let Some(ref namespace_id) = self.namespace_id {
+            namespace == namespace_id
         } else {
             true
         }

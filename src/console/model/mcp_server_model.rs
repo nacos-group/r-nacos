@@ -11,7 +11,7 @@ use std::sync::Arc;
 pub struct McpServerQueryRequest {
     pub page_no: Option<usize>,
     pub page_size: Option<usize>,
-    pub namespace_filter: Option<String>,
+    pub namespace_id: Option<String>,
     pub name_filter: Option<String>,
 }
 
@@ -24,7 +24,7 @@ impl McpServerQueryRequest {
         McpQueryParam {
             offset,
             limit,
-            namespace_filter: self.namespace_filter.as_ref().map(|s| Arc::new(s.clone())),
+            namespace_id: self.namespace_id.as_ref().map(|s| Arc::new(s.clone())),
             name_filter: self.name_filter.as_ref().map(|s| Arc::new(s.clone())),
         }
     }
