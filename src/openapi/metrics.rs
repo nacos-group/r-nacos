@@ -6,7 +6,9 @@ use std::sync::Arc;
 pub(crate) async fn metrics_info(appdata: web::Data<Arc<AppShareData>>) -> impl Responder {
     if let Ok(Ok(v)) = appdata.metrics_manager.send(MetricsRequest::Export).await {
         match v {
-            MetricsResponse::ExportInfo(v) => HttpResponse::Ok().body(v),
+            MetricsResponse::ExportInfo(v) => HttpResponse::Ok()
+                .content_type("text/plain;version=0.0.4;charset=utf-8")
+                .body(v),
             _ => HttpResponse::InternalServerError().body("metrics module disable"),
         }
     } else {
