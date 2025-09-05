@@ -17,6 +17,7 @@ use super::{
     nacos_proto::Payload,
     HandleLogArgs, HandlerResult, PayloadHandler, PayloadUtils, RequestMeta,
 };
+use crate::grpc::handler::lock::LockRequestHandler;
 use crate::grpc::handler::raft_append::RaftAppendRequestHandler;
 use crate::grpc::handler::raft_snapshot::RaftSnapshotRequestHandler;
 use crate::grpc::handler::raft_vote::RaftVoteRequestHandler;
@@ -28,6 +29,7 @@ pub mod config_query;
 pub mod config_remove;
 
 pub mod converter;
+mod lock;
 pub mod naming_batch_instance;
 pub mod naming_instance;
 pub mod naming_route;
@@ -59,6 +61,7 @@ pub(crate) const BATCH_INSTANCE_REQUEST: &str = "BatchInstanceRequest";
 pub(crate) const SUBSCRIBE_SERVICE_REQUEST: &str = "SubscribeServiceRequest";
 pub(crate) const SERVICE_QUERY_REQUEST: &str = "ServiceQueryRequest";
 pub(crate) const SERVICE_LIST_REQUEST: &str = "ServiceListRequest";
+pub(crate) const LOCK_OPERATION_REQUEST: &str = "LockOperationRequest";
 
 pub struct InvokerHandler {
     app: Arc<AppShareData>,
@@ -187,6 +190,13 @@ impl InvokerHandler {
             Box::new(ServiceListRequestHandler::new(app_data.clone())),
         );
     }
+
+    pub fn add_lock_handler(&mut self, app_data: &Arc<AppShareData>) {
+        self.add_handler(
+            LOCK_OPERATION_REQUEST,
+            Box::new(LockRequestHandler::new(app_data.clone())),
+        );
+    }
 }
 
 #[async_trait]
@@ -210,6 +220,7 @@ impl PayloadHandler for InvokerHandler {
                 let response = ServerCheckResponse {
                     result_code: SUCCESS_CODE,
                     connection_id: Some(request_meta.connection_id.as_ref().to_owned()),
+                    support_ability_negotiation: true,
                     ..Default::default()
                 };
                 return Ok(HandlerResult::success(PayloadUtils::build_payload(

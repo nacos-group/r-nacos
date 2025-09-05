@@ -25,6 +25,7 @@ lazy_static::lazy_static! {
     pub static ref USER_TREE_NAME: Arc<String> =  Arc::new("T_USER".to_string());
     pub static ref CACHE_TREE_NAME: Arc<String> =  Arc::new("T_CACHE".to_string());
     pub static ref NAMESPACE_TREE_NAME: Arc<String> =  Arc::new("T_NAMESPACE".to_string());
+    pub static ref LOCK_TREE_NAME: Arc<String> =  Arc::new("T_LOCK".to_string());
     pub static ref EMPTY_ARC_STRING: Arc<String> = Arc::new("".to_string());
     pub static ref DEFAULT_NAMESPACE_ARC_STRING: Arc<String> = Arc::new("".to_string());
     pub static ref EMPTY_CLIENT_VERSION: Arc<ClientVersion> = Arc::new(ClientVersion::default());
