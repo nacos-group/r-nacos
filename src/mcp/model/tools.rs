@@ -308,14 +308,14 @@ impl From<ToolSpecParam> for ToolSpec {
         let mut versions = BTreeMap::new();
         let op_user = param.op_user.unwrap_or_else(|| EMPTY_ARC_STRING.clone());
         let spec_version = ToolSpecVersion {
-            version: 1,
+            version: param.version,
             function: Arc::new(param.parameters),
             op_user: op_user.clone(),
             update_time: param.update_time,
             ref_count: 0,
         };
 
-        versions.insert(1, spec_version);
+        versions.insert(param.version, spec_version);
 
         Self {
             key: tool_key,
