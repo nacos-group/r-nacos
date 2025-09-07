@@ -96,6 +96,16 @@ impl McpImportContext {
         let old_id = value.id;
         value.id = self.next_server_version_id().await?;
         value_id_map.insert(old_id, value.id);
+        for tool in value.tools.iter_mut() {
+            let old_id = tool.tool_version;
+            if let Some(new_id) = self
+                .tool_version_map
+                .get(&tool.tool_key)
+                .and_then(|m| m.get(&old_id))
+            {
+                tool.tool_version = *new_id;
+            }
+        }
         Ok(())
     }
 

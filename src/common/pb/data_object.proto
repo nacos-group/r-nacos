@@ -26,7 +26,6 @@ message McpToolSpecDo {
 
 // MCP 工具
 message McpToolDo {
-  uint64 id = 1;
   string tool_name = 2;
   string namespace = 3;
   string group = 4;

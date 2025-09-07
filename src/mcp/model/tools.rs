@@ -369,7 +369,6 @@ impl ToolRouteRule {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct McpSimpleTool {
-    pub id: u64,
     pub tool_name: Arc<String>,
     pub tool_key: ToolKey,
     pub tool_version: u64,
@@ -381,6 +380,14 @@ impl McpSimpleTool {
         let tool_value = if let Some(tool_spec) = tool_spec_map.get(&self.tool_key) {
             if let Some(v) = tool_spec.versions.get(&self.tool_version) {
                 v.function.clone()
+            } else if let Some(v) = tool_spec.versions.get(&tool_spec.current_version) {
+                #[cfg(feature = "debug")]
+                log::warn!(
+                    "tool_spec not found, use default; key:{:?},tool_version:{}",
+                    &self.tool_key,
+                    &self.tool_version
+                );
+                v.function.clone()
             } else {
                 Arc::new(ToolFunctionValue::default())
             }
@@ -388,7 +395,6 @@ impl McpSimpleTool {
             Arc::new(ToolFunctionValue::default())
         };
         McpTool {
-            id: self.id,
             tool_name: self.tool_name,
             tool_key: self.tool_key,
             tool_version: self.tool_version,
@@ -405,7 +411,6 @@ impl<'a> From<McpToolDo<'a>> for McpSimpleTool {
             serde_json::from_str::<ToolRouteRule>(&do_obj.route_rule_json).unwrap_or_default();
 
         Self {
-            id: do_obj.id,
             tool_name: Arc::new(do_obj.tool_name.to_string()),
             tool_key: ToolKey {
                 namespace: Arc::new(do_obj.namespace.to_string()),
@@ -422,7 +427,6 @@ impl<'a> From<McpToolDo<'a>> for McpSimpleTool {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct McpTool {
-    pub id: u64,
     pub tool_name: Arc<String>,
     pub tool_key: ToolKey,
     pub tool_version: u64,
@@ -433,7 +437,6 @@ pub struct McpTool {
 impl McpTool {
     pub fn to_do(&self) -> McpToolDo {
         McpToolDo {
-            id: self.id,
             tool_name: Cow::Borrowed(&self.tool_name),
             namespace: Cow::Borrowed(&self.tool_key.namespace),
             group: Cow::Borrowed(&self.tool_key.group),

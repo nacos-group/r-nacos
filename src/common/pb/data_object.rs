@@ -117,7 +117,6 @@ impl<'a> MessageWrite for McpToolSpecDo<'a> {
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Debug, Default, PartialEq, Clone)]
 pub struct McpToolDo<'a> {
-    pub id: u64,
     pub tool_name: Cow<'a, str>,
     pub namespace: Cow<'a, str>,
     pub group: Cow<'a, str>,
@@ -130,7 +129,6 @@ impl<'a> MessageRead<'a> for McpToolDo<'a> {
         let mut msg = Self::default();
         while !r.is_eof() {
             match r.next_tag(bytes) {
-                Ok(8) => msg.id = r.read_uint64(bytes)?,
                 Ok(18) => msg.tool_name = r.read_string(bytes).map(Cow::Borrowed)?,
                 Ok(26) => msg.namespace = r.read_string(bytes).map(Cow::Borrowed)?,
                 Ok(34) => msg.group = r.read_string(bytes).map(Cow::Borrowed)?,
@@ -147,7 +145,6 @@ impl<'a> MessageRead<'a> for McpToolDo<'a> {
 impl<'a> MessageWrite for McpToolDo<'a> {
     fn get_size(&self) -> usize {
         0
-        + if self.id == 0u64 { 0 } else { 1 + sizeof_varint(*(&self.id) as u64) }
         + if self.tool_name == "" { 0 } else { 1 + sizeof_len((&self.tool_name).len()) }
         + if self.namespace == "" { 0 } else { 1 + sizeof_len((&self.namespace).len()) }
         + if self.group == "" { 0 } else { 1 + sizeof_len((&self.group).len()) }
@@ -156,7 +153,6 @@ impl<'a> MessageWrite for McpToolDo<'a> {
     }
 
     fn write_message<W: WriterBackend>(&self, w: &mut Writer<W>) -> Result<()> {
-        if self.id != 0u64 { w.write_with_tag(8, |w| w.write_uint64(*&self.id))?; }
         if self.tool_name != "" { w.write_with_tag(18, |w| w.write_string(&**&self.tool_name))?; }
         if self.namespace != "" { w.write_with_tag(26, |w| w.write_string(&**&self.namespace))?; }
         if self.group != "" { w.write_with_tag(34, |w| w.write_string(&**&self.group))?; }

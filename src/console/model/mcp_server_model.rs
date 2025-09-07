@@ -154,7 +154,6 @@ impl McpSimpleToolParams {
         };
 
         McpSimpleTool {
-            id: self.id.unwrap_or(0),
             tool_name: self.tool_name.clone(),
             tool_key: crate::mcp::model::tools::ToolKey::new(
                 namespace,
