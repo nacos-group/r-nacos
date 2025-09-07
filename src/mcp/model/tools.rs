@@ -126,32 +126,14 @@ impl JsonSchema {
     }
 }
 
-/// 工具函数定义
-/// 对外提供时使用它包装
-#[derive(Clone, Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ToolFunctionWrap<'a> {
-    pub name: &'a Arc<String>,
-    pub description: &'a Arc<String>,
-    pub input_schema: &'a Box<JsonSchema>,
-}
-impl<'a> From<&'a ToolFunctionValue> for ToolFunctionWrap<'a> {
-    fn from(value: &'a ToolFunctionValue) -> Self {
-        Self {
-            name: &value.name,
-            description: &value.description,
-            input_schema: &value.parameters,
-        }
-    }
-}
-
 /// 工具参数定义
 /// 对应function 内容
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ToolFunctionValue {
     pub name: Arc<String>,
     pub description: Arc<String>,
-    pub parameters: Box<JsonSchema>,
+    pub input_schema: Box<JsonSchema>,
 }
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]

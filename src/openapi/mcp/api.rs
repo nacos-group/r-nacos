@@ -3,7 +3,7 @@ use crate::common::appdata::AppShareData;
 use crate::common::get_app_version;
 use crate::mcp::model::actor_model::{McpManagerReq, McpManagerResult};
 use crate::mcp::model::mcp::McpServer;
-use crate::mcp::model::tools::{McpTool, ToolFunctionWrap};
+use crate::mcp::model::tools::{McpTool, ToolFunctionValue};
 use crate::naming::core::{NamingCmd, NamingResult};
 use crate::naming::model::ServiceKey;
 use actix_web::{web, HttpRequest, HttpResponse, Result};
@@ -331,11 +331,11 @@ async fn select_tool_and_url<'a>(
 // 处理 tools/list 方法
 fn handle_tools_list(id: Option<Value>, mcp_server: &Arc<McpServer>) -> JsonRpcResponse {
     // 返回可用工具列表
-    let tools: Vec<ToolFunctionWrap> = mcp_server
+    let tools: Vec<&Arc<ToolFunctionValue>> = mcp_server
         .release_value
         .tools
         .iter()
-        .map(|t| ToolFunctionWrap::from(t.spec.as_ref()))
+        .map(|t| &t.spec)
         .collect();
 
     JsonRpcResponse {
