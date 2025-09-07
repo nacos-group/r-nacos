@@ -14,6 +14,8 @@ use crate::raft::filestore::model::SnapshotRecordDto;
 use crate::raft::filestore::raftapply::{RaftApplyDataRequest, RaftApplyDataResponse};
 use crate::raft::filestore::raftsnapshot::{SnapshotWriterActor, SnapshotWriterRequest};
 use crate::sequence::SequenceManager;
+use crate::transfer::model::{TransferRecordDto, TransferWriterRequest};
+use crate::transfer::writer::TransferWriterActor;
 use actix::prelude::*;
 use bean_factory::{bean, BeanFactory, FactoryData, Inject};
 use quick_protobuf::{BytesReader, Writer};
@@ -25,7 +27,8 @@ pub struct McpManager {
     pub(crate) server_map: BTreeMap<u64, Arc<McpServer>>,
     pub(crate) tool_spec_map: BTreeMap<ToolKey, Arc<ToolSpec>>,
     pub(crate) tool_spec_version_ref_map: HashMap<ToolKey, HashMap<u64, i64>>,
-    sequence_manager: Option<Addr<SequenceManager>>,
+    pub(crate) server_key_to_id_map: HashMap<Arc<String>, u64>,
+    pub(crate) sequence_manager: Option<Addr<SequenceManager>>,
 }
 
 impl McpManager {
@@ -34,6 +37,7 @@ impl McpManager {
             server_map: BTreeMap::new(),
             tool_spec_map: BTreeMap::new(),
             tool_spec_version_ref_map: HashMap::new(),
+            server_key_to_id_map: HashMap::new(),
             sequence_manager: None,
         }
     }
@@ -79,8 +83,12 @@ impl McpManager {
             let mut new_server = server.as_ref().clone();
             let ref_map = new_server.update_param(server_param, &self.tool_spec_map);
             new_server.check_valid()?;
-
             let value = Arc::new(new_server);
+            if server.unique_key != value.unique_key {
+                self.server_key_to_id_map.remove(&server.unique_key);
+            }
+            self.server_key_to_id_map
+                .insert(value.unique_key.clone(), id);
             self.server_map.insert(id, value.clone());
             ToolSpecUtils::merge_ref_map(&mut self.tool_spec_version_ref_map, &ref_map);
             self.update_tool_spec_ref_by_diff_map(&ref_map);
@@ -90,6 +98,8 @@ impl McpManager {
             let ref_map = server.update_param(server_param, &self.tool_spec_map);
             server.check_valid()?;
             let value = Arc::new(server);
+            self.server_key_to_id_map
+                .insert(value.unique_key.clone(), id);
             self.server_map.insert(id, value.clone());
             ToolSpecUtils::merge_ref_map(&mut self.tool_spec_version_ref_map, &ref_map);
             self.update_tool_spec_ref_by_diff_map(&ref_map);
@@ -119,7 +129,9 @@ impl McpManager {
     }
 
     fn remove_server(&mut self, id: u64) {
-        self.server_map.remove(&id);
+        if let Some(v) = self.server_map.remove(&id) {
+            self.server_key_to_id_map.remove(&v.unique_key);
+        }
     }
 
     fn do_update_server(&mut self, server: Arc<McpServer>) {
@@ -350,6 +362,49 @@ impl McpManager {
             let value_do: McpToolSpecDo = reader.read_message(&record.value)?;
             let value: ToolSpec = value_do.into();
             self.do_update_tool_spec(Arc::new(value));
+        }
+        Ok(())
+    }
+
+    ///
+    /// 迁移数据备件
+    pub(crate) fn transfer_backup(&self, writer: Addr<TransferWriterActor>) -> anyhow::Result<()> {
+        // 1. tool信息
+        for (tool_key, tool_spec) in &self.tool_spec_map {
+            let mut buf = Vec::new();
+            {
+                let mut writer = Writer::new(&mut buf);
+                let value_do = tool_spec.to_do();
+                writer.write_message(&value_do)?;
+            }
+            // 使用 tool_key 生成唯一键
+            let key_str = format!(
+                "{}:{}:{}",
+                tool_key.namespace, tool_key.group, tool_key.tool_name
+            );
+            let record = TransferRecordDto {
+                table_name: Some(MCP_TOOL_SPEC_TABLE_NAME.clone()),
+                key: key_str.into_bytes(),
+                value: buf,
+                table_id: 0,
+            };
+            writer.do_send(TransferWriterRequest::AddRecord(record));
+        }
+        // 2. server信息
+        for (key, server) in &self.server_map {
+            let mut buf = Vec::new();
+            {
+                let mut writer = Writer::new(&mut buf);
+                let value_do = server.as_ref().to_do();
+                writer.write_message(&value_do)?;
+            }
+            let record = TransferRecordDto {
+                table_name: Some(MCP_SERVER_TABLE_NAME.clone()),
+                key: id_to_bin(*key),
+                value: buf,
+                table_id: 0,
+            };
+            writer.do_send(TransferWriterRequest::AddRecord(record));
         }
         Ok(())
     }

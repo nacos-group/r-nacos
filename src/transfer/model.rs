@@ -214,6 +214,7 @@ pub struct TransferBackupParam {
     pub config: bool,
     pub user: bool,
     pub cache: bool,
+    pub mcp: bool,
 }
 
 impl TransferBackupParam {
@@ -222,6 +223,7 @@ impl TransferBackupParam {
             config: true,
             user: true,
             cache: true,
+            mcp: true,
         }
     }
 }

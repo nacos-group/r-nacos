@@ -90,6 +90,7 @@ impl McpServerValue {
 #[serde(rename_all = "camelCase")]
 pub struct McpServer {
     pub id: u64,
+    pub unique_key: Arc<String>,
     pub namespace: Arc<String>,
     pub name: Arc<String>,
     pub description: Arc<String>,
@@ -174,6 +175,7 @@ impl McpServer {
     pub fn to_do(&self) -> McpServerDo {
         McpServerDo {
             id: self.id,
+            unique_key: Cow::Borrowed(self.unique_key.as_str()),
             namespace: Cow::Borrowed(self.namespace.as_str()),
             name: Cow::Borrowed(self.name.as_str()),
             description: Cow::Borrowed(self.description.as_str()),
@@ -217,6 +219,7 @@ impl McpServer {
 
         Self {
             id: record_do.id,
+            unique_key: Arc::new(record_do.unique_key.to_string()),
             namespace: Arc::new(record_do.namespace.to_string()),
             name: Arc::new(record_do.name.to_string()),
             description: Arc::new(record_do.description.to_string()),

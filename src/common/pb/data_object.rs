@@ -227,6 +227,7 @@ pub struct McpServerDo<'a> {
     pub current_value: Option<data_object::McpServerValueDo<'a>>,
     pub release_value: Option<data_object::McpServerValueDo<'a>>,
     pub histories: Vec<data_object::McpServerValueDo<'a>>,
+    pub unique_key: Cow<'a, str>,
 }
 
 impl<'a> MessageRead<'a> for McpServerDo<'a> {
@@ -244,6 +245,7 @@ impl<'a> MessageRead<'a> for McpServerDo<'a> {
                 Ok(66) => msg.current_value = Some(r.read_message::<data_object::McpServerValueDo>(bytes)?),
                 Ok(74) => msg.release_value = Some(r.read_message::<data_object::McpServerValueDo>(bytes)?),
                 Ok(82) => msg.histories.push(r.read_message::<data_object::McpServerValueDo>(bytes)?),
+                Ok(90) => msg.unique_key = r.read_string(bytes).map(Cow::Borrowed)?,
                 Ok(t) => { r.read_unknown(bytes, t)?; }
                 Err(e) => return Err(e),
             }
@@ -265,6 +267,7 @@ impl<'a> MessageWrite for McpServerDo<'a> {
         + self.current_value.as_ref().map_or(0, |m| 1 + sizeof_len((m).get_size()))
         + self.release_value.as_ref().map_or(0, |m| 1 + sizeof_len((m).get_size()))
         + self.histories.iter().map(|s| 1 + sizeof_len((s).get_size())).sum::<usize>()
+        + if self.unique_key == "" { 0 } else { 1 + sizeof_len((&self.unique_key).len()) }
     }
 
     fn write_message<W: WriterBackend>(&self, w: &mut Writer<W>) -> Result<()> {
@@ -278,6 +281,7 @@ impl<'a> MessageWrite for McpServerDo<'a> {
         if let Some(ref s) = self.current_value { w.write_with_tag(66, |w| w.write_message(s))?; }
         if let Some(ref s) = self.release_value { w.write_with_tag(74, |w| w.write_message(s))?; }
         for s in &self.histories { w.write_with_tag(82, |w| w.write_message(s))?; }
+        if self.unique_key != "" { w.write_with_tag(90, |w| w.write_string(&**&self.unique_key))?; }
         Ok(())
     }
 }

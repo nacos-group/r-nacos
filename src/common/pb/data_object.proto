@@ -53,4 +53,5 @@ message McpServerDo {
   McpServerValueDo current_value = 8;
   McpServerValueDo release_value = 9;
   repeated McpServerValueDo histories = 10;
+  string unique_key = 11;
 }
