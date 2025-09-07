@@ -6,6 +6,7 @@ use crate::transfer::model::TransferWriterRequest;
 use crate::transfer::writer::TransferWriterActor;
 use actix::Addr;
 
+pub mod context;
 pub mod data_to_sqlite;
 pub mod model;
 pub mod mysql;

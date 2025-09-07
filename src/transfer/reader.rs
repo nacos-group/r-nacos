@@ -1,11 +1,15 @@
 use crate::common::constant::{
-    CACHE_TREE_NAME, CONFIG_TREE_NAME, EMPTY_ARC_STRING, NAMESPACE_TREE_NAME, USER_TREE_NAME,
+    CACHE_TREE_NAME, CONFIG_TREE_NAME, EMPTY_ARC_STRING, MCP_SERVER_TABLE_NAME,
+    MCP_TOOL_SPEC_TABLE_NAME, NAMESPACE_TREE_NAME, USER_TREE_NAME,
 };
+use crate::common::pb::data_object::{McpServerDo, McpToolSpecDo};
 use crate::common::pb::transfer::{TransferHeader, TransferItem};
 use crate::common::protobuf_utils::{FileMessageReader, MessageBufReader};
 use crate::common::sequence_utils::CacheSequence;
 use crate::config::core::{ConfigActor, ConfigCmd, ConfigResult, ConfigValue};
 use crate::config::model::ConfigValueDO;
+use crate::mcp::model::actor_model::McpManagerRaftReq;
+use crate::mcp::model::tools::ToolSpec;
 use crate::namespace::model::{
     Namespace, NamespaceDO, NamespaceFromFlags, NamespaceParam, NamespaceRaftReq,
 };
@@ -13,6 +17,8 @@ use crate::raft::db::table::TableManagerReq;
 use crate::raft::filestore::raftdata::RaftDataHandler;
 use crate::raft::store::ClientRequest;
 use crate::raft::NacosRaft;
+use crate::sequence::SequenceManager;
+use crate::transfer::context::mcp::McpImportContext;
 use crate::transfer::model::{
     TransferHeaderDto, TransferImportParam, TransferImportRequest, TransferImportResponse,
     TransferPrefix, TransferRecordRef,
@@ -41,6 +47,10 @@ pub(crate) fn reader_transfer_record<'a>(
             CACHE_TREE_NAME.clone()
         } else if NAMESPACE_TREE_NAME.as_str() == record_do.table_name.as_ref() {
             NAMESPACE_TREE_NAME.clone()
+        } else if MCP_TOOL_SPEC_TABLE_NAME.as_str() == record_do.table_name.as_ref() {
+            MCP_TOOL_SPEC_TABLE_NAME.clone()
+        } else if MCP_SERVER_TABLE_NAME.as_str() == record_do.table_name.as_ref() {
+            MCP_SERVER_TABLE_NAME.clone()
         } else {
             //ignore
             EMPTY_ARC_STRING.clone()
@@ -77,6 +87,7 @@ impl TransferReader {
         } else {
             return Err(anyhow::anyhow!("read header error from transfer file"));
         };
+        //log::info!("transfer header: {:?}", header);
         Ok(Self {
             message_reader,
             //prefix,
@@ -159,6 +170,7 @@ pub struct TransferImportManager {
     data_wrap: Option<Arc<RaftDataHandler>>,
     raft: Option<Arc<NacosRaft>>,
     importing: bool,
+    pub(crate) sequence_manager: Option<Addr<SequenceManager>>,
 }
 
 impl Default for TransferImportManager {
@@ -173,6 +185,7 @@ impl TransferImportManager {
             data_wrap: None,
             importing: false,
             raft: None,
+            sequence_manager: None,
         }
     }
 
@@ -181,16 +194,27 @@ impl TransferImportManager {
         param: TransferImportParam,
         raft: Option<Arc<NacosRaft>>,
         data_wrap: Option<Arc<RaftDataHandler>>,
+        sequence_manager: Option<Addr<SequenceManager>>,
     ) -> anyhow::Result<()> {
-        if let (Some(raft), Some(data_wrap)) = (&raft, data_wrap) {
+        if let (Some(raft), Some(data_wrap), Some(sequence_manager)) =
+            (&raft, data_wrap, sequence_manager)
+        {
             let mut count = 0;
             let mut ignore = 0;
             let mut reader = TransferReader::new(data)?;
             let mut config_seq = ConfigCacheSequence::new(data_wrap.config.clone());
+            let mut mcp_context = McpImportContext::new(sequence_manager);
             while let Ok(Some(record)) = reader.read_record() {
                 count += 1;
                 if param.config && record.table_name.as_str() == CONFIG_TREE_NAME.as_str() {
                     Self::apply_config(raft, &mut config_seq, record).await?;
+                } else if param.mcp
+                    && record.table_name.as_str() == MCP_TOOL_SPEC_TABLE_NAME.as_str()
+                {
+                    Self::apply_mcp_tool(raft, record, &mut mcp_context).await?;
+                } else if param.mcp && record.table_name.as_str() == MCP_SERVER_TABLE_NAME.as_str()
+                {
+                    Self::apply_mcp_server(raft, record, &mut mcp_context).await?;
                 } else if param.config && record.table_name.as_str() == NAMESPACE_TREE_NAME.as_str()
                 {
                     Self::apply_namespace(raft, record).await?;
@@ -201,6 +225,9 @@ impl TransferImportManager {
                 } else {
                     ignore += 1;
                 }
+            }
+            if param.mcp {
+                Self::apply_mcp_finished(raft).await?;
             }
             log::info!("transfer import finished,count:{},ignore:{}", count, ignore);
         }
@@ -263,6 +290,45 @@ impl TransferImportManager {
         Ok(())
     }
 
+    async fn apply_mcp_tool(
+        raft: &Arc<NacosRaft>,
+        record: TransferRecordRef<'_>,
+        mcp_context: &mut McpImportContext,
+    ) -> anyhow::Result<()> {
+        let mut reader = BytesReader::from_bytes(&record.value);
+        let value_do: McpToolSpecDo = reader.read_message(&record.value)?;
+        let value: ToolSpec = value_do.into();
+        let tool = mcp_context.reset_tool_spec(value).await?;
+        let req = ClientRequest::McpReq {
+            req: McpManagerRaftReq::SetToolSpec(tool),
+        };
+        Self::send_raft_request(raft, req).await?;
+        Ok(())
+    }
+
+    async fn apply_mcp_server(
+        raft: &Arc<NacosRaft>,
+        record: TransferRecordRef<'_>,
+        mcp_context: &mut McpImportContext,
+    ) -> anyhow::Result<()> {
+        let mut reader = BytesReader::from_bytes(&record.value);
+        let value_do: McpServerDo = reader.read_message(&record.value)?;
+        let server = mcp_context.build_mcp_server(value_do).await?;
+        let req = ClientRequest::McpReq {
+            req: McpManagerRaftReq::SetServer(server),
+        };
+        Self::send_raft_request(raft, req).await?;
+        Ok(())
+    }
+
+    async fn apply_mcp_finished(raft: &Arc<NacosRaft>) -> anyhow::Result<()> {
+        let req = ClientRequest::McpReq {
+            req: McpManagerRaftReq::ImportFinished,
+        };
+        Self::send_raft_request(raft, req).await?;
+        Ok(())
+    }
+
     async fn send_raft_request(raft: &Arc<NacosRaft>, req: ClientRequest) -> anyhow::Result<()> {
         raft.client_write(ClientWriteRequest::new(req)).await?;
         Ok(())
@@ -277,7 +343,8 @@ impl TransferImportManager {
         self.importing = true;
         let data_wrap = self.data_wrap.clone();
         let raft = self.raft.clone();
-        async move { Self::read_then_import(data, param, raft, data_wrap).await }
+        let sequence_manager = self.sequence_manager.clone();
+        async move { Self::read_then_import(data, param, raft, data_wrap, sequence_manager).await }
             .into_actor(self)
             .map(|v: anyhow::Result<()>, act, _ctx| {
                 match v {
@@ -309,6 +376,7 @@ impl Inject for TransferImportManager {
     ) {
         self.data_wrap = factory_data.get_bean();
         self.raft = factory_data.get_bean();
+        self.sequence_manager = factory_data.get_actor();
     }
 }
 

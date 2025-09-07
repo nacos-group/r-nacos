@@ -37,8 +37,11 @@ pub enum McpManagerRaftReq {
     PublishCurrentServer(u64, u64),
     PublishHistoryServer(u64, u64),
     RemoveServer(u64),
+    SetServer(McpServer),
     UpdateToolSpec(ToolSpecParam),
     RemoveToolSpec(ToolKey),
+    SetToolSpec(Arc<ToolSpec>),
+    ImportFinished,
 }
 
 /// MCP Raft 结果

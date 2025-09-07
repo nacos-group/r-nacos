@@ -45,7 +45,9 @@ impl McpManager {
     /// 根据服务引用，初始化计算引用计数
     fn init_tool_spec_version_ref_map(&mut self) {
         let mut server_value_id_set = HashSet::new();
+        let mut server_key_to_id_map: HashMap<Arc<String>, u64> = HashMap::new();
         for mcp_server in self.server_map.values() {
+            server_key_to_id_map.insert(mcp_server.unique_key.clone(), mcp_server.id);
             for server_value in &mcp_server.histories {
                 server_value_id_set.insert(server_value.id);
                 ToolSpecUtils::update_server_ref_to_map(
@@ -70,6 +72,7 @@ impl McpManager {
                 );
             }
         }
+        self.server_key_to_id_map = server_key_to_id_map;
     }
 
     fn update_server(&mut self, server_param: McpServerParam) -> anyhow::Result<Arc<McpServer>> {
@@ -204,6 +207,16 @@ impl McpManager {
 
     fn remove_tool_spec(&mut self, tool_key: ToolKey) {
         self.tool_spec_map.remove(&tool_key);
+    }
+
+    fn set_tool_spec(&mut self, tool_spec: Arc<ToolSpec>) {
+        self.tool_spec_map.insert(tool_spec.key.clone(), tool_spec);
+    }
+
+    fn set_server(&mut self, server: McpServer) {
+        self.server_key_to_id_map
+            .insert(server.unique_key.clone(), server.id);
+        self.server_map.insert(server.id, Arc::new(server));
     }
 
     fn query_servers(&self, query_param: &McpQueryParam) -> (usize, Vec<McpServerDto>) {
@@ -474,7 +487,7 @@ impl Handler<McpManagerReq> for McpManager {
 impl Handler<McpManagerRaftReq> for McpManager {
     type Result = anyhow::Result<McpManagerRaftResult>;
 
-    fn handle(&mut self, msg: McpManagerRaftReq, _ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, msg: McpManagerRaftReq, ctx: &mut Self::Context) -> Self::Result {
         match msg {
             McpManagerRaftReq::AddServer(server_param) => {
                 let value = self.update_server(server_param)?;
@@ -502,6 +515,18 @@ impl Handler<McpManagerRaftReq> for McpManager {
             }
             McpManagerRaftReq::RemoveToolSpec(tool_key) => {
                 self.remove_tool_spec(tool_key);
+                Ok(McpManagerRaftResult::None)
+            }
+            McpManagerRaftReq::SetToolSpec(tool_spec) => {
+                self.set_tool_spec(tool_spec);
+                Ok(McpManagerRaftResult::None)
+            }
+            McpManagerRaftReq::SetServer(server) => {
+                self.set_server(server);
+                Ok(McpManagerRaftResult::None)
+            }
+            McpManagerRaftReq::ImportFinished => {
+                self.load_completed(ctx)?;
                 Ok(McpManagerRaftResult::None)
             }
         }

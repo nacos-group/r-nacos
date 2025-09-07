@@ -1,7 +1,7 @@
 #![allow(clippy::suspicious_open_options)]
 use crate::common::constant::{
-    CACHE_TREE_NAME, CONFIG_TREE_NAME, EMPTY_STR, NAMESPACE_TREE_NAME, SEQUENCE_TREE_NAME,
-    USER_TREE_NAME,
+    CACHE_TREE_NAME, CONFIG_TREE_NAME, EMPTY_STR, MCP_SERVER_TABLE_NAME, MCP_TOOL_SPEC_TABLE_NAME,
+    NAMESPACE_TREE_NAME, SEQUENCE_TREE_NAME, USER_TREE_NAME,
 };
 use crate::common::tempfile::TempFile;
 use crate::raft::filestore::raftdata::RaftDataHandler;
@@ -212,6 +212,12 @@ impl TransferWriterManager {
         writer_actor.do_send(TransferWriterRequest::AddTableNameMap(
             CACHE_TREE_NAME.clone(),
         ));
+        writer_actor.do_send(TransferWriterRequest::AddTableNameMap(
+            MCP_TOOL_SPEC_TABLE_NAME.clone(),
+        ));
+        writer_actor.do_send(TransferWriterRequest::AddTableNameMap(
+            MCP_SERVER_TABLE_NAME.clone(),
+        ));
         writer_actor.do_send(TransferWriterRequest::InitHeader);
         writer_actor
     }
@@ -224,6 +230,13 @@ impl TransferWriterManager {
         if let Some(data_wrap) = data_wrap {
             data_wrap
                 .config
+                .send(TransferDataRequest::Backup(
+                    writer_actor.clone(),
+                    backup_param.clone(),
+                ))
+                .await??;
+            data_wrap
+                .mcp_manager
                 .send(TransferDataRequest::Backup(
                     writer_actor.clone(),
                     backup_param.clone(),

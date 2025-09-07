@@ -243,6 +243,7 @@ pub struct TransferImportParam {
     pub config: bool,
     pub user: bool,
     pub cache: bool,
+    pub mcp: bool,
 }
 
 impl TransferImportParam {
@@ -251,6 +252,7 @@ impl TransferImportParam {
             config: true,
             user: true,
             cache: true,
+            mcp: true,
         }
     }
 }
