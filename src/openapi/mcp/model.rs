@@ -32,6 +32,6 @@ pub struct JsonRpcError {
 
 #[derive(Deserialize)]
 pub struct McpPath {
-    pub id: u64,
-    pub key: Arc<String>,
+    pub server_key: Arc<String>,
+    pub auth_key: Arc<String>,
 }

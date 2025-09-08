@@ -115,6 +115,9 @@ impl McpServer {
         param: McpServerParam,
         tool_spec_map: &BTreeMap<ToolKey, Arc<ToolSpec>>,
     ) -> HashMap<ToolKey, HashMap<u64, i64>> {
+        if let Some(unique_key) = param.unique_key.as_ref() {
+            self.unique_key = unique_key.clone();
+        }
         if let Some(description) = param.description.as_ref() {
             self.description = description.clone();
         }
@@ -242,6 +245,7 @@ impl McpServer {
 #[serde(rename_all = "camelCase")]
 pub struct McpServerParam {
     pub id: u64,
+    pub unique_key: Option<Arc<String>>,
     pub value_id: u64,
     pub tools: Vec<McpSimpleTool>,
     pub op_user: Arc<String>,
@@ -251,6 +255,14 @@ pub struct McpServerParam {
     pub description: Option<Arc<String>>,
     pub token: Option<Arc<String>>,
     pub auth_keys: Option<Vec<Arc<String>>>,
+    /// 发布后的版本id,只在创建并发布时有值
+    pub publish_value_id: Option<u64>,
+}
+
+impl McpServerParam {
+    pub fn build_unique_key(&self) -> Arc<String> {
+        Arc::new(format!("{}_{}", self.update_time, &self.id))
+    }
 }
 
 /// MCP 服务器 DTO
@@ -258,6 +270,7 @@ pub struct McpServerParam {
 #[serde(rename_all = "camelCase")]
 pub struct McpServerDto {
     pub id: u64,
+    pub unique_key: Arc<String>,
     pub namespace: Arc<String>,
     pub name: Arc<String>,
     pub description: Arc<String>,
@@ -273,6 +286,7 @@ impl McpServerDto {
     pub fn new_simple_from(server: &McpServer) -> Self {
         Self {
             id: server.id,
+            unique_key: server.unique_key.clone(),
             namespace: server.namespace.clone(),
             name: server.name.clone(),
             description: server.description.clone(),
@@ -292,6 +306,7 @@ impl McpServerDto {
         };
         Self {
             id: server.id,
+            unique_key: server.unique_key.clone(),
             namespace: server.namespace.clone(),
             name: server.name.clone(),
             description: server.description.clone(),

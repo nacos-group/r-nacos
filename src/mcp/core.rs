@@ -463,6 +463,18 @@ impl Handler<McpManagerReq> for McpManager {
                 };
                 Ok(McpManagerResult::ServerInfo(server_info))
             }
+            McpManagerReq::GetServerByKey(key) => {
+                let server_info = if let Some(Some(server)) = self
+                    .server_key_to_id_map
+                    .get(&key)
+                    .map(|id| self.server_map.get(id))
+                {
+                    Some(server.clone())
+                } else {
+                    None
+                };
+                Ok(McpManagerResult::ServerInfo(server_info))
+            }
             McpManagerReq::QueryServer(query_param) => {
                 let (size, list) = self.query_servers(&query_param);
                 Ok(McpManagerResult::ServerPageInfo(size, list))
@@ -490,7 +502,11 @@ impl Handler<McpManagerRaftReq> for McpManager {
     fn handle(&mut self, msg: McpManagerRaftReq, ctx: &mut Self::Context) -> Self::Result {
         match msg {
             McpManagerRaftReq::AddServer(server_param) => {
+                let new_value_id = server_param.publish_value_id.clone();
                 let value = self.update_server(server_param)?;
+                if let Some(new_value_id) = new_value_id {
+                    self.publish_server(value.id, new_value_id);
+                }
                 Ok(McpManagerRaftResult::ServerInfo(value))
             }
             McpManagerRaftReq::UpdateServer(server_param) => {

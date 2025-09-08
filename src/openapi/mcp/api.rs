@@ -56,7 +56,7 @@ pub async fn mcp_handler(
     //todo 校验path信息是否合法
     let mcp_server = if let Ok(Ok(McpManagerResult::ServerInfo(Some(server)))) = app_share_data
         .mcp_manager
-        .send(McpManagerReq::GetServer(path.id))
+        .send(McpManagerReq::GetServerByKey(path.server_key.clone()))
         .await
     {
         server
@@ -65,7 +65,7 @@ pub async fn mcp_handler(
             .content_type("application/json")
             .body(r#"{"error": "McpServer not found"}"#));
     };
-    if !mcp_server.auth_keys.contains(&path.key) {
+    if !mcp_server.auth_keys.contains(&path.auth_key) {
         return Ok(HttpResponse::BadRequest()
             .content_type("application/json")
             .body(r#"{"error": "Invalid auth key"}"#));
@@ -207,7 +207,7 @@ fn handle_initialize(params: Option<Value>, id: Option<Value>) -> JsonRpcRespons
         .as_ref()
         .and_then(|p| p.get("protocolVersion"))
         .and_then(|v| v.as_str())
-        .unwrap_or("2024-11-05"); // 使用默认值作为后备
+        .unwrap_or("2025-03-26"); // 使用默认值作为后备,sse使用: 2024-11-05
 
     // 返回服务器能力信息
     let result = json!({

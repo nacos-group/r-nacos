@@ -11,6 +11,7 @@ use std::sync::Arc;
 #[rtype(result = "anyhow::Result<McpManagerResult>")]
 pub enum McpManagerReq {
     GetServer(u64),
+    GetServerByKey(Arc<String>),
     QueryServer(McpQueryParam),
     QueryServerHistory(u64, usize, usize, Option<i64>, Option<i64>),
     GetToolSpec(ToolKey),

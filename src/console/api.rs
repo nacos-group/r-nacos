@@ -334,23 +334,23 @@ pub fn console_api_config_v2(config: &mut web::ServiceConfig) {
                     .route(web::post().to(v2::metrics_api::query_metrics_timeline_json)),
             )
             .service(
-                web::resource("/toolspec/list")
+                web::resource("/mcp/toolspec/list")
                     .route(web::get().to(v2::mcp_tool_spec_api::query_tool_spec_list)),
             )
             .service(
-                web::resource("/toolspec/info")
+                web::resource("/mcp/toolspec/info")
                     .route(web::get().to(v2::mcp_tool_spec_api::get_tool_spec)),
             )
             .service(
-                web::resource("/toolspec/add")
+                web::resource("/mcp/toolspec/add")
                     .route(web::post().to(v2::mcp_tool_spec_api::add_or_update_tool_spec)),
             )
             .service(
-                web::resource("/toolspec/update")
+                web::resource("/mcp/toolspec/update")
                     .route(web::post().to(v2::mcp_tool_spec_api::add_or_update_tool_spec)),
             )
             .service(
-                web::resource("/toolspec/remove")
+                web::resource("/mcp/toolspec/remove")
                     .route(web::post().to(v2::mcp_tool_spec_api::remove_tool_spec)),
             )
             // McpServer控制台接口路由

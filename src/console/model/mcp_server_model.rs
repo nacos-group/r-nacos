@@ -171,6 +171,7 @@ impl McpSimpleToolParams {
 #[serde(rename_all = "camelCase")]
 pub struct McpServerParams {
     pub id: Option<u64>,
+    pub unique_key: Option<String>,
     pub namespace: Option<String>,
     pub name: Option<String>,
     pub description: Option<String>,
@@ -263,8 +264,19 @@ impl McpServerParams {
             Some(Arc::new(namespace::default_namespace("".to_string())))
         };
 
+        let unique_key = if let Some(ref unique_key) = self.unique_key {
+            if unique_key.is_empty() {
+                None
+            } else {
+                Some(Arc::new(unique_key.clone()))
+            }
+        } else {
+            None
+        };
+
         McpServerParam {
             id: self.id.unwrap_or(0),
+            unique_key,
             value_id: 0, // 新版本ID由系统生成
             namespace,
             name: self.name.as_ref().map(|s| Arc::new(s.clone())),
@@ -278,8 +290,9 @@ impl McpServerParams {
                 .as_ref()
                 .map(|tools| tools.iter().map(|t| t.to_mcp_simple_tool()).collect())
                 .unwrap_or_default(),
-            op_user: op_user.unwrap_or_else(|| Arc::new("system".to_string())),
+            op_user: op_user.unwrap_or_else(|| Arc::new("".to_string())),
             update_time: chrono::Utc::now().timestamp_millis(),
+            publish_value_id: None,
             token: None, // 控制台接口不使用token
         }
     }

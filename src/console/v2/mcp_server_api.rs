@@ -1,6 +1,7 @@
 use crate::common::appdata::AppShareData;
 use crate::common::constant::{SEQ_MCP_SERVER_ID, SEQ_MCP_SERVER_VALUE_ID};
 use crate::common::model::{ApiResult, PageResult, UserSession};
+use crate::common::string_utils::StringUtils;
 use crate::console::model::mcp_server_model::{
     McpServerHistoryPublishParams, McpServerHistoryQueryRequest, McpServerParams,
     McpServerQueryRequest, McpServerValueDto,
@@ -114,13 +115,6 @@ pub async fn add_mcp_server(
         .get::<Arc<UserSession>>()
         .map(|session| session.username.clone());
 
-    log::debug!(
-        "Add McpServer: name={:?}, namespace={:?}, op_user={:?}",
-        param.name,
-        param.namespace,
-        op_user
-    );
-
     let server_id = if let Ok(Ok(SequenceResult::NextId(id))) = appdata
         .sequence_manager
         .send(SequenceRequest::GetNextId(SEQ_MCP_SERVER_ID.clone()))
@@ -145,10 +139,26 @@ pub async fn add_mcp_server(
             "Failed to get next id from SequenceManager",
         );
     };
+    let new_value_id = if let Ok(Ok(SequenceResult::NextId(id))) = appdata
+        .sequence_manager
+        .send(SequenceRequest::GetNextId(SEQ_MCP_SERVER_VALUE_ID.clone()))
+        .await
+    {
+        id
+    } else {
+        return handle_system_error(
+            "Unable to get next id from SequenceManager".to_string(),
+            "Failed to get next id from SequenceManager",
+        );
+    };
     // 转换为McpServerParam
     let mut server_param = param.to_mcp_server_param(op_user.clone());
     server_param.id = server_id;
     server_param.value_id = server_value_id;
+    server_param.publish_value_id = Some(new_value_id);
+    if StringUtils::is_option_empty_arc(&server_param.unique_key) {
+        server_param.unique_key = Some(server_param.build_unique_key());
+    }
 
     // 构建McpManagerRaftReq::AddServer请求
     let raft_req = McpManagerRaftReq::AddServer(server_param);
@@ -185,14 +195,6 @@ pub async fn update_mcp_server(
         .extensions()
         .get::<Arc<UserSession>>()
         .map(|session| session.username.clone());
-
-    log::debug!(
-        "Update McpServer: id={}, name={:?}, namespace={:?}, op_user={:?}",
-        server_id,
-        param.name,
-        param.namespace,
-        op_user
-    );
 
     // 首先检查McpServer是否存在
     let check_cmd = McpManagerReq::GetServer(server_id);
