@@ -205,8 +205,14 @@ impl McpManager {
         self.tool_spec_map.insert(tool_spec.key.clone(), tool_spec);
     }
 
-    fn remove_tool_spec(&mut self, tool_key: ToolKey) {
+    fn remove_tool_spec(&mut self, tool_key: ToolKey) -> anyhow::Result<()> {
+        if let Some(map)= self.tool_spec_version_ref_map.get(&tool_key) {
+            if !map.is_empty(){
+                return Err(anyhow::anyhow!("tool spec is used"));
+            }
+        }
         self.tool_spec_map.remove(&tool_key);
+        Ok(())
     }
 
     fn set_tool_spec(&mut self, tool_spec: Arc<ToolSpec>) {
@@ -530,7 +536,7 @@ impl Handler<McpManagerRaftReq> for McpManager {
                 Ok(McpManagerRaftResult::None)
             }
             McpManagerRaftReq::RemoveToolSpec(tool_key) => {
-                self.remove_tool_spec(tool_key);
+                self.remove_tool_spec(tool_key)?;
                 Ok(McpManagerRaftResult::None)
             }
             McpManagerRaftReq::SetToolSpec(tool_spec) => {
