@@ -337,12 +337,72 @@ lazy_static::lazy_static! {
         R::Path("/rnacos/api/console/transfer/import",HTTP_METHOD_ALL),
     ]);
 
+    static ref M_MCP_TOOL_SPEC_VISITOR: ModuleResource = ModuleResource::new(vec![
+        //WebResource
+        R::WebResource("/manage/mcptoolspec"),
+        R::WebResource("/manage/mcptoolspec/detail"),
+        R::WebResource("/rnacos/manage/mcptoolspec"),
+        R::WebResource("/rnacos/manage/mcptoolspec/detail"),
+        //path
+        R::Path("/rnacos/manage/mcptoolspec",HTTP_METHOD_GET),
+        R::Path("/rnacos/manage/mcptoolspec/detail",HTTP_METHOD_GET),
+        R::Path("/rnacos/api/console/v2/mcp/toolspec/list",HTTP_METHOD_GET),
+        R::Path("/rnacos/api/console/v2/mcp/toolspec/info",HTTP_METHOD_GET),
+    ]);
+
+    static ref M_MCP_TOOL_SPEC_MANAGE: ModuleResource = ModuleResource::new(vec![
+        //WebResource
+        R::WebResource("/manage/mcptoolspec"),
+        R::WebResource("/manage/mcptoolspec/detail"),
+        R::WebResource("/rnacos/manage/mcptoolspec"),
+        R::WebResource("/rnacos/manage/mcptoolspec/detail"),
+        R::WebResource("MCP_TOOL_SPEC_UPDATE"),
+        //path
+        R::Path("/rnacos/manage/mcptoolspec",HTTP_METHOD_GET),
+        R::Path("/rnacos/manage/mcptoolspec/detail",HTTP_METHOD_GET),
+        R::Path("/rnacos/api/console/v2/mcp/toolspec/list",HTTP_METHOD_GET),
+        R::Path("/rnacos/api/console/v2/mcp/toolspec/info",HTTP_METHOD_GET),
+        R::Path("/rnacos/api/console/v2/mcp/toolspec/add",HTTP_METHOD_POST),
+        R::Path("/rnacos/api/console/v2/mcp/toolspec/update",HTTP_METHOD_POST),
+        R::Path("/rnacos/api/console/v2/mcp/toolspec/remove",HTTP_METHOD_POST),
+    ]);
+
+    static ref M_MCP_SERVER_VISITOR: ModuleResource = ModuleResource::new(vec![
+        //WebResource
+        R::WebResource("/manage/mcpserver"),
+        R::WebResource("/rnacos/manage/mcpserver"),
+        //path
+        R::Path("/rnacos/manage/mcpserver",HTTP_METHOD_GET),
+        R::Path("/rnacos/api/console/v2/mcp/server/list",HTTP_METHOD_GET),
+        R::Path("/rnacos/api/console/v2/mcp/server/info",HTTP_METHOD_GET),
+        R::Path("/rnacos/api/console/v2/mcp/server/history",HTTP_METHOD_GET),
+    ]);
+
+    static ref M_MCP_SERVER_MANAGE: ModuleResource = ModuleResource::new(vec![
+        //WebResource
+        R::WebResource("/manage/mcpserver"),
+        R::WebResource("/rnacos/manage/mcpserver"),
+        R::WebResource("MCP_SERVER_UPDATE"),
+        //path
+        R::Path("/rnacos/manage/mcpserver",HTTP_METHOD_GET),
+        R::Path("/rnacos/api/console/v2/mcp/server/list",HTTP_METHOD_GET),
+        R::Path("/rnacos/api/console/v2/mcp/server/info",HTTP_METHOD_GET),
+        R::Path("/rnacos/api/console/v2/mcp/server/history",HTTP_METHOD_GET),
+        R::Path("/rnacos/api/console/v2/mcp/server/add",HTTP_METHOD_POST),
+        R::Path("/rnacos/api/console/v2/mcp/server/update",HTTP_METHOD_POST),
+        R::Path("/rnacos/api/console/v2/mcp/server/remove",HTTP_METHOD_POST),
+        R::Path("/rnacos/api/console/v2/mcp/server/publish",HTTP_METHOD_POST),
+        R::Path("/rnacos/api/console/v2/mcp/server/publish/history",HTTP_METHOD_POST),
+    ]);
+
     static ref R_VISITOR: Arc<GroupResource> = Arc::new(GroupResource::new(vec![
         &M_BASE,
         //&M_CLUSTER_VISITOR,
         //&M_NAMESPACE_VISITOR,
         &M_CONFIG_VISITOR,
         &M_NAMING_VISITOR,
+        &M_MCP_TOOL_SPEC_VISITOR,
+        &M_MCP_SERVER_VISITOR,
     ]));
 
     static ref R_DEVELOPER: Arc<GroupResource> = Arc::new(GroupResource::new(vec![
@@ -352,6 +412,8 @@ lazy_static::lazy_static! {
         &M_CONFIG_MANAGE,
         &M_NAMING_MANAGE,
         &M_METRICS_VISITOR,
+        &M_MCP_TOOL_SPEC_MANAGE,
+        &M_MCP_SERVER_MANAGE,
     ]));
 
     static ref R_MANAGER: Arc<GroupResource> = Arc::new(GroupResource::new(vec![
@@ -363,6 +425,8 @@ lazy_static::lazy_static! {
         &M_USER_MANAGE,
         &M_METRICS_VISITOR,
         &M_TRASFER_DATE_MANAGE,
+        &M_MCP_TOOL_SPEC_MANAGE,
+        &M_MCP_SERVER_MANAGE,
     ]));
 
 }
