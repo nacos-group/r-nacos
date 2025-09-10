@@ -2,8 +2,25 @@ use actix_web::web;
 
 pub mod api;
 pub mod model;
+pub mod sse;
 
 pub fn mcp_config(config: &mut web::ServiceConfig) {
+    config.service(
+        web::resource("/rnacos/mcp/sse/messages/{server_key}/{session_id}")
+            .route(web::post().to(sse::sse_message)),
+    );
+    config.service(
+        web::resource("/rnacos/mcp/sse/messages/{server_key}/{session_id}/")
+            .route(web::post().to(sse::sse_message)),
+    );
+    config.service(
+        web::resource("/rnacos/mcp/sse/{server_key}/{auth_key}")
+            .route(web::get().to(sse::sse_connect)),
+    );
+    config.service(
+        web::resource("/rnacos/mcp/sse/{server_key}/{auth_key}/")
+            .route(web::get().to(sse::sse_connect)),
+    );
     config.service(
         web::resource("/rnacos/mcp/{server_key}/{auth_key}")
             .route(web::post().to(api::mcp_handler)),

@@ -5,6 +5,7 @@ use crate::grpc::handler::RAFT_ROUTE_REQUEST;
 use crate::health::core::HealthManager;
 use crate::ldap::core::LdapManager;
 use crate::mcp::core::McpManager;
+use crate::mcp::sse_manage::SseStreamManager;
 use crate::metrics::core::MetricsManager;
 use crate::namespace::NamespaceActor;
 use crate::raft::cluster::route::RaftRequestRoute;
@@ -216,6 +217,8 @@ pub async fn config_factory(sys_config: Arc<AppSysConfig>) -> anyhow::Result<Fac
     let ldap_manager =
         LdapManager::new(sys_config.get_ldap_config(), sys_config.ldap_enable).start();
     factory.register(BeanDefinition::actor_with_inject_from_obj(ldap_manager));
+    let sse_manager = SseStreamManager::new().start();
+    factory.register(BeanDefinition::actor_with_inject_from_obj(sse_manager));
     Ok(factory.init().await)
 }
 
@@ -261,6 +264,7 @@ pub fn build_share_data(factory_data: FactoryData) -> anyhow::Result<Arc<AppShar
         sequence_manager: factory_data.get_actor().unwrap(),
         sequence_db_manager: factory_data.get_actor().unwrap(),
         mcp_manager: factory_data.get_actor().unwrap(),
+        sse_stream_manager: factory_data.get_actor().unwrap(),
         factory_data,
         common_client: reqwest_client,
     });

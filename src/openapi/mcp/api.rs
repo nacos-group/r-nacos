@@ -6,6 +6,7 @@ use crate::mcp::model::mcp::McpServer;
 use crate::mcp::model::tools::{McpTool, ToolFunctionValue};
 use crate::naming::core::{NamingCmd, NamingResult};
 use crate::naming::model::ServiceKey;
+use actix_web::web::{Data, Json};
 use actix_web::{web, HttpRequest, HttpResponse, Result};
 use serde_json::{json, Value};
 use std::sync::Arc;
@@ -53,7 +54,7 @@ pub async fn mcp_handler(
             .content_type("application/json")
             .body(r#"{"error": "Missing Accept header. Must contain 'application/json' or 'text/event-stream'"}"#));
     }
-    //todo 校验path信息是否合法
+    //校验path信息是否合法
     let mcp_server = if let Ok(Ok(McpManagerResult::ServerInfo(Some(server)))) = app_share_data
         .mcp_manager
         .send(McpManagerReq::GetServerByKey(path.server_key.clone()))
@@ -84,6 +85,22 @@ pub async fn mcp_handler(
         Uuid::new_v4().to_string().replace("-", "")
     };
 
+    let rpc_response = match handle_request(&app_share_data, body, &mcp_server, &session_id).await {
+        Ok(value) => value,
+        Err(value) => return value,
+    };
+    Ok(HttpResponse::Ok()
+        .content_type("application/json")
+        .insert_header(("mcp-session-id", session_id))
+        .json(rpc_response))
+}
+
+pub async fn handle_request(
+    app_share_data: &Data<Arc<AppShareData>>,
+    body: Json<Value>,
+    mcp_server: &Arc<McpServer>,
+    session_id: &String,
+) -> Result<JsonRpcResponse, Result<HttpResponse>> {
     // 解析 JSON-RPC 请求
     let request: JsonRpcRequest = match serde_json::from_value(body.into_inner()) {
         Ok(req) => req,
@@ -98,10 +115,10 @@ pub async fn mcp_handler(
                 }),
                 id: None,
             };
-            return Ok(HttpResponse::BadRequest()
+            return Err(Ok(HttpResponse::BadRequest()
                 .content_type("application/json")
-                .insert_header(("mcp-session-id", session_id))
-                .json(error_response));
+                .insert_header(("mcp-session-id", session_id.as_str()))
+                .json(error_response)));
         }
     };
 
@@ -117,22 +134,22 @@ pub async fn mcp_handler(
             }),
             id: request.id,
         };
-        return Ok(HttpResponse::BadRequest()
+        return Err(Ok(HttpResponse::BadRequest()
             .content_type("application/json")
-            .insert_header(("mcp-session-id", session_id))
-            .json(error_response));
+            .insert_header(("mcp-session-id", session_id.as_str()))
+            .json(error_response)));
     }
 
     // 根据不同的 method 处理请求
     let rpc_response = match request.method.as_str() {
         "notifications/initialized" => {
             // notifications/initialized 使用 JSON 格式（非流式）
-            return Ok(
-                HttpResponse::build(actix_web::http::StatusCode::from_u16(202).unwrap())
-                    .content_type("application/json")
-                    .insert_header(("mcp-session-id", session_id))
-                    .body(""),
-            );
+            return Err(Ok(HttpResponse::build(
+                actix_web::http::StatusCode::from_u16(202).unwrap(),
+            )
+            .content_type("application/json")
+            .insert_header(("mcp-session-id", session_id.as_str()))
+            .body("")));
         }
         "initialize" => {
             // initialize 使用 SSE 格式的流式返回
@@ -194,10 +211,7 @@ pub async fn mcp_handler(
             id: request.id,
         },
     };
-    Ok(HttpResponse::Ok()
-        .content_type("application/json")
-        .insert_header(("mcp-session-id", session_id))
-        .json(rpc_response))
+    Ok(rpc_response)
 }
 
 // 处理 initialize 方法
@@ -207,7 +221,7 @@ fn handle_initialize(params: Option<Value>, id: Option<Value>) -> JsonRpcRespons
         .as_ref()
         .and_then(|p| p.get("protocolVersion"))
         .and_then(|v| v.as_str())
-        .unwrap_or("2025-03-26"); // 使用默认值作为后备,sse使用: 2024-11-05
+        .unwrap_or("2024-11-05"); // 使用默认值作为后备,sse使用: 2024-11-05,mcp: 2025-03-26
 
     // 返回服务器能力信息
     let result = json!({

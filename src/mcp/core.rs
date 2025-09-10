@@ -206,8 +206,8 @@ impl McpManager {
     }
 
     fn remove_tool_spec(&mut self, tool_key: ToolKey) -> anyhow::Result<()> {
-        if let Some(map)= self.tool_spec_version_ref_map.get(&tool_key) {
-            if !map.is_empty(){
+        if let Some(map) = self.tool_spec_version_ref_map.get(&tool_key) {
+            if !map.is_empty() {
                 return Err(anyhow::anyhow!("tool spec is used"));
             }
         }

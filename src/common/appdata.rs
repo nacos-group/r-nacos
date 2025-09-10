@@ -4,6 +4,7 @@ use crate::grpc::bistream_manage::BiStreamManage;
 use crate::health::core::HealthManager;
 use crate::ldap::core::LdapManager;
 use crate::mcp::core::McpManager;
+use crate::mcp::sse_manage::SseStreamManager;
 use crate::metrics::core::MetricsManager;
 use crate::namespace::NamespaceActor;
 use crate::naming::cluster::node_manage::{InnerNodeManage, NodeManage};
@@ -56,5 +57,6 @@ pub struct AppShareData {
     pub sequence_db_manager: Addr<SequenceDbManager>,
     pub sequence_manager: Addr<SequenceManager>,
     pub mcp_manager: Addr<McpManager>,
+    pub sse_stream_manager: Addr<SseStreamManager>,
     pub common_client: reqwest::Client,
 }

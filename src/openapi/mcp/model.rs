@@ -35,3 +35,9 @@ pub struct McpPath {
     pub server_key: Arc<String>,
     pub auth_key: Arc<String>,
 }
+
+#[derive(Deserialize)]
+pub struct SseMessagePath {
+    pub server_key: Arc<String>,
+    pub session_id: Arc<String>,
+}
