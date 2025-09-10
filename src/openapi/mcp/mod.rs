@@ -4,13 +4,17 @@ pub mod api;
 pub mod model;
 pub mod sse;
 
+pub enum HandleOtherResult {
+    Accepted,
+}
+
 pub fn mcp_config(config: &mut web::ServiceConfig) {
     config.service(
-        web::resource("/rnacos/mcp/sse/messages/{server_key}/{session_id}")
+        web::resource("/rnacos/mcp/sse/messages/{node_id}/{server_key}/{session_id}")
             .route(web::post().to(sse::sse_message)),
     );
     config.service(
-        web::resource("/rnacos/mcp/sse/messages/{server_key}/{session_id}/")
+        web::resource("/rnacos/mcp/sse/messages/{node_id}/{server_key}/{session_id}/")
             .route(web::post().to(sse::sse_message)),
     );
     config.service(

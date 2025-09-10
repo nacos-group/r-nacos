@@ -187,6 +187,7 @@ impl NamingRouteRequestHandler {
                 args.merge_args(tmp_args);
             }
             NamingRouteRequest::QueryServiceSubscriberPage(param) => {}
+            NamingRouteRequest::McpMessages { .. } => {}
         }
         Ok(args.to_string())
     }

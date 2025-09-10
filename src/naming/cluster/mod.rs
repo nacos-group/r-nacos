@@ -1,11 +1,5 @@
 //distor cluster
 
-use std::{
-    collections::{HashMap, HashSet},
-    convert::TryFrom,
-    sync::Arc,
-};
-
 use self::{
     model::{
         NamingRouteRequest, NamingRouterResponse, ProcessRange, SnapshotDataInfo,
@@ -14,12 +8,21 @@ use self::{
     node_manage::{NodeManageRequest, NodeManageResponse},
 };
 use crate::common::constant::GRPC_HEAD_KEY_CLUSTER_ID;
+use crate::mcp::model::actor_model::{McpManagerReq, McpManagerResult};
+use crate::mcp::model::sse_model::SseStreamManageAsyncCmd;
+use crate::mcp::sse_manage::SseConnUtils;
 use crate::metrics::model::{MetricsRequest, MetricsResponse};
 use crate::naming::cluster::model::SnapshotForSend;
 use crate::naming::model::{DistroData, Instance};
 use crate::{
     common::appdata::AppShareData,
     naming::core::{NamingCmd, NamingResult},
+    openapi,
+};
+use std::{
+    collections::{HashMap, HashSet},
+    convert::TryFrom,
+    sync::Arc,
 };
 
 pub mod instance_delay_notify;
@@ -231,6 +234,34 @@ pub async fn handle_naming_route(
                 .await??;
             if let NamingResult::ServiceSubscribersPage((total, list)) = resp {
                 return Ok(NamingRouterResponse::ServiceSubscribersPage((total, list)));
+            }
+        }
+        NamingRouteRequest::McpMessages {
+            server_key,
+            session_id,
+            request,
+        } => {
+            let mcp_server = if let Ok(Ok(McpManagerResult::ServerInfo(Some(server)))) = app
+                .mcp_manager
+                .send(McpManagerReq::GetServerByKey(server_key.clone()))
+                .await
+            {
+                server
+            } else {
+                return Err(anyhow::anyhow!("McpServer not found"));
+            };
+            match openapi::mcp::api::handle_request(app, request, &mcp_server, &session_id).await {
+                Ok(result) => {
+                    let message = SseConnUtils::create_sse_message(&result);
+                    app.sse_stream_manager
+                        .send(SseStreamManageAsyncCmd::SendMessage(
+                            session_id.clone(),
+                            message,
+                        ))
+                        .await
+                        .ok();
+                }
+                Err(_e) => {}
             }
         }
     };

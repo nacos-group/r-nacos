@@ -1,12 +1,15 @@
 use crate::common::appdata::AppShareData;
+use crate::grpc::handler::NAMING_ROUTE_REQUEST;
+use crate::grpc::PayloadUtils;
 use crate::mcp::model::actor_model::{McpManagerReq, McpManagerResult};
 use crate::mcp::model::sse_model::{SseConnMetaInfo, SseStreamManageAsyncCmd, SseStreamManageCmd};
 use crate::mcp::sse_manage::SseConnUtils;
-use crate::openapi::mcp::model::{McpPath, SseMessagePath};
+use crate::naming::cluster::model::{NamingRouteRequest, NamingRouterResponse};
+use crate::openapi::mcp::model::{JsonRpcRequest, McpPath, SseMessagePath};
+use crate::openapi::mcp::HandleOtherResult;
 use actix_web::http::StatusCode;
 use actix_web::{web, HttpRequest, HttpResponse};
 use bytes::Bytes;
-use serde_json::Value;
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -53,8 +56,8 @@ pub async fn sse_connect(
         .await
         .ok();
     let init_message = format!(
-        "event: endpoint\ndata: /rnacos/mcp/sse/messages/{}/{}\n\n",
-        path.server_key, &session_id
+        "event: endpoint\ndata: /rnacos/mcp/sse/messages/{}/{}/{}\n\n",
+        app_share_data.sys_config.raft_node_id, path.server_key, &session_id
     );
     app_share_data
         .sse_stream_manager
@@ -78,7 +81,7 @@ pub async fn sse_connect(
 }
 
 pub async fn sse_message(
-    body: web::Json<Value>,
+    body: web::Json<JsonRpcRequest>,
     path: web::Path<SseMessagePath>,
     app_share_data: web::Data<Arc<AppShareData>>,
 ) -> actix_web::Result<HttpResponse> {
@@ -91,17 +94,27 @@ pub async fn sse_message(
     } else {
         return Ok(HttpResponse::NotFound().body(r#"error: McpServer not found"#));
     };
+    if path.node_id != app_share_data.sys_config.raft_node_id {
+        return match post_to_remote(&app_share_data, &path, body.into_inner()).await {
+            Ok(_) => Ok(HttpResponse::Accepted().body("Accepted")),
+            Err(e) => Ok(HttpResponse::InternalServerError().body(format!("error: {}", e))),
+        };
+    }
     let message = match super::api::handle_request(
         &app_share_data,
-        body,
+        body.into_inner(),
         &mcp_server,
         &path.session_id,
     )
     .await
     {
         Ok(result) => SseConnUtils::create_sse_message(&result),
-        Err(err) => {
-            return err;
+        Err(e) => {
+            match e {
+                HandleOtherResult::Accepted => {
+                    return Ok(HttpResponse::Accepted().body(""));
+                }
+            };
         }
     };
     app_share_data
@@ -113,4 +126,29 @@ pub async fn sse_message(
         .await
         .ok();
     Ok(HttpResponse::Accepted().body("Accepted"))
+}
+
+async fn post_to_remote(
+    app_share_data: &Arc<AppShareData>,
+    path: &SseMessagePath,
+    request: JsonRpcRequest,
+) -> anyhow::Result<()> {
+    let addr = app_share_data
+        .naming_node_manage
+        .get_node_addr(path.node_id)
+        .await?;
+    let req = NamingRouteRequest::McpMessages {
+        server_key: path.server_key.clone(),
+        session_id: path.session_id.clone(),
+        request,
+    };
+    let request = serde_json::to_string(&req).unwrap_or_default();
+    let payload = PayloadUtils::build_payload(NAMING_ROUTE_REQUEST, request);
+    let resp_payload = app_share_data
+        .cluster_sender
+        .send_request(addr.clone(), payload)
+        .await?;
+    let body_vec = resp_payload.body.unwrap_or_default().value;
+    let _: NamingRouterResponse = serde_json::from_slice(&body_vec)?;
+    Ok(())
 }

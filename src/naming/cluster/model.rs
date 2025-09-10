@@ -2,6 +2,7 @@ use crate::metrics::timeline::model::{TimelineQueryParam, TimelineQueryResponse}
 use crate::naming::model::{Instance, InstanceKey, InstanceUpdateTag, ServiceDetailDto};
 use crate::naming::service::SubscriberInfoDto;
 use crate::naming::service_index::ServiceQueryParam;
+use crate::openapi::mcp::model::JsonRpcRequest;
 use actix::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
@@ -50,6 +51,11 @@ pub enum NamingRouteRequest {
     SyncDistroClientInstances(HashMap<Arc<String>, HashSet<InstanceKey>>),
     QueryDistroInstanceSnapshot(Vec<InstanceKey>),
     QueryServiceSubscriberPage(ServiceQueryParam),
+    McpMessages {
+        session_id: Arc<String>,
+        server_key: Arc<String>,
+        request: JsonRpcRequest,
+    },
 }
 
 impl NamingRouteRequest {
@@ -69,6 +75,7 @@ impl NamingRouteRequest {
             NamingRouteRequest::SyncDistroClientInstances(_) => "SyncDistroClientInstances",
             NamingRouteRequest::QueryDistroInstanceSnapshot(_) => "QueryDistroInstanceSnapshot",
             NamingRouteRequest::QueryServiceSubscriberPage(_) => "QueryServiceSubscriberPage",
+            NamingRouteRequest::McpMessages { .. } => "McpMessages",
         }
     }
 }

@@ -93,12 +93,10 @@ impl SseStreamManager {
             }
             if let Some(item) = self.conn_cache.get_mut(&key) {
                 let next_time = now + self.detection_time_out;
-                if item.last_active_time + self.detection_time_out <= now {
-                    self.active_time_set.add(next_time, key.clone());
-                    // 连接超时，需要发送心跳检测
-                    check_keys.insert(key);
-                    item.last_active_time = next_time;
-                }
+                self.active_time_set.add(next_time, key.clone());
+                item.last_active_time = next_time;
+                // 连接超时，需要发送心跳检测
+                check_keys.insert(key);
             } else {
                 #[cfg(feature = "debug")]
                 log::info!("not found conn,key:{}", &key);
@@ -125,7 +123,7 @@ impl SseStreamManager {
 
     /// 移除指定的 SSE 连接
     pub fn remove_conn(&mut self, session_id: Arc<String>) {
-        //log::info!("remove_sse_conn session_id:{}", &session_id);
+        log::info!("remove_sse_conn session_id:{}", &session_id);
         self.conn_cache.remove(&session_id);
     }
 

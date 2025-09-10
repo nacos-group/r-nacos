@@ -3,7 +3,7 @@ use serde_json::Value;
 use std::sync::Arc;
 
 // JSON-RPC 请求结构
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct JsonRpcRequest {
     pub jsonrpc: String,
     pub method: String,
@@ -12,7 +12,7 @@ pub struct JsonRpcRequest {
 }
 
 // JSON-RPC 响应结构
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct JsonRpcResponse {
     pub jsonrpc: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -23,7 +23,7 @@ pub struct JsonRpcResponse {
     pub id: Option<Value>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct JsonRpcError {
     pub code: i32,
     pub message: String,
@@ -38,6 +38,7 @@ pub struct McpPath {
 
 #[derive(Deserialize)]
 pub struct SseMessagePath {
+    pub node_id: u64,
     pub server_key: Arc<String>,
     pub session_id: Arc<String>,
 }
