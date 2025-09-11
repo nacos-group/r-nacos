@@ -40,6 +40,7 @@ pub enum McpManagerRaftReq {
     RemoveServer(u64),
     SetServer(McpServer),
     UpdateToolSpec(ToolSpecParam),
+    UpdateToolSpecList(Vec<ToolSpecParam>),
     RemoveToolSpec(ToolKey),
     SetToolSpec(Arc<ToolSpec>),
     ImportFinished,

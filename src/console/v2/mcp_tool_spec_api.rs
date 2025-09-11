@@ -161,6 +161,96 @@ pub async fn add_or_update_tool_spec(
     }
 }
 
+/// 批量创建或更新ToolSpec
+pub async fn update_tool_specs(
+    req: HttpRequest,
+    appdata: web::Data<Arc<AppShareData>>,
+    web::Json(params): web::Json<Vec<ToolSpecParams>>,
+) -> impl Responder {
+    // 验证参数列表不为空
+    if params.is_empty() {
+        return handle_param_error(
+            anyhow::anyhow!("ToolSpec参数列表不能为空"),
+            "ToolSpec batch update parameter validation failed",
+        );
+    }
+
+    // 验证每个参数
+    for (index, param) in params.iter().enumerate() {
+        if let Err(err) = param.validate() {
+            return handle_param_error(
+                anyhow::anyhow!("第{}个参数验证失败: {}", index + 1, err),
+                "ToolSpec batch update parameter validation failed",
+            );
+        }
+    }
+
+    // 从HttpRequest中提取用户会话信息作为op_user
+    let op_user = req
+        .extensions()
+        .get::<Arc<UserSession>>()
+        .map(|session| session.username.clone());
+
+    log::info!("update_tool_specs params count: {}", params.len());
+
+    // 一次性获取所需数量的版本号范围
+    let mut seq_range = if let Ok(Ok(SequenceResult::Range(range))) = appdata
+        .sequence_manager
+        .send(SequenceRequest::GetDirectRange(
+            SEQ_TOOL_SPEC_VERSION.clone(),
+            params.len() as u64,
+        ))
+        .await
+    {
+        range
+    } else {
+        return handle_system_error(
+            "Unable to get id range from SequenceManager".to_string(),
+            "Failed to get id range from SequenceManager",
+        );
+    };
+
+    // 转换为ToolSpecParam列表，为每个参数分配版本号
+    let mut tool_spec_params = Vec::new();
+    for param in params.iter() {
+        let version = if let Some(id) = seq_range.next_id() {
+            id
+        } else {
+            return handle_system_error(
+                "Insufficient version IDs in range".to_string(),
+                "Failed to get version ID from range",
+            );
+        };
+
+        let mut tool_spec_param = param.to_tool_spec_param(op_user.clone());
+        tool_spec_param.version = version;
+        tool_spec_params.push(tool_spec_param);
+    }
+
+    // 构建McpManagerRaftReq::UpdateToolSpecList请求
+    let raft_req = McpManagerRaftReq::UpdateToolSpecList(tool_spec_params);
+    let client_req = ClientRequest::McpReq { req: raft_req };
+
+    // 通过RaftRequestRoute.request发送写入请求
+    match appdata.raft_request_route.request(client_req).await {
+        Ok(response) => match response {
+            ClientResponse::Success => {
+                log::debug!(
+                    "Successfully batch created/updated {} ToolSpec records",
+                    params.len()
+                );
+                HttpResponse::Ok().json(ApiResult::success(Some(true)))
+            }
+            ClientResponse::McpResp { resp } => {
+                log::debug!("MCP Raft batch update response: {:?}", resp);
+                HttpResponse::Ok().json(ApiResult::success(Some(true)))
+            }
+            _ => handle_unexpected_response_error("Raft batch create/update ToolSpec"),
+        },
+        Err(err) => handle_raft_error(err, "batch create/update ToolSpec"),
+    }
+}
+
 /// 删除ToolSpec
 pub async fn remove_tool_spec(
     req: HttpRequest,

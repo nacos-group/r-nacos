@@ -353,6 +353,10 @@ pub fn console_api_config_v2(config: &mut web::ServiceConfig) {
                 web::resource("/mcp/toolspec/remove")
                     .route(web::post().to(v2::mcp_tool_spec_api::remove_tool_spec)),
             )
+            .service(
+                web::resource("/mcp/toolspec/batch_update")
+                    .route(web::post().to(v2::mcp_tool_spec_api::update_tool_specs)),
+            )
             // McpServer控制台接口路由
             .service(
                 web::resource("/mcp/server/list")

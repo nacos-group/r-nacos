@@ -535,6 +535,12 @@ impl Handler<McpManagerRaftReq> for McpManager {
                 self.update_tool_spec(tool_spec_param)?;
                 Ok(McpManagerRaftResult::None)
             }
+            McpManagerRaftReq::UpdateToolSpecList(tool_spec_list) => {
+                for tool_spec in tool_spec_list {
+                    self.update_tool_spec(tool_spec)?;
+                }
+                Ok(McpManagerRaftResult::None)
+            }
             McpManagerRaftReq::RemoveToolSpec(tool_key) => {
                 self.remove_tool_spec(tool_key)?;
                 Ok(McpManagerRaftResult::None)
