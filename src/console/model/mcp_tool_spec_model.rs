@@ -1,5 +1,5 @@
-use crate::mcp::model::actor_model::McpToolSpecQueryParam;
-use crate::mcp::model::tools::{ToolFunctionValue, ToolKey, ToolSpecParam};
+use crate::mcp::model::actor_model::{McpToolSpecQueryParam, ToolSpecDto};
+use crate::mcp::model::tools::{JsonSchema, ToolFunctionValue, ToolKey, ToolSpecParam};
 use crate::namespace;
 use actix_web::{HttpMessage, HttpRequest};
 use serde::{Deserialize, Serialize};
@@ -127,5 +127,25 @@ impl ToolSpecParams {
             self.op_user = None;
         }
         Ok(())
+    }
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ToolSpecImportDto {
+    pub group: Arc<String>,
+    pub name: Arc<String>,
+    pub description: Arc<String>,
+    pub input_schema: Box<JsonSchema>,
+}
+
+impl From<&ToolSpecDto> for ToolSpecImportDto {
+    fn from(dto: &ToolSpecDto) -> Self {
+        Self {
+            group: dto.group.clone(),
+            name: dto.name.clone(),
+            description: dto.description.clone(),
+            input_schema: dto.function.input_schema.clone(),
+        }
     }
 }

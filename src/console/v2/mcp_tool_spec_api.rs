@@ -12,7 +12,11 @@ use crate::mcp::model::actor_model::{
 use crate::raft::store::{ClientRequest, ClientResponse};
 use crate::sequence::{SequenceRequest, SequenceResult};
 use actix_web::{web, HttpMessage, HttpRequest, HttpResponse, Responder};
+use std::fs::File;
+use std::io::{Read, Seek, SeekFrom, Write};
 use std::sync::Arc;
+use zip::write::FileOptions;
+use zip::ZipWriter;
 
 /// 查询ToolSpec列表
 pub async fn query_tool_spec_list(
@@ -247,4 +251,104 @@ pub async fn remove_tool_spec(
             }
         }
     }
+}
+
+/// 批量导出ToolSpec
+pub async fn download_tool_specs(
+    _req: HttpRequest,
+    request: web::Query<ToolSpecQueryRequest>,
+    appdata: web::Data<Arc<AppShareData>>,
+) -> impl Responder {
+    // 验证查询参数
+    if let Err(err) = request.validate() {
+        return handle_param_error(err, "ToolSpec download parameter validation failed");
+    }
+
+    // 转换查询参数，设置最大限制10万
+    let mut query_param = request.to_query_param();
+    query_param.limit = 100_000;
+    query_param.offset = 0;
+
+    // 发送查询请求到MCP Manager
+    let cmd = McpManagerReq::QueryToolSpec(query_param);
+    match appdata.mcp_manager.send(cmd).await {
+        Ok(res) => match res {
+            Ok(McpManagerResult::ToolSpecPageInfo(_, list)) => {
+                let mut tmpfile: File = tempfile::tempfile().unwrap();
+                {
+                    let write = std::io::Write::by_ref(&mut tmpfile);
+                    let zip = ZipWriter::new(write);
+                    generate_tool_spec_zip(zip, list).ok();
+                }
+                // Seek to start
+                tmpfile.seek(SeekFrom::Start(0)).unwrap();
+                let mut buf = vec![];
+                tmpfile.read_to_end(&mut buf).unwrap();
+
+                let filename = format!("rnacos_toolspec_export_{}.zip", crate::now_millis());
+                HttpResponse::Ok()
+                    .insert_header(actix_web::http::header::ContentType::octet_stream())
+                    .insert_header(actix_web::http::header::ContentDisposition::attachment(
+                        filename,
+                    ))
+                    .body(buf)
+            }
+            Ok(_) => handle_unexpected_response_error("MCP Manager download ToolSpec"),
+            Err(err) => handle_mcp_manager_error(err, "download ToolSpec"),
+        },
+        Err(err) => handle_system_error(
+            format!("Unable to connect to MCP Manager: {}", err),
+            "Failed to send download request to MCP Manager",
+        ),
+    }
+}
+
+/// 生成ToolSpec的zip文件
+fn generate_tool_spec_zip(
+    mut zip: ZipWriter<&mut File>,
+    list: Vec<ToolSpecDto>,
+) -> anyhow::Result<()> {
+    if list.is_empty() {
+        let options = FileOptions::default()
+            .compression_method(zip::CompressionMethod::Stored)
+            .unix_permissions(0o755);
+        zip.start_file(".ignore", options)?;
+        zip.write_all("empty toolspec".as_bytes())?;
+    }
+
+    for item in &list {
+        // 生成YAML内容
+        let yaml_content = generate_tool_spec_yaml(item);
+
+        // 文件名格式: {group}_{tool_name}.yaml
+        let filename = format!("{}_{}.yaml", item.group.as_str(), item.tool_name.as_str());
+
+        let options = FileOptions::default()
+            .compression_method(zip::CompressionMethod::Stored)
+            .unix_permissions(0o755);
+
+        zip.start_file(filename, options)?;
+        zip.write_all(yaml_content.as_bytes())?;
+    }
+
+    zip.finish()?;
+    Ok(())
+}
+
+/// 生成ToolSpec的YAML内容
+fn generate_tool_spec_yaml(tool_spec: &ToolSpecDto) -> String {
+    use crate::console::model::mcp_tool_spec_model::ToolSpecImportDto;
+
+    // 转换为ToolSpecImportDto
+    let import_dto = ToolSpecImportDto::from(tool_spec);
+
+    // 使用serde_yml序列化
+    serde_yml::to_string(&import_dto).unwrap_or_else(|_| {
+        // 如果序列化失败，返回基本错误信息
+        format!(
+            "Failed to serialize ToolSpec: {}_{}",
+            tool_spec.group.as_str(),
+            tool_spec.tool_name.as_str()
+        )
+    })
 }

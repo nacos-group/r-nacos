@@ -348,6 +348,7 @@ lazy_static::lazy_static! {
         R::Path("/rnacos/manage/mcptoolspec/detail",HTTP_METHOD_GET),
         R::Path("/rnacos/api/console/v2/mcp/toolspec/list",HTTP_METHOD_GET),
         R::Path("/rnacos/api/console/v2/mcp/toolspec/info",HTTP_METHOD_GET),
+        R::Path("/rnacos/api/console/v2/mcp/toolspec/download",HTTP_METHOD_GET),
     ]);
 
     static ref M_MCP_TOOL_SPEC_MANAGE: ModuleResource = ModuleResource::new(vec![
@@ -366,6 +367,7 @@ lazy_static::lazy_static! {
         R::Path("/rnacos/api/console/v2/mcp/toolspec/update",HTTP_METHOD_POST),
         R::Path("/rnacos/api/console/v2/mcp/toolspec/batch_update",HTTP_METHOD_POST),
         R::Path("/rnacos/api/console/v2/mcp/toolspec/remove",HTTP_METHOD_POST),
+        R::Path("/rnacos/api/console/v2/mcp/toolspec/download",HTTP_METHOD_GET),
     ]);
 
     static ref M_MCP_SERVER_VISITOR: ModuleResource = ModuleResource::new(vec![
