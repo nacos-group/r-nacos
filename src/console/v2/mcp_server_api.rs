@@ -202,10 +202,19 @@ pub async fn update_mcp_server(
     appdata: web::Data<Arc<AppShareData>>,
     web::Json(param): web::Json<McpServerParams>,
 ) -> impl Responder {
-    // 验证参数 - 使用更新专用的验证方法
-    if let Err(err) = param.validate_for_update() {
-        return handle_param_error(err, "McpServer update parameter validation failed");
+    match do_update_mcp_server(req, appdata, param).await {
+        Ok(response) => response,
+        Err(e) => handle_error(e),
     }
+}
+
+async fn do_update_mcp_server(
+    req: HttpRequest,
+    appdata: web::Data<Arc<AppShareData>>,
+    param: McpServerParams,
+) -> anyhow::Result<HttpResponse> {
+    // 验证参数 - 使用更新专用的验证方法
+    param.validate_for_update()?;
 
     let server_id = param.id.unwrap(); // 已经通过validate_for_update验证，不会为None
 
@@ -217,94 +226,34 @@ pub async fn update_mcp_server(
 
     // 首先检查McpServer是否存在
     let check_cmd = McpManagerReq::GetServer(server_id);
-    match appdata.mcp_manager.send(check_cmd).await {
-        Ok(res) => match res {
-            Ok(McpManagerResult::ServerInfo(Some(existing_server))) => {
-                log::debug!(
-                    "Found existing McpServer to update: id={}, name={:?}, namespace={:?}",
-                    server_id,
-                    existing_server.name,
-                    existing_server.namespace
-                );
+    let check_result = appdata.mcp_manager.send(check_cmd).await??;
+    
+    match check_result {
+        McpManagerResult::ServerInfo(Some(_)) => {
+        }
+        _ => {
+            return Err(anyhow::anyhow!("McpServer not found: {}", server_id));
+        }
+    };
 
-                // 转换为McpServerParam，支持部分字段更新
-                let server_param = param.to_mcp_server_param(op_user.clone());
+    // 转换为McpServerParam，支持部分字段更新
+    let server_param = param.to_mcp_server_param(op_user.clone());
 
-                // 构建McpManagerRaftReq::UpdateServer请求
-                let raft_req = McpManagerRaftReq::UpdateServer(server_param);
-                let client_req = ClientRequest::McpReq { req: raft_req };
+    // 构建McpManagerRaftReq::UpdateServer请求
+    let raft_req = McpManagerRaftReq::UpdateServer(server_param);
+    let client_req = ClientRequest::McpReq { req: raft_req };
 
-                // 通过RaftRequestRoute.request发送更新请求
-                match appdata.raft_request_route.request(client_req).await {
-                    Ok(response) => match response {
-                        ClientResponse::McpResp { resp } => {
-                            log::debug!("MCP Raft update server response: {:?}", resp);
-                            log::info!(
-                                "Successfully updated McpServer: id={}, name={:?}, namespace={:?}, op_user={:?}",
-                                server_id,
-                                param.name,
-                                param.namespace,
-                                op_user
-                            );
-                            HttpResponse::Ok().json(ApiResult::success(Some(true)))
-                        }
-                        _ => {
-                            log::error!(
-                                "Unexpected response when updating McpServer: id={}, op_user={:?}",
-                                server_id,
-                                op_user
-                            );
-                            handle_unexpected_response_error("Raft update McpServer")
-                        }
-                    },
-                    Err(err) => {
-                        log::error!(
-                            "Failed to update McpServer: id={}, op_user={:?}, error={}",
-                            server_id,
-                            op_user,
-                            err
-                        );
-                        handle_raft_error(err, "update McpServer")
-                    }
-                }
-            }
-            Ok(McpManagerResult::ServerInfo(None)) => {
-                log::warn!(
-                    "Attempted to update non-existent McpServer: id={}, op_user={:?}",
-                    server_id,
-                    op_user
-                );
-                handle_not_found_error("McpServer", &server_id.to_string())
-            }
-            Ok(_) => {
-                log::error!(
-                    "Unexpected response type when checking McpServer existence for update: id={}, op_user={:?}",
-                    server_id,
-                    op_user
-                );
-                handle_unexpected_response_error("MCP Manager get McpServer for update")
-            }
-            Err(err) => {
-                log::error!(
-                    "Failed to check McpServer existence before update: id={}, op_user={:?}, error={}",
-                    server_id,
-                    op_user,
-                    err
-                );
-                handle_mcp_manager_error(err, "check McpServer existence for update")
-            }
-        },
-        Err(err) => {
-            log::error!(
-                "Unable to connect to MCP Manager for update check: id={}, op_user={:?}, error={}",
-                server_id,
-                op_user,
-                err
-            );
-            handle_system_error(
-                format!("Unable to connect to MCP Manager: {}", err),
-                "Failed to send update check request to MCP Manager",
-            )
+    // 通过RaftRequestRoute.request发送更新请求
+    let response = appdata.raft_request_route.request(client_req).await?;
+
+    match response {
+        ClientResponse::McpResp { resp:_ } => {
+            Ok(HttpResponse::Ok().json(ApiResult::success(Some(true))))
+        }
+        _ => {
+            Err(anyhow::anyhow!(
+                "Unexpected response from Raft update McpServer"
+            ))
         }
     }
 }
@@ -315,128 +264,53 @@ pub async fn remove_mcp_server(
     appdata: web::Data<Arc<AppShareData>>,
     web::Json(param): web::Json<McpServerParams>,
 ) -> impl Responder {
-    // 验证参数 - 只需要验证ID字段
-    if let Err(err) = param.validate_for_delete() {
-        return handle_param_error(err, "McpServer delete parameter validation failed");
+    match do_remove_mcp_server(req, appdata, param).await {
+        Ok(response) => response,
+        Err(e) => handle_error(e),
     }
+}
+
+async fn do_remove_mcp_server(
+    req: HttpRequest,
+    appdata: web::Data<Arc<AppShareData>>,
+    param: McpServerParams,
+) -> anyhow::Result<HttpResponse> {
+    // 验证参数 - 只需要验证ID字段
+    param.validate_for_delete()?;
 
     let server_id = param.id.unwrap(); // 已经通过validate_for_delete验证，不会为None
 
-    // 从HttpRequest中提取用户会话信息作为op_user
-    let op_user = req
-        .extensions()
-        .get::<Arc<UserSession>>()
-        .map(|session| session.username.clone())
-        .unwrap_or_else(|| Arc::new("system".to_string()));
-
-    log::debug!("Remove McpServer: id={}, op_user={:?}", server_id, op_user);
-
     // 首先检查McpServer是否存在
     let cmd = McpManagerReq::GetServer(server_id);
-    match appdata.mcp_manager.send(cmd).await {
-        Ok(res) => match res {
-            Ok(McpManagerResult::ServerInfo(Some(server))) => {
-                log::debug!(
-                    "Found McpServer to delete: id={}, name={:?}, namespace={:?}",
-                    server_id,
-                    server.name,
-                    server.namespace
-                );
+    let check_result = appdata.mcp_manager.send(cmd).await??;
+    
+    match check_result {
+        McpManagerResult::ServerInfo(Some(_)) => {
+        }
+        _ => {
+            return Err(anyhow::anyhow!("McpServer not found: {}", server_id));
+        }
+    };
 
-                // 记录删除操作的审计日志
-                log::info!(
-                    "User {} is deleting McpServer: id={}, name={:?}, namespace={:?}",
-                    op_user,
-                    server_id,
-                    server.name,
-                    server.namespace
-                );
+    // 构建McpManagerRaftReq::RemoveServer请求
+    let raft_req = McpManagerRaftReq::RemoveServer(server_id);
+    let client_req = ClientRequest::McpReq { req: raft_req };
 
-                // 构建McpManagerRaftReq::RemoveServer请求
-                let raft_req = McpManagerRaftReq::RemoveServer(server_id);
-                let client_req = ClientRequest::McpReq { req: raft_req };
+    // 通过RaftRequestRoute.request发送删除请求
+    let response = appdata.raft_request_route.request(client_req).await?;
 
-                // 通过RaftRequestRoute.request发送删除请求
-                match appdata.raft_request_route.request(client_req).await {
-                    Ok(response) => match response {
-                        ClientResponse::Success => {
-                            log::info!(
-                                "Successfully deleted McpServer: id={}, name={:?}, namespace={:?}, op_user={}",
-                                server_id,
-                                server.name,
-                                server.namespace,
-                                op_user
-                            );
-                            HttpResponse::Ok().json(ApiResult::success(Some(true)))
-                        }
-                        ClientResponse::McpResp { resp } => {
-                            log::debug!("MCP Raft remove server response: {:?}", resp);
-                            log::info!(
-                                "Successfully deleted McpServer: id={}, name={:?}, namespace={:?}, op_user={}",
-                                server_id,
-                                server.name,
-                                server.namespace,
-                                op_user
-                            );
-                            HttpResponse::Ok().json(ApiResult::success(Some(true)))
-                        }
-                        _ => {
-                            log::error!(
-                                "Unexpected response when deleting McpServer: id={}, op_user={}",
-                                server_id,
-                                op_user
-                            );
-                            handle_unexpected_response_error("Raft remove McpServer")
-                        }
-                    },
-                    Err(err) => {
-                        log::error!(
-                            "Failed to delete McpServer: id={}, op_user={}, error={}",
-                            server_id,
-                            op_user,
-                            err
-                        );
-                        handle_raft_error(err, "remove McpServer")
-                    }
-                }
-            }
-            Ok(McpManagerResult::ServerInfo(None)) => {
-                log::warn!(
-                    "Attempted to delete non-existent McpServer: id={}, op_user={}",
-                    server_id,
-                    op_user
-                );
-                handle_not_found_error("McpServer", &server_id.to_string())
-            }
-            Ok(_) => {
-                log::error!(
-                    "Unexpected response type when checking McpServer existence: id={}, op_user={}",
-                    server_id,
-                    op_user
-                );
-                handle_unexpected_response_error("MCP Manager get McpServer for deletion")
-            }
-            Err(err) => {
-                log::error!(
-                    "Failed to check McpServer existence before deletion: id={}, op_user={}, error={}",
-                    server_id,
-                    op_user,
-                    err
-                );
-                handle_mcp_manager_error(err, "check McpServer existence for deletion")
-            }
-        },
-        Err(err) => {
-            log::error!(
-                "Unable to connect to MCP Manager for deletion check: id={}, op_user={}, error={}",
-                server_id,
-                op_user,
-                err
-            );
-            handle_system_error(
-                format!("Unable to connect to MCP Manager: {}", err),
-                "Failed to send deletion check request to MCP Manager",
-            )
+    match response {
+        ClientResponse::Success => {
+            Ok(HttpResponse::Ok().json(ApiResult::success(Some(true))))
+        }
+        ClientResponse::McpResp { resp:_ } => {
+
+            Ok(HttpResponse::Ok().json(ApiResult::success(Some(true))))
+        }
+        _ => {
+            Err(anyhow::anyhow!(
+                "Unexpected response from Raft remove McpServer"
+            ))
         }
     }
 }
@@ -455,35 +329,14 @@ pub async fn query_mcp_server_history(
     let server_id = request.id;
     let (offset, limit) = request.get_pagination();
 
-    log::debug!(
-        "Query McpServer history: id={}, offset={}, limit={}, start_time={:?}, end_time={:?}",
-        server_id,
-        offset,
-        limit,
-        request.start_time,
-        request.end_time
-    );
-
     // 首先检查McpServer是否存在
     let check_cmd = McpManagerReq::GetServer(server_id);
     match appdata.mcp_manager.send(check_cmd).await {
         Ok(res) => match res {
             Ok(McpManagerResult::ServerInfo(Some(_))) => {
-                // McpServer存在，继续查询历史版本
-                log::debug!("McpServer {} exists, querying history", server_id);
             }
-            Ok(McpManagerResult::ServerInfo(None)) => {
-                log::warn!("McpServer {} not found when querying history", server_id);
+            _ => {
                 return handle_not_found_error("McpServer", &server_id.to_string());
-            }
-            Ok(_) => {
-                return handle_unexpected_response_error("MCP Manager check McpServer existence");
-            }
-            Err(err) => {
-                return handle_mcp_manager_error(
-                    err,
-                    "check McpServer existence for history query",
-                );
             }
         },
         Err(err) => {
@@ -505,13 +358,6 @@ pub async fn query_mcp_server_history(
     match appdata.mcp_manager.send(cmd).await {
         Ok(res) => match res {
             Ok(McpManagerResult::ServerHistoryPageInfo(total_count, history_list)) => {
-                log::debug!(
-                    "Successfully queried {} McpServer history records for server {}, total count: {}",
-                    history_list.len(),
-                    server_id,
-                    total_count
-                );
-
                 // 转换为DTO格式
                 let dto_list: Vec<McpServerValueDto> = history_list
                     .iter()
