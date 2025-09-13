@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Form
 from pydantic import BaseModel
 import uvicorn
 import threading
@@ -44,6 +44,58 @@ async def divide(request: CalculateRequest):
         raise HTTPException(status_code=400, detail="除数不能为零")
     return request.a / request.b
 
+# POST form接口 - 加法
+@app.post("/form/add", response_model=float)
+async def form_add(a: float = Form(...), b: float = Form(...)):
+    """加法运算 - POST form接口"""
+    return a + b
+
+# POST form接口 - 减法
+@app.post("/form/subtract", response_model=float)
+async def form_subtract(a: float = Form(...), b: float = Form(...)):
+    """减法运算 - POST form接口"""
+    return a - b
+
+# POST form接口 - 乘法
+@app.post("/form/multiply", response_model=float)
+async def form_multiply(a: float = Form(...), b: float = Form(...)):
+    """乘法运算 - POST form接口"""
+    return a * b
+
+# POST form接口 - 除法
+@app.post("/form/divide", response_model=float)
+async def form_divide(a: float = Form(...), b: float = Form(...)):
+    """除法运算 - POST form接口"""
+    if b == 0:
+        raise HTTPException(status_code=400, detail="除数不能为零")
+    return a / b
+
+# GET urlParam接口 - 加法
+@app.get("/q/add", response_model=float)
+async def query_add(a: float, b: float):
+    """加法运算 - GET urlParam接口"""
+    return a + b
+
+# GET urlParam接口 - 减法
+@app.get("/q/subtract", response_model=float)
+async def query_subtract(a: float, b: float):
+    """减法运算 - GET urlParam接口"""
+    return a - b
+
+# GET urlParam接口 - 乘法
+@app.get("/q/multiply", response_model=float)
+async def query_multiply(a: float, b: float):
+    """乘法运算 - GET urlParam接口"""
+    return a * b
+
+# GET urlParam接口 - 除法
+@app.get("/q/divide", response_model=float)
+async def query_divide(a: float, b: float):
+    """除法运算 - GET urlParam接口"""
+    if b == 0:
+        raise HTTPException(status_code=400, detail="除数不能为零")
+    return a / b
+
 # 根路径
 @app.get("/")
 async def root():
@@ -52,10 +104,24 @@ async def root():
         "message": "计算服务API",
         "version": "1.0.0",
         "endpoints": {
-            "add": "/add - 加法运算",
-            "subtract": "/subtract - 减法运算", 
-            "multiply": "/multiply - 乘法运算",
-            "divide": "/divide - 除法运算"
+            "POST JSON": {
+                "add": "/add - 加法运算",
+                "subtract": "/subtract - 减法运算", 
+                "multiply": "/multiply - 乘法运算",
+                "divide": "/divide - 除法运算"
+            },
+            "POST Form": {
+                "add": "/form/add - 加法运算",
+                "subtract": "/form/subtract - 减法运算", 
+                "multiply": "/form/multiply - 乘法运算",
+                "divide": "/form/divide - 除法运算"
+            },
+            "GET Query": {
+                "add": "/q/add?a=1&b=2 - 加法运算",
+                "subtract": "/q/subtract?a=1&b=2 - 减法运算", 
+                "multiply": "/q/multiply?a=1&b=2 - 乘法运算",
+                "divide": "/q/divide?a=1&b=2 - 除法运算"
+            }
         }
     }
 

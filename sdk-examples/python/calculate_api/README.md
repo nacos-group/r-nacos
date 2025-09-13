@@ -2,9 +2,13 @@
 
 这是一个基于 FastAPI 的计算服务示例，演示了如何将 Python 微服务注册到 r-nacos 服务注册中心。
 
+可用于验证r-nacos内置mcp server与接口转发功能：
+> 在r-nacos配置对应的mcp服务后，对应mcp服务可调用到具体业务服务实例。
+
 ## 功能特性
 
 - 提供基本的数学运算 API（加、减、乘、除）
+- 支持多种请求格式：JSON、Form、URL参数
 - 自动获取本机 IP 地址并注册到 r-nacos
 - 支持自定义端口号配置
 - 完整的服务注册与发现示例
@@ -96,10 +100,24 @@ GET /
   "message": "计算服务API",
   "version": "1.0.0",
   "endpoints": {
-    "add": "/add - 加法运算",
-    "subtract": "/subtract - 减法运算",
-    "multiply": "/multiply - 乘法运算",
-    "divide": "/divide - 除法运算"
+    "POST JSON": {
+      "add": "/add - 加法运算",
+      "subtract": "/subtract - 减法运算", 
+      "multiply": "/multiply - 乘法运算",
+      "divide": "/divide - 除法运算"
+    },
+    "POST Form": {
+      "add": "/form/add - 加法运算",
+      "subtract": "/form/subtract - 减法运算", 
+      "multiply": "/form/multiply - 乘法运算",
+      "divide": "/form/divide - 除法运算"
+    },
+    "GET Query": {
+      "add": "/q/add?a=1&b=2 - 加法运算",
+      "subtract": "/q/subtract?a=1&b=2 - 减法运算", 
+      "multiply": "/q/multiply?a=1&b=2 - 乘法运算",
+      "divide": "/q/divide?a=1&b=2 - 除法运算"
+    }
   }
 }
 ```
@@ -179,6 +197,114 @@ Content-Type: application/json
 }
 ```
 
+#### 6. POST Form 接口
+
+所有运算操作都支持 POST form 格式，路径前缀为 `/form/`
+
+##### POST Form 加法运算
+
+```http
+POST /form/add
+Content-Type: application/x-www-form-urlencoded
+
+a=10&b=5
+```
+
+**响应**：
+```json
+15.0
+```
+
+##### POST Form 减法运算
+
+```http
+POST /form/subtract
+Content-Type: application/x-www-form-urlencoded
+
+a=10&b=5
+```
+
+**响应**：
+```json
+5.0
+```
+
+##### POST Form 乘法运算
+
+```http
+POST /form/multiply
+Content-Type: application/x-www-form-urlencoded
+
+a=10&b=5
+```
+
+**响应**：
+```json
+50.0
+```
+
+##### POST Form 除法运算
+
+```http
+POST /form/divide
+Content-Type: application/x-www-form-urlencoded
+
+a=10&b=5
+```
+
+**响应**：
+```json
+2.0
+```
+
+#### 7. GET Query 参数接口
+
+所有运算操作都支持 GET 请求，通过 URL 查询参数传递数据，路径前缀为 `/q/`
+
+##### GET Query 加法运算
+
+```http
+GET /q/add?a=10&b=5
+```
+
+**响应**：
+```json
+15.0
+```
+
+##### GET Query 减法运算
+
+```http
+GET /q/subtract?a=10&b=5
+```
+
+**响应**：
+```json
+5.0
+```
+
+##### GET Query 乘法运算
+
+```http
+GET /q/multiply?a=10&b=5
+```
+
+**响应**：
+```json
+50.0
+```
+
+##### GET Query 除法运算
+
+```http
+GET /q/divide?a=10&b=5
+```
+
+**响应**：
+```json
+2.0
+```
+
 ## 示例请求
 
 ### 使用 curl
@@ -203,6 +329,38 @@ curl -X POST "http://localhost:8002/multiply" \
 curl -X POST "http://localhost:8002/divide" \
   -H "Content-Type: application/json" \
   -d '{"a": 15, "b": 7}'
+
+# POST Form 加法
+curl -X POST "http://localhost:8002/form/add" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "a=15&b=7"
+
+# POST Form 减法
+curl -X POST "http://localhost:8002/form/subtract" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "a=15&b=7"
+
+# POST Form 乘法
+curl -X POST "http://localhost:8002/form/multiply" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "a=15&b=7"
+
+# POST Form 除法
+curl -X POST "http://localhost:8002/form/divide" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "a=15&b=7"
+
+# GET Query 加法
+curl "http://localhost:8002/q/add?a=15&b=7"
+
+# GET Query 减法
+curl "http://localhost:8002/q/subtract?a=15&b=7"
+
+# GET Query 乘法
+curl "http://localhost:8002/q/multiply?a=15&b=7"
+
+# GET Query 除法
+curl "http://localhost:8002/q/divide?a=15&b=7"
 ```
 
 ### 使用 Python requests
@@ -227,6 +385,44 @@ print(f"乘法结果: {response.json()}")
 # 除法
 response = requests.post(f"{base_url}/divide", json={"a": 15, "b": 7})
 print(f"除法结果: {response.json()}")
+
+# POST Form 接口示例
+print("\n=== POST Form 接口示例 ===")
+
+# POST Form 加法
+response = requests.post(f"{base_url}/form/add", data={"a": 15, "b": 7})
+print(f"POST Form 加法结果: {response.json()}")
+
+# POST Form 减法
+response = requests.post(f"{base_url}/form/subtract", data={"a": 15, "b": 7})
+print(f"POST Form 减法结果: {response.json()}")
+
+# POST Form 乘法
+response = requests.post(f"{base_url}/form/multiply", data={"a": 15, "b": 7})
+print(f"POST Form 乘法结果: {response.json()}")
+
+# POST Form 除法
+response = requests.post(f"{base_url}/form/divide", data={"a": 15, "b": 7})
+print(f"POST Form 除法结果: {response.json()}")
+
+# GET Query 接口示例
+print("\n=== GET Query 接口示例 ===")
+
+# GET Query 加法
+response = requests.get(f"{base_url}/q/add", params={"a": 15, "b": 7})
+print(f"GET Query 加法结果: {response.json()}")
+
+# GET Query 减法
+response = requests.get(f"{base_url}/q/subtract", params={"a": 15, "b": 7})
+print(f"GET Query 减法结果: {response.json()}")
+
+# GET Query 乘法
+response = requests.get(f"{base_url}/q/multiply", params={"a": 15, "b": 7})
+print(f"GET Query 乘法结果: {response.json()}")
+
+# GET Query 除法
+response = requests.get(f"{base_url}/q/divide", params={"a": 15, "b": 7})
+print(f"GET Query 除法结果: {response.json()}")
 ```
 
 ## 服务注册与发现
