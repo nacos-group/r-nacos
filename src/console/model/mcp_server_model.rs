@@ -1,3 +1,4 @@
+use crate::common::string_utils::StringUtils;
 use crate::mcp::model::mcp::{McpQueryParam, McpServerParam, McpServerValue};
 use crate::mcp::model::tools::{McpSimpleTool, ToolRouteRule};
 use crate::namespace;
@@ -20,11 +21,16 @@ impl McpServerQueryRequest {
     pub fn to_mcp_query_param(&self) -> McpQueryParam {
         let limit = self.page_size.unwrap_or(20);
         let offset = (self.page_no.unwrap_or(1) - 1) * limit;
+        let namespace_id = if StringUtils::is_option_empty(&self.namespace_id) {
+            Arc::new(namespace::default_namespace("".to_string()))
+        } else {
+            Arc::new(self.namespace_id.clone().unwrap())
+        };
 
         McpQueryParam {
             offset,
             limit,
-            namespace_id: self.namespace_id.as_ref().map(|s| Arc::new(s.clone())),
+            namespace_id: Some(namespace_id),
             name_filter: self.name_filter.as_ref().map(|s| Arc::new(s.clone())),
         }
     }

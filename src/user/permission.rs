@@ -364,6 +364,7 @@ lazy_static::lazy_static! {
         R::Path("/rnacos/api/console/v2/mcp/toolspec/info",HTTP_METHOD_GET),
         R::Path("/rnacos/api/console/v2/mcp/toolspec/add",HTTP_METHOD_POST),
         R::Path("/rnacos/api/console/v2/mcp/toolspec/update",HTTP_METHOD_POST),
+        R::Path("/rnacos/api/console/v2/mcp/toolspec/batch_update",HTTP_METHOD_POST),
         R::Path("/rnacos/api/console/v2/mcp/toolspec/remove",HTTP_METHOD_POST),
     ]);
 
