@@ -368,6 +368,7 @@ lazy_static::lazy_static! {
         R::Path("/rnacos/api/console/v2/mcp/toolspec/batch_update",HTTP_METHOD_POST),
         R::Path("/rnacos/api/console/v2/mcp/toolspec/remove",HTTP_METHOD_POST),
         R::Path("/rnacos/api/console/v2/mcp/toolspec/download",HTTP_METHOD_GET),
+        R::Path("/rnacos/api/console/v2/mcp/toolspec/import",HTTP_METHOD_POST),
     ]);
 
     static ref M_MCP_SERVER_VISITOR: ModuleResource = ModuleResource::new(vec![

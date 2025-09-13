@@ -1,7 +1,9 @@
 use crate::common::appdata::AppShareData;
-use crate::common::constant::SEQ_TOOL_SPEC_VERSION;
+use crate::common::constant::{EMPTY_ARC_STRING, SEQ_TOOL_SPEC_VERSION};
 use crate::common::model::{ApiResult, PageResult, UserSession};
-use crate::console::model::mcp_tool_spec_model::{ToolSpecParams, ToolSpecQueryRequest};
+use crate::console::model::mcp_tool_spec_model::{
+    ToolSpecImportDto, ToolSpecParams, ToolSpecQueryRequest,
+};
 use crate::console::v2::{
     handle_mcp_manager_error, handle_not_found_error, handle_param_error, handle_raft_error,
     handle_system_error, handle_unexpected_response_error,
@@ -11,9 +13,12 @@ use crate::mcp::model::actor_model::{
 };
 use crate::raft::store::{ClientRequest, ClientResponse};
 use crate::sequence::{SequenceRequest, SequenceResult};
-use actix_web::{web, HttpMessage, HttpRequest, HttpResponse, Responder};
+use actix_multipart::form::tempfile::TempFile;
+use actix_multipart::form::text::Text;
+use actix_multipart::form::MultipartForm;
+use actix_web::{web, Error, HttpMessage, HttpRequest, HttpResponse, Responder};
 use std::fs::File;
-use std::io::{Read, Seek, SeekFrom, Write};
+use std::io::{self, Read, Seek, SeekFrom, Write};
 use std::sync::Arc;
 use zip::write::FileOptions;
 use zip::ZipWriter;
@@ -351,4 +356,172 @@ fn generate_tool_spec_yaml(tool_spec: &ToolSpecDto) -> String {
             tool_spec.tool_name.as_str()
         )
     })
+}
+
+#[derive(Debug, MultipartForm)]
+pub struct ToolSpecUploadForm {
+    #[multipart(rename = "namespace")]
+    pub namespace: Option<Text<String>>,
+    #[multipart(rename = "file")]
+    pub files: Vec<TempFile>,
+}
+
+/// 批量导入ToolSpec
+pub async fn import_tool_specs(
+    req: HttpRequest,
+    MultipartForm(form): MultipartForm<ToolSpecUploadForm>,
+    appdata: web::Data<Arc<AppShareData>>,
+) -> Result<impl Responder, Error> {
+    // 获取命名空间，优先使用表单中的namespace，然后使用header中的namespace,最后使用默认值
+    let mut namespace = if let Some(namespace_text) = form.namespace {
+        Arc::new(namespace_text.into_inner())
+    } else {
+        match req.headers().get("namespace") {
+            Some(v) => Arc::new(String::from_utf8_lossy(v.as_bytes()).to_string()),
+            None => EMPTY_ARC_STRING.clone(),
+        }
+    };
+    if namespace.is_empty() {
+        namespace = Arc::new(crate::namespace::default_namespace("".to_string()));
+    }
+
+    // 检查命名空间权限
+    let namespace_privilege = crate::user_namespace_privilege!(req);
+    if !namespace_privilege.check_permission(&namespace) {
+        return Ok(HttpResponse::Unauthorized().body(format!(
+            "user no such namespace permission: {}",
+            namespace.as_str()
+        )));
+    }
+
+    // 从HttpRequest中提取用户会话信息作为op_user
+    let op_user = req
+        .extensions()
+        .get::<Arc<UserSession>>()
+        .map(|session| session.username.clone());
+
+    let mut tool_spec_params = Vec::new();
+
+    // 处理上传的文件
+    for f in form.files {
+        match zip::ZipArchive::new(f.file) {
+            Ok(mut archive) => {
+                for i in 0..archive.len() {
+                    let mut file = archive.by_index(i).unwrap();
+                    let filename = file.name();
+
+                    // 只处理.yaml文件，跳过目录
+                    let filename_str = filename.to_string();
+                    if !filename_str.ends_with('/') && filename_str.ends_with(".yaml") {
+                        // 读取文件内容
+                        let content = match io::read_to_string(&mut file) {
+                            Ok(v) => v,
+                            Err(e) => {
+                                log::warn!("Failed to read file {}: {}", filename_str, e);
+                                continue;
+                            }
+                        };
+
+                        // 解析YAML内容为ToolSpecImportDto
+                        let import_dto: ToolSpecImportDto = match serde_yml::from_str(&content) {
+                            Ok(dto) => dto,
+                            Err(e) => {
+                                log::warn!("Failed to parse YAML file {}: {}", filename_str, e);
+                                continue;
+                            }
+                        };
+
+                        // 转换为ToolSpecParams
+                        let tool_spec_param = ToolSpecParams {
+                            namespace: namespace.clone(),
+                            group: import_dto.group.clone(),
+                            tool_name: import_dto.name.clone(),
+                            function: Some(crate::mcp::model::tools::ToolFunctionValue {
+                                name: import_dto.name.clone(),
+                                description: import_dto.description.clone(),
+                                input_schema: import_dto.input_schema,
+                            }),
+                            op_user: op_user.clone(),
+                        };
+
+                        tool_spec_params.push(tool_spec_param);
+                    }
+                }
+            }
+            Err(e) => {
+                log::error!("Failed to open zip archive: {}", e);
+                return Ok(HttpResponse::BadRequest().body("Invalid zip file format"));
+            }
+        }
+    }
+
+    // 如果没有有效的工具规范，返回错误
+    if tool_spec_params.is_empty() {
+        return Ok(
+            HttpResponse::BadRequest().body("No valid tool specifications found in the zip file")
+        );
+    }
+
+    // 一次性获取所需数量的版本号范围
+    let mut seq_range = if let Ok(Ok(SequenceResult::Range(range))) = appdata
+        .sequence_manager
+        .send(SequenceRequest::GetDirectRange(
+            SEQ_TOOL_SPEC_VERSION.clone(),
+            tool_spec_params.len() as u64,
+        ))
+        .await
+    {
+        range
+    } else {
+        return Ok(HttpResponse::InternalServerError()
+            .body("Failed to get version IDs from SequenceManager"));
+    };
+
+    // 转换为ToolSpecParam列表，为每个参数分配版本号
+    let mut tool_spec_params_with_version = Vec::new();
+    for param in tool_spec_params.iter() {
+        let version = if let Some(id) = seq_range.next_id() {
+            id
+        } else {
+            return Ok(
+                HttpResponse::InternalServerError().body("Insufficient version IDs in range")
+            );
+        };
+
+        let mut tool_spec_param = param.to_tool_spec_param(op_user.clone());
+        tool_spec_param.version = version;
+        tool_spec_params_with_version.push(tool_spec_param);
+    }
+
+    // 构建McpManagerRaftReq::UpdateToolSpecList请求
+    let raft_req = McpManagerRaftReq::UpdateToolSpecList(tool_spec_params_with_version);
+    let client_req = ClientRequest::McpReq { req: raft_req };
+
+    // 通过RaftRequestRoute.request发送写入请求
+    match appdata.raft_request_route.request(client_req).await {
+        Ok(response) => match response {
+            ClientResponse::Success => Ok(HttpResponse::Ok().json(ApiResult::success(Some(true)))),
+            ClientResponse::McpResp { resp: _ } => {
+                Ok(HttpResponse::Ok().json(ApiResult::success(Some(true))))
+            }
+            _ => {
+                log::error!("Unexpected response from Raft batch import ToolSpec");
+                Ok(
+                    HttpResponse::InternalServerError().json(ApiResult::<bool>::error(
+                        "RAFT_ERROR".to_string(),
+                        Some("Unexpected response from Raft".to_string()),
+                    )),
+                )
+            }
+        },
+        Err(err) => {
+            log::error!("Raft batch import ToolSpec error: {}", err);
+            Ok(
+                HttpResponse::InternalServerError().json(ApiResult::<bool>::error(
+                    "RAFT_ERROR".to_string(),
+                    Some(format!("Failed to batch import ToolSpec: {}", err)),
+                )),
+            )
+        }
+    }
 }
