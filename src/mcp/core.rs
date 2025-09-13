@@ -219,7 +219,10 @@ impl McpManager {
         self.tool_spec_map.insert(tool_spec.key.clone(), tool_spec);
     }
 
-    fn set_server(&mut self, server: McpServer) {
+    fn set_server(&mut self, mut server: McpServer) {
+        if let Some(id) = self.server_key_to_id_map.get(&server.unique_key) {
+            server.id = *id;
+        }
         self.server_key_to_id_map
             .insert(server.unique_key.clone(), server.id);
         self.server_map.insert(server.id, Arc::new(server));
