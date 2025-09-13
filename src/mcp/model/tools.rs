@@ -3,7 +3,6 @@ use crate::common::pb::data_object::{McpToolDo, McpToolSpecDo, ToolSpecVersionDo
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::collections::BTreeMap;
-use std::ops::Index;
 use std::sync::Arc;
 
 /// MCP 工具键，用于唯一标识一个工具规范
@@ -351,18 +350,18 @@ impl Default for ToolRouteRule {
 
 impl ToolRouteRule {
     pub fn is_need_host(&self) -> bool {
-        if let Some(i)= self.url.find("/") {
-            if i==0 {
-                return true
+        if let Some(i) = self.url.find("/") {
+            if i == 0 {
+                return true;
             }
         }
         self.url.find("{IP_PORT}").is_some()
     }
     pub fn build_url(&self, host: Option<(Arc<String>, u16)>) -> anyhow::Result<String> {
         if let Some((ip, port)) = host {
-            if let Some(i)= self.url.find("/") {
-                if i==0 {
-                    return Ok(format!("http:/{}:{}{}", ip, port,self.url));
+            if let Some(i) = self.url.find("/") {
+                if i == 0 {
+                    return Ok(format!("http:/{}:{}{}", ip, port, self.url));
                 }
             }
             Ok(self.url.replace("{IP_PORT}", &format!("{}:{}", ip, port)))

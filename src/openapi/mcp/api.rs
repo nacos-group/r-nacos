@@ -268,32 +268,30 @@ async fn handle_tools_call(
             let (tool, url) = select_tool_and_url(tool_name, &mcp_server, app_share_data).await?;
             let client = &app_share_data.common_client;
             let mut req = match tool.route_rule.convert_type {
-                ConvertType::None | ConvertType::Custom => {
-                    client.request(
-                            reqwest::Method::from_bytes(tool.route_rule.method.as_str().as_bytes())?,
-                            url.clone(),
-                        )
-                        .header("content-type", "application/json;charset=UTF-8")
-                        .body(serde_json::to_string(args)?)
-                },
-                ConvertType::JsonToForm => {
-                    client.request(
-                            reqwest::Method::from_bytes(tool.route_rule.method.as_str().as_bytes())?,
-                            url.clone(),
-                        )
-                        .header("content-type", "application/x-www-form-urlencoded")
-                        .body(serde_urlencoded::to_string(args)?)
-                }
+                ConvertType::None | ConvertType::Custom => client
+                    .request(
+                        reqwest::Method::from_bytes(tool.route_rule.method.as_str().as_bytes())?,
+                        url.clone(),
+                    )
+                    .header("content-type", "application/json;charset=UTF-8")
+                    .body(serde_json::to_string(args)?),
+                ConvertType::JsonToForm => client
+                    .request(
+                        reqwest::Method::from_bytes(tool.route_rule.method.as_str().as_bytes())?,
+                        url.clone(),
+                    )
+                    .header("content-type", "application/x-www-form-urlencoded")
+                    .body(serde_urlencoded::to_string(args)?),
                 ConvertType::JsonToUrl => {
                     let part = serde_urlencoded::to_string(args)?;
                     let query_url = if url.find("?").is_some() {
-                        format!("{}&{}",&url,part)
+                        format!("{}&{}", &url, part)
                     } else {
-                        format!("{}?{}",&url,part)
+                        format!("{}?{}", &url, part)
                     };
                     client.request(
-                            reqwest::Method::from_bytes(tool.route_rule.method.as_str().as_bytes())?,
-                            query_url,
+                        reqwest::Method::from_bytes(tool.route_rule.method.as_str().as_bytes())?,
+                        query_url,
                     )
                 }
             };
