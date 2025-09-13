@@ -27,26 +27,11 @@ pub async fn query_tool_spec_list(
 
     // 转换查询参数
     let query_param = request.to_query_param();
-
-    log::debug!(
-        "Query ToolSpec list: offset={}, limit={}, namespace_filter={:?}, group_filter={:?}, tool_name_filter={:?}",
-        query_param.offset,
-        query_param.limit,
-        query_param.namespace_id,
-        query_param.group_filter,
-        query_param.tool_name_filter
-    );
-
     // 发送查询请求到MCP Manager
     let cmd = McpManagerReq::QueryToolSpec(query_param);
     match appdata.mcp_manager.send(cmd).await {
         Ok(res) => match res {
             Ok(McpManagerResult::ToolSpecPageInfo(total_count, list)) => {
-                log::debug!(
-                    "Successfully queried {} ToolSpec records, total count: {}",
-                    list.len(),
-                    total_count
-                );
                 HttpResponse::Ok().json(ApiResult::success(Some(PageResult { total_count, list })))
             }
             Ok(_) => handle_unexpected_response_error("MCP Manager query ToolSpec"),
@@ -73,19 +58,11 @@ pub async fn get_tool_spec(
     // 构建ToolKey
     let tool_key = param.to_tool_key();
 
-    log::debug!(
-        "Get ToolSpec: namespace={}, group={}, tool_name={}",
-        tool_key.namespace,
-        tool_key.group,
-        tool_key.tool_name
-    );
-
     // 发送获取请求到MCP Manager
     let cmd = McpManagerReq::GetToolSpec(tool_key);
     match appdata.mcp_manager.send(cmd).await {
         Ok(res) => match res {
             Ok(McpManagerResult::ToolSpecInfo(Some(tool_spec))) => {
-                log::debug!("Successfully retrieved ToolSpec: {:?}", tool_spec.key);
                 let dto = ToolSpecDto::new_from(&tool_spec);
                 HttpResponse::Ok().json(ApiResult::success(Some(dto)))
             }
@@ -119,8 +96,6 @@ pub async fn add_or_update_tool_spec(
         .get::<Arc<UserSession>>()
         .map(|session| session.username.clone());
 
-    log::info!("add_or_update_tool_spec param:{:?}", &param);
-
     let version = if let Ok(Ok(SequenceResult::NextId(id))) = appdata
         .sequence_manager
         .send(SequenceRequest::GetNextId(SEQ_TOOL_SPEC_VERSION.clone()))
@@ -144,15 +119,8 @@ pub async fn add_or_update_tool_spec(
     // 通过RaftRequestRoute.request发送写入请求
     match appdata.raft_request_route.request(client_req).await {
         Ok(response) => match response {
-            ClientResponse::Success => {
-                log::debug!(
-                    "Successfully created/updated ToolSpec: {:?}",
-                    param.to_tool_key()
-                );
-                HttpResponse::Ok().json(ApiResult::success(Some(true)))
-            }
-            ClientResponse::McpResp { resp } => {
-                log::debug!("MCP Raft response: {:?}", resp);
+            ClientResponse::Success => HttpResponse::Ok().json(ApiResult::success(Some(true))),
+            ClientResponse::McpResp { resp: _ } => {
                 HttpResponse::Ok().json(ApiResult::success(Some(true)))
             }
             _ => handle_unexpected_response_error("Raft create/update ToolSpec"),
@@ -190,8 +158,6 @@ pub async fn update_tool_specs(
         .extensions()
         .get::<Arc<UserSession>>()
         .map(|session| session.username.clone());
-
-    log::info!("update_tool_specs params count: {}", params.len());
 
     // 一次性获取所需数量的版本号范围
     let mut seq_range = if let Ok(Ok(SequenceResult::Range(range))) = appdata
@@ -234,15 +200,8 @@ pub async fn update_tool_specs(
     // 通过RaftRequestRoute.request发送写入请求
     match appdata.raft_request_route.request(client_req).await {
         Ok(response) => match response {
-            ClientResponse::Success => {
-                log::debug!(
-                    "Successfully batch created/updated {} ToolSpec records",
-                    params.len()
-                );
-                HttpResponse::Ok().json(ApiResult::success(Some(true)))
-            }
-            ClientResponse::McpResp { resp } => {
-                log::debug!("MCP Raft batch update response: {:?}", resp);
+            ClientResponse::Success => HttpResponse::Ok().json(ApiResult::success(Some(true))),
+            ClientResponse::McpResp { resp: _ } => {
                 HttpResponse::Ok().json(ApiResult::success(Some(true)))
             }
             _ => handle_unexpected_response_error("Raft batch create/update ToolSpec"),
@@ -253,7 +212,7 @@ pub async fn update_tool_specs(
 
 /// 删除ToolSpec
 pub async fn remove_tool_spec(
-    req: HttpRequest,
+    _req: HttpRequest,
     appdata: web::Data<Arc<AppShareData>>,
     web::Json(param): web::Json<ToolSpecParams>,
 ) -> impl Responder {
@@ -261,20 +220,6 @@ pub async fn remove_tool_spec(
     if let Err(err) = param.validate_for_delete() {
         return handle_param_error(err, "ToolSpec delete parameter validation failed");
     }
-
-    // 从HttpRequest中提取用户会话信息作为op_user
-    let op_user = req
-        .extensions()
-        .get::<Arc<UserSession>>()
-        .map(|session| session.username.clone());
-
-    log::debug!(
-        "Delete ToolSpec: namespace={}, group={}, tool_name={}, op_user={:?}",
-        param.namespace,
-        param.group,
-        param.tool_name,
-        op_user
-    );
 
     // 构建ToolKey
     let tool_key = param.to_tool_key();
@@ -286,12 +231,8 @@ pub async fn remove_tool_spec(
     // 通过RaftRequestRoute.request发送删除请求
     match appdata.raft_request_route.request(client_req).await {
         Ok(response) => match response {
-            ClientResponse::Success => {
-                log::debug!("Successfully deleted ToolSpec: {:?}", tool_key);
-                HttpResponse::Ok().json(ApiResult::success(Some(true)))
-            }
+            ClientResponse::Success => HttpResponse::Ok().json(ApiResult::success(Some(true))),
             ClientResponse::McpResp { resp: _ } => {
-                log::debug!("Successfully deleted ToolSpec: {:?}", tool_key);
                 HttpResponse::Ok().json(ApiResult::success(Some(true)))
             }
             _ => handle_unexpected_response_error("Raft delete ToolSpec"),
