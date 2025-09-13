@@ -93,3 +93,12 @@ pub fn handle_unexpected_response_error(context: &str) -> HttpResponse {
         Some("Unexpected response type".to_string()),
     ))
 }
+
+/// 处理 anyhow::Result 错误
+pub fn handle_error(error: anyhow::Error) -> HttpResponse {
+    log::error!("Operation failed: {}", error);
+    HttpResponse::Ok().json(ApiResult::<()>::error(
+        ERROR_CODE_SYSTEM_ERROR.to_string(),
+        Some(error.to_string()),
+    ))
+}

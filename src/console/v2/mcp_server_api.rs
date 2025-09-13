@@ -7,8 +7,8 @@ use crate::console::model::mcp_server_model::{
     McpServerQueryRequest, McpServerValueDto,
 };
 use crate::console::v2::{
-    handle_mcp_manager_error, handle_not_found_error, handle_param_error, handle_raft_error,
-    handle_system_error, handle_unexpected_response_error,
+    handle_error, handle_mcp_manager_error, handle_not_found_error, handle_param_error,
+    handle_raft_error, handle_system_error, handle_unexpected_response_error,
 };
 use crate::mcp::model::actor_model::{McpManagerRaftReq, McpManagerReq, McpManagerResult};
 use crate::mcp::model::mcp::McpServerDto;
@@ -104,9 +104,37 @@ pub async fn add_mcp_server(
     appdata: web::Data<Arc<AppShareData>>,
     web::Json(param): web::Json<McpServerParams>,
 ) -> impl Responder {
+    match do_add_mcp_server(req, appdata, param).await {
+        Ok(response) => response,
+        Err(e) => handle_error(e),
+    }
+}
+
+async fn do_add_mcp_server(
+    req: HttpRequest,
+    appdata: web::Data<Arc<AppShareData>>,
+    param: McpServerParams,
+) -> anyhow::Result<HttpResponse> {
     // 验证参数
-    if let Err(err) = param.validate() {
-        return handle_param_error(err, "McpServer add parameter validation failed");
+    param.validate()?;
+
+    if let Some(server_key) = param.unique_key.as_ref() {
+        if !server_key.is_empty() {
+            let check_result = appdata
+                .mcp_manager
+                .send(McpManagerReq::GetServerByKey(Arc::new(
+                    server_key.to_string(),
+                )))
+                .await??;
+
+            if let McpManagerResult::ServerInfo(Some(server)) = check_result {
+                return Err(anyhow::anyhow!(
+                    "McpServer with key {} already exists, other id: {}",
+                    server_key,
+                    server.id
+                ));
+            }
+        }
     }
 
     // 从HttpRequest中提取用户会话信息作为op_user
@@ -115,42 +143,33 @@ pub async fn add_mcp_server(
         .get::<Arc<UserSession>>()
         .map(|session| session.username.clone());
 
-    let server_id = if let Ok(Ok(SequenceResult::NextId(id))) = appdata
+    let server_id = match appdata
         .sequence_manager
         .send(SequenceRequest::GetNextId(SEQ_MCP_SERVER_ID.clone()))
-        .await
+        .await??
     {
-        id
-    } else {
-        return handle_system_error(
-            "Unable to get next id from SequenceManager".to_string(),
-            "Failed to get next id from SequenceManager",
-        );
+        SequenceResult::NextId(id) => id,
+        _ => return Err(anyhow::anyhow!("Failed to get server id")),
     };
-    let server_value_id = if let Ok(Ok(SequenceResult::NextId(id))) = appdata
+
+    let server_value_id = match appdata
         .sequence_manager
         .send(SequenceRequest::GetNextId(SEQ_MCP_SERVER_VALUE_ID.clone()))
-        .await
+        .await??
     {
-        id
-    } else {
-        return handle_system_error(
-            "Unable to get next id from SequenceManager".to_string(),
-            "Failed to get next id from SequenceManager",
-        );
+        SequenceResult::NextId(id) => id,
+        _ => return Err(anyhow::anyhow!("Failed to get server value id")),
     };
-    let new_value_id = if let Ok(Ok(SequenceResult::NextId(id))) = appdata
+
+    let new_value_id = match appdata
         .sequence_manager
         .send(SequenceRequest::GetNextId(SEQ_MCP_SERVER_VALUE_ID.clone()))
-        .await
+        .await??
     {
-        id
-    } else {
-        return handle_system_error(
-            "Unable to get next id from SequenceManager".to_string(),
-            "Failed to get next id from SequenceManager",
-        );
+        SequenceResult::NextId(id) => id,
+        _ => return Err(anyhow::anyhow!("Failed to get new value id")),
     };
+
     // 转换为McpServerParam
     let mut server_param = param.to_mcp_server_param(op_user.clone());
     server_param.id = server_id;
@@ -165,15 +184,15 @@ pub async fn add_mcp_server(
     let client_req = ClientRequest::McpReq { req: raft_req };
 
     // 通过RaftRequestRoute.request发送写入请求
-    match appdata.raft_request_route.request(client_req).await {
-        Ok(response) => match response {
-            ClientResponse::McpResp { resp } => {
-                log::debug!("MCP Raft add server response: {:?}", resp);
-                HttpResponse::Ok().json(ApiResult::success(Some(server_id)))
-            }
-            _ => handle_unexpected_response_error("Raft add McpServer"),
-        },
-        Err(err) => handle_raft_error(err, "add McpServer"),
+    let response = appdata.raft_request_route.request(client_req).await?;
+
+    match response {
+        ClientResponse::McpResp { resp: _ } => {
+            Ok(HttpResponse::Ok().json(ApiResult::success(Some(server_id))))
+        }
+        _ => Err(anyhow::anyhow!(
+            "Unexpected response from Raft add McpServer"
+        )),
     }
 }
 
