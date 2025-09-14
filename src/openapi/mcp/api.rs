@@ -9,8 +9,42 @@ use crate::naming::model::ServiceKey;
 use crate::openapi::mcp::HandleOtherResult;
 use actix_web::{web, HttpRequest, HttpResponse, Result};
 use serde_json::{json, Value};
+use std::fmt::Display;
 use std::sync::Arc;
+use std::time::SystemTime;
 use uuid::Uuid;
+
+/// MCP 请求日志参数
+#[derive(Debug, Clone)]
+pub enum McpHandleLogArgs {
+    /// 日志参数内容为空
+    None,
+    /// 忽略,不打印日志
+    Ignore,
+    /// 打印日志
+    Arg(String),
+}
+
+impl Display for McpHandleLogArgs {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let str = match self {
+            McpHandleLogArgs::None => "".to_string(),
+            McpHandleLogArgs::Ignore => "".to_string(),
+            McpHandleLogArgs::Arg(arg) => arg.to_string(),
+        };
+        write!(f, "{}", str)
+    }
+}
+
+impl McpHandleLogArgs {
+    pub fn enable_log(&self) -> bool {
+        match self {
+            McpHandleLogArgs::None => true,
+            McpHandleLogArgs::Ignore => false,
+            McpHandleLogArgs::Arg(_) => true,
+        }
+    }
+}
 // 统一的流式返回处理函数
 /*
 fn create_streaming_response(response: JsonRpcResponse, session_id: String) -> Result<HttpResponse> {
@@ -129,10 +163,22 @@ pub async fn handle_request(
     app_share_data: &Arc<AppShareData>,
     request: JsonRpcRequest,
     mcp_server: &Arc<McpServer>,
-    _session_id: &String,
+    session_id: &String,
 ) -> Result<JsonRpcResponse, HandleOtherResult> {
+    let start = SystemTime::now();
+    let request_log_info = format!("|mcp|client_request|{}|{}", session_id, &request.method);
+
     // 验证 JSON-RPC 版本
     if request.jsonrpc != "2.0" {
+        let duration = SystemTime::now()
+            .duration_since(start)
+            .unwrap_or_default()
+            .as_secs_f64();
+        log::error!(
+            "{}|err|{}|invalid_jsonrpc_version",
+            request_log_info,
+            duration
+        );
         return Ok(JsonRpcResponse {
             jsonrpc: "2.0".to_string(),
             result: None,
@@ -145,14 +191,27 @@ pub async fn handle_request(
         });
     }
 
+    // 收集日志参数
+    let mut log_args = McpHandleLogArgs::None;
+
     // 根据不同的 method 处理请求
     let rpc_response = match request.method.as_str() {
         "notifications/initialized" => {
             // notifications/initialized 使用 JSON 格式（非流式）
+            let duration = SystemTime::now()
+                .duration_since(start)
+                .unwrap_or_default()
+                .as_secs_f64();
+            log::info!(
+                "{}|ok|{}|notifications_initialized",
+                request_log_info,
+                duration
+            );
             return Err(HandleOtherResult::Accepted);
         }
         "initialize" => {
             // initialize 使用 SSE 格式的流式返回
+            log_args = McpHandleLogArgs::Arg("initialize".to_string());
             handle_initialize(request.params, request.id)
         }
         "tools/call" => {
@@ -162,28 +221,46 @@ pub async fn handle_request(
                 request.id.clone(),
                 &mcp_server,
                 &app_share_data,
+                &mut log_args,
             )
             .await
             {
                 Ok(response) => response,
-                Err(error) => JsonRpcResponse {
-                    jsonrpc: "2.0".to_string(),
-                    result: None,
-                    error: Some(JsonRpcError {
-                        code: -32000,
-                        message: error.to_string(),
-                        data: None,
-                    }),
-                    id: request.id,
-                },
+                Err(error) => {
+                    let duration = SystemTime::now()
+                        .duration_since(start)
+                        .unwrap_or_default()
+                        .as_secs_f64();
+                    log::error!(
+                        "{}|err|{}|{}|tools_call_error",
+                        request_log_info,
+                        duration,
+                        &log_args
+                    );
+                    JsonRpcResponse {
+                        jsonrpc: "2.0".to_string(),
+                        result: None,
+                        error: Some(JsonRpcError {
+                            code: -32000,
+                            message: error.to_string(),
+                            data: None,
+                        }),
+                        id: request.id,
+                    }
+                }
             }
         }
         "tools/list" => {
             // tools/list
+            log_args = McpHandleLogArgs::Arg(format!(
+                "tools_list:count:{}",
+                mcp_server.release_value.tools.len()
+            ));
             handle_tools_list(request.id, &mcp_server)
         }
         "resources/list" => {
             // resources/list
+            log_args = McpHandleLogArgs::Arg("resources_list:empty".to_string());
             JsonRpcResponse {
                 jsonrpc: "2.0".to_string(),
                 result: Some(json!({ "resources": [] })),
@@ -193,6 +270,7 @@ pub async fn handle_request(
         }
         "resources/templates/list" => {
             // resources/templates/list
+            log_args = McpHandleLogArgs::Arg("resources_templates_list:empty".to_string());
             JsonRpcResponse {
                 jsonrpc: "2.0".to_string(),
                 result: Some(json!({ "resourceTemplates": [] })),
@@ -200,17 +278,44 @@ pub async fn handle_request(
                 id: request.id,
             }
         }
-        _ => JsonRpcResponse {
-            jsonrpc: "2.0".to_string(),
-            result: None,
-            error: Some(JsonRpcError {
-                code: -32601,
-                message: "Method not found".to_string(),
-                data: None,
-            }),
-            id: request.id,
-        },
+        _ => {
+            let duration = SystemTime::now()
+                .duration_since(start)
+                .unwrap_or_default()
+                .as_secs_f64();
+            log::error!(
+                "{}|err|{}|{}|method_not_found|{}",
+                request_log_info,
+                duration,
+                &log_args,
+                request.method
+            );
+            JsonRpcResponse {
+                jsonrpc: "2.0".to_string(),
+                result: None,
+                error: Some(JsonRpcError {
+                    code: -32601,
+                    message: "Method not found".to_string(),
+                    data: None,
+                }),
+                id: request.id,
+            }
+        }
     };
+
+    let duration = SystemTime::now()
+        .duration_since(start)
+        .unwrap_or_default()
+        .as_secs_f64();
+
+    if log_args.enable_log() {
+        if duration < 1f64 {
+            log::info!("{}|ok|{}|{}", request_log_info, duration, &log_args);
+        } else {
+            log::warn!("{}|ok|{}|{}", request_log_info, duration, &log_args);
+        }
+    }
+
     Ok(rpc_response)
 }
 
@@ -221,7 +326,7 @@ fn handle_initialize(params: Option<Value>, id: Option<Value>) -> JsonRpcRespons
         .as_ref()
         .and_then(|p| p.get("protocolVersion"))
         .and_then(|v| v.as_str())
-        .unwrap_or("2024-11-05"); // 使用默认值作为后备,sse使用: 2024-11-05,mcp: 2025-03-26
+        .unwrap_or("2025-03-26"); // 使用默认值作为后备,sse使用: 2024-11-05,mcp: 2025-03-26
 
     // 返回服务器能力信息
     let result = json!({
@@ -259,13 +364,24 @@ async fn handle_tools_call(
     id: Option<Value>,
     mcp_server: &Arc<McpServer>,
     app_share_data: &Arc<AppShareData>,
+    log_args: &mut McpHandleLogArgs,
 ) -> anyhow::Result<JsonRpcResponse> {
     if let Some(params_value) = params {
         if let (Some(tool_name), Some(args)) = (
             params_value.get("name").and_then(|v| v.as_str()),
             params_value.get("arguments"),
         ) {
-            let (tool, url) = select_tool_and_url(tool_name, &mcp_server, app_share_data).await?;
+            *log_args = McpHandleLogArgs::Arg(format!("tool:{}", tool_name));
+
+            let (tool, url) = match select_tool_and_url(tool_name, &mcp_server, app_share_data)
+                .await
+            {
+                Ok(result) => result,
+                Err(error) => {
+                    *log_args = McpHandleLogArgs::Arg(format!("tool:{}|select_failed", tool_name));
+                    return Err(error);
+                }
+            };
             let client = &app_share_data.common_client;
             let mut req = match tool.route_rule.convert_type {
                 ConvertType::None | ConvertType::Custom => client
@@ -298,10 +414,28 @@ async fn handle_tools_call(
             for (k, v) in tool.route_rule.addition_headers.iter() {
                 req = req.header(k, v.as_str());
             }
-            let res = req.send().await?;
+            let res = match req.send().await {
+                Ok(response) => response,
+                Err(error) => {
+                    *log_args =
+                        McpHandleLogArgs::Arg(format!("tool:{}|http_request_failed", tool_name));
+                    return Err(anyhow::anyhow!("HTTP request failed: {}", error));
+                }
+            };
+
             let response_status = res.status().as_u16();
             if response_status == 200 {
-                let content = res.text().await?;
+                let content = match res.text().await {
+                    Ok(text) => text,
+                    Err(error) => {
+                        *log_args = McpHandleLogArgs::Arg(format!(
+                            "tool:{}|read_response_failed",
+                            tool_name
+                        ));
+                        return Err(anyhow::anyhow!("Failed to read response: {}", error));
+                    }
+                };
+                *log_args = McpHandleLogArgs::Arg(format!("tool:{}|success", tool_name));
                 let result = json!({ "content": [{"type":"text","text":content}]});
                 return Ok(JsonRpcResponse {
                     jsonrpc: "2.0".to_string(),
@@ -310,7 +444,20 @@ async fn handle_tools_call(
                     id,
                 });
             } else {
-                let content = res.text().await?;
+                let content = match res.text().await {
+                    Ok(text) => text,
+                    Err(error) => {
+                        *log_args = McpHandleLogArgs::Arg(format!(
+                            "tool:{}|read_error_response_failed",
+                            tool_name
+                        ));
+                        return Err(anyhow::anyhow!("Failed to read error response: {}", error));
+                    }
+                };
+                *log_args = McpHandleLogArgs::Arg(format!(
+                    "tool:{}|http_status_{}",
+                    tool_name, response_status
+                ));
                 return Ok(JsonRpcResponse {
                     jsonrpc: "2.0".to_string(),
                     result: None,
@@ -326,6 +473,7 @@ async fn handle_tools_call(
     }
 
     // 如果参数无效或工具不存在，返回错误
+    *log_args = McpHandleLogArgs::Arg("invalid_params".to_string());
     Ok(JsonRpcResponse {
         jsonrpc: "2.0".to_string(),
         result: None,
