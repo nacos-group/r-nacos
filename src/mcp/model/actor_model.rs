@@ -89,7 +89,7 @@ impl ToolSpecDto {
             tool_name: tool_spec.key.tool_name.clone(),
             version: tool_spec.current_version,
             name: current_version.function.name.clone(),
-            description: current_version.function.name.clone(),
+            description: current_version.function.description.clone(),
             create_time: tool_spec.create_time,
             last_modified_millis: current_version.update_time,
             function: current_version.function.clone(),
