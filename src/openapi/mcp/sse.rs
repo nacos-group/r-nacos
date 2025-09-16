@@ -18,6 +18,8 @@ pub async fn sse_connect(
     path: web::Path<McpPath>,
     app_share_data: web::Data<Arc<AppShareData>>,
 ) -> actix_web::Result<HttpResponse> {
+    /*
+    // 部分client 没有设置accept，这里为有兼容性暂时不校验
     if let Some(accept_header) = req.headers().get("accept") {
         let accept_value = accept_header.to_str().unwrap_or("");
 
@@ -31,6 +33,7 @@ pub async fn sse_connect(
         return Ok(HttpResponse::BadRequest()
             .body(r#"error: Unsupported Accept header. Must contain 'text/event-stream'"#));
     }
+    */
     //校验path信息是否合法
     let mcp_server = if let Ok(Ok(McpManagerResult::ServerInfo(Some(server)))) = app_share_data
         .mcp_manager

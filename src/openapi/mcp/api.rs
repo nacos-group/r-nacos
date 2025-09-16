@@ -278,6 +278,21 @@ pub async fn handle_request(
                 id: request.id,
             }
         }
+        "prompts/list" => {
+            log_args = McpHandleLogArgs::Arg("prompts_list:empty".to_string());
+            JsonRpcResponse {
+                jsonrpc: "2.0".to_string(),
+                result: Some(json!({ "prompts": [] })),
+                error: None,
+                id: request.id,
+            }
+        }
+        "ping" => JsonRpcResponse {
+            jsonrpc: "2.0".to_string(),
+            result: Some(json!({})),
+            error: None,
+            id: request.id,
+        },
         _ => {
             let duration = SystemTime::now()
                 .duration_since(start)
