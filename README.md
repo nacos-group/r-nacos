@@ -5,11 +5,13 @@
 
 r-nacos是一个用rust实现的nacos服务。
 
-r-nacos是一个轻量、 快速、稳定、高性能的服务；包含注册中心、配置中心、web管理控制台功能，支持单机、集群部署。
+r-nacos是一个轻量、 快速、稳定、高性能的服务；包含注册中心、配置中心、MCP服务、web管理控制台功能，支持单机、集群部署。
 
 r-nacos设计上完全兼容最新版本nacos面向client sdk 的协议（包含1.x的http OpenApi，和2.x的grpc协议）, 支持使用nacos服务的应用平迁到 r-nacos。
 
 r-nacos相较于java nacos来说，是一个提供相同功能，启动更快、占用系统资源更小、性能更高、运行更稳定的服务。
+
+r-nacos支持mcp，内置mcp server与接口转发；支持让注册到r-nacos的普通http接口通过r-nacos直接转化成mcp服务对外提供服务。
 
 详细说明可以看 [r-nacos docs](https://r-nacos.github.io/docs/)和[deepwiki](https://deepwiki.com/nacos-group/r-nacos/)
 
@@ -386,6 +388,10 @@ nacos_rust_client = "0.3.0"
 
 ![](https://github.com/r-nacos/r-nacos/raw/master/doc/assets/imgs/20240722075241.png)
 
+> 8、MCP服务
+
+具体参考： https://r-nacos.github.io/docs/mcp-server/
+
 
 
 ## 功能说明
@@ -485,6 +491,10 @@ r-nacos架构设计参考：
 
 + [架构](https://r-nacos.github.io/docs/architecture/)
 + [deepwiki architecture](https://deepwiki.com/nacos-group/r-nacos/2-system-architecture)
+
+### MCP架构
+
+![MCP架构图](https://raw.githubusercontent.com/r-nacos/r-nacos/master/doc/assets/imgs/r-nacos_mcp_L2.png)
 
 
 ## 使用登记
