@@ -46,4 +46,15 @@ impl ToolSpecUtils {
             }
         }
     }
+
+    pub fn remove_ref_map(
+        target_ref_map: &mut HashMap<ToolKey, HashMap<u64, i64>>,
+        add_ref_map: &HashMap<ToolKey, HashMap<u64, i64>>,
+    ) {
+        for (tool_key, version_map) in add_ref_map {
+            for (version, count) in version_map {
+                Self::add_tool_ref_to_map(target_ref_map, tool_key, *version, 0 - *count);
+            }
+        }
+    }
 }

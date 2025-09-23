@@ -44,35 +44,41 @@ impl McpManager {
 
     /// 根据服务引用，初始化计算引用计数
     fn init_tool_spec_version_ref_map(&mut self) {
-        let mut server_value_id_set = HashSet::new();
         let mut server_key_to_id_map: HashMap<Arc<String>, u64> = HashMap::new();
+        let mut tool_spec_version_ref_map = HashMap::new();
         for mcp_server in self.server_map.values() {
             server_key_to_id_map.insert(mcp_server.unique_key.clone(), mcp_server.id);
-            for server_value in &mcp_server.histories {
-                server_value_id_set.insert(server_value.id);
-                ToolSpecUtils::update_server_ref_to_map(
-                    &mut self.tool_spec_version_ref_map,
-                    &server_value,
-                );
-            }
-            let server_value = &mcp_server.current_value;
-            if server_value_id_set.contains(&server_value.id) {
-                server_value_id_set.insert(server_value.id);
-                ToolSpecUtils::update_server_ref_to_map(
-                    &mut self.tool_spec_version_ref_map,
-                    server_value.as_ref(),
-                );
-            }
-            let server_value = &mcp_server.release_value;
-            if server_value_id_set.contains(&server_value.id) {
-                server_value_id_set.insert(server_value.id);
-                ToolSpecUtils::update_server_ref_to_map(
-                    &mut self.tool_spec_version_ref_map,
-                    server_value.as_ref(),
-                );
-            }
+            Self::calculate_tool_ref(&mut tool_spec_version_ref_map, mcp_server);
         }
         self.server_key_to_id_map = server_key_to_id_map;
+        self.tool_spec_version_ref_map = tool_spec_version_ref_map;
+    }
+
+    fn calculate_tool_ref(
+        tool_spec_version_ref_map: &mut HashMap<ToolKey, HashMap<u64, i64>>,
+        mcp_server: &Arc<McpServer>,
+    ) {
+        let mut server_value_id_set = HashSet::new();
+        for server_value in &mcp_server.histories {
+            server_value_id_set.insert(server_value.id);
+            ToolSpecUtils::update_server_ref_to_map(tool_spec_version_ref_map, &server_value);
+        }
+        let server_value = &mcp_server.current_value;
+        if server_value_id_set.contains(&server_value.id) {
+            server_value_id_set.insert(server_value.id);
+            ToolSpecUtils::update_server_ref_to_map(
+                tool_spec_version_ref_map,
+                server_value.as_ref(),
+            );
+        }
+        let server_value = &mcp_server.release_value;
+        if server_value_id_set.contains(&server_value.id) {
+            server_value_id_set.insert(server_value.id);
+            ToolSpecUtils::update_server_ref_to_map(
+                tool_spec_version_ref_map,
+                server_value.as_ref(),
+            );
+        }
     }
 
     fn update_server(&mut self, server_param: McpServerParam) -> anyhow::Result<Arc<McpServer>> {
@@ -134,6 +140,12 @@ impl McpManager {
     fn remove_server(&mut self, id: u64) {
         if let Some(v) = self.server_map.remove(&id) {
             self.server_key_to_id_map.remove(&v.unique_key);
+            let mut tool_spec_version_ref_map = HashMap::new();
+            Self::calculate_tool_ref(&mut tool_spec_version_ref_map, &v);
+            ToolSpecUtils::remove_ref_map(
+                &mut self.tool_spec_version_ref_map,
+                &tool_spec_version_ref_map,
+            );
         }
     }
 
