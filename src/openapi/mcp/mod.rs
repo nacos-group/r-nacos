@@ -4,6 +4,10 @@ pub mod api;
 pub mod model;
 pub mod sse;
 
+lazy_static::lazy_static! {
+    pub(crate) static ref IGNORE_TRASFER_HEADERS: Vec<&'static  str> =  vec!["host","content-type"];
+}
+
 pub enum HandleOtherResult {
     Accepted,
 }

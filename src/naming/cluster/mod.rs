@@ -240,6 +240,7 @@ pub async fn handle_naming_route(
             server_key,
             session_id,
             request,
+            headers,
         } => {
             let mcp_server = if let Ok(Ok(McpManagerResult::ServerInfo(Some(server)))) = app
                 .mcp_manager
@@ -250,7 +251,19 @@ pub async fn handle_naming_route(
             } else {
                 return Err(anyhow::anyhow!("McpServer not found"));
             };
-            match openapi::mcp::api::handle_request(app, request, &mcp_server, &session_id).await {
+            let mut ref_headers = HashMap::new();
+            for (key, value) in headers.iter() {
+                ref_headers.insert(key.as_str(), value.as_bytes());
+            }
+            match openapi::mcp::api::handle_request(
+                app,
+                request,
+                &mcp_server,
+                session_id.as_ref(),
+                ref_headers,
+            )
+            .await
+            {
                 Ok(result) => {
                     let message = SseConnUtils::create_sse_message(&result);
                     app.sse_stream_manager

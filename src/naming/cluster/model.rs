@@ -55,6 +55,7 @@ pub enum NamingRouteRequest {
         session_id: Arc<String>,
         server_key: Arc<String>,
         request: JsonRpcRequest,
+        headers: HashMap<String, String>,
     },
 }
 

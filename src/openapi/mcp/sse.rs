@@ -6,15 +6,16 @@ use crate::mcp::model::sse_model::{SseConnMetaInfo, SseStreamManageAsyncCmd, Sse
 use crate::mcp::sse_manage::SseConnUtils;
 use crate::naming::cluster::model::{NamingRouteRequest, NamingRouterResponse};
 use crate::openapi::mcp::model::{JsonRpcRequest, McpPath, SseMessagePath};
-use crate::openapi::mcp::HandleOtherResult;
+use crate::openapi::mcp::{HandleOtherResult, IGNORE_TRASFER_HEADERS};
 use actix_web::http::StatusCode;
 use actix_web::{web, HttpRequest, HttpResponse};
 use bytes::Bytes;
+use std::collections::HashMap;
 use std::sync::Arc;
 use uuid::Uuid;
 
 pub async fn sse_connect(
-    req: HttpRequest,
+    _req: HttpRequest,
     path: web::Path<McpPath>,
     app_share_data: web::Data<Arc<AppShareData>>,
 ) -> actix_web::Result<HttpResponse> {
@@ -47,7 +48,7 @@ pub async fn sse_connect(
     if !mcp_server.auth_keys.contains(&path.auth_key) {
         return Ok(HttpResponse::BadRequest().body(r#"error: Invalid auth key"#));
     }
-    let (tx, rx) = tokio::sync::mpsc::channel::<anyhow::Result<Bytes>>(3);
+    let (tx, rx) = tokio::sync::mpsc::channel::<anyhow::Result<Bytes>>(10);
     let session_id = Arc::new(Uuid::new_v4().to_string().replace("-", ""));
     let meta = SseConnMetaInfo {
         session_id: session_id.clone(),
@@ -84,6 +85,7 @@ pub async fn sse_connect(
 }
 
 pub async fn sse_message(
+    req: HttpRequest,
     body: web::Json<JsonRpcRequest>,
     path: web::Path<SseMessagePath>,
     app_share_data: web::Data<Arc<AppShareData>>,
@@ -98,16 +100,34 @@ pub async fn sse_message(
         return Ok(HttpResponse::NotFound().body(r#"error: McpServer not found"#));
     };
     if path.node_id != app_share_data.sys_config.raft_node_id {
-        return match post_to_remote(&app_share_data, &path, body.into_inner()).await {
+        let mut headers = HashMap::new();
+        for (key, value) in req.headers() {
+            if IGNORE_TRASFER_HEADERS.contains(&key.as_str()) {
+                continue;
+            }
+            headers.insert(
+                key.to_string(),
+                String::from_utf8_lossy(value.as_bytes()).to_string(),
+            );
+        }
+        return match post_to_remote(&app_share_data, &path, body.into_inner(), headers).await {
             Ok(_) => Ok(HttpResponse::Accepted().body("Accepted")),
             Err(e) => Ok(HttpResponse::InternalServerError().body(format!("error: {}", e))),
         };
+    }
+    let mut headers = HashMap::new();
+    for (key, value) in req.headers() {
+        if IGNORE_TRASFER_HEADERS.contains(&key.as_str()) {
+            continue;
+        }
+        headers.insert(key.as_str(), value.as_bytes());
     }
     let message = match super::api::handle_request(
         &app_share_data,
         body.into_inner(),
         &mcp_server,
         &path.session_id,
+        headers,
     )
     .await
     {
@@ -135,15 +155,18 @@ async fn post_to_remote(
     app_share_data: &Arc<AppShareData>,
     path: &SseMessagePath,
     request: JsonRpcRequest,
+    headers: HashMap<String, String>,
 ) -> anyhow::Result<()> {
     let addr = app_share_data
         .naming_node_manage
         .get_node_addr(path.node_id)
         .await?;
+
     let req = NamingRouteRequest::McpMessages {
         server_key: path.server_key.clone(),
         session_id: path.session_id.clone(),
         request,
+        headers,
     };
     let request = serde_json::to_string(&req).unwrap_or_default();
     let payload = PayloadUtils::build_payload(NAMING_ROUTE_REQUEST, request);

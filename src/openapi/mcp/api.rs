@@ -6,9 +6,11 @@ use crate::mcp::model::mcp::McpServer;
 use crate::mcp::model::tools::{ConvertType, McpTool, ToolFunctionValue};
 use crate::naming::core::{NamingCmd, NamingResult};
 use crate::naming::model::ServiceKey;
-use crate::openapi::mcp::HandleOtherResult;
+use crate::openapi::mcp::{HandleOtherResult, IGNORE_TRASFER_HEADERS};
 use actix_web::{web, HttpRequest, HttpResponse, Result};
 use serde_json::{json, Value};
+use std::borrow::Cow;
+use std::collections::HashMap;
 use std::fmt::Display;
 use std::sync::Arc;
 use std::time::SystemTime;
@@ -139,8 +141,15 @@ pub async fn mcp_handler(
         }
     };
 
+    let mut headers = HashMap::new();
+    for (key, value) in req.headers() {
+        if IGNORE_TRASFER_HEADERS.contains(&key.as_str()) {
+            continue;
+        }
+        headers.insert(key.as_str(), value.as_bytes());
+    }
     let rpc_response =
-        match handle_request(&app_share_data, request, &mcp_server, &session_id).await {
+        match handle_request(&app_share_data, request, &mcp_server, &session_id, headers).await {
             Ok(value) => value,
             Err(e) => {
                 match e {
@@ -164,6 +173,7 @@ pub async fn handle_request(
     request: JsonRpcRequest,
     mcp_server: &Arc<McpServer>,
     session_id: &String,
+    headers: HashMap<&str, &[u8]>,
 ) -> Result<JsonRpcResponse, HandleOtherResult> {
     let start = SystemTime::now();
     let request_log_info = format!("|mcp|client_request|{}|{}", session_id, &request.method);
@@ -221,6 +231,7 @@ pub async fn handle_request(
                 request.id.clone(),
                 &mcp_server,
                 &app_share_data,
+                headers,
                 &mut log_args,
             )
             .await
@@ -379,6 +390,7 @@ async fn handle_tools_call(
     id: Option<Value>,
     mcp_server: &Arc<McpServer>,
     app_share_data: &Arc<AppShareData>,
+    headers: HashMap<&str, &[u8]>,
     log_args: &mut McpHandleLogArgs,
 ) -> anyhow::Result<JsonRpcResponse> {
     if let Some(params_value) = params {
@@ -426,8 +438,16 @@ async fn handle_tools_call(
                     )
                 }
             };
+            let mut user_keys = vec![];
             for (k, v) in tool.route_rule.addition_headers.iter() {
                 req = req.header(k, v.as_str());
+                user_keys.push(k);
+            }
+            for (k, v) in headers.iter() {
+                if filter_keys(&mut user_keys, k) {
+                    continue;
+                }
+                req = req.header(*k, String::from_utf8_lossy(*v).as_ref());
             }
             let res = match req.send().await {
                 Ok(response) => response,
@@ -501,13 +521,23 @@ async fn handle_tools_call(
     })
 }
 
+#[inline]
+fn filter_keys(user_keys: &Vec<&String>, k: &&str) -> bool {
+    for use_key in user_keys.iter() {
+        if k.eq_ignore_ascii_case(use_key) {
+            return true;
+        }
+    }
+    false
+}
+
 async fn select_tool_and_url<'a>(
     tool_name: &str,
     server: &'a Arc<McpServer>,
     app_share_data: &Arc<AppShareData>,
 ) -> anyhow::Result<(&'a McpTool, String)> {
     for tool in server.release_value.tools.iter() {
-        if tool.tool_name.as_ref() == tool_name {
+        if tool.tool_name.as_str() == tool_name {
             let service_key = ServiceKey::new_by_arc(
                 tool.tool_key.namespace.clone(),
                 tool.route_rule.service_group.clone(),
