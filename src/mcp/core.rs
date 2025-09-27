@@ -51,6 +51,28 @@ impl McpManager {
             Self::calculate_tool_ref(&mut tool_spec_version_ref_map, mcp_server);
         }
         self.server_key_to_id_map = server_key_to_id_map;
+        // 过滤不存在版本
+        for (tool_key, ref_map) in tool_spec_version_ref_map.iter_mut() {
+            let mut remove_keys = vec![];
+            for tool_spec in self.tool_spec_map.get(tool_key) {
+                for version in ref_map.keys() {
+                    if !tool_spec.versions.contains_key(version) {
+                        remove_keys.push(*version);
+                    }
+                }
+            }
+            if !remove_keys.is_empty() {
+                let versions = serde_json::to_string(&remove_keys).unwrap_or_default();
+                log::warn!(
+                    "Some service references non-existent tool version, tool_key:{:?}, versions:{}",
+                    tool_key,
+                    &versions
+                );
+            }
+            for version in remove_keys {
+                ref_map.remove(&version);
+            }
+        }
         self.tool_spec_version_ref_map = tool_spec_version_ref_map;
     }
 
@@ -64,7 +86,7 @@ impl McpManager {
             ToolSpecUtils::update_server_ref_to_map(tool_spec_version_ref_map, &server_value);
         }
         let server_value = &mcp_server.current_value;
-        if server_value_id_set.contains(&server_value.id) {
+        if !server_value_id_set.contains(&server_value.id) {
             server_value_id_set.insert(server_value.id);
             ToolSpecUtils::update_server_ref_to_map(
                 tool_spec_version_ref_map,
@@ -72,7 +94,7 @@ impl McpManager {
             );
         }
         let server_value = &mcp_server.release_value;
-        if server_value_id_set.contains(&server_value.id) {
+        if !server_value_id_set.contains(&server_value.id) {
             server_value_id_set.insert(server_value.id);
             ToolSpecUtils::update_server_ref_to_map(
                 tool_spec_version_ref_map,
@@ -139,6 +161,10 @@ impl McpManager {
 
     fn remove_server(&mut self, id: u64) {
         if let Some(v) = self.server_map.remove(&id) {
+            self.init_tool_spec_version_ref_map();
+            /*
+            // 上面使用重建全局索引。这里应该考虑改为增量更新索引可以提升性能。
+            // TODO: 目前下面的增量索引方式在部分场景还有问题，待调整验证通过后再启动增量更新索引方式。
             self.server_key_to_id_map.remove(&v.unique_key);
             let mut tool_spec_version_ref_map = HashMap::new();
             Self::calculate_tool_ref(&mut tool_spec_version_ref_map, &v);
@@ -146,6 +172,7 @@ impl McpManager {
                 &mut self.tool_spec_version_ref_map,
                 &tool_spec_version_ref_map,
             );
+             */
         }
     }
 
@@ -220,6 +247,12 @@ impl McpManager {
     fn remove_tool_spec(&mut self, tool_key: ToolKey) -> anyhow::Result<()> {
         if let Some(map) = self.tool_spec_version_ref_map.get(&tool_key) {
             if !map.is_empty() {
+                #[cfg(feature = "debug")]
+                log::warn!(
+                    "tool spec is used,{:?},{}",
+                    &tool_key,
+                    serde_json::to_string(&map).unwrap()
+                );
                 return Err(anyhow::anyhow!("tool spec is used"));
             }
         }
@@ -443,6 +476,12 @@ impl McpManager {
         Ok(())
     }
 
+    fn import_finish(&mut self, _ctx: &mut Context<Self>) -> anyhow::Result<()> {
+        self.init_tool_spec_version_ref_map();
+        log::info!("McpManager import_finish");
+        Ok(())
+    }
+
     fn load_completed(&mut self, _ctx: &mut Context<Self>) -> anyhow::Result<()> {
         self.init_tool_spec_version_ref_map();
         log::info!("McpManager load snapshot completed");
@@ -569,7 +608,7 @@ impl Handler<McpManagerRaftReq> for McpManager {
                 Ok(McpManagerRaftResult::None)
             }
             McpManagerRaftReq::ImportFinished => {
-                self.load_completed(ctx)?;
+                self.import_finish(ctx)?;
                 Ok(McpManagerRaftResult::None)
             }
         }
