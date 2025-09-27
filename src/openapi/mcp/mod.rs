@@ -5,7 +5,7 @@ pub mod model;
 pub mod sse;
 
 lazy_static::lazy_static! {
-    pub(crate) static ref IGNORE_TRASFER_HEADERS: Vec<&'static  str> =  vec!["host","content-type"];
+    pub(crate) static ref IGNORE_TRASFER_HEADERS: Vec<&'static  str> =  vec!["host","content-type","content-length","accept-encoding","accept","connection"];
 }
 
 pub enum HandleOtherResult {

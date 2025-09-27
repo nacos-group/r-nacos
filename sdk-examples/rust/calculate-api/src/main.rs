@@ -197,6 +197,7 @@ async fn register_to_nacos(nacos_server: &str, namespace: &str, port: u16) -> Re
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    std::env::set_var("RUST_LOG", "INFO");
     let args = Args::parse();
 
     // 注册服务到Nacos
@@ -208,6 +209,7 @@ async fn main() -> std::io::Result<()> {
 
     HttpServer::new(|| {
         App::new()
+            .wrap(actix_web::middleware::Logger::default())
             .service(root)
             // POST JSON 接口
             .service(add_json)

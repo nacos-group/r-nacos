@@ -449,11 +449,18 @@ async fn handle_tools_call(
                 }
                 req = req.header(*k, String::from_utf8_lossy(*v).as_ref());
             }
+            #[cfg(feature = "debug")]
+            log::info!(
+                "headers: {}",
+                serde_json::to_string(&headers).unwrap_or_default()
+            );
             let res = match req.send().await {
                 Ok(response) => response,
                 Err(error) => {
-                    *log_args =
-                        McpHandleLogArgs::Arg(format!("tool:{}|http_request_failed", tool_name));
+                    *log_args = McpHandleLogArgs::Arg(format!(
+                        "tool:{}|http_request_failed|{}",
+                        tool_name, &error
+                    ));
                     return Err(anyhow::anyhow!("HTTP request failed: {}", error));
                 }
             };
@@ -464,8 +471,8 @@ async fn handle_tools_call(
                     Ok(text) => text,
                     Err(error) => {
                         *log_args = McpHandleLogArgs::Arg(format!(
-                            "tool:{}|read_response_failed",
-                            tool_name
+                            "tool:{}|read_response_failed|{}",
+                            tool_name, &error
                         ));
                         return Err(anyhow::anyhow!("Failed to read response: {}", error));
                     }
@@ -483,8 +490,8 @@ async fn handle_tools_call(
                     Ok(text) => text,
                     Err(error) => {
                         *log_args = McpHandleLogArgs::Arg(format!(
-                            "tool:{}|read_error_response_failed",
-                            tool_name
+                            "tool:{}|read_error_response_failed|{}",
+                            tool_name, &error
                         ));
                         return Err(anyhow::anyhow!("Failed to read error response: {}", error));
                     }

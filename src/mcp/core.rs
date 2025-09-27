@@ -54,7 +54,7 @@ impl McpManager {
         // 过滤不存在版本
         for (tool_key, ref_map) in tool_spec_version_ref_map.iter_mut() {
             let mut remove_keys = vec![];
-            if let Some(tool_spec) = self.tool_spec_map.get(tool_key){
+            if let Some(tool_spec) = self.tool_spec_map.get(tool_key) {
                 for version in ref_map.keys() {
                     if !tool_spec.versions.contains_key(version) {
                         remove_keys.push(*version);
