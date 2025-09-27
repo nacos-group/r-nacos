@@ -55,7 +55,7 @@ impl McpServerValue {
         tool_spec_version_ref_map
     }
 
-    pub fn to_do(&self) -> McpServerValueDo {
+    pub fn to_do(&self) -> McpServerValueDo<'_> {
         McpServerValueDo {
             id: self.id,
             description: Cow::Borrowed(self.description.as_str()),
@@ -175,7 +175,7 @@ impl McpServer {
         }
     }
 
-    pub fn to_do(&self) -> McpServerDo {
+    pub fn to_do(&self) -> McpServerDo<'_> {
         McpServerDo {
             id: self.id,
             unique_key: Cow::Borrowed(self.unique_key.as_str()),

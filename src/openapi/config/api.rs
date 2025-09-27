@@ -61,6 +61,7 @@ pub struct ConfigSearchPage<T> {
 
 #[derive(Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
 pub struct ConfigInfo {
     pub id: Option<String>,
     pub encrypted_data_key: Option<String>,

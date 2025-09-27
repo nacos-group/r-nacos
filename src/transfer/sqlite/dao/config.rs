@@ -44,7 +44,7 @@ pub struct ConfigParam {
 pub struct ConfigSql {}
 
 impl ConfigSql {
-    fn conditions(&self, param: &ConfigParam) -> B {
+    fn conditions(&self, param: &ConfigParam) -> B<'_> {
         let mut whr = B::new_where();
         if let Some(id) = &param.id {
             whr.eq("id", id);

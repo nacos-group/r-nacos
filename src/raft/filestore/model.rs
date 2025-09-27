@@ -80,7 +80,7 @@ pub struct LogRecordDto {
 //unsafe impl Sync for LogRecordDto {}
 
 impl LogRecordDto {
-    pub fn to_record_do(&self) -> LogRecord {
+    pub fn to_record_do(&self) -> LogRecord<'_> {
         LogRecord {
             index: self.index,
             term: self.term,
@@ -131,7 +131,7 @@ impl<'a> From<SnapshotHeader<'a>> for SnapshotHeaderDto {
 }
 
 impl SnapshotHeaderDto {
-    pub fn to_record_do(&self) -> SnapshotHeader {
+    pub fn to_record_do(&self) -> SnapshotHeader<'_> {
         let mut node_addrs = Vec::with_capacity(self.node_addrs.len());
         for item in self.node_addrs.iter() {
             node_addrs.push(NodeAddrItem {
@@ -170,7 +170,7 @@ impl<'a> From<LogSnapshotItem<'a>> for SnapshotRecordDto {
 }
 
 impl SnapshotRecordDto {
-    pub fn to_record_do(&self) -> LogSnapshotItem {
+    pub fn to_record_do(&self) -> LogSnapshotItem<'_> {
         LogSnapshotItem {
             tree: Cow::Borrowed(self.tree.as_ref()),
             key: Cow::Borrowed(&self.key),
@@ -218,7 +218,7 @@ impl<'a> From<RaftIndex<'a>> for RaftIndexDto {
 }
 
 impl RaftIndexDto {
-    pub fn to_record_do(&self) -> RaftIndex {
+    pub fn to_record_do(&self) -> RaftIndex<'_> {
         let mut node_addrs = Vec::with_capacity(self.node_addrs.len());
         for item in self.node_addrs.iter() {
             node_addrs.push(NodeAddrItem {

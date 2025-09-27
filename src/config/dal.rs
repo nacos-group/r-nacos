@@ -44,7 +44,7 @@ pub struct ConfigParam {
 pub struct ConfigSql {}
 
 impl ConfigSql {
-    fn conditions(&self, param: &ConfigParam) -> B {
+    fn conditions(&self, param: &ConfigParam) -> B<'_> {
         let mut whr = B::new_where();
         if let Some(id) = &param.id {
             whr.eq("id", id);
@@ -229,7 +229,7 @@ pub struct ConfigHistoryParam {
 pub struct ConfigHistorySql {}
 
 impl ConfigHistorySql {
-    fn conditions(&self, param: &ConfigHistoryParam) -> B {
+    fn conditions(&self, param: &ConfigHistoryParam) -> B<'_> {
         let mut whr = B::new_where();
         if let Some(id) = &param.id {
             whr.eq("id", id);
@@ -246,7 +246,7 @@ impl ConfigHistorySql {
         whr
     }
 
-    fn offset_conditions(&self, param: &ConfigHistoryParam) -> B {
+    fn offset_conditions(&self, param: &ConfigHistoryParam) -> B<'_> {
         let mut whr = B::new();
         if let Some(field) = &param.order_by {
             let desc = param.order_by_desc.to_owned().unwrap_or(false);

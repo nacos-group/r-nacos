@@ -9,7 +9,7 @@ use crate::naming::model::ServiceKey;
 use crate::openapi::mcp::{HandleOtherResult, IGNORE_TRASFER_HEADERS};
 use actix_web::{web, HttpRequest, HttpResponse, Result};
 use serde_json::{json, Value};
-use std::borrow::Cow;
+
 use std::collections::HashMap;
 use std::fmt::Display;
 use std::sync::Arc;

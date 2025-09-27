@@ -95,7 +95,7 @@ impl TransferReader {
         })
     }
 
-    pub fn read_record(&mut self) -> anyhow::Result<Option<TransferRecordRef>> {
+    pub fn read_record(&mut self) -> anyhow::Result<Option<TransferRecordRef<'_>>> {
         if let Some(v) = self.message_reader.next_message_vec() {
             let record = reader_transfer_record(v, &self.header)?;
             Ok(Some(record))

@@ -61,7 +61,7 @@ impl TransferHeaderDto {
         }
     }
 
-    pub fn to_do(&self) -> TransferHeader {
+    pub fn to_do(&self) -> TransferHeader<'_> {
         self.into()
     }
 
@@ -137,7 +137,7 @@ pub struct TransferRecordDto {
 }
 
 impl TransferRecordDto {
-    pub fn to_do(&self) -> TransferItem {
+    pub fn to_do(&self) -> TransferItem<'_> {
         self.into()
     }
 }

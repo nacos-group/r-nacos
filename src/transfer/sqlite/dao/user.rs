@@ -45,7 +45,7 @@ pub struct UserParam {
 pub struct UserSql {}
 
 impl UserSql {
-    fn conditions(&self, param: &UserParam) -> B {
+    fn conditions(&self, param: &UserParam) -> B<'_> {
         let mut whr = B::new_where();
         if let Some(id) = &param.id {
             whr.eq("id", id);

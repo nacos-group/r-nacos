@@ -54,7 +54,7 @@ impl McpManager {
         // 过滤不存在版本
         for (tool_key, ref_map) in tool_spec_version_ref_map.iter_mut() {
             let mut remove_keys = vec![];
-            for tool_spec in self.tool_spec_map.get(tool_key) {
+            if let Some(tool_spec) = self.tool_spec_map.get(tool_key){
                 for version in ref_map.keys() {
                     if !tool_spec.versions.contains_key(version) {
                         remove_keys.push(*version);
@@ -160,7 +160,7 @@ impl McpManager {
     }
 
     fn remove_server(&mut self, id: u64) {
-        if let Some(v) = self.server_map.remove(&id) {
+        if let Some(_v) = self.server_map.remove(&id) {
             self.init_tool_spec_version_ref_map();
             /*
             // 上面使用重建全局索引。这里应该考虑改为增量更新索引可以提升性能。

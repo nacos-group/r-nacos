@@ -37,7 +37,7 @@ pub struct TenantParam {
 pub struct TenantSql {}
 
 impl TenantSql {
-    fn conditions(&self, param: &TenantParam) -> B {
+    fn conditions(&self, param: &TenantParam) -> B<'_> {
         let mut whr = B::new_where();
         if let Some(id) = &param.id {
             whr.eq("id", id);

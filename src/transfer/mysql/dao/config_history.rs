@@ -34,7 +34,7 @@ pub struct ConfigHistoryParam {
 pub struct ConfigHistorySql {}
 
 impl ConfigHistorySql {
-    fn conditions(&self, param: &ConfigHistoryParam) -> B {
+    fn conditions(&self, param: &ConfigHistoryParam) -> B<'_> {
         let mut whr = B::new_where();
         if let Some(id) = &param.id {
             whr.eq("id", id);

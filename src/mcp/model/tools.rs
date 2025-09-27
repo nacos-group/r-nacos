@@ -146,7 +146,7 @@ pub struct ToolSpecVersion {
 }
 
 impl ToolSpecVersion {
-    pub fn to_do(&self) -> ToolSpecVersionDo {
+    pub fn to_do(&self) -> ToolSpecVersionDo<'_> {
         ToolSpecVersionDo {
             version: self.version,
             parameters_json: Cow::Owned(serde_json::to_string(&self.function).unwrap_or_default()),
@@ -213,7 +213,7 @@ impl ToolSpec {
         Ok(())
     }
 
-    pub fn to_do(&self) -> McpToolSpecDo {
+    pub fn to_do(&self) -> McpToolSpecDo<'_> {
         let current_version = self.get_current_version().unwrap_or_default();
 
         McpToolSpecDo {
@@ -446,7 +446,7 @@ pub struct McpTool {
 }
 
 impl McpTool {
-    pub fn to_do(&self) -> McpToolDo {
+    pub fn to_do(&self) -> McpToolDo<'_> {
         McpToolDo {
             tool_name: Cow::Borrowed(&self.tool_name),
             namespace: Cow::Borrowed(&self.tool_key.namespace),
