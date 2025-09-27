@@ -51,6 +51,7 @@ impl McpManager {
             Self::calculate_tool_ref(&mut tool_spec_version_ref_map, mcp_server);
         }
         self.server_key_to_id_map = server_key_to_id_map;
+        /*
         // 过滤不存在版本
         for (tool_key, ref_map) in tool_spec_version_ref_map.iter_mut() {
             let mut remove_keys = vec![];
@@ -73,6 +74,7 @@ impl McpManager {
                 ref_map.remove(&version);
             }
         }
+        */
         self.tool_spec_version_ref_map = tool_spec_version_ref_map;
     }
 
@@ -81,25 +83,18 @@ impl McpManager {
         mcp_server: &Arc<McpServer>,
     ) {
         let mut server_value_id_set = HashSet::new();
+        let server_value = &mcp_server.current_value;
+        server_value_id_set.insert(server_value.id);
+        ToolSpecUtils::update_server_ref_to_map(tool_spec_version_ref_map, server_value.as_ref());
+        let server_value = &mcp_server.release_value;
+        server_value_id_set.insert(server_value.id);
+        ToolSpecUtils::update_server_ref_to_map(tool_spec_version_ref_map, server_value.as_ref());
         for server_value in &mcp_server.histories {
+            if server_value_id_set.contains(&server_value.id) {
+                continue;
+            }
             server_value_id_set.insert(server_value.id);
             ToolSpecUtils::update_server_ref_to_map(tool_spec_version_ref_map, &server_value);
-        }
-        let server_value = &mcp_server.current_value;
-        if !server_value_id_set.contains(&server_value.id) {
-            server_value_id_set.insert(server_value.id);
-            ToolSpecUtils::update_server_ref_to_map(
-                tool_spec_version_ref_map,
-                server_value.as_ref(),
-            );
-        }
-        let server_value = &mcp_server.release_value;
-        if !server_value_id_set.contains(&server_value.id) {
-            server_value_id_set.insert(server_value.id);
-            ToolSpecUtils::update_server_ref_to_map(
-                tool_spec_version_ref_map,
-                server_value.as_ref(),
-            );
         }
     }
 
