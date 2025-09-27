@@ -1,6 +1,6 @@
 [package]
 name = "rnacos"
-version = "0.7.1"
+version = "0.7.2"
 authors = ["heqingpan <heqingpan@126.com>"]
 edition = "2018"
 license = "Apache-2.0"
@@ -80,7 +80,7 @@ mime_guess = { version = "2" }
 rusqlite = { version = "0.25", features = ["bundled"] }
 rsql_builder = "0.1.5"
 inner-mem-cache = "0.1.7"
-rnacos-web-dist-wrap = "=0.7.1"
+rnacos-web-dist-wrap = "=0.7.2"
 nacos_rust_client = "0.3.2"
 zip = "0.6"
 tempfile = "3"
