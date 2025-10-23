@@ -134,7 +134,9 @@ fn apply_session(
             .cookie(
                 Cookie::build("token", token.as_str())
                     .path("/")
-                    .http_only(true)
+                    .max_age(actix_web::cookie::time::Duration::seconds(
+                        app.sys_config.console_login_timeout as i64,
+                    ))
                     .finish(),
             )
             .cookie(
