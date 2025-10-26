@@ -201,6 +201,7 @@ k8s支持使用 [helm](https://github.com/nacos-group/r-nacos/tree/master/deploy
 |RNACOS_LDAP_USER_DEVELOPER_GROUP|LDAP开发者角色包含的用户组(多个用逗号分隔，用户只要包含一个就是开发者)|空集合|dev_group1,dev_group2|0.6.19|
 |RNACOS_LDAP_USER_ADMIN_GROUP|LDAP管理员角色包含的用户组(多个用逗号分隔，用户只要包含一个就是管理员)|空集合|admin_group1,admin_group2|0.6.19|
 |RNACOS_LDAP_USER_DEFAULT_ROLE|LDAP用户默认角色,支持的值有：访客:VISITOR,开发者:DEVELOPER,管理员:ADMIN|VISITOR|DEVELOPER|0.6.19|
+|RNACOS_MCP_HTTP_TIMEOUT_SECOND|MCP服务HTTP请求超时时间，单位为秒|30|60|0.7.3|
 
 启动配置方式可以参考： [运行参数说明](https://r-nacos.github.io/docs/notes/env_config/)
 

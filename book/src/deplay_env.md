@@ -70,6 +70,7 @@ rnacos 运行时支持的环境变量，如果不设置则按默认配置运行�
 |RNACOS_ENABLE_METRICS|是否开启监控指标功能|true|true|0.5.13|
 |RNACOS_METRICS_LOG_INTERVAL_SECOND|监控指标采集打印到日志的间隔,单位秒,最小间隔为5秒|30|10|0.5.13|
 |RNACOS_CONSOLE_ENABLE_CAPTCHA| 验证码的开关| true|true|0.5.14|
+|RNACOS_MCP_HTTP_TIMEOUT_SECOND|MCP服务HTTP请求超时时间，单位为秒|30|60|0.7.3|
 
 
 注：从v0.3.0开始，默认参数启动的节点会被当做只有一个节点，当前节点是主节点的集群部署。支持其它新增的从节点加入。

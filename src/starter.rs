@@ -230,8 +230,11 @@ pub fn build_share_data(factory_data: FactoryData) -> anyhow::Result<Arc<AppShar
         } else {
             Local::now().offset().fix()
         };
-    let reqwest_client = reqwest::Client::builder()
-        .timeout(Duration::from_millis(5000))
+    let mut client_build = reqwest::Client::builder();
+    if sys_config.mcp_http_timeout > 0 {
+        client_build = client_build.timeout(Duration::from_secs(sys_config.mcp_http_timeout));
+    }
+    let reqwest_client = client_build
         .danger_accept_invalid_certs(true)
         .redirect(reqwest::redirect::Policy::none())
         .build()

@@ -102,6 +102,7 @@ pub struct AppSysConfig {
     pub ldap_user_developer_groups: Arc<HashSet<String>>,
     pub ldap_user_admin_groups: Arc<HashSet<String>>,
     pub ldap_user_default_role: Arc<String>,
+    pub mcp_http_timeout: u64,
 }
 
 impl AppSysConfig {
@@ -260,6 +261,10 @@ impl AppSysConfig {
                 UserRoleHelper::get_role_by_name(&upper, permission::USER_ROLE_VISITOR.clone())
             })
             .unwrap_or(permission::USER_ROLE_VISITOR.clone());
+        let mcp_http_timeout = std::env::var("RNACOS_MCP_HTTP_TIMEOUT_SECOND")
+            .unwrap_or("30".to_owned())
+            .parse()
+            .unwrap_or(30);
         Self {
             local_db_dir,
             config_db_file,
@@ -299,6 +304,7 @@ impl AppSysConfig {
             ldap_user_developer_groups,
             ldap_user_admin_groups,
             ldap_user_default_role,
+            mcp_http_timeout,
         }
     }
 
