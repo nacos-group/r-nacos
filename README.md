@@ -157,6 +157,11 @@ rnacos
 
 k8s支持使用 [helm](https://github.com/nacos-group/r-nacos/tree/master/deploy/k8s/helm) 部署。
 
+```shell
+helm repo add rnacos https://r-nacos.github.io/helm
+helm install r-nacos rnacos/rnacos
+```
+
 
 测试、试用推荐使用第1、第2、第3种方式，直接下载运行就可以使用。
 
