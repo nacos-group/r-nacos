@@ -31,6 +31,7 @@ pub struct LoginResult {
     pub access_token: Option<Arc<String>>,
     pub token_ttl: i64,
     pub global_admin: bool,
+    pub username: Option<Arc<String>>,
 }
 
 const UNKNOWN_USER: &str = "unknown user!";
@@ -93,7 +94,7 @@ async fn do_login(
                     + &uuid::Uuid::new_v4().to_string().replace('-', ""),
             );
             let session = Arc::new(TokenSession {
-                username: user.username,
+                username: user.username.clone(),
                 roles: user.roles.unwrap_or_default(),
                 extend_infos: user.extend_info.unwrap_or_default(),
             });
@@ -111,6 +112,7 @@ async fn do_login(
                 access_token: Some(token),
                 token_ttl: app.sys_config.openapi_login_timeout as i64,
                 global_admin: false,
+                username: Some(user.username),
             };
             return Ok(HttpResponse::Ok().json(login_result));
         } else {
@@ -126,6 +128,11 @@ pub(crate) async fn mock_token() -> impl Responder {
 
 pub fn login_config(config: &mut web::ServiceConfig) {
     config
+        .service(
+            web::resource("/nacos/v3/auth/user/login")
+                .route(web::post().to(login))
+                .route(web::get().to(login)),
+        )
         .service(
             web::resource("/nacos/v1/auth/users/login")
                 .route(web::post().to(login))

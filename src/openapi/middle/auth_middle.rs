@@ -21,7 +21,7 @@ use std::time::SystemTime;
 
 lazy_static::lazy_static! {
     pub static ref IGNORE_PATH: Vec<&'static str> = vec![
-        "/nacos/v1/auth/login", "/nacos/v1/auth/users/login","/nacos/metrics"
+        "/nacos/v1/auth/login", "/nacos/v1/auth/users/login","/nacos/v3/auth/user/login" ,"/nacos/metrics"
     ];
     pub static ref API_PATH: Regex = Regex::new(r"(?i)/nacos/.*").unwrap();
     pub static ref IGNORE_METRICS_PATH: Vec<&'static str> = vec![
