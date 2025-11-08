@@ -79,7 +79,7 @@ pub struct TableSequence {
 impl TableSequence {
     pub fn new(db: Arc<sled::Db>, table_seq_key: String, batch_size: u64) -> Self {
         let last_id = load_table_last_id(&db, &table_seq_key).unwrap_or_default();
-        assert!(batch_size > 0, "batch size is greater than 0");
+        assert!(batch_size > 0, "batch size must be greater than 0");
         Self {
             cache_size: 0,
             last_id,

@@ -14,7 +14,7 @@ fn get_service_ip_list(counts: u64) -> Vec<String> {
     let (icount, jcount) = if counts <= 100 {
         (1, counts)
     } else {
-        assert!(counts > 10000, "不支持超过1万个ip");
+        assert!(counts <= 10000, "不支持超过1万个ip");
         (counts % 100 + 1, 100)
     };
     let mut sum = 0;
