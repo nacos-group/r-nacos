@@ -13,6 +13,50 @@ use super::{api_model::ClientDetectionRequest, nacos_proto::Payload};
 type SenderType = tokio::sync::mpsc::Sender<Result<Payload, tonic::Status>>;
 type ReceiverStreamType = tonic::Streaming<Payload>;
 
+#[derive(Debug)]
+pub enum NamespaceType {
+    Empty,
+    Public,
+    Other(Arc<String>),
+    Unknown,
+}
+
+impl NamespaceType {
+    pub fn from_option(namespace: Option<String>) -> Self {
+        if let Some(namespace) = namespace {
+            NamespaceType::get_namespace_type(&namespace)
+        } else {
+            NamespaceType::Unknown
+        }
+    }
+    pub fn get_namespace_type(namespace: &str) -> Self {
+        if namespace.is_empty() {
+            NamespaceType::Empty
+        } else if namespace == "public" {
+            NamespaceType::Public
+        } else {
+            NamespaceType::Other(Arc::new(namespace.to_owned()))
+        }
+    }
+
+    pub fn is_default(&self) -> bool {
+        match self {
+            NamespaceType::Empty => true,
+            NamespaceType::Public => true,
+            _ => false,
+        }
+    }
+
+    pub fn to_str(&self) -> &str {
+        match self {
+            NamespaceType::Empty => "",
+            NamespaceType::Public => "public",
+            NamespaceType::Other(namespace) => namespace.as_str(),
+            NamespaceType::Unknown => "",
+        }
+    }
+}
+
 pub struct BiStreamConn {
     sender: SenderType,
     client_id: Arc<String>,

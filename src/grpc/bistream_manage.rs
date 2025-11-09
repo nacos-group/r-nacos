@@ -23,6 +23,7 @@ use super::{
 use crate::common::constant::EMPTY_CLIENT_VERSION;
 use crate::common::model::ClientVersion;
 use crate::grpc::api_model::ConnectionSetupRequest;
+use crate::grpc::bistream_conn::NamespaceType;
 use actix::prelude::*;
 use bean_factory::{bean, Inject};
 use inner_mem_cache::TimeoutSet;
@@ -31,6 +32,7 @@ pub(crate) struct ConnCacheItem {
     last_active_time: u64,
     conn: Addr<BiStreamConn>,
     pub(crate) client_version: Arc<ClientVersion>,
+    pub(crate) namespace: NamespaceType,
 }
 
 impl ConnCacheItem {
@@ -39,6 +41,7 @@ impl ConnCacheItem {
             last_active_time,
             conn,
             client_version: EMPTY_CLIENT_VERSION.clone(),
+            namespace: NamespaceType::Unknown,
         }
     }
 }
@@ -236,6 +239,7 @@ impl Handler<BiStreamManageCmd> for BiStreamManage {
                                 item.client_version =
                                     Arc::new(ClientVersion::from_string(&client_version));
                             }
+                            item.namespace = NamespaceType::from_option(request.tenant);
                         }
                     }
                     self.active_client(client_id).ok();
@@ -260,7 +264,8 @@ impl Handler<BiStreamManageCmd> for BiStreamManage {
                 return Ok(BiStreamManageResult::ClientInfo(client_version));
             }
             BiStreamManageCmd::NotifyConfig(config_key, client_id_set) => {
-                let request = ConfigChangeNotifyRequest {
+                let tenant = config_key.tenant.clone();
+                let mut request = ConfigChangeNotifyRequest {
                     group: config_key.group,
                     data_id: config_key.data_id,
                     tenant: config_key.tenant,
@@ -270,10 +275,27 @@ impl Handler<BiStreamManageCmd> for BiStreamManage {
                 };
                 let payload = Arc::new(PayloadUtils::build_payload(
                     "ConfigChangeNotifyRequest",
-                    serde_json::to_string(&request).unwrap(),
+                    serde_json::to_string(&request)?,
                 ));
+                let mut other_default_payload = None;
                 for item in &client_id_set {
                     if let Some(item) = self.conn_cache.get(item) {
+                        // 默认命名空间有两个值，需要把通知的命令空间值调整为监听的值，以兼容不同版本的客户端
+                        if item.namespace.is_default() && item.namespace.to_str() != tenant.as_str()
+                        {
+                            if other_default_payload.is_none() {
+                                request.tenant = Arc::new(item.namespace.to_str().to_string());
+                                other_default_payload =
+                                    Some(Arc::new(PayloadUtils::build_payload(
+                                        "ConfigChangeNotifyRequest",
+                                        serde_json::to_string(&request)?,
+                                    )));
+                            }
+                            if let Some(payload) = other_default_payload.as_ref() {
+                                item.conn.do_send(BiStreamSenderCmd::Send(payload.clone()));
+                                continue;
+                            }
+                        }
                         item.conn.do_send(BiStreamSenderCmd::Send(payload.clone()));
                     }
                 }

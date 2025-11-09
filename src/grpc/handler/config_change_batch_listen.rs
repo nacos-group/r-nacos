@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use crate::config::ConfigUtils;
+use crate::config::{ConfigUtils, DEFAULT_TENANT};
 use crate::grpc::HandlerResult;
 use crate::{
     common::appdata::AppShareData,
@@ -40,7 +40,11 @@ impl PayloadHandler for ConfigChangeBatchListenRequestHandler {
         let body_vec = request_payload.body.unwrap_or_default().value;
         let request: ConfigBatchListenRequest = serde_json::from_slice(&body_vec)?;
         let mut listener_items = vec![];
+        let mut use_public = false;
         for item in request.config_listen_contexts {
+            if item.tenant == DEFAULT_TENANT {
+                use_public = true;
+            }
             let key = ConfigKey::new(
                 &item.data_id,
                 &item.group,
@@ -65,10 +69,15 @@ impl PayloadHandler for ConfigChangeBatchListenRequestHandler {
                     ConfigResult::ChangeKey(keys) => {
                         response.result_code = SUCCESS_CODE;
                         for key in keys {
+                            let tenant = if key.tenant.is_empty() && use_public {
+                                Arc::new(DEFAULT_TENANT.to_owned())
+                            } else {
+                                key.tenant.clone()
+                            };
                             let obj = ConfigContext {
                                 data_id: key.data_id,
                                 group: key.group,
-                                tenant: key.tenant,
+                                tenant,
                             };
                             response.changed_configs.push(obj);
                         }
