@@ -1,5 +1,6 @@
 use crate::common::string_utils::StringUtils;
 use crate::ldap::model::LdapConfig;
+use crate::oauth2::model::OAuth2Config;
 use crate::user::permission;
 use crate::user::permission::UserRoleHelper;
 use std::collections::HashSet;
@@ -103,6 +104,19 @@ pub struct AppSysConfig {
     pub ldap_user_admin_groups: Arc<HashSet<String>>,
     pub ldap_user_default_role: Arc<String>,
     pub mcp_http_timeout: u64,
+    pub oauth2_enable: bool,
+    pub oauth2_server_url: Arc<String>,
+    pub oauth2_client_id: Arc<String>,
+    pub oauth2_client_secret: Arc<String>,
+    pub oauth2_authorization_url: Arc<String>,
+    pub oauth2_token_url: Arc<String>,
+    pub oauth2_userinfo_url: Arc<String>,
+    pub oauth2_redirect_uri: Arc<String>,
+    pub oauth2_scopes: Arc<String>,
+    pub oauth2_username_claim_name: Arc<String>,
+    pub oauth2_nickname_claim_name: Arc<String>,
+    pub oauth2_user_default_role: Arc<String>,
+    pub oauth2_button: Arc<String>,
 }
 
 impl AppSysConfig {
@@ -265,6 +279,62 @@ impl AppSysConfig {
             .unwrap_or("30".to_owned())
             .parse()
             .unwrap_or(30);
+        let oauth2_enable = std::env::var("RNACOS_OAUTH2_ENABLE")
+            .unwrap_or("false".to_owned())
+            .parse()
+            .unwrap_or(false);
+        let oauth2_server_url = std::env::var("RNACOS_OAUTH2_SERVER_URL")
+            .map(Arc::new)
+            .unwrap_or(constant::EMPTY_ARC_STRING.clone());
+        let oauth2_client_id = std::env::var("RNACOS_OAUTH2_CLIENT_ID")
+            .map(Arc::new)
+            .unwrap_or(constant::EMPTY_ARC_STRING.clone());
+        let oauth2_client_secret = std::env::var("RNACOS_OAUTH2_CLIENT_SECRET")
+            .map(Arc::new)
+            .unwrap_or(constant::EMPTY_ARC_STRING.clone());
+        // OAuth2 endpoints should be full URLs
+        let oauth2_authorization_url = std::env::var("RNACOS_OAUTH2_AUTHORIZATION_URL")
+            .map(Arc::new)
+            .unwrap_or_else(|_| {
+                let server_url = std::env::var("RNACOS_OAUTH2_SERVER_URL")
+                    .unwrap_or_default();
+                Arc::new(format!("{}/oauth/authorize", server_url))
+            });
+        let oauth2_token_url = std::env::var("RNACOS_OAUTH2_TOKEN_URL")
+            .map(Arc::new)
+            .unwrap_or_else(|_| {
+                let server_url = std::env::var("RNACOS_OAUTH2_SERVER_URL")
+                    .unwrap_or_default();
+                Arc::new(format!("{}/oauth/token", server_url))
+            });
+        let oauth2_userinfo_url = std::env::var("RNACOS_OAUTH2_USERINFO_URL")
+            .map(Arc::new)
+            .unwrap_or_else(|_| {
+                let server_url = std::env::var("RNACOS_OAUTH2_SERVER_URL")
+                    .unwrap_or_default();
+                Arc::new(format!("{}/oauth/userinfo", server_url))
+            });
+        let oauth2_redirect_uri = std::env::var("RNACOS_OAUTH2_REDIRECT_URI")
+            .map(Arc::new)
+            .unwrap_or(constant::EMPTY_ARC_STRING.clone());
+        let oauth2_scopes = std::env::var("RNACOS_OAUTH2_SCOPES")
+            .map(Arc::new)
+            .unwrap_or_else(|_| Arc::new("openid profile".to_string()));
+        let oauth2_username_claim_name = std::env::var("RNACOS_OAUTH2_USERNAME_CLAIM_NAME")
+            .map(Arc::new)
+            .unwrap_or_else(|_| Arc::new("username".to_string()));
+        let oauth2_nickname_claim_name = std::env::var("RNACOS_OAUTH2_NICKNAME_CLAIM_NAME")
+            .map(Arc::new)
+            .unwrap_or_else(|_| Arc::new("name".to_string()));
+        let oauth2_user_default_role = std::env::var("RNACOS_OAUTH2_USER_DEFAULT_ROLE")
+            .map(|v| {
+                let upper = v.to_uppercase();
+                UserRoleHelper::get_role_by_name(&upper, permission::USER_ROLE_DEVELOPER.clone())
+            })
+            .unwrap_or(permission::USER_ROLE_DEVELOPER.clone());
+        let oauth2_button = std::env::var("RNACOS_OAUTH2_BUTTON")
+            .map(Arc::new)
+            .unwrap_or_else(|_| Arc::new("OAuth2.0 登录".to_string()));
         Self {
             local_db_dir,
             config_db_file,
@@ -305,6 +375,19 @@ impl AppSysConfig {
             ldap_user_admin_groups,
             ldap_user_default_role,
             mcp_http_timeout,
+            oauth2_enable,
+            oauth2_server_url,
+            oauth2_client_id,
+            oauth2_client_secret,
+            oauth2_authorization_url,
+            oauth2_token_url,
+            oauth2_userinfo_url,
+            oauth2_redirect_uri,
+            oauth2_scopes,
+            oauth2_username_claim_name,
+            oauth2_nickname_claim_name,
+            oauth2_user_default_role,
+            oauth2_button,
         }
     }
 
@@ -350,6 +433,22 @@ impl AppSysConfig {
             ldap_user_developer_groups: self.ldap_user_developer_groups.clone(),
             ldap_user_admin_groups: self.ldap_user_admin_groups.clone(),
             ldap_user_default_role: self.ldap_user_default_role.clone(),
+        })
+    }
+
+    pub fn get_oauth2_config(&self) -> Arc<OAuth2Config> {
+        Arc::new(OAuth2Config {
+            oauth2_server_url: self.oauth2_server_url.clone(),
+            oauth2_client_id: self.oauth2_client_id.clone(),
+            oauth2_client_secret: self.oauth2_client_secret.clone(),
+            oauth2_authorization_url: self.oauth2_authorization_url.clone(),
+            oauth2_token_url: self.oauth2_token_url.clone(),
+            oauth2_userinfo_url: self.oauth2_userinfo_url.clone(),
+            oauth2_redirect_uri: self.oauth2_redirect_uri.clone(),
+            oauth2_scopes: self.oauth2_scopes.clone(),
+            oauth2_username_claim_name: self.oauth2_username_claim_name.clone(),
+            oauth2_nickname_claim_name: self.oauth2_nickname_claim_name.clone(),
+            oauth2_user_default_role: self.oauth2_user_default_role.clone(),
         })
     }
 }

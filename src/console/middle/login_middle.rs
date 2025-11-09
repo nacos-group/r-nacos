@@ -25,6 +25,7 @@ lazy_static::lazy_static! {
         "/rnacos/p/login", "/rnacos/404",
         "/rnacos/api/console/login/login", "/rnacos/api/console/login/captcha",
         "/rnacos/api/console/v2/login/login", "/rnacos/api/console/v2/login/captcha",
+        "/rnacos/api/console/v2/login/config", "/rnacos/api/console/v2/login/oauth2/login",
     ];
     pub static ref STATIC_FILE_PATH: Regex= Regex::new(r"(?i).*\.(js|css|png|jpg|jpeg|bmp|svg)").unwrap();
     pub static ref API_PATH: Regex = Regex::new(r"(?i)/(api|nacos)/.*").unwrap();

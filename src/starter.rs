@@ -5,6 +5,7 @@ use crate::grpc::handler::RAFT_ROUTE_REQUEST;
 use crate::health::core::HealthManager;
 use crate::ldap::core::LdapManager;
 use crate::mcp::core::McpManager;
+use crate::oauth2::core::OAuth2Manager;
 use crate::mcp::sse_manage::SseStreamManager;
 use crate::metrics::core::MetricsManager;
 use crate::namespace::NamespaceActor;
@@ -217,6 +218,9 @@ pub async fn config_factory(sys_config: Arc<AppSysConfig>) -> anyhow::Result<Fac
     let ldap_manager =
         LdapManager::new(sys_config.get_ldap_config(), sys_config.ldap_enable).start();
     factory.register(BeanDefinition::actor_with_inject_from_obj(ldap_manager));
+    let oauth2_manager =
+        OAuth2Manager::new(sys_config.get_oauth2_config(), sys_config.oauth2_enable).start();
+    factory.register(BeanDefinition::actor_with_inject_from_obj(oauth2_manager));
     let sse_manager = SseStreamManager::new().start();
     factory.register(BeanDefinition::actor_with_inject_from_obj(sse_manager));
     Ok(factory.init().await)
@@ -264,6 +268,7 @@ pub fn build_share_data(factory_data: FactoryData) -> anyhow::Result<Arc<AppShar
         transfer_import_manager: factory_data.get_actor().unwrap(),
         health_manager: factory_data.get_actor().unwrap(),
         ldap_manager: factory_data.get_actor().unwrap(),
+        oauth2_manager: factory_data.get_actor().unwrap(),
         sequence_manager: factory_data.get_actor().unwrap(),
         sequence_db_manager: factory_data.get_actor().unwrap(),
         mcp_manager: factory_data.get_actor().unwrap(),

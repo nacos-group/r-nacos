@@ -224,6 +224,8 @@ pub fn console_api_config_v2(config: &mut web::ServiceConfig) {
                 web::resource("/login/captcha").route(web::get().to(v2::login_api::gen_captcha)),
             )
             .service(web::resource("/login/logout").route(web::post().to(v2::login_api::logout)))
+            .service(web::resource("/login/config").route(web::get().to(login_api::get_login_config)))
+            .service(web::resource("/login/oauth2/login").route(web::post().to(v2::login_api::oauth2_callback)))
             .service(web::resource("/user/info").route(web::get().to(v2::user_api::get_user_info)))
             .service(
                 web::resource("/user/list").route(web::get().to(v2::user_api::get_user_page_list)),
