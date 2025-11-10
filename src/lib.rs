@@ -17,6 +17,7 @@ pub mod transfer;
 
 pub mod ldap;
 pub mod mcp;
+pub mod oauth2;
 pub mod sequence;
 
 pub use inner_mem_cache::TimeoutSet;

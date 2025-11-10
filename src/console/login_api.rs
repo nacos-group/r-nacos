@@ -1,9 +1,11 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use super::model::login_model::{LoginParam, LoginToken};
+use super::model::login_model::{LoginConfig, LoginParam, LoginToken};
 use crate::ldap::model::actor_model::{LdapMsgReq, LdapMsgResult};
 use crate::ldap::model::LdapUserParam;
+use crate::oauth2::model::actor_model::{OAuth2MsgReq, OAuth2MsgResult};
+use crate::oauth2::model::OAuth2UserParam;
 use crate::{
     common::{
         appdata::AppShareData,
@@ -17,12 +19,13 @@ use crate::{
     },
     user::{UserManagerReq, UserManagerResult},
 };
-use actix_web::http::header;
+use actix_web::http::{header, StatusCode};
 use actix_web::{
     cookie::Cookie,
     web::{self, Data},
     HttpRequest, HttpResponse, Responder,
 };
+use serde::Deserialize;
 use captcha::filters::{Grid, Noise};
 use captcha::Captcha;
 
@@ -82,7 +85,10 @@ pub async fn login(
                 }));
             }
         }
-        if !app.sys_config.ldap_enable && session.is_none() {
+        if !app.sys_config.ldap_enable
+            && !app.sys_config.oauth2_enable
+            && session.is_none()
+        {
             return HttpResponse::Ok().json(ApiResult::<()>::error(error_code, None));
         }
     } else {
@@ -105,6 +111,112 @@ pub async fn login(
         }
     }
     HttpResponse::Ok().json(ApiResult::<()>::error(error_code, None))
+}
+
+#[derive(Deserialize)]
+pub struct OAuth2CallbackQuery {
+    code: String,
+    state: Option<String>,
+}
+
+pub async fn oauth2_callback(
+    _request: HttpRequest,
+    app: Data<Arc<AppShareData>>,
+    param: web::Json<OAuth2CallbackQuery>,
+) -> HttpResponse {
+    if !app.sys_config.oauth2_enable {
+        return HttpResponse::Ok()
+            .status(StatusCode::NOT_FOUND)
+            .json(ApiResult::<()>::error(
+                "OAUTH2_NOT_ENABLED".to_owned(),
+                None,
+            ));
+    }
+
+    let limit_key = Arc::new(format!("USER_L#oauth2"));
+    if let Some(value) = login_limit(&app, &limit_key).await {
+        return value;
+    }
+
+    let res = app
+        .oauth2_manager
+        .send(OAuth2MsgReq::Authenticate(OAuth2UserParam {
+            code: param.code.clone(),
+            state: param.state.clone(),
+        }))
+        .await;
+
+    let session = match res {
+        Ok(Ok(OAuth2MsgResult::UserMeta(meta))) => {
+            Some(Arc::new(UserSession {
+                username: Arc::new(meta.user_name.clone()),
+                nickname: Some(meta.user_name),
+                roles: vec![meta.role],
+                namespace_privilege: meta.namespace_privilege,
+                extend_infos: HashMap::default(),
+                refresh_time: now_second_i32() as u32,
+            }))
+        }
+        Ok(Ok(OAuth2MsgResult::None)) => None,
+        Ok(Ok(OAuth2MsgResult::AuthorizeUrl(_))) => {
+            // This should not happen in callback
+            return HttpResponse::Ok().json(ApiResult::<()>::error(
+                "OAUTH2_AUTH_ERROR".to_owned(),
+                Some("Unexpected response type".to_owned()),
+            ));
+        }
+        Ok(Err(e)) => {
+            log::error!("OAuth2 authentication error: {}", e);
+            return HttpResponse::Ok().json(ApiResult::<()>::error(
+                "OAUTH2_AUTH_ERROR".to_owned(),
+                Some(e.to_string()),
+            ));
+        }
+        Err(e) => {
+            log::error!("OAuth2 manager error: {}", e);
+            return HttpResponse::Ok().json(ApiResult::<()>::error(
+                "SYSTEM_ERROR".to_owned(),
+                Some(e.to_string()),
+            ));
+        }
+    };
+
+    if let Some(session) = session {
+        if let Some(value) = apply_session(app, limit_key, session) {
+            return value;
+        }
+    }
+
+    HttpResponse::Ok().json(ApiResult::<()>::error(
+        "OAUTH2_AUTH_ERROR".to_owned(),
+        None,
+    ))
+}
+
+pub async fn get_login_config(app: Data<Arc<AppShareData>>) -> actix_web::Result<impl Responder> {
+    let mut oauth2_button = None;
+    let mut oauth2_authorize_url = None;
+
+    if app.sys_config.oauth2_enable && !app.sys_config.oauth2_button.is_empty() {
+        oauth2_button = Some(app.sys_config.oauth2_button.as_ref().clone());
+        
+        // Generate OAuth2 authorize URL
+        let res = app
+            .oauth2_manager
+            .send(OAuth2MsgReq::GetAuthorizeUrl)
+            .await;
+
+        if let Ok(Ok(OAuth2MsgResult::AuthorizeUrl(auth_url))) = res {
+            oauth2_authorize_url = Some(auth_url);
+        }
+    }
+
+    let config = LoginConfig {
+        oauth2_enable: app.sys_config.oauth2_enable,
+        oauth2_button,
+        oauth2_authorize_url,
+    };
+    Ok(HttpResponse::Ok().json(ApiResult::success(Some(config))))
 }
 
 fn apply_session(

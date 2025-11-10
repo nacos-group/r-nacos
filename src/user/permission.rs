@@ -147,6 +147,8 @@ lazy_static::lazy_static! {
         R::Path("/rnacos/api/console/v2/login/login",HTTP_METHOD_ALL),
         R::Path("/rnacos/api/console/v2/login/captcha",HTTP_METHOD_ALL),
         R::Path("/rnacos/api/console/v2/login/logout",HTTP_METHOD_ALL),
+        R::Path("/rnacos/api/console/v2/login/config",HTTP_METHOD_ALL),
+        R::Path("/rnacos/api/console/v2/login/oauth2/login",HTTP_METHOD_ALL),
         R::Path("/rnacos/api/console/v2/user/info",HTTP_METHOD_GET),
         R::Path("/rnacos/api/console/v2/user/web_resources",HTTP_METHOD_GET),
         R::Path("/rnacos/api/console/v2/user/reset_password",HTTP_METHOD_ALL),

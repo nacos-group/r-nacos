@@ -14,3 +14,11 @@ pub struct LoginParam {
 pub struct LoginToken {
     pub token: String,
 }
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LoginConfig {
+    pub oauth2_enable: bool,
+    pub oauth2_button: Option<String>,
+    pub oauth2_authorize_url: Option<String>,
+}
