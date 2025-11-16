@@ -27,16 +27,12 @@ impl OAuth2MsgActor {
         user_manager_addr: Option<Addr<UserManager>>,
     ) -> anyhow::Result<Self> {
         let client_id = ClientId::new(oauth2_config.oauth2_client_id.as_ref().clone());
-        let client_secret = ClientSecret::new(
-            oauth2_config.oauth2_client_secret.as_ref().clone(),
-        );
+        let client_secret = ClientSecret::new(oauth2_config.oauth2_client_secret.as_ref().clone());
         // Use full URLs directly
         let auth_url = oauth2_config.oauth2_authorization_url.as_ref().clone();
         let token_url = oauth2_config.oauth2_token_url.as_ref().clone();
 
-        let redirect_url = RedirectUrl::new(
-            oauth2_config.oauth2_redirect_uri.as_ref().clone(),
-        )?;
+        let redirect_url = RedirectUrl::new(oauth2_config.oauth2_redirect_uri.as_ref().clone())?;
 
         let oauth2_client = BasicClient::new(
             client_id,
@@ -65,13 +61,11 @@ impl OAuth2MsgActor {
         })
     }
 
-    async fn handle_req(
-        &self,
-        msg: OAuth2MsgReq,
-    ) -> anyhow::Result<OAuth2MsgResult> {
+    async fn handle_req(&self, msg: OAuth2MsgReq) -> anyhow::Result<OAuth2MsgResult> {
         match msg {
             OAuth2MsgReq::GetAuthorizeUrl => {
-                let (auth_url, _csrf_state) = self.oauth2_client
+                let (auth_url, _csrf_state) = self
+                    .oauth2_client
                     .authorize_url(oauth2::CsrfToken::new_random)
                     .add_scopes(self.scopes.clone())
                     .url();
@@ -79,9 +73,9 @@ impl OAuth2MsgActor {
                 Ok(OAuth2MsgResult::AuthorizeUrl(auth_url.to_string()))
             }
             OAuth2MsgReq::Authenticate(param) => {
-
                 // Exchange authorization code for token
-                let token = self.oauth2_client
+                let token = self
+                    .oauth2_client
                     .exchange_code(AuthorizationCode::new(param.code.clone()))
                     .request_async(async_http_client)
                     .await
@@ -99,20 +93,30 @@ impl OAuth2MsgActor {
                 // Use bearer_auth which sets: Authorization: Bearer <token>
                 // GitHub and some OAuth2 providers require User-Agent header
                 let user_agent = format!("r-nacos/{}", get_app_version());
-                let request = self.http_client
+                let request = self
+                    .http_client
                     .get(&userinfo_url)
                     .bearer_auth(access_token.clone())
                     .header("Accept", "application/json")
                     .header("User-Agent", user_agent);
-                
+
                 let userinfo_response = request.send().await?;
 
                 // Check response status
                 let status = userinfo_response.status();
                 if !status.is_success() {
                     let error_text = userinfo_response.text().await.unwrap_or_default();
-                    log::error!("OAuth2 userinfo request failed: status={}, url={}, body={}", status, userinfo_url, error_text);
-                    return Err(anyhow::anyhow!("OAuth2 userinfo request failed: status={}, body={}", status, error_text));
+                    log::error!(
+                        "OAuth2 userinfo request failed: status={}, url={}, body={}",
+                        status,
+                        userinfo_url,
+                        error_text
+                    );
+                    return Err(anyhow::anyhow!(
+                        "OAuth2 userinfo request failed: status={}, body={}",
+                        status,
+                        error_text
+                    ));
                 }
 
                 // Parse JSON directly
@@ -122,7 +126,11 @@ impl OAuth2MsgActor {
                 })?;
 
                 // Log the complete userinfo response for debugging
-                log::info!("OAuth2 userinfo response: {}", serde_json::to_string_pretty(&userinfo).unwrap_or_else(|_| "Failed to serialize".to_string()));
+                log::info!(
+                    "OAuth2 userinfo response: {}",
+                    serde_json::to_string_pretty(&userinfo)
+                        .unwrap_or_else(|_| "Failed to serialize".to_string())
+                );
 
                 // Extract username from claims
                 let username_claim_name = self.oauth2_config.oauth2_username_claim_name.as_ref();
@@ -159,23 +167,19 @@ impl OAuth2MsgActor {
                         roles: Some(vec![role.clone()]),
                         ..Default::default()
                     };
-                    if let Ok(Ok(UserManagerResult::QueryUser(Some(user_dto)))) =
-                        user_manager_addr
-                            .send(UserManagerReq::InitUser {
-                                user,
-                                namespace_privilege_param: None,
-                            })
-                            .await
+                    if let Ok(Ok(UserManagerResult::QueryUser(Some(user_dto)))) = user_manager_addr
+                        .send(UserManagerReq::InitUser {
+                            user,
+                            namespace_privilege_param: None,
+                        })
+                        .await
                     {
                         namespace_privilege = user_dto.namespace_privilege;
                     }
                 }
 
-                let meta = crate::oauth2::model::OAuth2UserMeta::new(
-                    user_name,
-                    role,
-                    namespace_privilege,
-                );
+                let meta =
+                    crate::oauth2::model::OAuth2UserMeta::new(user_name, role, namespace_privilege);
                 Ok(OAuth2MsgResult::UserMeta(meta))
             }
         }
@@ -195,12 +199,9 @@ impl Handler<OAuth2MsgReq> for OAuth2MsgActor {
 
     fn handle(&mut self, msg: OAuth2MsgReq, _ctx: &mut Self::Context) -> Self::Result {
         let actor = self.clone();
-        let fut = async move {
-            actor.handle_req(msg).await
-        }
-        .into_actor(self)
-        .map(|result, _act, _ctx| result);
+        let fut = async move { actor.handle_req(msg).await }
+            .into_actor(self)
+            .map(|result, _act, _ctx| result);
         Box::pin(fut)
     }
 }
-

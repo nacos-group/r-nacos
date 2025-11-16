@@ -25,9 +25,9 @@ use actix_web::{
     web::{self, Data},
     HttpRequest, HttpResponse, Responder,
 };
-use serde::Deserialize;
 use captcha::filters::{Grid, Noise};
 use captcha::Captcha;
+use serde::Deserialize;
 
 pub async fn login(
     request: HttpRequest,
@@ -85,10 +85,7 @@ pub async fn login(
                 }));
             }
         }
-        if !app.sys_config.ldap_enable
-            && !app.sys_config.oauth2_enable
-            && session.is_none()
-        {
+        if !app.sys_config.ldap_enable && !app.sys_config.oauth2_enable && session.is_none() {
             return HttpResponse::Ok().json(ApiResult::<()>::error(error_code, None));
         }
     } else {
@@ -147,16 +144,14 @@ pub async fn oauth2_callback(
         .await;
 
     let session = match res {
-        Ok(Ok(OAuth2MsgResult::UserMeta(meta))) => {
-            Some(Arc::new(UserSession {
-                username: Arc::new(meta.user_name.clone()),
-                nickname: Some(meta.user_name),
-                roles: vec![meta.role],
-                namespace_privilege: meta.namespace_privilege,
-                extend_infos: HashMap::default(),
-                refresh_time: now_second_i32() as u32,
-            }))
-        }
+        Ok(Ok(OAuth2MsgResult::UserMeta(meta))) => Some(Arc::new(UserSession {
+            username: Arc::new(meta.user_name.clone()),
+            nickname: Some(meta.user_name),
+            roles: vec![meta.role],
+            namespace_privilege: meta.namespace_privilege,
+            extend_infos: HashMap::default(),
+            refresh_time: now_second_i32() as u32,
+        })),
         Ok(Ok(OAuth2MsgResult::None)) => None,
         Ok(Ok(OAuth2MsgResult::AuthorizeUrl(_))) => {
             // This should not happen in callback
@@ -187,10 +182,7 @@ pub async fn oauth2_callback(
         }
     }
 
-    HttpResponse::Ok().json(ApiResult::<()>::error(
-        "OAUTH2_AUTH_ERROR".to_owned(),
-        None,
-    ))
+    HttpResponse::Ok().json(ApiResult::<()>::error("OAUTH2_AUTH_ERROR".to_owned(), None))
 }
 
 pub async fn get_login_config(app: Data<Arc<AppShareData>>) -> actix_web::Result<impl Responder> {
@@ -199,12 +191,9 @@ pub async fn get_login_config(app: Data<Arc<AppShareData>>) -> actix_web::Result
 
     if app.sys_config.oauth2_enable && !app.sys_config.oauth2_button.is_empty() {
         oauth2_button = Some(app.sys_config.oauth2_button.as_ref().clone());
-        
+
         // Generate OAuth2 authorize URL
-        let res = app
-            .oauth2_manager
-            .send(OAuth2MsgReq::GetAuthorizeUrl)
-            .await;
+        let res = app.oauth2_manager.send(OAuth2MsgReq::GetAuthorizeUrl).await;
 
         if let Ok(Ok(OAuth2MsgResult::AuthorizeUrl(auth_url))) = res {
             oauth2_authorize_url = Some(auth_url);

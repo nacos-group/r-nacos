@@ -44,4 +44,3 @@ impl OAuth2UserMeta {
         }
     }
 }
-

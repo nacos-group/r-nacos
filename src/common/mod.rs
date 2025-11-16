@@ -296,22 +296,19 @@ impl AppSysConfig {
         let oauth2_authorization_url = std::env::var("RNACOS_OAUTH2_AUTHORIZATION_URL")
             .map(Arc::new)
             .unwrap_or_else(|_| {
-                let server_url = std::env::var("RNACOS_OAUTH2_SERVER_URL")
-                    .unwrap_or_default();
+                let server_url = std::env::var("RNACOS_OAUTH2_SERVER_URL").unwrap_or_default();
                 Arc::new(format!("{}/oauth/authorize", server_url))
             });
         let oauth2_token_url = std::env::var("RNACOS_OAUTH2_TOKEN_URL")
             .map(Arc::new)
             .unwrap_or_else(|_| {
-                let server_url = std::env::var("RNACOS_OAUTH2_SERVER_URL")
-                    .unwrap_or_default();
+                let server_url = std::env::var("RNACOS_OAUTH2_SERVER_URL").unwrap_or_default();
                 Arc::new(format!("{}/oauth/token", server_url))
             });
         let oauth2_userinfo_url = std::env::var("RNACOS_OAUTH2_USERINFO_URL")
             .map(Arc::new)
             .unwrap_or_else(|_| {
-                let server_url = std::env::var("RNACOS_OAUTH2_SERVER_URL")
-                    .unwrap_or_default();
+                let server_url = std::env::var("RNACOS_OAUTH2_SERVER_URL").unwrap_or_default();
                 Arc::new(format!("{}/oauth/userinfo", server_url))
             });
         let oauth2_redirect_uri = std::env::var("RNACOS_OAUTH2_REDIRECT_URI")

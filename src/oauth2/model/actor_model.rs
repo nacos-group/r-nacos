@@ -14,4 +14,3 @@ pub enum OAuth2MsgResult {
     UserMeta(OAuth2UserMeta),
     AuthorizeUrl(String),
 }
-

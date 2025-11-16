@@ -86,4 +86,3 @@ impl Handler<OAuth2MsgReq> for OAuth2Manager {
         Box::pin(fut)
     }
 }
-
