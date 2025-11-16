@@ -545,6 +545,18 @@ KEY3=VALUE3
 <tr><td>RNACOS_METRICS_LOG_INTERVAL_SECOND</td><td>监控指标采集打印到日志的间隔,单位秒,最小间隔为5秒</td><td>30</td><td>10</td><td>0.5.13</td></tr>
 <tr><td>RNACOS_CONSOLE_ENABLE_CAPTCHA</td><td>验证码的开关</td><td>true</td><td>true</td><td>0.5.14</td></tr>
 <tr><td>RNACOS_MCP_HTTP_TIMEOUT_SECOND</td><td>MCP服务HTTP请求超时时间，单位为秒</td><td>30</td><td>60</td><td>0.7.3</td></tr>
+<tr><td>RNACOS_OAUTH2_ENABLE</td><td>是否启用OAuth2.0认证</td><td>false</td><td>true</td><td>0.7.4</td></tr>
+<tr><td>RNACOS_OAUTH2_CLIENT_ID</td><td>OAuth2.0客户端ID</td><td>空字符串</td><td>your_client_id</td><td>0.7.4</td></tr>
+<tr><td>RNACOS_OAUTH2_CLIENT_SECRET</td><td>OAuth2.0客户端密钥</td><td>空字符串</td><td>your_client_secret</td><td>0.7.4</td></tr>
+<tr><td>RNACOS_OAUTH2_REDIRECT_URI</td><td>OAuth2.0回调完整URI(只修改域名部分即可)</td><td>空字符串</td><td>http://localhost:10848/rnacos/p/login</td><td>0.7.4</td></tr>
+<tr><td>RNACOS_OAUTH2_AUTHORIZATION_URL</td><td>OAuth2.0授权端点完整URL</td><td>空字符串</td><td>https://oauth.example.com/oauth/authorize</td><td>0.7.4</td></tr>
+<tr><td>RNACOS_OAUTH2_TOKEN_URL</td><td>OAuth2.0 Token端点完整URL</td><td>空字符串</td><td>https://oauth.example.com/oauth/token</td><td>0.7.4</td></tr>
+<tr><td>RNACOS_OAUTH2_USERINFO_URL</td><td>OAuth2.0用户信息端点完整URL</td><td>空字符串</td><td>https://oauth.example.com/oauth/userinfo</td><td>0.7.4</td></tr>
+<tr><td>RNACOS_OAUTH2_SCOPES</td><td>OAuth2.0请求的权限范围(不同的oauth服务端支持的范围可能不同)</td><td>openid profile</td><td>openid profile email</td><td>0.7.4</td></tr>
+<tr><td>RNACOS_OAUTH2_USERNAME_CLAIM_NAME</td><td>OAuth2.0用户名claim字段名</td><td>username</td><td>username</td><td>0.7.4</td></tr>
+<tr><td>RNACOS_OAUTH2_NICKNAME_CLAIM_NAME</td><td>OAuth2.0昵称claim字段名</td><td>name</td><td>name</td><td>0.7.4</td></tr>
+<tr><td>RNACOS_OAUTH2_USER_DEFAULT_ROLE</td><td>OAuth2.0用户默认角色,支持的值有：访客:VISITOR,开发者:DEVELOPER,管理员:ADMIN</td><td>DEVELOPER</td><td>VISITOR</td><td>0.7.4</td></tr>
+<tr><td>RNACOS_OAUTH2_BUTTON</td><td>OAuth2.0登录按钮显示文本</td><td>OAuth2.0 登录</td><td>OAuth2.0 登录</td><td>0.7.4</td></tr>
 </tbody></table>
 <p>注：从v0.3.0开始，默认参数启动的节点会被当做只有一个节点，当前节点是主节点的集群部署。支持其它新增的从节点加入。</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="性能与容量说明"><a class="header" href="#性能与容量说明">性能与容量说明</a></h1>
