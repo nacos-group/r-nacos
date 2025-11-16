@@ -10,6 +10,7 @@ use crate::namespace::NamespaceActor;
 use crate::naming::cluster::node_manage::{InnerNodeManage, NodeManage};
 use crate::naming::cluster::route::NamingRoute;
 use crate::naming::core::NamingActor;
+use crate::oauth2::core::OAuth2Manager;
 use crate::raft::cache::route::CacheRoute;
 use crate::raft::cache::CacheManager;
 use crate::raft::cluster::route::{ConfigRoute, RaftRequestRoute};
@@ -54,6 +55,7 @@ pub struct AppShareData {
     pub transfer_import_manager: Addr<TransferImportManager>,
     pub health_manager: Addr<HealthManager>,
     pub ldap_manager: Addr<LdapManager>,
+    pub oauth2_manager: Addr<OAuth2Manager>,
     pub sequence_db_manager: Addr<SequenceDbManager>,
     pub sequence_manager: Addr<SequenceManager>,
     pub mcp_manager: Addr<McpManager>,
