@@ -207,18 +207,18 @@ helm install r-nacos rnacos/rnacos
 |RNACOS_LDAP_USER_ADMIN_GROUP|LDAP管理员角色包含的用户组(多个用逗号分隔，用户只要包含一个就是管理员)|空集合|admin_group1,admin_group2|0.6.19|
 |RNACOS_LDAP_USER_DEFAULT_ROLE|LDAP用户默认角色,支持的值有：访客:VISITOR,开发者:DEVELOPER,管理员:ADMIN|VISITOR|DEVELOPER|0.6.19|
 |RNACOS_MCP_HTTP_TIMEOUT_SECOND|MCP服务HTTP请求超时时间，单位为秒|30|60|0.7.3|
-|RNACOS_OAUTH2_ENABLE|是否启用OAuth2.0认证|false|true|x|
-|RNACOS_OAUTH2_CLIENT_ID|OAuth2.0客户端ID|空字符串|your_client_id|x|
-|RNACOS_OAUTH2_CLIENT_SECRET|OAuth2.0客户端密钥|空字符串|your_client_secret|x|
-|RNACOS_OAUTH2_REDIRECT_URI|OAuth2.0回调完整URI(只修改域名部分即可)|空字符串|http://localhost:10848/rnacos/p/login|x|
-|RNACOS_OAUTH2_AUTHORIZATION_URL|OAuth2.0授权端点完整URL|空字符串|https://oauth.example.com/oauth/authorize|x|
-|RNACOS_OAUTH2_TOKEN_URL|OAuth2.0 Token端点完整URL|空字符串|https://oauth.example.com/oauth/token|x|
-|RNACOS_OAUTH2_USERINFO_URL|OAuth2.0用户信息端点完整URL|空字符串|https://oauth.example.com/oauth/userinfo|x|
-|RNACOS_OAUTH2_SCOPES|OAuth2.0请求的权限范围|openid profile|openid profile email|x|
-|RNACOS_OAUTH2_USERNAME_CLAIM_NAME|OAuth2.0用户名claim字段名|username|username|x|
-|RNACOS_OAUTH2_NICKNAME_CLAIM_NAME|OAuth2.0昵称claim字段名|name|name|x|
-|RNACOS_OAUTH2_USER_DEFAULT_ROLE|OAuth2.0用户默认角色,支持的值有：访客:VISITOR,开发者:DEVELOPER,管理员:ADMIN|DEVELOPER|VISITOR|x|
-|RNACOS_OAUTH2_BUTTON|OAuth2.0登录按钮显示文本|OAuth2.0 登录|OAuth2.0 登录|x|
+|RNACOS_OAUTH2_ENABLE|是否启用OAuth2.0认证|false|true|0.7.4|
+|RNACOS_OAUTH2_CLIENT_ID|OAuth2.0客户端ID|空字符串|your_client_id|0.7.4|
+|RNACOS_OAUTH2_CLIENT_SECRET|OAuth2.0客户端密钥|空字符串|your_client_secret|0.7.4|
+|RNACOS_OAUTH2_REDIRECT_URI|OAuth2.0回调完整URI(只修改域名部分即可)|空字符串|http://localhost:10848/rnacos/p/login|0.7.4|
+|RNACOS_OAUTH2_AUTHORIZATION_URL|OAuth2.0授权端点完整URL|空字符串|https://oauth.example.com/oauth/authorize|0.7.4|
+|RNACOS_OAUTH2_TOKEN_URL|OAuth2.0 Token端点完整URL|空字符串|https://oauth.example.com/oauth/token|0.7.4|
+|RNACOS_OAUTH2_USERINFO_URL|OAuth2.0用户信息端点完整URL|空字符串|https://oauth.example.com/oauth/userinfo|0.7.4|
+|RNACOS_OAUTH2_SCOPES|OAuth2.0请求的权限范围(不同的oauth服务端支持的范围可能不同)|openid profile|openid profile email|0.7.4|
+|RNACOS_OAUTH2_USERNAME_CLAIM_NAME|OAuth2.0用户名claim字段名|username|username|0.7.4|
+|RNACOS_OAUTH2_NICKNAME_CLAIM_NAME|OAuth2.0昵称claim字段名|name|name|0.7.4|
+|RNACOS_OAUTH2_USER_DEFAULT_ROLE|OAuth2.0用户默认角色,支持的值有：访客:VISITOR,开发者:DEVELOPER,管理员:ADMIN|DEVELOPER|VISITOR|0.7.4|
+|RNACOS_OAUTH2_BUTTON|OAuth2.0登录按钮显示文本|OAuth2.0 登录|OAuth2.0 登录|0.7.4|
 
 启动配置方式可以参考： [运行参数说明](https://r-nacos.github.io/docs/notes/env_config/)
 

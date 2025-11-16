@@ -71,6 +71,18 @@ rnacos 运行时支持的环境变量，如果不设置则按默认配置运行�
 |RNACOS_METRICS_LOG_INTERVAL_SECOND|监控指标采集打印到日志的间隔,单位秒,最小间隔为5秒|30|10|0.5.13|
 |RNACOS_CONSOLE_ENABLE_CAPTCHA| 验证码的开关| true|true|0.5.14|
 |RNACOS_MCP_HTTP_TIMEOUT_SECOND|MCP服务HTTP请求超时时间，单位为秒|30|60|0.7.3|
+|RNACOS_OAUTH2_ENABLE|是否启用OAuth2.0认证|false|true|0.7.4|
+|RNACOS_OAUTH2_CLIENT_ID|OAuth2.0客户端ID|空字符串|your_client_id|0.7.4|
+|RNACOS_OAUTH2_CLIENT_SECRET|OAuth2.0客户端密钥|空字符串|your_client_secret|0.7.4|
+|RNACOS_OAUTH2_REDIRECT_URI|OAuth2.0回调完整URI(只修改域名部分即可)|空字符串|http://localhost:10848/rnacos/p/login|0.7.4|
+|RNACOS_OAUTH2_AUTHORIZATION_URL|OAuth2.0授权端点完整URL|空字符串|https://oauth.example.com/oauth/authorize|0.7.4|
+|RNACOS_OAUTH2_TOKEN_URL|OAuth2.0 Token端点完整URL|空字符串|https://oauth.example.com/oauth/token|0.7.4|
+|RNACOS_OAUTH2_USERINFO_URL|OAuth2.0用户信息端点完整URL|空字符串|https://oauth.example.com/oauth/userinfo|0.7.4|
+|RNACOS_OAUTH2_SCOPES|OAuth2.0请求的权限范围(不同的oauth服务端支持的范围可能不同)|openid profile|openid profile email|0.7.4|
+|RNACOS_OAUTH2_USERNAME_CLAIM_NAME|OAuth2.0用户名claim字段名|username|username|0.7.4|
+|RNACOS_OAUTH2_NICKNAME_CLAIM_NAME|OAuth2.0昵称claim字段名|name|name|0.7.4|
+|RNACOS_OAUTH2_USER_DEFAULT_ROLE|OAuth2.0用户默认角色,支持的值有：访客:VISITOR,开发者:DEVELOPER,管理员:ADMIN|DEVELOPER|VISITOR|0.7.4|
+|RNACOS_OAUTH2_BUTTON|OAuth2.0登录按钮显示文本|OAuth2.0 登录|OAuth2.0 登录|0.7.4|
 
 
 注：从v0.3.0开始，默认参数启动的节点会被当做只有一个节点，当前节点是主节点的集群部署。支持其它新增的从节点加入。
