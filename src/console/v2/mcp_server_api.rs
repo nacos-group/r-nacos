@@ -1,10 +1,10 @@
 use crate::common::appdata::AppShareData;
-use crate::common::constant::{SEQ_MCP_SERVER_ID, SEQ_MCP_SERVER_VALUE_ID};
+use crate::common::constant::{EMPTY_ARC_STRING, SEQ_MCP_SERVER_ID, SEQ_MCP_SERVER_VALUE_ID};
 use crate::common::model::{ApiResult, PageResult, UserSession};
 use crate::common::string_utils::StringUtils;
 use crate::console::model::mcp_server_model::{
     McpServerHistoryPublishParams, McpServerHistoryQueryRequest, McpServerParams,
-    McpServerQueryRequest, McpServerValueDto,
+    McpServerQueryRequest, McpServerValueDto, McpSimpleToolParams,
 };
 use crate::console::v2::{
     handle_error, handle_mcp_manager_error, handle_not_found_error, handle_param_error,
@@ -14,9 +14,12 @@ use crate::mcp::model::actor_model::{McpManagerRaftReq, McpManagerReq, McpManage
 use crate::mcp::model::mcp::McpServerDto;
 use crate::raft::store::{ClientRequest, ClientResponse};
 use crate::sequence::{SequenceRequest, SequenceResult};
-use actix_web::{web, HttpMessage, HttpRequest, HttpResponse, Responder};
+use actix_multipart::form::tempfile::TempFile;
+use actix_multipart::form::text::Text;
+use actix_multipart::form::MultipartForm;
+use actix_web::{web, Error, HttpMessage, HttpRequest, HttpResponse, Responder};
 use std::fs::File;
-use std::io::{Read, Seek, SeekFrom, Write};
+use std::io::{self, Read, Seek, SeekFrom, Write};
 use std::sync::Arc;
 use zip::write::FileOptions;
 use zip::ZipWriter;
@@ -562,4 +565,280 @@ fn generate_mcp_server_yaml(mcp_server: &McpServerDto) -> String {
             mcp_server.unique_key.as_str()
         )
     })
+}
+
+#[derive(Debug, MultipartForm)]
+pub struct McpServerUploadForm {
+    #[multipart(rename = "namespace")]
+    pub namespace: Option<Text<String>>,
+    #[multipart(rename = "file")]
+    pub files: Vec<TempFile>,
+}
+
+/// 批量导入McpServer
+pub async fn import_mcp_servers(
+    req: HttpRequest,
+    MultipartForm(form): MultipartForm<McpServerUploadForm>,
+    appdata: web::Data<Arc<AppShareData>>,
+) -> Result<impl Responder, Error> {
+    // 获取命名空间，优先使用表单中的namespace，然后使用header中的namespace,最后使用默认值
+    let mut namespace = if let Some(namespace_text) = form.namespace {
+        Arc::new(namespace_text.into_inner())
+    } else {
+        match req.headers().get("namespace") {
+            Some(v) => Arc::new(String::from_utf8_lossy(v.as_bytes()).to_string()),
+            None => EMPTY_ARC_STRING.clone(),
+        }
+    };
+    if namespace.is_empty() {
+        namespace = Arc::new(crate::namespace::default_namespace("".to_string()));
+    }
+
+    // 检查命名空间权限
+    let namespace_privilege = crate::user_namespace_privilege!(req);
+    if !namespace_privilege.check_permission(&namespace) {
+        return Ok(HttpResponse::Unauthorized().body(format!(
+            "user no such namespace permission: {}",
+            namespace.as_str()
+        )));
+    }
+
+    // 从HttpRequest中提取用户会话信息作为op_user
+    let op_user = req
+        .extensions()
+        .get::<Arc<UserSession>>()
+        .map(|session| session.username.clone());
+
+    let mut mcp_server_params = Vec::new();
+
+    // 处理上传的文件
+    for f in form.files {
+        match zip::ZipArchive::new(f.file) {
+            Ok(mut archive) => {
+                for i in 0..archive.len() {
+                    let mut file = archive.by_index(i).unwrap();
+                    let filename = file.name();
+
+                    // 只处理.yaml文件，跳过目录
+                    let filename_str = filename.to_string();
+                    if !filename_str.ends_with('/') && filename_str.ends_with(".yaml") {
+                        // 读取文件内容
+                        let content = match io::read_to_string(&mut file) {
+                            Ok(v) => v,
+                            Err(e) => {
+                                log::warn!("Failed to read file {}: {}", filename_str, e);
+                                continue;
+                            }
+                        };
+
+                        // 解析YAML内容为McpServerImportDto
+                        use crate::console::model::mcp_server_model::McpServerImportDto;
+                        let import_dto: McpServerImportDto = match serde_yml::from_str(&content) {
+                            Ok(dto) => dto,
+                            Err(e) => {
+                                log::warn!("Failed to parse YAML file {}: {}", filename_str, e);
+                                continue;
+                            }
+                        };
+
+                        // 转换为McpServerParams
+                        let mcp_server_param = McpServerParams {
+                            id: None, // 导入时不设置ID，由系统生成
+                            unique_key: Some(import_dto.unique_key.clone()),
+                            namespace: Some(namespace.as_str().to_string()),
+                            name: Some(import_dto.name.clone()),
+                            description: Some(import_dto.description.clone()),
+                            auth_keys: Some(import_dto.auth_keys.clone()),
+                            tools: Some(
+                                import_dto
+                                    .tools
+                                    .iter()
+                                    .map(|tool| McpSimpleToolParams {
+                                        id: None,
+                                        tool_name: Arc::new(tool.tool_name.clone()),
+                                        namespace: namespace.clone(),
+                                        group: Arc::new(tool.tool_group.clone()),
+                                        tool_version: None,
+                                        route_rule: Some(tool.route_rule.clone()),
+                                    })
+                                    .collect(),
+                            ),
+                        };
+
+                        mcp_server_params.push(mcp_server_param);
+                    }
+                }
+            }
+            Err(e) => {
+                log::error!("Failed to open zip archive: {}", e);
+                return Ok(HttpResponse::BadRequest().body("Invalid zip file format"));
+            }
+        }
+    }
+
+    // 如果没有有效的MCP服务器，返回错误
+    if mcp_server_params.is_empty() {
+        return Ok(HttpResponse::BadRequest().body("No valid MCP servers found in the zip file"));
+    }
+
+    // 批量处理每个McpServer
+    let mut imported_count = 0;
+    let mut updated_count = 0;
+    let mut errors = Vec::new();
+
+    for param in mcp_server_params {
+        match update_mcp_server_for_import(param.clone(), op_user.clone(), &appdata).await {
+            Ok(is_updated) => {
+                if is_updated {
+                    updated_count += 1;
+                } else {
+                    imported_count += 1;
+                }
+            }
+            Err(e) => {
+                let server_key = param.unique_key.as_deref().unwrap_or("unknown");
+                errors.push(format!("Failed to import server {}: {}", server_key, e));
+            }
+        }
+    }
+
+    // 构建响应
+    if errors.is_empty() {
+        let result_msg = format!(
+            "{} servers created, {} servers updated",
+            imported_count, updated_count
+        );
+        Ok(HttpResponse::Ok().json(ApiResult::success(Some(result_msg))))
+    } else {
+        let error_summary = if errors.len() > 10 {
+            format!(
+                "{} servers created, {} servers updated, {} errors. First errors: {:?}",
+                imported_count,
+                updated_count,
+                errors.len(),
+                &errors[..10]
+            )
+        } else {
+            format!(
+                "{} servers created, {} servers updated, {} errors: {:?}",
+                imported_count,
+                updated_count,
+                errors.len(),
+                errors
+            )
+        };
+        Ok(HttpResponse::Ok().json(ApiResult::<String>::error(
+            "PARTIAL_SUCCESS".to_string(),
+            Some(error_summary),
+        )))
+    }
+}
+
+/// 为导入操作添加或更新McpServer的内部函数
+async fn update_mcp_server_for_import(
+    param: McpServerParams,
+    op_user: Option<Arc<String>>,
+    appdata: &web::Data<Arc<AppShareData>>,
+) -> anyhow::Result<bool> {
+    // 验证参数
+    param.validate()?;
+
+    // 检查是否已存在相同unique_key的服务
+    if let Some(server_key) = param.unique_key.as_ref() {
+        if !server_key.is_empty() {
+            let check_result = appdata
+                .mcp_manager
+                .send(McpManagerReq::GetServerByKey(Arc::new(
+                    server_key.to_string(),
+                )))
+                .await??;
+
+            if let McpManagerResult::ServerInfo(Some(existing_server)) = check_result {
+                // 服务已存在，执行更新操作
+                log::info!(
+                    "Updating existing McpServer with key: {} (id: {})",
+                    server_key,
+                    existing_server.id
+                );
+
+                // 设置ID为现有服务的ID
+                let mut update_param = param.clone();
+                update_param.id = Some(existing_server.id);
+
+                // 转换为McpServerParam用于更新
+                let mut server_param = update_param.to_mcp_server_param(op_user.clone());
+                // 保留原有的unique_key，确保不会改变
+                server_param.unique_key = Some(Arc::new(server_key.clone()));
+
+                // 构建McpManagerRaftReq::UpdateServer请求
+                let raft_req = McpManagerRaftReq::UpdateServer(server_param);
+                let client_req = ClientRequest::McpReq { req: raft_req };
+
+                // 通过RaftRequestRoute.request发送更新请求
+                let response = appdata.raft_request_route.request(client_req).await?;
+
+                match response {
+                    ClientResponse::McpResp { resp: _ } => return Ok(true), // 返回true表示更新
+                    _ => {
+                        return Err(anyhow::anyhow!(
+                            "Unexpected response from Raft update McpServer"
+                        ))
+                    }
+                }
+            }
+        }
+    }
+
+    // 服务不存在，执行创建操作
+    log::info!("Creating new McpServer");
+
+    let server_id = match appdata
+        .sequence_manager
+        .send(SequenceRequest::GetNextId(SEQ_MCP_SERVER_ID.clone()))
+        .await??
+    {
+        SequenceResult::NextId(id) => id,
+        _ => return Err(anyhow::anyhow!("Failed to get server id")),
+    };
+
+    let server_value_id = match appdata
+        .sequence_manager
+        .send(SequenceRequest::GetNextId(SEQ_MCP_SERVER_VALUE_ID.clone()))
+        .await??
+    {
+        SequenceResult::NextId(id) => id,
+        _ => return Err(anyhow::anyhow!("Failed to get server value id")),
+    };
+
+    let new_value_id = match appdata
+        .sequence_manager
+        .send(SequenceRequest::GetNextId(SEQ_MCP_SERVER_VALUE_ID.clone()))
+        .await??
+    {
+        SequenceResult::NextId(id) => id,
+        _ => return Err(anyhow::anyhow!("Failed to get new value id")),
+    };
+
+    // 转换为McpServerParam
+    let mut server_param = param.to_mcp_server_param(op_user.clone());
+    server_param.id = server_id;
+    server_param.value_id = server_value_id;
+    server_param.publish_value_id = Some(new_value_id);
+    if StringUtils::is_option_empty_arc(&server_param.unique_key) {
+        server_param.unique_key = Some(server_param.build_unique_key());
+    }
+
+    // 构建McpManagerRaftReq::AddServer请求
+    let raft_req = McpManagerRaftReq::AddServer(server_param);
+    let client_req = ClientRequest::McpReq { req: raft_req };
+
+    // 通过RaftRequestRoute.request发送写入请求
+    let response = appdata.raft_request_route.request(client_req).await?;
+
+    match response {
+        ClientResponse::McpResp { resp: _ } => Ok(false), // 返回false表示创建
+        _ => Err(anyhow::anyhow!(
+            "Unexpected response from Raft add McpServer"
+        )),
+    }
 }
