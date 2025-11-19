@@ -15,7 +15,11 @@ use crate::mcp::model::mcp::McpServerDto;
 use crate::raft::store::{ClientRequest, ClientResponse};
 use crate::sequence::{SequenceRequest, SequenceResult};
 use actix_web::{web, HttpMessage, HttpRequest, HttpResponse, Responder};
+use std::fs::File;
+use std::io::{Read, Seek, SeekFrom, Write};
 use std::sync::Arc;
+use zip::write::FileOptions;
+use zip::ZipWriter;
 
 /// 查询McpServer列表
 pub async fn query_mcp_server_list(
@@ -459,4 +463,103 @@ async fn do_publish_history_mcp_server(
             "Unexpected response from Raft publish history McpServer version"
         )),
     }
+}
+
+/// 批量导出McpServer
+pub async fn download_mcp_servers(
+    _req: HttpRequest,
+    request: web::Query<McpServerQueryRequest>,
+    appdata: web::Data<Arc<AppShareData>>,
+) -> impl Responder {
+    // 验证查询参数
+    if let Err(err) = request.validate() {
+        return handle_param_error(err, "McpServer download parameter validation failed");
+    }
+
+    // 转换查询参数，设置最大限制10万
+    let mut query_param = request.to_mcp_query_param();
+    query_param.limit = 100_000;
+    query_param.offset = 0;
+
+    // 发送查询请求到MCP Manager
+    let cmd = McpManagerReq::QueryServer(query_param);
+    match appdata.mcp_manager.send(cmd).await {
+        Ok(res) => match res {
+            Ok(McpManagerResult::ServerPageInfo(_, list)) => {
+                let mut tmpfile: File = tempfile::tempfile().unwrap();
+                {
+                    let write = std::io::Write::by_ref(&mut tmpfile);
+                    let zip = ZipWriter::new(write);
+                    generate_mcp_server_zip(zip, list).ok();
+                }
+                // Seek to start
+                tmpfile.seek(SeekFrom::Start(0)).unwrap();
+                let mut buf = vec![];
+                tmpfile.read_to_end(&mut buf).unwrap();
+
+                let filename = format!("rnacos_mcserver_export_{}.zip", crate::now_millis());
+                HttpResponse::Ok()
+                    .insert_header(actix_web::http::header::ContentType::octet_stream())
+                    .insert_header(actix_web::http::header::ContentDisposition::attachment(
+                        filename,
+                    ))
+                    .body(buf)
+            }
+            Ok(_) => handle_unexpected_response_error("MCP Manager download McpServer"),
+            Err(err) => handle_mcp_manager_error(err, "download McpServer"),
+        },
+        Err(err) => handle_system_error(
+            format!("Unable to connect to MCP Manager: {}", err),
+            "Failed to send download request to MCP Manager",
+        ),
+    }
+}
+
+/// 生成McpServer的zip文件
+fn generate_mcp_server_zip(
+    mut zip: ZipWriter<&mut File>,
+    list: Vec<McpServerDto>,
+) -> anyhow::Result<()> {
+    if list.is_empty() {
+        let options = FileOptions::default()
+            .compression_method(zip::CompressionMethod::Stored)
+            .unix_permissions(0o755);
+        zip.start_file(".ignore", options)?;
+        zip.write_all("empty mcpservers".as_bytes())?;
+    }
+
+    for item in &list {
+        // 生成YAML内容
+        let yaml_content = generate_mcp_server_yaml(item);
+
+        // 文件名格式: {unique_key}.yaml
+        let filename = format!("{}.yaml", item.unique_key.as_str());
+
+        let options = FileOptions::default()
+            .compression_method(zip::CompressionMethod::Stored)
+            .unix_permissions(0o755);
+
+        zip.start_file(filename, options)?;
+        zip.write_all(yaml_content.as_bytes())?;
+    }
+
+    zip.finish()?;
+    Ok(())
+}
+
+/// 生成McpServer的YAML内容
+fn generate_mcp_server_yaml(mcp_server: &McpServerDto) -> String {
+    use crate::console::model::mcp_server_model::McpServerImportDto;
+
+    // 转换为McpServerImportDto
+    let import_dto = McpServerImportDto::from(mcp_server);
+
+    // 使用serde_yml序列化
+    serde_yml::to_string(&import_dto).unwrap_or_else(|_| {
+        // 如果序列化失败，返回基本错误信息
+        format!(
+            "Failed to serialize McpServer: {}",
+            mcp_server.unique_key.as_str()
+        )
+    })
 }

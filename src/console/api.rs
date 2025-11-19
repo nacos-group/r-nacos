@@ -404,6 +404,10 @@ pub fn console_api_config_v2(config: &mut web::ServiceConfig) {
             .service(
                 web::resource("/mcp/server/publish/history")
                     .route(web::post().to(v2::mcp_server_api::publish_history_mcp_server)),
+            )
+            .service(
+                web::resource("/mcp/server/download")
+                    .route(web::get().to(v2::mcp_server_api::download_mcp_servers)),
             ),
     );
 }

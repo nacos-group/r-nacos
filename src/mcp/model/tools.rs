@@ -328,7 +328,7 @@ pub struct ToolRouteRule {
     pub method: Arc<String>,
     pub addition_headers: std::collections::HashMap<String, Arc<String>>,
     pub convert_type: ConvertType,
-    pub service_namespace: Arc<String>,
+    pub service_namespace: Option<Arc<String>>,
     pub service_group: Arc<String>,
     pub service_name: Arc<String>,
 }
@@ -341,7 +341,7 @@ impl Default for ToolRouteRule {
             method: Arc::new("GET".to_string()),
             addition_headers: std::collections::HashMap::new(),
             convert_type: ConvertType::None,
-            service_namespace: EMPTY_ARC_STRING.clone(),
+            service_namespace: None,
             service_group: EMPTY_ARC_STRING.clone(),
             service_name: EMPTY_ARC_STRING.clone(),
         }

@@ -338,3 +338,51 @@ impl McpServerValueDto {
         }
     }
 }
+
+/// McpServer导入导出DTO，用于YAML序列化
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct McpServerImportDto {
+    pub unique_key: String,
+    pub name: String,
+    pub description: String,
+    pub auth_keys: Vec<String>,
+    pub tools: Vec<McpToolImportDto>,
+}
+
+/// McpTool导入导出DTO，用于YAML序列化
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct McpToolImportDto {
+    pub tool_name: String,
+    pub tool_group: String,
+    pub route_rule: ToolRouteRule,
+}
+
+impl From<&crate::mcp::model::mcp::McpServerDto> for McpServerImportDto {
+    fn from(server: &crate::mcp::model::mcp::McpServerDto) -> Self {
+        let tools = if let Some(ref current_value) = server.current_value {
+            current_value.tools.iter().map(|tool| McpToolImportDto {
+                tool_name: tool.tool_key.tool_name.as_str().to_string(),
+                tool_group: tool.tool_key.group.as_str().to_string(),
+                route_rule: tool.route_rule.clone(),
+            }).collect()
+        } else if let Some(ref release_value) = server.release_value {
+            release_value.tools.iter().map(|tool| McpToolImportDto {
+                tool_name: tool.tool_key.tool_name.as_str().to_string(),
+                tool_group: tool.tool_key.group.as_str().to_string(),
+                route_rule: tool.route_rule.clone(),
+            }).collect()
+        } else {
+            Vec::new()
+        };
+
+        Self {
+            unique_key: server.unique_key.as_str().to_string(),
+            name: server.name.as_str().to_string(),
+            description: server.description.as_str().to_string(),
+            auth_keys: server.auth_keys.iter().map(|key| key.as_str().to_string()).collect(),
+            tools,
+        }
+    }
+}
