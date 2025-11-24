@@ -400,15 +400,15 @@ async fn handle_tools_call(
         ) {
             *log_args = McpHandleLogArgs::Arg(format!("tool:{}", tool_name));
 
-            let (tool, url) = match select_tool_and_url(tool_name, &mcp_server, app_share_data)
-                .await
-            {
-                Ok(result) => result,
-                Err(error) => {
-                    *log_args = McpHandleLogArgs::Arg(format!("tool:{}|select_failed", tool_name));
-                    return Err(error);
-                }
-            };
+            let (tool, url) =
+                match select_tool_and_url(tool_name, &mcp_server, &args, app_share_data).await {
+                    Ok(result) => result,
+                    Err(error) => {
+                        *log_args =
+                            McpHandleLogArgs::Arg(format!("tool:{}|select_failed", tool_name));
+                        return Err(error);
+                    }
+                };
             let client = &app_share_data.common_client;
             let mut req = match tool.route_rule.convert_type {
                 ConvertType::None | ConvertType::Custom => client
@@ -541,6 +541,7 @@ fn filter_keys(user_keys: &Vec<&String>, k: &&str) -> bool {
 async fn select_tool_and_url<'a>(
     tool_name: &str,
     server: &'a Arc<McpServer>,
+    value: &'a serde_json::Value,
     app_share_data: &Arc<AppShareData>,
 ) -> anyhow::Result<(&'a McpTool, String)> {
     for tool in server.release_value.tools.iter() {
@@ -556,12 +557,22 @@ async fn select_tool_and_url<'a>(
                 .await
             {
                 let host = instance.map(|i| (i.ip.clone(), i.port as u16));
-                let url = tool.route_rule.build_url(host)?;
+                let url = replace_args(tool.route_rule.build_url(host)?, value)?;
                 return Ok((tool, url));
             }
         }
     }
     Err(anyhow::anyhow!("mcp server tool not found: {}", tool_name))
+}
+
+fn replace_args(url: String, value: &serde_json::Value) -> anyhow::Result<String> {
+    if let None = url.find("{{") {
+        return Ok(url);
+    }
+    let mut engine = upon::Engine::new();
+    engine.add_template("url", &url)?;
+    let result = engine.template("url").render(value).to_string()?;
+    Ok(result)
 }
 
 // 处理 tools/list 方法

@@ -80,7 +80,7 @@ mime_guess = { version = "2" }
 rusqlite = { version = "0.25", features = ["bundled"] }
 rsql_builder = "0.1.5"
 inner-mem-cache = "0.1.7"
-rnacos-web-dist-wrap = "=0.7.3"
+rnacos-web-dist-wrap = "=0.7.4"
 nacos_rust_client = "0.3.2"
 zip = "0.6"
 tempfile = "3"
@@ -125,6 +125,7 @@ reqwest = {version="0.11", default-features = false, features = ["stream", "rust
 rand = "0.8"
 serde_yml = "0.0.12"
 oauth2 = "4.4"
+upon = "0.10.0"
 
 [target.'cfg(any(target_os = "linux", target_os = "macos", target_os="windows"))'.dependencies]
 fs2 = "0.4.3"

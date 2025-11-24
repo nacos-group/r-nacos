@@ -382,6 +382,7 @@ lazy_static::lazy_static! {
         R::Path("/rnacos/api/console/v2/mcp/server/list",HTTP_METHOD_GET),
         R::Path("/rnacos/api/console/v2/mcp/server/info",HTTP_METHOD_GET),
         R::Path("/rnacos/api/console/v2/mcp/server/history",HTTP_METHOD_GET),
+        R::Path("/rnacos/api/console/v2/mcp/server/download",HTTP_METHOD_GET),
     ]);
 
     static ref M_MCP_SERVER_MANAGE: ModuleResource = ModuleResource::new(vec![
@@ -399,6 +400,8 @@ lazy_static::lazy_static! {
         R::Path("/rnacos/api/console/v2/mcp/server/remove",HTTP_METHOD_POST),
         R::Path("/rnacos/api/console/v2/mcp/server/publish",HTTP_METHOD_POST),
         R::Path("/rnacos/api/console/v2/mcp/server/publish/history",HTTP_METHOD_POST),
+        R::Path("/rnacos/api/console/v2/mcp/server/download",HTTP_METHOD_GET),
+        R::Path("/rnacos/api/console/v2/mcp/server/import",HTTP_METHOD_POST),
     ]);
 
     static ref R_VISITOR: Arc<GroupResource> = Arc::new(GroupResource::new(vec![

@@ -328,6 +328,7 @@ pub struct ToolRouteRule {
     pub method: Arc<String>,
     pub addition_headers: std::collections::HashMap<String, Arc<String>>,
     pub convert_type: ConvertType,
+    #[serde(skip_serializing)]
     pub service_namespace: Option<Arc<String>>,
     pub service_group: Arc<String>,
     pub service_name: Arc<String>,
