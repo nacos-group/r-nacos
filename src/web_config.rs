@@ -13,7 +13,7 @@ use crate::openapi::health::health_config;
 use crate::openapi::mcp::mcp_config;
 use crate::openapi::metrics::metrics_config;
 use crate::openapi::{
-    openapi_config, v1::console as nacos_console, v2::console as nacos_console_v2,
+    openapi_route_config, v1::console as nacos_console, v2::console as nacos_console_v2,
 };
 use crate::raft::network::raft_config;
 
@@ -113,7 +113,7 @@ pub fn app_config(conf_data: AppSysConfig) -> impl FnOnce(&mut ServiceConfig) {
             health_config(config);
             raft_config(config);
             nacos_console_api_config(config);
-            config.configure(openapi_config(conf_data));
+            openapi_route_config(config);
             #[cfg(feature = "debug")]
             debug_config(config);
         } else {
@@ -124,7 +124,7 @@ pub fn app_config(conf_data: AppSysConfig) -> impl FnOnce(&mut ServiceConfig) {
             health_config(config);
             raft_config(config);
             nacos_console_api_config(config);
-            config.configure(openapi_config(conf_data));
+            openapi_route_config(config);
             console_api_config_v2(config);
             console_api_config_v1(config);
             console_page_config(config);
