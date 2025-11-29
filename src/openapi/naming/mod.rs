@@ -3,7 +3,9 @@ use crate::openapi::naming::catalog::query_opt_service_list;
 use crate::openapi::naming::instance::{
     beat_instance, del_instance, get_instance, get_instance_list, update_instance,
 };
-use crate::openapi::naming::operator::mock_operator_metrics;
+use crate::openapi::naming::operator::{
+    mock_get_switches, mock_operator_metrics, mock_put_switches,
+};
 use crate::openapi::naming::service::{
     query_service, query_service_list, query_subscribers_list, remove_service, update_service,
 };
@@ -59,6 +61,14 @@ pub fn naming_v1_route(config: &mut ServiceConfig) {
                     web::resource("/subscribers").route(web::get().to(query_subscribers_list)),
                 ),
         )
-        .service(scope("/nacos/v1/ns/operator").service(mock_operator_metrics))
+        .service(
+            scope("/nacos/v1/ns/operator")
+                .service(
+                    web::resource("switches")
+                        .route(web::get().to(mock_get_switches))
+                        .route(web::put().to(mock_put_switches)),
+                )
+                .service(mock_operator_metrics),
+        )
         .service(scope("/nacos/v1/ns/catalog").service(query_opt_service_list));
 }
