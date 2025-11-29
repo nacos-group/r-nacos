@@ -1063,6 +1063,8 @@ pub enum NamingCmd {
     QueryServiceSubscribersPageV2(ServiceQueryParam),
     //查询服务实际信息列表
     QueryServiceInfoPage(ServiceQueryParam),
+    // 只查服务自身信息
+    QueryServiceOnly(ServiceKey),
     //CreateService(ServiceDetailDto),
     UpdateService(ServiceDetailDto),
     UpdateServiceFromCluster(ServiceDetailDto),
@@ -1094,6 +1096,7 @@ pub enum NamingResult {
     ServicePage((usize, Vec<Arc<String>>)),
     ServiceSubscribersPage((usize, Vec<SubscriberInfoDto>)),
     ServiceInfoPage((usize, Vec<ServiceInfoDto>)),
+    ServiceDto(Option<ServiceInfoDto>),
     ClientInstanceCount(Vec<(Arc<String>, usize)>),
     RewriteToCluster(u64, Instance),
     Snapshot(SnapshotForSend),
@@ -1199,6 +1202,9 @@ impl Handler<NamingCmd> for NamingActor {
             }
             NamingCmd::QueryServiceInfoPage(param) => Ok(NamingResult::ServiceInfoPage(
                 self.get_service_info_page(param),
+            )),
+            NamingCmd::QueryServiceOnly(service_key) => Ok(NamingResult::ServiceDto(
+                self.get_service(&service_key).map(|s| s.get_service_info()),
             )),
             NamingCmd::QueryServiceSubscribersPageV2(param) => Ok(
                 NamingResult::ServiceSubscribersPage(self.get_subscribers_list_by_param(param)),

@@ -1,7 +1,7 @@
 #![allow(unused_imports, unused_assignments, unused_variables)]
 use crate::common::option_utils::OptionUtils;
 use crate::naming::model::{Instance, ServiceKey};
-use crate::naming::service::SubscriberInfoDto;
+use crate::naming::service::{ServiceInfoDto, SubscriberInfoDto};
 use crate::naming::NamingUtils;
 use crate::utils::get_bool_from_string;
 use serde::{Deserialize, Serialize};
@@ -357,4 +357,49 @@ pub struct ServiceQueryListResponce {
 pub struct ServiceQuerySubscribersListResponce {
     pub count: usize,
     pub subscribers: Vec<SubscriberInfoDto>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct ServiceInfoVo {
+    pub namespace_id: Arc<String>,
+    pub group_name: Arc<String>,
+    pub name: Arc<String>,
+    pub protect_threshold: f32,
+    pub metadata: Option<Arc<HashMap<String, String>>>,
+    pub selector: HashMap<String, String>,
+    pub clusters: Vec<ClusterVo>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct ClusterVo {
+    pub name: String,
+    pub health_checker: HashMap<String, String>,
+    pub metadata: HashMap<String, String>,
+}
+
+impl ServiceInfoVo {
+    /// 从 ServiceInfoDto 创建 ServiceInfoVo，使用默认的命名空间和集群信息
+    pub fn from_dto(dto: ServiceInfoDto, namespace_id: Arc<String>) -> Self {
+        let mut selector = HashMap::new();
+        selector.insert("type".to_owned(), "none".to_string());
+        selector.insert("contextType".to_owned(), "NONE".to_string());
+        let mut health_checker = HashMap::new();
+        health_checker.insert("type".to_owned(), "TCP".to_string());
+
+        Self {
+            namespace_id,
+            group_name: dto.group_name,
+            name: dto.service_name,
+            protect_threshold: dto.protect_threshold.unwrap_or(0.0),
+            metadata: dto.metadata,
+            selector,
+            clusters: vec![ClusterVo {
+                name: "DEFAULT".to_string(),
+                health_checker,
+                metadata: HashMap::new(),
+            }],
+        }
+    }
 }

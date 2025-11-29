@@ -5,7 +5,8 @@ use crate::naming::model::ServiceKey;
 use crate::naming::NamingUtils;
 use crate::openapi::constant::EMPTY;
 use crate::openapi::naming::model::{
-    ServiceQueryListRequest, ServiceQueryListResponce, ServiceQuerySubscribersListResponce,
+    ServiceInfoVo, ServiceQueryListRequest, ServiceQueryListResponce,
+    ServiceQuerySubscribersListResponce,
 };
 use actix::Addr;
 use actix_web::http::header;
@@ -25,10 +26,46 @@ pub(super) fn service() -> Scope {
 }
 
 pub async fn query_service(
-    _param: web::Query<ServiceQueryListRequest>,
-    _naming_addr: web::Data<Addr<NamingActor>>,
+    param: web::Query<ServiceQueryListRequest>,
+    naming_addr: web::Data<Addr<NamingActor>>,
 ) -> impl Responder {
-    HttpResponse::InternalServerError().body("error,not support at present")
+    if let Some((group, service_name)) =
+        NamingUtils::split_group_and_service_name(&param.0.service_name.clone().unwrap_or_default())
+    {
+        let namespace_id = NamingUtils::default_namespace(
+            param
+                .namespace_id
+                .as_ref()
+                .unwrap_or(&"".to_owned())
+                .to_owned(),
+        );
+        let service_key = ServiceKey::new(&namespace_id, &group, &service_name);
+        match naming_addr
+            .send(NamingCmd::QueryServiceOnly(service_key.clone()))
+            .await
+        {
+            Ok(res) => {
+                let result: NamingResult = res.unwrap();
+                match result {
+                    NamingResult::ServiceDto(service) => {
+                        if let Some(service_dto) = service {
+                            let vo = ServiceInfoVo::from_dto(service_dto, service_key.namespace_id);
+                            HttpResponse::Ok().json(&vo)
+                        } else {
+                            HttpResponse::InternalServerError().body(format!(
+                                "service not found,namespace_id:{},service_name:{}",
+                                &namespace_id, &service_name
+                            ))
+                        }
+                    }
+                    _ => HttpResponse::InternalServerError().body("error"),
+                }
+            }
+            Err(err) => HttpResponse::InternalServerError().body(err.to_string()),
+        }
+    } else {
+        HttpResponse::InternalServerError().body("error,service_name is valid")
+    }
 }
 
 pub async fn update_service(
