@@ -1,5 +1,6 @@
 #![allow(unused_imports, unused_assignments, unused_variables)]
 use crate::common::option_utils::OptionUtils;
+use crate::common::string_utils::StringUtils;
 use crate::naming::model::{Instance, ServiceKey};
 use crate::naming::service::{ServiceInfoDto, SubscriberInfoDto};
 use crate::naming::NamingUtils;
@@ -250,7 +251,7 @@ impl BeatRequest {
 
     pub fn convert_to_instance(self) -> anyhow::Result<Instance> {
         let mut beat_info = self.get_beat_info()?;
-        let use_beat = self.beat.as_ref().is_some_and(|s| !s.is_empty());
+        let use_beat = !StringUtils::is_option_empty(&self.beat);
         if !use_beat {
             beat_info.ip = self.ip;
             beat_info.port = self.port;
@@ -287,6 +288,9 @@ impl BeatRequest {
     }
 
     fn get_beat_info(&self) -> anyhow::Result<BeatInfo> {
+        if StringUtils::is_option_empty(&self.beat) {
+            return Ok(BeatInfo::default());
+        }
         let beat_str = self.beat.clone().unwrap_or_default();
         if let Some(beat_str) = self.beat.as_ref() {
             let v = serde_json::from_str::<BeatInfo>(beat_str)?;
