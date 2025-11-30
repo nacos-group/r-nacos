@@ -42,12 +42,13 @@ path = "src/main.rs"
 [features]
 default = []
 debug=[]
+mimalloc = ["dep:mimalloc"]
 
 [lints.clippy]
 uninlined_format_args = "allow"
 
 [dependencies]
-mimalloc = { version = "0.1", features = ["secure"] }
+mimalloc = { version = "0.1", features = ["secure"], optional = true }
 serde = { version = "1", features = ["derive", "rc"] }
 serde_json = "1"
 serde_urlencoded = "0.7"

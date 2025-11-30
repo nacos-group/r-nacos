@@ -31,12 +31,13 @@ use std::sync::Arc;
 use std::time::Duration;
 use tonic::transport::Server;
 
+use crate::cli::{Cli, Commands};
 use actix_web::{middleware, HttpServer};
 use clap::Parser;
 use env_logger::TimestampPrecision;
 use env_logger_timezone_fmt::{TimeZoneFormat, TimeZoneFormatEnv};
-//use mimalloc::MiMalloc;
-use crate::cli::{Cli, Commands};
+#[cfg(feature = "mimalloc")]
+use mimalloc::MiMalloc;
 use rnacos::common::appdata::AppShareData;
 use rnacos::openapi::middle::auth_middle::ApiCheckAuth;
 use rnacos::raft::NacosRaft;
@@ -45,8 +46,9 @@ use rnacos::transfer::mysql_to_data::mysql_to_data;
 use rnacos::transfer::openapi_to_data::openapi_to_data;
 use rnacos::transfer::sqlite_to_data::sqlite_to_data;
 use rnacos::web_config::{app_config, console_config};
-//#[global_allocator]
-//static GLOBAL: MiMalloc = MiMalloc;
+#[cfg(feature = "mimalloc")]
+#[global_allocator]
+static GLOBAL: MiMalloc = MiMalloc;
 
 #[actix_web::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -68,6 +70,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // 这里不使用log:info避免日志等级高于info时不打印
     println!("version:{}, RUST_LOG:{}", get_app_version(), &rust_log);
     println!("data dir:{}", sys_config.local_db_dir);
+
+    // 输出内存分配器信息
+    let allocator_name = if cfg!(feature = "mimalloc") {
+        "mimalloc"
+    } else {
+        "system default"
+    };
+    println!("allocator: {}", allocator_name);
     let factory_data = config_factory(sys_config.clone()).await?;
     let app_data = build_share_data(factory_data.clone())?;
     let http_addr = sys_config.get_http_addr();
