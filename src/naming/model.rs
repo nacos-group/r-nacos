@@ -44,7 +44,7 @@ impl Instance {
 
     pub fn is_enable_timeout(&self) -> bool {
         //grpc 不走过期检查
-        !self.from_grpc && !self.is_from_cluster()
+        self.ephemeral && !self.from_grpc && !self.is_from_cluster()
     }
 
     pub fn generate_key(&mut self) {
