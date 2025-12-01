@@ -23,6 +23,7 @@ jobs:
           - i686-pc-windows-msvc
           - aarch64-pc-windows-msvc
           - aarch64-apple-darwin
+        allocator: [null]
         include:
           - target: x86_64-unknown-linux-musl
             os: ubuntu-latest
@@ -45,6 +46,10 @@ jobs:
           - target: aarch64-apple-darwin
             os: macos-latest
             name: rnacos-aarch64-apple-darwin-${GITHUB_REF#refs/*/}.tar.gz
+          - target: x86_64-unknown-linux-musl
+            allocator: mimalloc
+            os: ubuntu-latest
+            name: rnacos-x86_64-unknown-linux-musl-mimalloc-${GITHUB_REF#refs/*/}.tar.gz
     runs-on: ${{ matrix.os }}
     steps:
       # Largely inspired by https://github.com/starship/starship/blob/35a0a20f5c4fea6a08e1b91ff631b089eef8fc50/.github/workflows/deploy.yml
@@ -65,14 +70,20 @@ jobs:
           brew install gnu-tar
           echo "/usr/local/opt/gnu-tar/libexec/gnubin" >> $GITHUB_PATH
 
-      - name: Build 
-        if: matrix.target != 'x86_64-unknown-linux-musl'
-        run: cargo build --release
-
-      - name: Build linux-musl
-        if: matrix.target == 'x86_64-unknown-linux-musl'
+      - name: Build (default allocator)
+        if: matrix.allocator != 'mimalloc'
         run: |
-          cargo build --release --target ${{ matrix.target }}
+          if [ "${{ matrix.target }}" = "x86_64-unknown-linux-musl" ]; then
+            cargo build --release --target ${{ matrix.target }}
+          else
+            cargo build --release
+          fi
+
+      - name: Build with mimalloc
+        if: matrix.allocator == 'mimalloc'
+        run: |
+          cargo build --release --target ${{ matrix.target }} --features mimalloc
+
       - name: Archive binary (windows)
         if: matrix.os == 'windows-latest'
         run: |
@@ -118,6 +129,11 @@ jobs:
             image: "rust-musl-cross:aarch64-musl"
             compatibility: "manylinux2014 musllinux_1_1"
             name: rnacos-aarch64-unknown-linux-musl-${GITHUB_REF#refs/*/}.tar.gz
+            allocator: ""
+          - target: "aarch64-unknown-linux-musl"
+            image: "rust-musl-cross:aarch64-musl"
+            name: rnacos-aarch64-unknown-linux-musl-mimalloc-${GITHUB_REF#refs/*/}.tar.gz
+            allocator: "mimalloc"
     container:
       image: docker://ghcr.io/rust-cross/${{ matrix.platform.image }}
       env:
@@ -127,9 +143,15 @@ jobs:
       - uses: actions/checkout@v4
       - run: rustup target add --toolchain stable ${{ matrix.platform.target }}
         if: matrix.platform.target != 'powerpc64le-unknown-linux-musl' && matrix.platform.target != 's390x-unknown-linux-gnu'
-      - name: Build
+      - name: Build default
+        if: matrix.platform.allocator != 'mimalloc'
         run: |
           cargo build --release --target ${{ matrix.platform.target }}
+
+      - name: Build with mimalloc
+        if: matrix.platform.allocator == 'mimalloc'
+        run: |
+          cargo build --release --target ${{ matrix.platform.target }} --features mimalloc
       - name: Archive binary
         run: |
           cp doc/conf/.env.example target/${{ matrix.platform.target }}/release/.env
