@@ -152,7 +152,7 @@ jobs:
         if: matrix.platform.allocator == 'mimalloc'
         run: |
           cargo build --release --target ${{ matrix.platform.target }} --features mimalloc
-      - name: Archive binary-${{ matrix.target }}${{ matrix.allocator && format('-{0}', matrix.allocator) || '' }}
+      - name: Archive binary
         run: |
           cp doc/conf/.env.example target/${{ matrix.platform.target }}/release/.env
           tar czvf ${{ matrix.platform.name }}.tar.gz -C target/${{ matrix.platform.target }}/release rnacos .env
@@ -161,7 +161,7 @@ jobs:
       - name: Upload binary artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: binaries-${{ matrix.target }}${{ matrix.allocator && format('-{0}', matrix.allocator) || '' }}
+          name: binaries-${{ matrix.platform.allocator && format('-{0}', matrix.platform.allocator) || '' }}
           path: |
             *.tar.gz
 
