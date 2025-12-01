@@ -70,14 +70,15 @@ jobs:
           brew install gnu-tar
           echo "/usr/local/opt/gnu-tar/libexec/gnubin" >> $GITHUB_PATH
 
-      - name: Build (default allocator)
-        if: matrix.allocator != 'mimalloc'
+      - name: Build default allocator
+        if: ${{ matrix.allocator != 'mimalloc' && matrix.target !='x86_64-unknown-linux-musl' }}
         run: |
-          if [ "${{ matrix.target }}" = "x86_64-unknown-linux-musl" ]; then
-            cargo build --release --target ${{ matrix.target }}
-          else
-            cargo build --release
-          fi
+          cargo build --release
+
+      - name: Build default musl
+        if: ${{ matrix.allocator != 'mimalloc' && matrix.target =='x86_64-unknown-linux-musl' }}
+        run: |
+          cargo build --release --target ${{ matrix.target }}
 
       - name: Build with mimalloc
         if: matrix.allocator == 'mimalloc'
