@@ -26,7 +26,7 @@ lazy_static::lazy_static! {
     /// 旧缓存表
     pub static ref CACHE_TREE_NAME: Arc<String> =  Arc::new("T_CACHE".to_string());
     /// 新缓存表
-    pub static ref CACHE_TABLE_NAME: Arc<String> =  Arc::new("T_DIRECT_CACHE".to_string());
+    pub static ref DIRECT_CACHE_TABLE_NAME: Arc<String> =  Arc::new("T_DIRECT_CACHE".to_string());
     pub static ref NAMESPACE_TREE_NAME: Arc<String> =  Arc::new("T_NAMESPACE".to_string());
     pub static ref MCP_SERVER_TABLE_NAME: Arc<String> =  Arc::new("T_MCP_SERVER".to_string());
     pub static ref MCP_TOOL_SPEC_TABLE_NAME: Arc<String> =  Arc::new("T_MCP_TOOL_SPEC".to_string());

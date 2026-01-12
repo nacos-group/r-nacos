@@ -1,8 +1,9 @@
 use crate::cache::core::DirectCacheManager;
 use crate::common::byte_utils::bin_to_id;
 use crate::common::constant::{
-    CACHE_TREE_NAME, CONFIG_TREE_NAME, MCP_SERVER_TABLE_NAME, MCP_TOOL_SPEC_TABLE_NAME,
-    NAMESPACE_TREE_NAME, NAMING_INSTANCE_TABLE, SEQUENCE_TREE_NAME, SEQ_KEY_CONFIG, USER_TREE_NAME,
+    CACHE_TREE_NAME, CONFIG_TREE_NAME, DIRECT_CACHE_TABLE_NAME, MCP_SERVER_TABLE_NAME,
+    MCP_TOOL_SPEC_TABLE_NAME, NAMESPACE_TREE_NAME, NAMING_INSTANCE_TABLE, SEQUENCE_TREE_NAME,
+    SEQ_KEY_CONFIG, USER_TREE_NAME,
 };
 use crate::config::core::{ConfigActor, ConfigCmd, ConfigKey, ConfigValue};
 use crate::config::model::{ConfigRaftCmd, ConfigValueDO};
@@ -50,6 +51,9 @@ impl RaftDataHandler {
         self.naming_actor
             .send(RaftApplyDataRequest::BuildSnapshot(writer.clone()))
             .await??;
+        self.direct_cache_manager
+            .send(RaftApplyDataRequest::BuildSnapshot(writer.clone()))
+            .await??;
         Ok(())
     }
 
@@ -91,6 +95,9 @@ impl RaftDataHandler {
                 last_seq_id: None,
             };
             self.table.send(req).await??;
+        } else if record.tree.as_str() == DIRECT_CACHE_TABLE_NAME.as_str() {
+            let req = RaftApplyDataRequest::LoadSnapshotRecord(record);
+            self.direct_cache_manager.send(req).await??;
         } else if record.tree.as_str() == NAMESPACE_TREE_NAME.as_str() {
             let req = RaftApplyDataRequest::LoadSnapshotRecord(record);
             self.namespace.send(req).await??;
@@ -119,6 +126,8 @@ impl RaftDataHandler {
         self.mcp_manager
             .do_send(RaftApplyDataRequest::LoadCompleted);
         self.naming_actor
+            .do_send(RaftApplyDataRequest::LoadCompleted);
+        self.direct_cache_manager
             .do_send(RaftApplyDataRequest::LoadCompleted);
         Ok(())
     }
@@ -202,6 +211,9 @@ impl RaftDataHandler {
             }
             ClientRequest::NamingReq { req } => {
                 self.naming_actor.send(req).await.ok();
+            }
+            ClientRequest::CacheReq { req } => {
+                self.direct_cache_manager.send(req).await.ok();
             }
         }
         Ok(())
@@ -291,6 +303,10 @@ impl RaftDataHandler {
                 let resp = self.naming_actor.send(req).await??;
                 Ok(ClientResponse::NamingResp { resp })
             }
+            ClientRequest::CacheReq { req } => {
+                let resp = self.direct_cache_manager.send(req).await??;
+                Ok(ClientResponse::CacheResp { resp })
+            }
         }
     }
 
@@ -366,6 +382,9 @@ impl RaftDataHandler {
             }
             ClientRequest::NamingReq { req } => {
                 self.naming_actor.do_send(req);
+            }
+            ClientRequest::CacheReq { req } => {
+                self.direct_cache_manager.do_send(req);
             }
         };
         Ok(())

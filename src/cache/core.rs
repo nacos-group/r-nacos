@@ -2,7 +2,7 @@ use crate::cache::actor_model::{
     CacheManagerLocalReq, CacheManagerRaftReq, CacheManagerRaftResult, SetInfo,
 };
 use crate::cache::model::{CacheKey, CacheValue};
-use crate::common::constant::CACHE_TABLE_NAME;
+use crate::common::constant::DIRECT_CACHE_TABLE_NAME;
 use crate::common::datetime_utils::now_second_i32;
 use crate::common::pb::data_object::CacheItemDo;
 use crate::raft::filestore::model::SnapshotRecordDto;

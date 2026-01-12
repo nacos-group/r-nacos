@@ -4,6 +4,7 @@
 use std::sync::Arc;
 
 use super::db::table::TableManagerReq;
+use crate::cache::actor_model::{CacheManagerRaftReq, CacheManagerRaftResult};
 use crate::mcp::model::actor_model::{McpManagerRaftReq, McpManagerRaftResult};
 use crate::namespace::model::NamespaceRaftReq;
 use crate::naming::model::actor_model::{NamingRaftReq, NamingRaftResult};
@@ -52,6 +53,9 @@ pub enum ClientRequest {
     NamingReq {
         req: NamingRaftReq,
     },
+    CacheReq {
+        req: CacheManagerRaftReq,
+    },
 }
 
 impl AppData for ClientRequest {}
@@ -63,6 +67,7 @@ pub enum ClientResponse {
     SequenceResp { resp: SequenceRaftResult },
     McpResp { resp: McpManagerRaftResult },
     NamingResp { resp: NamingRaftResult },
+    CacheResp { resp: CacheManagerRaftResult },
 }
 
 impl Default for ClientResponse {
