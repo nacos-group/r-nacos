@@ -365,14 +365,14 @@ impl<'a> MessageWrite for InstanceDo<'a> {
 
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Debug, Default, PartialEq, Clone)]
-pub struct CacheItemDo<'a> {
+pub struct DirectCacheItemDo<'a> {
     pub cache_type: u32,
     pub key: Cow<'a, str>,
     pub data: Cow<'a, [u8]>,
     pub timeout: i32,
 }
 
-impl<'a> MessageRead<'a> for CacheItemDo<'a> {
+impl<'a> MessageRead<'a> for DirectCacheItemDo<'a> {
     fn from_reader(r: &mut BytesReader, bytes: &'a [u8]) -> Result<Self> {
         let mut msg = Self::default();
         while !r.is_eof() {
@@ -389,7 +389,7 @@ impl<'a> MessageRead<'a> for CacheItemDo<'a> {
     }
 }
 
-impl<'a> MessageWrite for CacheItemDo<'a> {
+impl<'a> MessageWrite for DirectCacheItemDo<'a> {
     fn get_size(&self) -> usize {
         0
         + if self.cache_type == 0u32 { 0 } else { 1 + sizeof_varint(*(&self.cache_type) as u64) }

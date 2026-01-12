@@ -4,93 +4,10 @@ use std::fmt::{Display, Formatter};
 use std::{collections::HashMap, convert::TryFrom, sync::Arc};
 
 use crate::common::model::{TokenSession, UserSession};
-use crate::common::pb::data_object::CacheItemDo;
+use crate::common::pb::data_object::DirectCacheItemDo;
 
-#[derive(Debug, Eq, PartialEq, Clone, Hash, Serialize, Deserialize)]
-pub enum CacheType {
-    String,
-    Map,
-    UserSession,
-    ApiTokenSession, //open api
-}
-
-impl Default for CacheType {
-    fn default() -> Self {
-        Self::String
-    }
-}
-
-impl CacheType {
-    pub fn get_type_data(&self) -> u8 {
-        match self {
-            CacheType::String => 1,
-            CacheType::Map => 2,
-            CacheType::UserSession => 3,
-            CacheType::ApiTokenSession => 4,
-        }
-    }
-
-    pub fn from_data(v: u8) -> anyhow::Result<Self> {
-        match v {
-            1 => Ok(CacheType::String),
-            2 => Ok(CacheType::Map),
-            3 => Ok(CacheType::UserSession),
-            4 => Ok(CacheType::ApiTokenSession),
-            _ => Err(anyhow::anyhow!("unknown type from {}", &v)),
-        }
-    }
-}
-
-#[derive(Debug, Eq, PartialEq, Clone, Hash, Default, Serialize, Deserialize)]
-pub struct CacheKey {
-    pub cache_type: CacheType,
-    pub key: Arc<String>,
-}
-
-impl CacheKey {
-    pub fn to_key_string(&self) -> String {
-        format!("{}\x00{}", self.cache_type.get_type_data(), &self.key)
-    }
-}
-
-impl Display for CacheKey {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}\x00{}", self.cache_type.get_type_data(), &self.key)
-    }
-}
-
-impl CacheKey {
-    pub fn new(cache_type: CacheType, key: Arc<String>) -> Self {
-        Self { cache_type, key }
-    }
-
-    pub fn from_db_key(db_key: Vec<u8>) -> anyhow::Result<Self> {
-        let mut iter = db_key.split(|v| *v == 0);
-        let t = if let Some(t) = iter.next() {
-            std::str::from_utf8(t)?.parse::<u8>()?
-        } else {
-            return Err(anyhow::anyhow!("db_key split type is error!"));
-        };
-        if let Some(key) = iter.next() {
-            Self::from_bytes(key.to_owned(), t)
-        } else {
-            Err(anyhow::anyhow!("db_key split key is error!"))
-        }
-    }
-
-    fn from_bytes(key: Vec<u8>, t: u8) -> anyhow::Result<Self> {
-        let key = String::from_utf8(key)?;
-        Self::from_string(key, t)
-    }
-
-    fn from_string(key: String, t: u8) -> anyhow::Result<Self> {
-        let cache_type = CacheType::from_data(t)?;
-        Ok(Self {
-            cache_type,
-            key: Arc::new(key),
-        })
-    }
-}
+pub use crate::raft::cache::model::CacheKey;
+pub use crate::raft::cache::model::CacheType;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum CacheValue {
@@ -160,8 +77,8 @@ impl CacheValue {
         }
     }
 
-    pub fn to_do<'b>(&self, key: &'b CacheKey) -> CacheItemDo<'b> {
-        CacheItemDo {
+    pub fn to_do<'b>(&self, key: &'b CacheKey) -> DirectCacheItemDo<'b> {
+        DirectCacheItemDo {
             key: Cow::Borrowed(key.key.as_ref()),
             data: Cow::Owned(self.to_bytes()),
             timeout: 0,
@@ -170,10 +87,23 @@ impl CacheValue {
     }
 }
 
-impl<'a> TryFrom<CacheItemDo<'a>> for CacheValue {
+impl<'a> TryFrom<DirectCacheItemDo<'a>> for CacheValue {
     type Error = anyhow::Error;
-    fn try_from(value: CacheItemDo<'a>) -> Result<Self, Self::Error> {
+    fn try_from(value: DirectCacheItemDo<'a>) -> Result<Self, Self::Error> {
         let cache_type = CacheType::from_data(value.cache_type as u8)?;
         Self::from_bytes(value.data.as_ref(), cache_type)
+    }
+}
+
+impl From<crate::raft::cache::model::CacheValue> for CacheValue {
+    fn from(value: crate::raft::cache::model::CacheValue) -> Self {
+        match value {
+            crate::raft::cache::model::CacheValue::String(v) => CacheValue::String(v),
+            crate::raft::cache::model::CacheValue::Map(v) => CacheValue::Map(v),
+            crate::raft::cache::model::CacheValue::UserSession(v) => CacheValue::UserSession(v),
+            crate::raft::cache::model::CacheValue::ApiTokenSession(v) => {
+                CacheValue::ApiTokenSession(v)
+            }
+        }
     }
 }

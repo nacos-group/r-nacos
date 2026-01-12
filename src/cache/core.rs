@@ -4,7 +4,7 @@ use crate::cache::actor_model::{
 use crate::cache::model::{CacheKey, CacheValue};
 use crate::common::constant::DIRECT_CACHE_TABLE_NAME;
 use crate::common::datetime_utils::now_second_i32;
-use crate::common::pb::data_object::CacheItemDo;
+use crate::common::pb::data_object::DirectCacheItemDo;
 use crate::raft::filestore::model::SnapshotRecordDto;
 use crate::raft::filestore::raftapply::{RaftApplyDataRequest, RaftApplyDataResponse};
 use crate::raft::filestore::raftsnapshot::{SnapshotWriterActor, SnapshotWriterRequest};
@@ -29,8 +29,8 @@ impl CacheItem {
 #[bean(inject)]
 #[derive(Default)]
 pub struct DirectCacheManager {
-    cache: HashMap<CacheKey, CacheItem>,
-    time_set: TimeoutSet<CacheKey>,
+    pub(crate) cache: HashMap<CacheKey, CacheItem>,
+    pub(crate) time_set: TimeoutSet<CacheKey>,
 }
 
 impl DirectCacheManager {
@@ -224,7 +224,7 @@ impl DirectCacheManager {
                 writer.write_message(&value_do)?;
             }
             let record = SnapshotRecordDto {
-                tree: CACHE_TABLE_NAME.clone(),
+                tree: DIRECT_CACHE_TABLE_NAME.clone(),
                 key: key.to_key_string().into_bytes(),
                 value: buf,
                 op_type: 0,
@@ -236,7 +236,7 @@ impl DirectCacheManager {
 
     fn load_snapshot_record(&mut self, record: SnapshotRecordDto) -> anyhow::Result<()> {
         let mut reader = BytesReader::from_bytes(&record.value);
-        let value_do: CacheItemDo = reader.read_message(&record.value)?;
+        let value_do: DirectCacheItemDo = reader.read_message(&record.value)?;
         let key = CacheKey::from_db_key(record.key)?;
         let value = CacheValue::from_bytes(&value_do.data, key.cache_type.clone())?;
         self.do_set(key, value, value_do.timeout);

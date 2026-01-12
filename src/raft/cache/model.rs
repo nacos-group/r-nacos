@@ -27,7 +27,7 @@ impl CacheItemDo {
     }
 }
 
-#[derive(Debug, Eq, PartialEq, Clone, Hash)]
+#[derive(Debug, Eq, PartialEq, Clone, Hash, Serialize, Deserialize)]
 pub enum CacheType {
     String,
     Map,
@@ -62,7 +62,7 @@ impl CacheType {
     }
 }
 
-#[derive(Debug, Eq, PartialEq, Clone, Hash, Default)]
+#[derive(Debug, Eq, PartialEq, Clone, Hash, Default, Serialize, Deserialize)]
 pub struct CacheKey {
     pub cache_type: CacheType,
     pub key: Arc<String>,
@@ -83,6 +83,20 @@ impl Display for CacheKey {
 impl CacheKey {
     pub fn new(cache_type: CacheType, key: Arc<String>) -> Self {
         Self { cache_type, key }
+    }
+
+    pub fn from_db_key_ref(db_key: &[u8]) -> anyhow::Result<Self> {
+        let mut iter = db_key.split(|v| *v == 0);
+        let t = if let Some(t) = iter.next() {
+            String::from_utf8(t.to_owned())?.parse::<u8>()?
+        } else {
+            return Err(anyhow::anyhow!("db_key split type is error!"));
+        };
+        if let Some(key) = iter.next() {
+            Self::from_bytes(key.to_owned(), t)
+        } else {
+            Err(anyhow::anyhow!("db_key split key is error!"))
+        }
     }
 
     pub fn from_db_key(db_key: Vec<u8>) -> anyhow::Result<Self> {

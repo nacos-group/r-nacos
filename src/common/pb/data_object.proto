@@ -72,7 +72,7 @@ message InstanceDo {
 }
 
 // 缓存项
-message CacheItemDo {
+message DirectCacheItemDo {
   uint32 cache_type = 1;
   string key = 2;
   bytes data = 3;

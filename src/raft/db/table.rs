@@ -10,6 +10,9 @@ use serde::{Deserialize, Serialize};
 
 use actix::prelude::*;
 
+use crate::cache::actor_model::CacheManagerRaftReq;
+use crate::cache::adaptation::AdaptationUtils;
+use crate::cache::core::DirectCacheManager;
 use crate::common::constant::{CACHE_TREE_NAME, USER_TREE_NAME};
 use crate::common::sequence_utils::SimpleSequence;
 use crate::raft::filestore::model::SnapshotRecordDto;
@@ -86,6 +89,7 @@ pub struct TableManager {
     pub table_map: HashMap<Arc<String>, TableInfo>,
     raft: Option<Weak<NacosRaft>>,
     cache_manager: Option<Addr<CacheManager>>,
+    direct_cache_manager: Option<Addr<DirectCacheManager>>,
 }
 
 impl TableManager {
@@ -340,6 +344,7 @@ impl Inject for TableManager {
         let raft: Option<Arc<NacosRaft>> = factory_data.get_bean();
         self.raft = raft.map(|e| Arc::downgrade(&e));
         self.cache_manager = factory_data.get_actor();
+        self.direct_cache_manager = factory_data.get_actor();
     }
 }
 
@@ -464,6 +469,14 @@ impl Handler<TableManagerReq> for TableManager {
                         };
                         cache_manager.do_send(req);
                     }
+                    if let Some(direct_cache_manager) = &self.direct_cache_manager {
+                        // 兼容旧版本
+                        if let Ok(direct_req) =
+                            AdaptationUtils::build_raft_req_from_old(&key, &value)
+                        {
+                            direct_cache_manager.do_send(direct_req);
+                        }
+                    }
                 }
                 self.insert(table_name, key, value, last_seq_id);
                 Ok(TableManagerResult::None)
@@ -473,6 +486,13 @@ impl Handler<TableManagerReq> for TableManager {
                     if let Some(cache_manager) = &self.cache_manager {
                         let req = CacheManagerReq::NotifyRemove { key: key.clone() };
                         cache_manager.do_send(req);
+                    }
+                    // 兼容旧版本
+                    if let Some(direct_cache_manager) = &self.direct_cache_manager {
+                        if let Ok(key) = AdaptationUtils::build_key_from_old(&key) {
+                            let req = CacheManagerRaftReq::Remove(key);
+                            direct_cache_manager.do_send(req);
+                        }
                     }
                 }
                 match self.remove(table_name, key) {

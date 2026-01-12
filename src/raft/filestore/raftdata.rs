@@ -88,6 +88,10 @@ impl RaftDataHandler {
         } else if record.tree.as_str() == CACHE_TREE_NAME.as_str() {
             let key = record.key;
             let value = record.value;
+            // 兼容旧版本
+            //if let Ok(direct_req) = crate::cache::adaptation::AdaptationUtils::build_raft_req_from_old(&key, &value){
+            //    self.direct_cache_manager.send(direct_req).await??;
+            //}
             let req = TableManagerReq::Set {
                 table_name: CACHE_TREE_NAME.clone(),
                 key,
