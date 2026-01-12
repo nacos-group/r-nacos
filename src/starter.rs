@@ -202,6 +202,10 @@ pub async fn config_factory(sys_config: Arc<AppSysConfig>) -> anyhow::Result<Fac
     factory.register(BeanDefinition::actor_with_inject_from_obj(
         mcp_manager.clone(),
     ));
+    let direct_cache_manager = crate::cache::core::DirectCacheManager::new().start();
+    factory.register(BeanDefinition::actor_with_inject_from_obj(
+        direct_cache_manager.clone(),
+    ));
 
     let raft_data_wrap = Arc::new(RaftDataHandler {
         sequence_db: sequence_db_addr,
@@ -210,6 +214,7 @@ pub async fn config_factory(sys_config: Arc<AppSysConfig>) -> anyhow::Result<Fac
         namespace: namespace_addr.clone(),
         mcp_manager: mcp_manager.clone(),
         naming_actor: naming_addr.clone(),
+        direct_cache_manager: direct_cache_manager.clone(),
     });
     factory.register(BeanDefinition::from_obj(raft_data_wrap));
     let metrics_manager = MetricsManager::new(sys_config.clone()).start();
@@ -265,6 +270,7 @@ pub fn build_share_data(factory_data: FactoryData) -> anyhow::Result<Arc<AppShar
         raft_cache_route: factory_data.get_bean().unwrap(),
         user_manager: factory_data.get_actor().unwrap(),
         cache_manager: factory_data.get_actor().unwrap(),
+        direct_cache_manager: factory_data.get_actor().unwrap(),
         metrics_manager: factory_data.get_actor().unwrap(),
         timezone_offset: Arc::new(timezone_offset),
         namespace_addr: factory_data.get_actor().unwrap(),

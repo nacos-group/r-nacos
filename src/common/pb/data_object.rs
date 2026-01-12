@@ -363,3 +363,47 @@ impl<'a> MessageWrite for InstanceDo<'a> {
     }
 }
 
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Debug, Default, PartialEq, Clone)]
+pub struct CacheItemDo<'a> {
+    pub cache_type: u32,
+    pub key: Cow<'a, str>,
+    pub data: Cow<'a, [u8]>,
+    pub timeout: i32,
+}
+
+impl<'a> MessageRead<'a> for CacheItemDo<'a> {
+    fn from_reader(r: &mut BytesReader, bytes: &'a [u8]) -> Result<Self> {
+        let mut msg = Self::default();
+        while !r.is_eof() {
+            match r.next_tag(bytes) {
+                Ok(8) => msg.cache_type = r.read_uint32(bytes)?,
+                Ok(18) => msg.key = r.read_string(bytes).map(Cow::Borrowed)?,
+                Ok(26) => msg.data = r.read_bytes(bytes).map(Cow::Borrowed)?,
+                Ok(32) => msg.timeout = r.read_int32(bytes)?,
+                Ok(t) => { r.read_unknown(bytes, t)?; }
+                Err(e) => return Err(e),
+            }
+        }
+        Ok(msg)
+    }
+}
+
+impl<'a> MessageWrite for CacheItemDo<'a> {
+    fn get_size(&self) -> usize {
+        0
+        + if self.cache_type == 0u32 { 0 } else { 1 + sizeof_varint(*(&self.cache_type) as u64) }
+        + if self.key == "" { 0 } else { 1 + sizeof_len((&self.key).len()) }
+        + if self.data == Cow::Borrowed(b"") { 0 } else { 1 + sizeof_len((&self.data).len()) }
+        + if self.timeout == 0i32 { 0 } else { 1 + sizeof_varint(*(&self.timeout) as u64) }
+    }
+
+    fn write_message<W: WriterBackend>(&self, w: &mut Writer<W>) -> Result<()> {
+        if self.cache_type != 0u32 { w.write_with_tag(8, |w| w.write_uint32(*&self.cache_type))?; }
+        if self.key != "" { w.write_with_tag(18, |w| w.write_string(&**&self.key))?; }
+        if self.data != Cow::Borrowed(b"") { w.write_with_tag(26, |w| w.write_bytes(&**&self.data))?; }
+        if self.timeout != 0i32 { w.write_with_tag(32, |w| w.write_int32(*&self.timeout))?; }
+        Ok(())
+    }
+}
+

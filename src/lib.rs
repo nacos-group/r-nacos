@@ -15,6 +15,7 @@ pub mod web_config;
 pub mod health;
 pub mod transfer;
 
+pub mod cache;
 pub mod ldap;
 pub mod mcp;
 pub mod oauth2;

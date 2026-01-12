@@ -1,3 +1,4 @@
+use crate::cache::core::DirectCacheManager;
 use crate::common::AppSysConfig;
 use crate::config::core::ConfigActor;
 use crate::grpc::bistream_manage::BiStreamManage;
@@ -47,6 +48,7 @@ pub struct AppShareData {
     pub factory_data: FactoryData,
     pub user_manager: Addr<UserManager>,
     pub cache_manager: Addr<CacheManager>,
+    pub direct_cache_manager: Addr<DirectCacheManager>,
     pub timezone_offset: Arc<FixedOffset>,
     pub metrics_manager: Addr<MetricsManager>,
     pub namespace_addr: Addr<NamespaceActor>,

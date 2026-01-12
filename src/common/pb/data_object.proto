@@ -70,3 +70,11 @@ message InstanceDo {
   optional string cluster_name = 11;
   optional string app_name = 12;
 }
+
+// 缓存项
+message CacheItemDo {
+  uint32 cache_type = 1;
+  string key = 2;
+  bytes data = 3;
+  int32 timeout = 4;
+}

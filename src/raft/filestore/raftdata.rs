@@ -1,3 +1,4 @@
+use crate::cache::core::DirectCacheManager;
 use crate::common::byte_utils::bin_to_id;
 use crate::common::constant::{
     CACHE_TREE_NAME, CONFIG_TREE_NAME, MCP_SERVER_TABLE_NAME, MCP_TOOL_SPEC_TABLE_NAME,
@@ -25,6 +26,7 @@ pub struct RaftDataHandler {
     pub sequence_db: Addr<SequenceDbManager>,
     pub mcp_manager: Addr<McpManager>,
     pub naming_actor: Addr<NamingActor>,
+    pub direct_cache_manager: Addr<DirectCacheManager>,
 }
 
 impl RaftDataHandler {
