@@ -2,6 +2,17 @@ use std::collections::HashMap;
 use std::future::{ready, Ready};
 use std::sync::Arc;
 
+use crate::cache::actor_model::CacheManagerRaftResult;
+use crate::cache::model::{CacheKey, CacheType, CacheValue};
+use crate::common::appdata::AppShareData;
+use crate::common::model::{ApiResultOld, UserSession};
+use crate::now_second_i32;
+//use crate::raft::cache::model::{CacheKey, CacheType, CacheValue};
+use crate::raft::cache::{CacheManagerReq, CacheManagerResult, CacheUserChangeReq};
+use crate::raft::store::ClientRequest;
+use crate::user::model::UserDto;
+use crate::user::permission::UserRole;
+use crate::user::{UserManagerReq, UserManagerResult};
 use actix_http::{HttpMessage, StatusCode};
 use actix_web::{
     body::EitherBody,
@@ -10,15 +21,6 @@ use actix_web::{
 };
 use futures_util::future::LocalBoxFuture;
 use regex::Regex;
-
-use crate::common::appdata::AppShareData;
-use crate::common::model::{ApiResultOld, UserSession};
-use crate::now_second_i32;
-use crate::raft::cache::model::{CacheKey, CacheType, CacheValue};
-use crate::raft::cache::{CacheManagerReq, CacheManagerResult, CacheUserChangeReq};
-use crate::user::model::UserDto;
-use crate::user::permission::UserRole;
-use crate::user::{UserManagerReq, UserManagerResult};
 
 lazy_static::lazy_static! {
     pub static ref IGNORE_CHECK_LOGIN: Vec<&'static str> = vec![
@@ -187,6 +189,18 @@ async fn get_user_session(
     app_share_data: &AppShareData,
     token: Arc<String>,
 ) -> anyhow::Result<Option<Arc<UserSession>>> {
+    let req = crate::cache::actor_model::CacheManagerLocalReq::Get(CacheKey::new(
+        CacheType::UserSession,
+        token,
+    ));
+    if let CacheManagerRaftResult::Value(CacheValue::UserSession(session)) =
+        app_share_data.direct_cache_manager.send(req).await??
+    {
+        Ok(Some(session))
+    } else {
+        Ok(None)
+    }
+    /*
     let cache_key = CacheKey::new(CacheType::UserSession, token);
     let req = CacheManagerReq::Get(cache_key.clone());
     match app_share_data.cache_manager.send(req).await?? {
@@ -214,6 +228,7 @@ async fn get_user_session(
         CacheManagerResult::Value(CacheValue::UserSession(session)) => Ok(Some(session)),
         _ => Ok(None),
     }
+     */
 }
 
 fn build_user_session(user: UserDto) -> Arc<UserSession> {

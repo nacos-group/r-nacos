@@ -1,3 +1,4 @@
+use crate::cache::actor_model::CacheManagerRaftResult;
 use crate::common::appdata::AppShareData;
 use crate::common::constant::{AUTHORIZATION_HEADER, EMPTY_ARC_STRING};
 use crate::common::datetime_utils;
@@ -113,8 +114,8 @@ where
             } else if token.is_empty() {
                 false
             } else if let Ok(Some(session)) = get_user_session(
-                cache_manager,
-                CacheManagerReq::Get(CacheKey::new(CacheType::ApiTokenSession, token.clone())),
+                app_share_data.clone(),
+                CacheKey::new(CacheType::ApiTokenSession, token.clone()),
             )
             .await
             {
@@ -193,12 +194,24 @@ fn bytes_to_payload(buf: web::Bytes) -> dev::Payload {
 }
 
 async fn get_user_session(
-    cache_manager: &Addr<CacheManager>,
-    req: CacheManagerReq,
+    app_share_data: Arc<AppShareData>,
+    key: CacheKey,
 ) -> anyhow::Result<Option<Arc<TokenSession>>> {
-    match cache_manager.send(req).await?? {
+    /*
+    let req = CacheManagerReq::Get(key);
+    match app_share_data.cache_manager.send(req).await?? {
         CacheManagerResult::Value(CacheValue::ApiTokenSession(session)) => Ok(Some(session)),
         _ => Ok(None),
+    }
+    */
+    let req = crate::cache::actor_model::CacheManagerLocalReq::Get(key);
+    if let CacheManagerRaftResult::Value(crate::cache::model::CacheValue::ApiTokenSession(
+        session,
+    )) = app_share_data.direct_cache_manager.send(req).await??
+    {
+        Ok(Some(session))
+    } else {
+        Ok(None)
     }
 }
 

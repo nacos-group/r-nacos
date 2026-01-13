@@ -1,4 +1,4 @@
-use crate::cache::actor_model::{CacheManagerRaftReq, SetInfo};
+use crate::cache::actor_model::{CacheManagerRaftReq, CacheSetParam};
 use crate::now_second_i32;
 use crate::raft::cache::model::{CacheItemDo, CacheKey, CacheValue};
 use std::convert::TryInto;
@@ -34,8 +34,7 @@ impl AdaptationUtils {
         if ttl < 0 {
             Ok(CacheManagerRaftReq::Remove(key))
         } else {
-            let mut set_info = SetInfo::new(key, value);
-            set_info.ttl = ttl;
+            let set_info = CacheSetParam::new_with_ttl(key, value, ttl);
             Ok(CacheManagerRaftReq::Set(set_info))
         }
     }

@@ -1,10 +1,10 @@
 use crate::cache::model::{CacheKey, CacheValue};
+use crate::now_second_i32;
 use actix::Message;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct SetInfo {
+pub struct CacheSetParam {
     pub key: CacheKey,
     pub value: CacheValue,
     pub ttl: i32,
@@ -13,13 +13,25 @@ pub struct SetInfo {
     pub xx: bool,
 }
 
-impl SetInfo {
+impl CacheSetParam {
     pub fn new(key: CacheKey, value: CacheValue) -> Self {
-        SetInfo {
+        CacheSetParam {
             key,
             value,
             ttl: -1,
             now: 0,
+            nx: false,
+            xx: false,
+        }
+    }
+
+    pub fn new_with_ttl(key: CacheKey, value: CacheValue, ttl: i32) -> Self {
+        let now = now_second_i32();
+        CacheSetParam {
+            key,
+            value,
+            ttl,
+            now,
             nx: false,
             xx: false,
         }
@@ -39,8 +51,8 @@ pub enum CacheManagerLocalReq {
 #[derive(Message, Clone, Debug, Serialize, Deserialize)]
 #[rtype(result = "anyhow::Result<CacheManagerRaftResult>")]
 pub enum CacheManagerRaftReq {
-    Set(SetInfo),
-    GetSet(SetInfo),
+    Set(CacheSetParam),
+    GetSet(CacheSetParam),
     Remove(CacheKey),
     Expire(CacheKey, i32),
     Incr(CacheKey, i32),

@@ -2,10 +2,12 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use super::model::login_model::{LoginConfig, LoginParam, LoginToken};
+use crate::cache::actor_model::CacheSetParam;
 use crate::ldap::model::actor_model::{LdapMsgReq, LdapMsgResult};
 use crate::ldap::model::LdapUserParam;
 use crate::oauth2::model::actor_model::{OAuth2MsgReq, OAuth2MsgResult};
 use crate::oauth2::model::OAuth2UserParam;
+use crate::raft::store::ClientRequest;
 use crate::{
     common::{
         appdata::AppShareData,
@@ -28,6 +30,7 @@ use actix_web::{
 use captcha::filters::{Grid, Noise};
 use captcha::Captcha;
 use serde::Deserialize;
+use upon::functions::FunctionError;
 
 pub async fn login(
     request: HttpRequest,
@@ -103,8 +106,16 @@ pub async fn login(
         }
     }
     if let Some(session) = session {
-        if let Some(value) = apply_session(app, limit_key, session) {
-            return value;
+        match apply_session(app, limit_key, session).await {
+            Ok(value) => {
+                return value;
+            }
+            Err(e) => {
+                return HttpResponse::Ok().json(ApiResult::<()>::error(
+                    "SAVE_SESSION_ERROR".to_string(),
+                    Some(e.to_string()),
+                ));
+            }
         }
     }
     HttpResponse::Ok().json(ApiResult::<()>::error(error_code, None))
@@ -177,8 +188,16 @@ pub async fn oauth2_callback(
     };
 
     if let Some(session) = session {
-        if let Some(value) = apply_session(app, limit_key, session) {
-            return value;
+        match apply_session(app, limit_key, session).await {
+            Ok(value) => {
+                return value;
+            }
+            Err(e) => {
+                return HttpResponse::Ok().json(ApiResult::<()>::error(
+                    "SAVE_SESSION_ERROR".to_string(),
+                    Some(e.to_string()),
+                ));
+            }
         }
     }
 
@@ -208,47 +227,56 @@ pub async fn get_login_config(app: Data<Arc<AppShareData>>) -> actix_web::Result
     Ok(HttpResponse::Ok().json(ApiResult::success(Some(config))))
 }
 
-fn apply_session(
+async fn apply_session(
     app: Data<Arc<AppShareData>>,
     limit_key: Arc<String>,
     session: Arc<UserSession>,
-) -> Option<HttpResponse> {
+) -> anyhow::Result<HttpResponse> {
     //增加长度避免遍历
     let token = Arc::new(
         uuid::Uuid::new_v4().to_string().replace('-', "")
             + &uuid::Uuid::new_v4().to_string().replace('-', ""),
     );
+    /*
     let cache_req = CacheManagerReq::Set {
         key: CacheKey::new(CacheType::UserSession, token.clone()),
-        value: CacheValue::UserSession(session),
+        value: CacheValue::UserSession(session.clone()),
         ttl: app.sys_config.console_login_timeout,
     };
     app.cache_manager.do_send(cache_req);
+    */
+    let cache_req =
+        crate::cache::actor_model::CacheManagerRaftReq::Set(CacheSetParam::new_with_ttl(
+            CacheKey::new(CacheType::UserSession, token.clone()),
+            crate::cache::model::CacheValue::UserSession(session),
+            app.sys_config.console_login_timeout,
+        ));
+    app.raft_request_route
+        .request(ClientRequest::CacheReq { req: cache_req })
+        .await?;
     //登录成功后清除登陆限流计数
     let clear_limit_req = CacheManagerReq::Remove(CacheKey::new(CacheType::String, limit_key));
     app.cache_manager.do_send(clear_limit_req);
     let login_token = LoginToken {
         token: token.to_string(),
     };
-    Some(
-        HttpResponse::Ok()
-            .cookie(
-                Cookie::build("token", token.as_str())
-                    .path("/")
-                    .max_age(actix_web::cookie::time::Duration::seconds(
-                        app.sys_config.console_login_timeout as i64,
-                    ))
-                    .finish(),
-            )
-            .cookie(
-                Cookie::build("captcha_token", "")
-                    .path("/")
-                    .http_only(true)
-                    .finish(),
-            )
-            .insert_header(header::ContentType(mime::APPLICATION_JSON))
-            .json(ApiResult::success(Some(login_token))),
-    )
+    Ok(HttpResponse::Ok()
+        .cookie(
+            Cookie::build("token", token.as_str())
+                .path("/")
+                .max_age(actix_web::cookie::time::Duration::seconds(
+                    app.sys_config.console_login_timeout as i64,
+                ))
+                .finish(),
+        )
+        .cookie(
+            Cookie::build("captcha_token", "")
+                .path("/")
+                .http_only(true)
+                .finish(),
+        )
+        .insert_header(header::ContentType(mime::APPLICATION_JSON))
+        .json(ApiResult::success(Some(login_token))))
 }
 
 async fn ldap_login(
@@ -415,8 +443,16 @@ pub async fn logout(
         "".to_owned()
     };
     let token = Arc::new(token);
-    let cache_req = CacheManagerReq::Remove(CacheKey::new(CacheType::UserSession, token));
-    app.cache_manager.do_send(cache_req);
+    //let cache_req = CacheManagerReq::Remove(CacheKey::new(CacheType::UserSession, token));
+    //app.cache_manager.do_send(cache_req);
+    let cache_req = crate::cache::actor_model::CacheManagerRaftReq::Remove(CacheKey::new(
+        CacheType::UserSession,
+        token,
+    ));
+    app.raft_request_route
+        .request(ClientRequest::CacheReq { req: cache_req })
+        .await
+        .ok();
     Ok(HttpResponse::Ok()
         .cookie(
             Cookie::build("token", "")

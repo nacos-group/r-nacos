@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use super::model::{CacheKey, CacheType, CacheValue};
 use crate::cache::actor_model::{
-    CacheManagerLocalReq, CacheManagerRaftReq, CacheManagerRaftResult, SetInfo,
+    CacheManagerLocalReq, CacheManagerRaftReq, CacheManagerRaftResult, CacheSetParam,
 };
 use crate::common::datetime_utils::now_second_i32;
 use crate::common::share_data::ShareData;
@@ -32,7 +32,7 @@ pub async fn set_cache(
     app: Data<Arc<ShareData>>,
     web::Form(param): web::Form<StringCacheDto>,
 ) -> actix_web::Result<impl Responder> {
-    let mut set_info = SetInfo::new(
+    let mut set_info = CacheSetParam::new(
         CacheKey::new(CacheType::String, param.key),
         CacheValue::String(Arc::new(param.value.unwrap_or_default())),
     );

@@ -1,9 +1,11 @@
+use crate::cache::actor_model::CacheSetParam;
 use crate::common::appdata::AppShareData;
 use crate::common::model::TokenSession;
 use crate::common::option_utils::OptionUtils;
 use crate::merge_web_param_with_result;
 use crate::raft::cache::model::{CacheKey, CacheType, CacheValue};
 use crate::raft::cache::{CacheLimiterReq, CacheManagerReq, CacheManagerResult};
+use crate::raft::store::ClientRequest;
 use crate::user::{UserManagerReq, UserManagerResult};
 use actix_web::{web, HttpResponse, Responder};
 use serde::{Deserialize, Serialize};
@@ -98,12 +100,23 @@ async fn do_login(
                 roles: user.roles.unwrap_or_default(),
                 extend_infos: user.extend_info.unwrap_or_default(),
             });
+            /*
             let cache_req = CacheManagerReq::Set {
                 key: CacheKey::new(CacheType::ApiTokenSession, token.clone()),
                 value: CacheValue::ApiTokenSession(session),
                 ttl: app.sys_config.openapi_login_timeout,
             };
             app.cache_manager.do_send(cache_req);
+             */
+            let cache_req =
+                crate::cache::actor_model::CacheManagerRaftReq::Set(CacheSetParam::new_with_ttl(
+                    CacheKey::new(CacheType::UserSession, token.clone()),
+                    crate::cache::model::CacheValue::ApiTokenSession(session),
+                    app.sys_config.console_login_timeout,
+                ));
+            app.raft_request_route
+                .request(ClientRequest::CacheReq { req: cache_req })
+                .await?;
             //登录成功后清除登陆限流计数
             let clear_limit_req =
                 CacheManagerReq::Remove(CacheKey::new(CacheType::String, limit_key));

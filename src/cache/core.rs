@@ -1,5 +1,5 @@
 use crate::cache::actor_model::{
-    CacheManagerLocalReq, CacheManagerRaftReq, CacheManagerRaftResult, SetInfo,
+    CacheManagerLocalReq, CacheManagerRaftReq, CacheManagerRaftResult, CacheSetParam,
 };
 use crate::cache::model::{CacheKey, CacheValue};
 use crate::common::constant::DIRECT_CACHE_TABLE_NAME;
@@ -109,7 +109,7 @@ impl DirectCacheManager {
         CacheManagerRaftResult::Ok
     }
 
-    fn set(&mut self, set_info: SetInfo) -> CacheManagerRaftResult {
+    fn set(&mut self, set_info: CacheSetParam) -> CacheManagerRaftResult {
         if set_info.nx {
             self.set_nx(set_info.key, set_info.value, set_info.ttl + set_info.now)
         } else if set_info.xx {
@@ -119,7 +119,7 @@ impl DirectCacheManager {
         }
     }
 
-    fn get_set(&mut self, set_info: SetInfo) -> CacheManagerRaftResult {
+    fn get_set(&mut self, set_info: CacheSetParam) -> CacheManagerRaftResult {
         let r = if let Some(v) = self.get_valid_value(&set_info.key) {
             CacheManagerRaftResult::Value(v.clone())
         } else {
