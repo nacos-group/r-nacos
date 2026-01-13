@@ -1,6 +1,7 @@
 use std::sync::Arc;
 use std::time::SystemTime;
 
+use crate::cache::actor_model::CacheManagerRaftResult;
 use crate::common::appdata::AppShareData;
 use crate::common::constant::{
     ACCESS_TOKEN_HEADER, AUTHORIZATION_HEADER, EMPTY_ARC_STRING, EMPTY_CLIENT_VERSION,
@@ -49,8 +50,8 @@ impl RequestServerImpl {
         };
         if self.app.sys_config.openapi_enable_auth && !token.is_empty() {
             if let Ok(Some(session)) = get_user_session(
-                &self.app.cache_manager,
-                CacheManagerReq::Get(CacheKey::new(CacheType::ApiTokenSession, token.clone())),
+                &self.app,
+                CacheKey::new(CacheType::ApiTokenSession, token.clone()),
             )
             .await
             {
@@ -259,11 +260,16 @@ impl BiRequestStream for BiRequestStreamServerImpl {
 }
 
 async fn get_user_session(
-    cache_manager: &Addr<CacheManager>,
-    req: CacheManagerReq,
+    app_share_data: &Arc<AppShareData>,
+    key: CacheKey,
 ) -> anyhow::Result<Option<Arc<TokenSession>>> {
-    match cache_manager.send(req).await?? {
-        CacheManagerResult::Value(CacheValue::ApiTokenSession(session)) => Ok(Some(session)),
-        _ => Ok(None),
+    let req = crate::cache::actor_model::CacheManagerLocalReq::Get(key);
+    if let CacheManagerRaftResult::Value(crate::cache::model::CacheValue::ApiTokenSession(
+        session,
+    )) = app_share_data.direct_cache_manager.send(req).await??
+    {
+        Ok(Some(session))
+    } else {
+        Ok(None)
     }
 }

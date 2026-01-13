@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use super::model::login_model::{LoginConfig, LoginParam, LoginToken};
-use crate::cache::actor_model::CacheSetParam;
+use crate::cache::actor_model::{CacheManagerRaftResult, CacheSetParam};
 use crate::ldap::model::actor_model::{LdapMsgReq, LdapMsgResult};
 use crate::ldap::model::LdapUserParam;
 use crate::oauth2::model::actor_model::{OAuth2MsgReq, OAuth2MsgResult};
@@ -344,17 +344,18 @@ async fn check_captcha(
             Some("captcha token is empty".to_owned()),
         )));
     }
-    let cache_req = CacheManagerReq::Get(CacheKey::new(
+    let req = crate::cache::actor_model::CacheManagerLocalReq::Get(CacheKey::new(
         CacheType::String,
         Arc::new(format!("Captcha_{}", &captcha_token)),
     ));
-    let captcha_check_result = if let Ok(Ok(CacheManagerResult::Value(CacheValue::String(v)))) =
-        app.cache_manager.send(cache_req).await
-    {
-        &captcha_code == v.as_ref()
-    } else {
-        false
-    };
+    let captcha_check_result =
+        if let Ok(Ok(CacheManagerRaftResult::Value(crate::cache::model::CacheValue::String(v)))) =
+            app.direct_cache_manager.send(req).await
+        {
+            &captcha_code == v.as_ref()
+        } else {
+            false
+        };
     if !captcha_check_result {
         return Some(
             HttpResponse::Ok()
@@ -419,12 +420,16 @@ pub async fn gen_captcha(app: Data<Arc<AppShareData>>) -> actix_web::Result<impl
 
     let img = obj.as_base64().unwrap_or_default();
     //log::info!("gen_captcha code:{}", &code);
-    let cache_req = CacheManagerReq::Set {
-        key: CacheKey::new(CacheType::String, Arc::new(format!("Captcha_{}", &token))),
-        value: CacheValue::String(code),
-        ttl: 300,
-    };
-    app.cache_manager.send(cache_req).await.ok();
+    let cache_req =
+        crate::cache::actor_model::CacheManagerRaftReq::Set(CacheSetParam::new_with_ttl(
+            CacheKey::new(CacheType::String, Arc::new(format!("Captcha_{}", &token))),
+            crate::cache::model::CacheValue::String(code),
+            300,
+        ));
+    app.raft_request_route
+        .request(ClientRequest::CacheReq { req: cache_req })
+        .await
+        .ok();
     Ok(HttpResponse::Ok()
         .cookie(captcha_cookie)
         .insert_header(captcha_header)

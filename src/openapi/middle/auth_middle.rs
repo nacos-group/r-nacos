@@ -114,7 +114,7 @@ where
             } else if token.is_empty() {
                 false
             } else if let Ok(Some(session)) = get_user_session(
-                app_share_data.clone(),
+                &app_share_data,
                 CacheKey::new(CacheType::ApiTokenSession, token.clone()),
             )
             .await
@@ -194,7 +194,7 @@ fn bytes_to_payload(buf: web::Bytes) -> dev::Payload {
 }
 
 async fn get_user_session(
-    app_share_data: Arc<AppShareData>,
+    app_share_data: &Arc<AppShareData>,
     key: CacheKey,
 ) -> anyhow::Result<Option<Arc<TokenSession>>> {
     /*
