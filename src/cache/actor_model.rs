@@ -1,7 +1,10 @@
 use crate::cache::model::{CacheKey, CacheValue};
 use crate::now_second_i32;
+use crate::raft::cache::CacheLimiterReq;
 use actix::Message;
+use ratelimiter_rs::RateLimiter;
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CacheSetParam {
@@ -60,6 +63,7 @@ pub enum CacheManagerRaftReq {
     Get(CacheKey),
     Exists(CacheKey),
     Ttl(CacheKey),
+    Limit(CacheLimiterReq),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -70,6 +74,7 @@ pub enum CacheManagerRaftResult {
     Value(CacheValue),
     Exists(bool),
     Ttl(i32),
+    Limiter(bool),
 }
 
 pub type CacheManagerResult = CacheManagerRaftResult;

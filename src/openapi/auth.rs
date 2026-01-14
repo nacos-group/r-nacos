@@ -1,11 +1,11 @@
-use crate::cache::actor_model::CacheSetParam;
+use crate::cache::actor_model::{CacheManagerRaftResult, CacheSetParam};
 use crate::common::appdata::AppShareData;
 use crate::common::model::TokenSession;
 use crate::common::option_utils::OptionUtils;
 use crate::merge_web_param_with_result;
 use crate::raft::cache::model::{CacheKey, CacheType, CacheValue};
 use crate::raft::cache::{CacheLimiterReq, CacheManagerReq, CacheManagerResult};
-use crate::raft::store::ClientRequest;
+use crate::raft::store::{ClientRequest, ClientResponse};
 use crate::user::{UserManagerReq, UserManagerResult};
 use actix_web::{web, HttpResponse, Responder};
 use serde::{Deserialize, Serialize};
@@ -70,9 +70,14 @@ async fn do_login(
         key: limit_key.clone(),
         limit: app.sys_config.openapi_login_one_minute_limit as i32,
     };
+    let cache_req = crate::cache::actor_model::CacheManagerRaftReq::Limit(limit_req);
     //登录前先判断是否登陆准入
-    if let Ok(CacheManagerResult::Limiter(acquire_result)) =
-        app.raft_cache_route.request_limiter(limit_req).await
+    if let ClientResponse::CacheResp {
+        resp: CacheManagerRaftResult::Limiter(acquire_result),
+    } = app
+        .raft_request_route
+        .request(ClientRequest::CacheReq { req: cache_req })
+        .await?
     {
         if !acquire_result {
             return Err(anyhow::anyhow!(
@@ -118,9 +123,15 @@ async fn do_login(
                 .request(ClientRequest::CacheReq { req: cache_req })
                 .await?;
             //登录成功后清除登陆限流计数
-            let clear_limit_req =
-                CacheManagerReq::Remove(CacheKey::new(CacheType::String, limit_key));
-            app.cache_manager.do_send(clear_limit_req);
+            let clear_limit_req = crate::cache::actor_model::CacheManagerRaftReq::Remove(
+                CacheKey::new(CacheType::String, limit_key),
+            );
+            app.raft_request_route
+                .request(ClientRequest::CacheReq {
+                    req: clear_limit_req,
+                })
+                .await
+                .ok();
             let login_result = LoginResult {
                 access_token: Some(token),
                 token_ttl: app.sys_config.openapi_login_timeout as i64,

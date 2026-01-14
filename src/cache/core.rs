@@ -1,18 +1,24 @@
 use crate::cache::actor_model::{
-    CacheManagerLocalReq, CacheManagerRaftReq, CacheManagerRaftResult, CacheSetParam,
+    CacheManagerLocalReq, CacheManagerRaftReq, CacheManagerRaftResult, CacheManagerResult,
+    CacheSetParam,
 };
 use crate::cache::model::{CacheKey, CacheValue};
 use crate::common::constant::DIRECT_CACHE_TABLE_NAME;
+use crate::common::datetime_utils::now_millis_i64;
 use crate::common::datetime_utils::now_second_i32;
+use crate::common::limiter_utils::LimiterData;
 use crate::common::pb::data_object::DirectCacheItemDo;
+use crate::raft::cache::CacheLimiterReq;
 use crate::raft::filestore::model::SnapshotRecordDto;
 use crate::raft::filestore::raftapply::{RaftApplyDataRequest, RaftApplyDataResponse};
 use crate::raft::filestore::raftsnapshot::{SnapshotWriterActor, SnapshotWriterRequest};
 use actix::prelude::*;
 use bean_factory::{bean, Inject};
-use inner_mem_cache::{MemCache, TimeoutSet};
+use inner_mem_cache::TimeoutSet;
 use quick_protobuf::{BytesReader, Writer};
+use ratelimiter_rs::RateLimiter;
 use std::collections::HashMap;
+use std::convert::TryInto;
 use std::sync::Arc;
 
 pub struct CacheItem {
@@ -211,6 +217,43 @@ impl DirectCacheManager {
         }
     }
 
+    fn handle_limit(&mut self, limit_req: CacheLimiterReq) -> anyhow::Result<CacheManagerResult> {
+        let (rate_to_ms_conversion, key, limit) = match limit_req {
+            CacheLimiterReq::Second { key, limit } => (1000, key, limit),
+            CacheLimiterReq::Minutes { key, limit } => (60 * 1000, key, limit),
+            CacheLimiterReq::Hour { key, limit } => (60 * 60 * 1000, key, limit),
+            CacheLimiterReq::Day { key, limit } => (24 * 60 * 60 * 1000, key, limit),
+            CacheLimiterReq::OtherMills {
+                key,
+                limit,
+                rate_to_ms_conversion,
+            } => (rate_to_ms_conversion, key, limit),
+        };
+        let key = CacheKey::new(crate::cache::model::CacheType::String, key);
+        let now = now_millis_i64();
+        let mut limiter = if let Some(v) = self.get_valid_value(&key) {
+            if let Some(s) = v.try_to_string() {
+                let limiter_data: LimiterData = s.as_str().try_into()?;
+                limiter_data.to_rate_limiter()
+            } else {
+                RateLimiter::load(rate_to_ms_conversion, 0, now)
+            }
+        } else {
+            RateLimiter::load(rate_to_ms_conversion, 0, now)
+        };
+        let r = limiter.acquire(limit, limit as i64);
+        if r {
+            let limiter_data: LimiterData = limiter.into();
+            let cache_value = CacheValue::String(Arc::new(limiter_data.to_string()));
+            self.do_set(
+                key.clone(),
+                cache_value,
+                ((now + rate_to_ms_conversion as i64) / 1000) as i32,
+            );
+        }
+        Ok(CacheManagerRaftResult::Limiter(r))
+    }
+
     fn build_snapshot(&self, writer: Addr<SnapshotWriterActor>) -> anyhow::Result<()> {
         let now = now_second_i32();
         for (key, v) in self.cache.iter() {
@@ -295,6 +338,7 @@ impl Handler<CacheManagerRaftReq> for DirectCacheManager {
             CacheManagerRaftReq::Ttl(key) => Ok(self.get_ttl(&key)),
             CacheManagerRaftReq::Incr(key, expire) => Ok(self.incr(key, expire)),
             CacheManagerRaftReq::Decr(key, expire) => Ok(self.decr(key, expire)),
+            CacheManagerRaftReq::Limit(limit_req) => self.handle_limit(limit_req),
         }
     }
 }

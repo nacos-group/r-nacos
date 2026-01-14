@@ -7,7 +7,7 @@ use crate::ldap::model::actor_model::{LdapMsgReq, LdapMsgResult};
 use crate::ldap::model::LdapUserParam;
 use crate::oauth2::model::actor_model::{OAuth2MsgReq, OAuth2MsgResult};
 use crate::oauth2::model::OAuth2UserParam;
-use crate::raft::store::ClientRequest;
+use crate::raft::store::{ClientRequest, ClientResponse};
 use crate::{
     common::{
         appdata::AppShareData,
@@ -255,8 +255,16 @@ async fn apply_session(
         .request(ClientRequest::CacheReq { req: cache_req })
         .await?;
     //登录成功后清除登陆限流计数
-    let clear_limit_req = CacheManagerReq::Remove(CacheKey::new(CacheType::String, limit_key));
-    app.cache_manager.do_send(clear_limit_req);
+    let clear_limit_req = crate::cache::actor_model::CacheManagerRaftReq::Remove(CacheKey::new(
+        CacheType::String,
+        limit_key,
+    ));
+    app.raft_request_route
+        .request(ClientRequest::CacheReq {
+            req: clear_limit_req,
+        })
+        .await
+        .ok();
     let login_token = LoginToken {
         token: token.to_string(),
     };
@@ -315,9 +323,14 @@ async fn login_limit(
         key: limit_key.clone(),
         limit: app.sys_config.console_login_one_hour_limit as i32,
     };
+    let cache_req = crate::cache::actor_model::CacheManagerRaftReq::Limit(limit_req);
     //登录前先判断是否登陆准入
-    if let Ok(CacheManagerResult::Limiter(acquire_result)) =
-        app.raft_cache_route.request_limiter(limit_req).await
+    if let Ok(ClientResponse::CacheResp {
+        resp: CacheManagerRaftResult::Limiter(acquire_result),
+    }) = app
+        .raft_request_route
+        .request(ClientRequest::CacheReq { req: cache_req })
+        .await
     {
         if !acquire_result {
             return Some(HttpResponse::Ok().json(ApiResult::<()>::error(

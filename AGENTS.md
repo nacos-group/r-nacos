@@ -1,7 +1,7 @@
 # AGENTS.md - r-nacos 开发指南
 
 ## 构建/测试命令
-- 构建：`cargo build --release`
+- 构建：`cargo build`
 - 测试：`python3 integration_tests/scripts/run_test.py` (运行完整集成测试)
 - 单元测试：`cargo test` (运行所有单元测试)
 - 单个测试：`cargo test test_name` (运行指定测试)
