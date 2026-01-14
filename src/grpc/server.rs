@@ -10,6 +10,10 @@ use crate::common::model::TokenSession;
 use actix::prelude::*;
 //use tokio_stream::StreamExt;
 
+use super::bistream_conn::BiStreamConn;
+use super::bistream_manage::BiStreamManageCmd;
+use super::handler::{InvokerHandler, CLUSTER_TOKEN};
+use super::nacos_proto::bi_request_stream_server::BiRequestStream;
 use crate::grpc::bistream_manage::BiStreamManageResult;
 use crate::grpc::nacos_proto::{request_server, Payload};
 use crate::grpc::{PayloadHandler, PayloadUtils, RequestMeta};
@@ -17,11 +21,7 @@ use crate::metrics::metrics_key::MetricsKey;
 use crate::metrics::model::{MetricsItem, MetricsRecord, MetricsRequest};
 use crate::raft::cache::model::{CacheKey, CacheType, CacheValue};
 use crate::raft::cache::{CacheManager, CacheManagerReq, CacheManagerResult};
-
-use super::bistream_conn::BiStreamConn;
-use super::bistream_manage::BiStreamManageCmd;
-use super::handler::{InvokerHandler, CLUSTER_TOKEN};
-use super::nacos_proto::bi_request_stream_server::BiRequestStream;
+use crate::raft::cluster::model::{RouterRequest, RouterResponse};
 
 pub struct RequestServerImpl {
     app: Arc<AppShareData>,
@@ -266,10 +266,25 @@ async fn get_user_session(
     let req = crate::cache::actor_model::CacheManagerLocalReq::Get(key);
     if let CacheManagerRaftResult::Value(crate::cache::model::CacheValue::ApiTokenSession(
         session,
-    )) = app_share_data.direct_cache_manager.send(req).await??
+    )) = app_share_data
+        .direct_cache_manager
+        .send(req.clone())
+        .await??
     {
         Ok(Some(session))
     } else {
-        Ok(None)
+        //再尝试从raft主节点中获取
+        if let RouterResponse::CacheQueryResult {
+            result:
+                CacheManagerRaftResult::Value(crate::cache::model::CacheValue::ApiTokenSession(v)),
+        } = app_share_data
+            .raft_request_route
+            .request_from_main(app_share_data, RouterRequest::CacheQuery { req })
+            .await?
+        {
+            Ok(Some(v))
+        } else {
+            Ok(None)
+        }
     }
 }

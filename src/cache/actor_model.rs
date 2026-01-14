@@ -42,7 +42,7 @@ impl CacheSetParam {
 }
 
 /// 本节点查询
-#[derive(Message, Clone, Debug)]
+#[derive(Message, Clone, Debug, Serialize, Deserialize)]
 #[rtype(result = "anyhow::Result<CacheManagerResult>")]
 pub enum CacheManagerLocalReq {
     Get(CacheKey),
@@ -78,3 +78,4 @@ pub enum CacheManagerRaftResult {
 }
 
 pub type CacheManagerResult = CacheManagerRaftResult;
+pub type DirectCacheManagerResult = CacheManagerRaftResult;

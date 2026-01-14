@@ -1,4 +1,5 @@
 use super::model::{DelConfigReq, RouteAddr, RouterRequest, RouterResponse, SetConfigReq};
+use crate::common::appdata::AppShareData;
 use crate::grpc::handler::RAFT_ROUTE_REQUEST;
 use crate::namespace::model::{NamespaceRaftReq, NamespaceRaftResult};
 use crate::raft::cluster::router_request;
@@ -235,6 +236,18 @@ impl RaftRequestRoute {
                 let resp: ClientResponse = router_resp.try_into()?;
                 Ok(resp)
             }
+            RouteAddr::Unknown => Err(self.unknown_err()),
+        }
+    }
+
+    pub async fn request_from_main(
+        &self,
+        app: &Arc<AppShareData>,
+        req: RouterRequest,
+    ) -> anyhow::Result<RouterResponse> {
+        match self.raft_addr_route.get_route_addr().await? {
+            RouteAddr::Local => crate::raft::cluster::handle_route(app, req).await,
+            RouteAddr::Remote(_, addr) => router_request(req, addr, &self.cluster_sender).await,
             RouteAddr::Unknown => Err(self.unknown_err()),
         }
     }

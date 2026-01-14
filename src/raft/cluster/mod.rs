@@ -106,6 +106,10 @@ pub async fn handle_route(
                 .await??;
             Ok(RouterResponse::ImportResult { result })
         }
+        RouterRequest::CacheQuery { req } => {
+            let result = app.direct_cache_manager.send(req).await??;
+            Ok(RouterResponse::CacheQueryResult { result })
+        }
     }
 }
 

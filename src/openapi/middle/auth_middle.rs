@@ -8,6 +8,8 @@ use crate::metrics::metrics_key::MetricsKey;
 use crate::metrics::model::{MetricsItem, MetricsRecord, MetricsRequest};
 use crate::raft::cache::model::{CacheKey, CacheType, CacheValue};
 use crate::raft::cache::{CacheManager, CacheManagerReq, CacheManagerResult};
+use crate::raft::cluster::model::{RouterRequest, RouterResponse};
+use crate::raft::store::ClientRequest;
 use actix::Addr;
 use actix_http::body::EitherBody;
 use actix_http::HttpMessage;
@@ -207,11 +209,26 @@ async fn get_user_session(
     let req = crate::cache::actor_model::CacheManagerLocalReq::Get(key);
     if let CacheManagerRaftResult::Value(crate::cache::model::CacheValue::ApiTokenSession(
         session,
-    )) = app_share_data.direct_cache_manager.send(req).await??
+    )) = app_share_data
+        .direct_cache_manager
+        .send(req.clone())
+        .await??
     {
         Ok(Some(session))
     } else {
-        Ok(None)
+        //再尝试从raft主节点中获取
+        if let RouterResponse::CacheQueryResult {
+            result:
+                CacheManagerRaftResult::Value(crate::cache::model::CacheValue::ApiTokenSession(v)),
+        } = app_share_data
+            .raft_request_route
+            .request_from_main(app_share_data, RouterRequest::CacheQuery { req })
+            .await?
+        {
+            Ok(Some(v))
+        } else {
+            Ok(None)
+        }
     }
 }
 

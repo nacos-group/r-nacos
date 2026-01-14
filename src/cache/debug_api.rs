@@ -5,8 +5,8 @@ use super::model::{CacheKey, CacheType, CacheValue};
 use crate::cache::actor_model::{
     CacheManagerLocalReq, CacheManagerRaftReq, CacheManagerRaftResult, CacheSetParam,
 };
+use crate::common::appdata::AppShareData;
 use crate::common::datetime_utils::now_second_i32;
-use crate::common::share_data::ShareData;
 use crate::raft::store::ClientRequest;
 use actix_web::web::ServiceConfig;
 use actix_web::{
@@ -29,7 +29,7 @@ pub struct ValueResult {
 }
 
 pub async fn set_cache(
-    app: Data<Arc<ShareData>>,
+    app: Data<Arc<AppShareData>>,
     web::Form(param): web::Form<StringCacheDto>,
 ) -> actix_web::Result<impl Responder> {
     let mut set_info = CacheSetParam::new(
@@ -47,7 +47,7 @@ pub async fn set_cache(
 }
 
 pub async fn remove_cache(
-    app: Data<Arc<ShareData>>,
+    app: Data<Arc<AppShareData>>,
     web::Form(param): web::Form<StringCacheDto>,
 ) -> actix_web::Result<impl Responder> {
     let req = CacheManagerRaftReq::Remove(CacheKey::new(CacheType::String, param.key));
@@ -59,11 +59,11 @@ pub async fn remove_cache(
 }
 
 pub async fn get_cache(
-    app: Data<Arc<ShareData>>,
+    app: Data<Arc<AppShareData>>,
     web::Query(param): web::Query<StringCacheDto>,
 ) -> actix_web::Result<impl Responder> {
     let req = CacheManagerLocalReq::Get(CacheKey::new(CacheType::String, param.key));
-    match app.cache_manager.send(req).await.unwrap().unwrap() {
+    match app.direct_cache_manager.send(req).await.unwrap().unwrap() {
         CacheManagerRaftResult::Value(v) => {
             let value = match v {
                 CacheValue::Number(v) => Arc::new(v.to_string()),

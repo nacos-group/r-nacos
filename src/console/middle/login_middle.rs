@@ -9,6 +9,7 @@ use crate::common::model::{ApiResultOld, UserSession};
 use crate::now_second_i32;
 //use crate::raft::cache::model::{CacheKey, CacheType, CacheValue};
 use crate::raft::cache::{CacheManagerReq, CacheManagerResult, CacheUserChangeReq};
+use crate::raft::cluster::model::{RouterRequest, RouterResponse};
 use crate::raft::store::ClientRequest;
 use crate::user::model::UserDto;
 use crate::user::permission::UserRole;
@@ -186,19 +187,32 @@ where
 }
 
 async fn get_user_session(
-    app_share_data: &AppShareData,
+    app_share_data: &Arc<AppShareData>,
     token: Arc<String>,
 ) -> anyhow::Result<Option<Arc<UserSession>>> {
     let req = crate::cache::actor_model::CacheManagerLocalReq::Get(CacheKey::new(
         CacheType::UserSession,
         token,
     ));
-    if let CacheManagerRaftResult::Value(CacheValue::UserSession(session)) =
-        app_share_data.direct_cache_manager.send(req).await??
+    if let CacheManagerRaftResult::Value(CacheValue::UserSession(session)) = app_share_data
+        .direct_cache_manager
+        .send(req.clone())
+        .await??
     {
         Ok(Some(session))
     } else {
-        Ok(None)
+        //再尝试从raft主节点中获取
+        if let RouterResponse::CacheQueryResult {
+            result: CacheManagerRaftResult::Value(crate::cache::model::CacheValue::UserSession(v)),
+        } = app_share_data
+            .raft_request_route
+            .request_from_main(app_share_data, RouterRequest::CacheQuery { req })
+            .await?
+        {
+            Ok(Some(v))
+        } else {
+            Ok(None)
+        }
     }
     /*
     let cache_key = CacheKey::new(CacheType::UserSession, token);

@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 use std::{collections::HashMap, sync::Arc};
 
+use crate::cache::actor_model::{CacheManagerLocalReq, DirectCacheManagerResult};
 use crate::config::config_type::ConfigType;
 use crate::namespace::model::{NamespaceRaftReq, NamespaceRaftResult};
 use crate::raft::store::{ClientRequest, ClientResponse};
@@ -117,6 +118,9 @@ pub enum RouterRequest {
         data: Vec<u8>,
         param: TransferImportParam,
     },
+    CacheQuery {
+        req: CacheManagerLocalReq,
+    },
 }
 
 impl From<SetConfigReq> for RouterRequest {
@@ -167,6 +171,7 @@ pub enum RouterResponse {
     CacheManagerResult { result: CacheManagerResult },
     NamespaceResult { result: NamespaceRaftResult },
     ImportResult { result: TransferImportResponse },
+    CacheQueryResult { result: DirectCacheManagerResult },
 }
 
 impl From<ClientResponse> for RouterResponse {

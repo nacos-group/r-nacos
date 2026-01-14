@@ -13,4 +13,5 @@ pub fn debug_config(config: &mut web::ServiceConfig) {
             web::resource("/rnacos/debug/sequence/next_id")
                 .route(web::get().to(sequence_api::next_id)),
         );
+    crate::cache::debug_api::cache_debug_api_config(config);
 }

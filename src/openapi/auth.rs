@@ -115,9 +115,9 @@ async fn do_login(
              */
             let cache_req =
                 crate::cache::actor_model::CacheManagerRaftReq::Set(CacheSetParam::new_with_ttl(
-                    CacheKey::new(CacheType::UserSession, token.clone()),
+                    CacheKey::new(CacheType::ApiTokenSession, token.clone()),
                     crate::cache::model::CacheValue::ApiTokenSession(session),
-                    app.sys_config.console_login_timeout,
+                    app.sys_config.openapi_login_timeout,
                 ));
             app.raft_request_route
                 .request(ClientRequest::CacheReq { req: cache_req })
