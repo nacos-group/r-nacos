@@ -246,6 +246,8 @@ async fn test_naming_register_query(
 
     let instance = Instance::new_simple("127.0.0.1", 8080, &service_name, &group_name);
 
+    tokio::time::sleep(Duration::from_millis(700)).await;
+
     // Register instance
     register_client.register(instance.clone());
 
@@ -333,6 +335,7 @@ async fn test_naming_register_unregister_query(
 
     let instance = Instance::new_simple("127.0.0.1", 8080, &service_name, &group_name);
 
+    tokio::time::sleep(Duration::from_millis(700)).await;
     // Register instance
     register_client.register(instance.clone());
 
