@@ -16,8 +16,8 @@ use crate::{
     },
     now_second_i32,
     raft::cache::{
-        model::{CacheKey, CacheType, CacheValue},
-        CacheLimiterReq, CacheManagerReq, CacheManagerResult,
+        model::{CacheKey, CacheType},
+        CacheLimiterReq,
     },
     user::{UserManagerReq, UserManagerResult},
 };
@@ -30,7 +30,6 @@ use actix_web::{
 use captcha::filters::{Grid, Noise};
 use captcha::Captcha;
 use serde::Deserialize;
-use upon::functions::FunctionError;
 
 pub async fn login(
     request: HttpRequest,

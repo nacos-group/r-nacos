@@ -7,8 +7,6 @@ use crate::common::constant::{
     ACCESS_TOKEN_HEADER, AUTHORIZATION_HEADER, EMPTY_ARC_STRING, EMPTY_CLIENT_VERSION,
 };
 use crate::common::model::TokenSession;
-use actix::prelude::*;
-//use tokio_stream::StreamExt;
 
 use super::bistream_conn::BiStreamConn;
 use super::bistream_manage::BiStreamManageCmd;
@@ -19,8 +17,7 @@ use crate::grpc::nacos_proto::{request_server, Payload};
 use crate::grpc::{PayloadHandler, PayloadUtils, RequestMeta};
 use crate::metrics::metrics_key::MetricsKey;
 use crate::metrics::model::{MetricsItem, MetricsRecord, MetricsRequest};
-use crate::raft::cache::model::{CacheKey, CacheType, CacheValue};
-use crate::raft::cache::{CacheManager, CacheManagerReq, CacheManagerResult};
+use crate::raft::cache::model::{CacheKey, CacheType};
 use crate::raft::cluster::model::{RouterRequest, RouterResponse};
 
 pub struct RequestServerImpl {

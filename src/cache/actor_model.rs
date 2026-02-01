@@ -2,9 +2,7 @@ use crate::cache::model::{CacheKey, CacheValue};
 use crate::now_second_i32;
 use crate::raft::cache::CacheLimiterReq;
 use actix::Message;
-use ratelimiter_rs::RateLimiter;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CacheSetParam {

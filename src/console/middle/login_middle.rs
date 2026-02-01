@@ -6,14 +6,8 @@ use crate::cache::actor_model::CacheManagerRaftResult;
 use crate::cache::model::{CacheKey, CacheType, CacheValue};
 use crate::common::appdata::AppShareData;
 use crate::common::model::{ApiResultOld, UserSession};
-use crate::now_second_i32;
-//use crate::raft::cache::model::{CacheKey, CacheType, CacheValue};
-use crate::raft::cache::{CacheManagerReq, CacheManagerResult, CacheUserChangeReq};
 use crate::raft::cluster::model::{RouterRequest, RouterResponse};
-use crate::raft::store::ClientRequest;
-use crate::user::model::UserDto;
 use crate::user::permission::UserRole;
-use crate::user::{UserManagerReq, UserManagerResult};
 use actix_http::{HttpMessage, StatusCode};
 use actix_web::{
     body::EitherBody,
@@ -245,13 +239,4 @@ async fn get_user_session(
      */
 }
 
-fn build_user_session(user: UserDto) -> Arc<UserSession> {
-    Arc::new(UserSession {
-        username: user.username,
-        nickname: user.nickname,
-        roles: user.roles.unwrap_or_default(),
-        namespace_privilege: user.namespace_privilege,
-        extend_infos: user.extend_info.unwrap_or_default(),
-        refresh_time: now_second_i32() as u32,
-    })
-}
+

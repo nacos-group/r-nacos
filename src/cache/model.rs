@@ -1,6 +1,5 @@
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
-use std::fmt::{Display, Formatter};
 use std::{collections::HashMap, convert::TryFrom, sync::Arc};
 
 use crate::common::model::{TokenSession, UserSession};

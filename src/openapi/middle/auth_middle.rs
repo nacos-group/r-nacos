@@ -6,10 +6,8 @@ use crate::common::model::TokenSession;
 use crate::metrics::core::MetricsManager;
 use crate::metrics::metrics_key::MetricsKey;
 use crate::metrics::model::{MetricsItem, MetricsRecord, MetricsRequest};
-use crate::raft::cache::model::{CacheKey, CacheType, CacheValue};
-use crate::raft::cache::{CacheManager, CacheManagerReq, CacheManagerResult};
+use crate::raft::cache::model::{CacheKey, CacheType};
 use crate::raft::cluster::model::{RouterRequest, RouterResponse};
-use crate::raft::store::ClientRequest;
 use actix::Addr;
 use actix_http::body::EitherBody;
 use actix_http::HttpMessage;
@@ -96,7 +94,6 @@ where
         let app_share_data = self.app_share_data.clone();
         let service = self.service.clone();
         Box::pin(async move {
-            let cache_manager = &app_share_data.cache_manager;
             let offset = &app_share_data.timezone_offset;
             let token = if enable_auth && is_check_path {
                 if let Some(v) = request.headers().get(AUTHORIZATION_HEADER) {
