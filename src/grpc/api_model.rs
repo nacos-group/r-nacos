@@ -163,8 +163,8 @@ pub struct ConfigRemoveRequest {
 pub struct ConfigListenContext {
     pub data_id: String,
     pub group: String,
-    pub tenant: String,
-    pub md5: Arc<String>,
+    pub tenant: Option<String>,
+    pub md5: Option<Arc<String>>,
     pub tag: Option<String>,
 }
 

@@ -4,7 +4,7 @@ use crate::common::model::TokenSession;
 use crate::common::option_utils::OptionUtils;
 use crate::merge_web_param_with_result;
 use crate::raft::cache::model::{CacheKey, CacheType};
-use crate::raft::cache::{CacheLimiterReq};
+use crate::raft::cache::CacheLimiterReq;
 use crate::raft::store::{ClientRequest, ClientResponse};
 use crate::user::{UserManagerReq, UserManagerResult};
 use actix_web::{web, HttpResponse, Responder};

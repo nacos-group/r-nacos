@@ -42,15 +42,16 @@ impl PayloadHandler for ConfigChangeBatchListenRequestHandler {
         let mut listener_items = vec![];
         let mut use_public = false;
         for item in request.config_listen_contexts {
-            if item.tenant == DEFAULT_TENANT {
+            let tenant = item.tenant.unwrap_or_default();
+            if tenant == DEFAULT_TENANT {
                 use_public = true;
             }
             let key = ConfigKey::new(
                 &item.data_id,
                 &item.group,
-                &ConfigUtils::default_tenant(item.tenant),
+                &ConfigUtils::default_tenant(tenant),
             );
-            listener_items.push(ListenerItem::new(key, item.md5));
+            listener_items.push(ListenerItem::new(key, item.md5.unwrap_or_default()));
         }
         let cmd = if request.listen {
             ConfigCmd::Subscribe(listener_items, request_meta.connection_id)
@@ -64,7 +65,7 @@ impl PayloadHandler for ConfigChangeBatchListenRequestHandler {
         };
         match self.app_data.config_addr.send(cmd).await {
             Ok(res) => {
-                let r: ConfigResult = res.unwrap();
+                let r: ConfigResult = res?;
                 match r {
                     ConfigResult::ChangeKey(keys) => {
                         response.result_code = SUCCESS_CODE;

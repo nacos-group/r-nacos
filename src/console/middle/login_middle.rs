@@ -238,5 +238,3 @@ async fn get_user_session(
     }
      */
 }
-
-
