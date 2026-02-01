@@ -332,7 +332,7 @@ impl InstanceKey {
     }
 }
 
-#[derive(Debug, Clone, Default, Hash, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Hash, PartialEq, Eq, Serialize, Deserialize, Ord, PartialOrd)]
 #[serde(rename_all = "camelCase")]
 pub struct InstanceShortKey {
     pub ip: Arc<String>,

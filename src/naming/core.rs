@@ -45,7 +45,7 @@ use bean_factory::{bean, Inject, InjectComponent};
 use chrono::Local;
 use inner_mem_cache::TimeoutSet;
 use serde::{Deserialize, Serialize};
-use std::cmp::max;
+use std::cmp::{max, Ordering};
 use std::collections::BTreeSet;
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -543,6 +543,31 @@ impl NamingActor {
             );
         }
         vec![]
+    }
+
+    pub fn get_instance_page(
+        &self,
+        key: &ServiceKey,
+        cluster_str: &str,
+        only_healthy: bool,
+        page_size: usize,
+        page_index: usize,
+    ) -> (usize, Vec<Arc<Instance>>) {
+        let mut all_instances = self.get_instance_list(key, cluster_str, only_healthy);
+        let total = all_instances.len();
+
+        let offset = if page_index == 0 {
+            0
+        } else {
+            page_size * (page_index - 1)
+        };
+        all_instances.sort_by(|a, b| a.get_short_key().cmp(&b.get_short_key()));
+        let page_data = all_instances
+            .into_iter()
+            .skip(offset)
+            .take(page_size)
+            .collect::<Vec<_>>();
+        (total, page_data)
     }
 
     pub fn get_instances_and_metadata(
@@ -1339,6 +1364,13 @@ pub enum NamingCmd {
     DeleteBatch(Vec<Instance>),
     Query(Instance),
     QueryList(ServiceKey, String, bool, Option<SocketAddr>),
+    QueryInstancePage {
+        service_key: ServiceKey,
+        cluster: String,
+        only_healthy: bool,
+        page_size: usize,
+        page_index: usize,
+    },
     SelectOneInstance(ServiceKey),
     QueryAllInstanceList(ServiceKey),
     QueryListString(ServiceKey, String, bool, Option<SocketAddr>),
@@ -1391,6 +1423,7 @@ pub enum NamingResult {
     ServicePage((usize, Vec<Arc<String>>)),
     ServiceSubscribersPage((usize, Vec<SubscriberInfoDto>)),
     ServiceInfoPage((usize, Vec<ServiceInfoDto>)),
+    InstanceInfoPage((usize, Vec<Arc<Instance>>)),
     ServiceDto(Option<ServiceInfoDto>),
     ClientInstanceCount(Vec<(Arc<String>, usize)>),
     RewriteToCluster(u64, Instance),
@@ -1479,6 +1512,22 @@ impl Handler<NamingCmd> for NamingActor {
                 }
                 let list = self.get_instance_list(&service_key, &cluster_str, only_healthy);
                 Ok(NamingResult::InstanceList(list))
+            }
+            NamingCmd::QueryInstancePage {
+                service_key,
+                cluster,
+                only_healthy,
+                page_size,
+                page_index,
+            } => {
+                let cluster_names = NamingUtils::split_filters(&cluster);
+                Ok(NamingResult::InstanceInfoPage(self.get_instance_page(
+                    &service_key,
+                    &cluster,
+                    only_healthy,
+                    page_size,
+                    page_index,
+                )))
             }
             NamingCmd::QueryListString(service_key, cluster_str, only_healthy, addr) => {
                 //println!("QUERY_LIST_STRING addr: {:?}",&addr);

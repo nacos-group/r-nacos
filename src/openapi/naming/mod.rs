@@ -1,5 +1,5 @@
 use crate::openapi::constant::{EMPTY, NAMING_V1_BASE_PATH};
-use crate::openapi::naming::catalog::query_opt_service_list;
+use crate::openapi::naming::catalog::{get_instance_page, query_opt_service_list};
 use crate::openapi::naming::instance::{
     beat_instance, del_instance, get_instance, get_instance_list, update_instance,
 };
@@ -70,5 +70,9 @@ pub fn naming_v1_route(config: &mut ServiceConfig) {
                 )
                 .service(mock_operator_metrics),
         )
-        .service(scope("/nacos/v1/ns/catalog").service(query_opt_service_list));
+        .service(
+            scope("/nacos/v1/ns/catalog")
+                .service(query_opt_service_list)
+                .service(web::resource("instances").route(web::get().to(get_instance_page))),
+        );
 }
