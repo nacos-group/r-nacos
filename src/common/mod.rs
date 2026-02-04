@@ -122,6 +122,7 @@ pub struct AppSysConfig {
     pub oauth2_nickname_claim_name: Arc<String>,
     pub oauth2_user_default_role: Arc<String>,
     pub oauth2_button: Arc<String>,
+    pub grpc_detection_timeout: u64,
 }
 
 impl AppSysConfig {
@@ -347,6 +348,11 @@ impl AppSysConfig {
         let oauth2_button = std::env::var("RNACOS_OAUTH2_BUTTON")
             .map(Arc::new)
             .unwrap_or_else(|_| Arc::new("OAuth2.0 登录".to_string()));
+        let grpc_detection_timeout = std::env::var("RNACOS_GRPC_DETECTION_TIMEOUT_SECOND")
+            .unwrap_or("15".to_owned())
+            .parse()
+            .unwrap_or(15)
+            * 1000;
         Self {
             local_db_dir,
             config_db_file,
@@ -401,6 +407,7 @@ impl AppSysConfig {
             oauth2_nickname_claim_name,
             oauth2_user_default_role,
             oauth2_button,
+            grpc_detection_timeout,
         }
     }
 

@@ -219,6 +219,7 @@ helm install r-nacos rnacos/rnacos
 |RNACOS_OAUTH2_NICKNAME_CLAIM_NAME|OAuth2.0昵称claim字段名|name|name|0.7.4|
 |RNACOS_OAUTH2_USER_DEFAULT_ROLE|OAuth2.0用户默认角色,支持的值有：访客:VISITOR,开发者:DEVELOPER,管理员:ADMIN|DEVELOPER|VISITOR|0.7.4|
 |RNACOS_OAUTH2_BUTTON|OAuth2.0登录按钮显示文本|OAuth2.0 登录|OAuth2.0 登录|0.7.4|
+|RNACOS_GRPC_DETECTION_TIMEOUT_SECOND|gRPC心跳检测超时时间，单位为秒|15|20|0.8.1|
 
 启动配置方式可以参考： [运行参数说明](https://r-nacos.github.io/docs/notes/env_config/)
 
