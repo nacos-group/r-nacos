@@ -190,7 +190,7 @@ impl Inject for BiStreamManage {
     ) {
         self.config_addr = factory_data.get_actor();
         self.naming_addr = factory_data.get_actor();
-        if let Some(sys_config) = factory_data.get_bean::<Arc<crate::common::AppSysConfig>>() {
+        if let Some(sys_config) = factory_data.get_bean::<crate::common::AppSysConfig>() {
             self.detection_time_out = sys_config.grpc_detection_timeout;
             log::info!(
                 "BiStreamManage inject complete, detection_time_out:{}",

@@ -123,6 +123,7 @@ pub struct AppSysConfig {
     pub oauth2_user_default_role: Arc<String>,
     pub oauth2_button: Arc<String>,
     pub grpc_detection_timeout: u64,
+    pub enable_grpc_detection_log: bool,
 }
 
 impl AppSysConfig {
@@ -353,6 +354,10 @@ impl AppSysConfig {
             .parse()
             .unwrap_or(15)
             * 1000;
+        let enable_grpc_detection_log = std::env::var("RNACOS_ENABLE_GRPC_DETECTION_LOG")
+            .unwrap_or("false".to_owned())
+            .parse()
+            .unwrap_or(false);
         Self {
             local_db_dir,
             config_db_file,
@@ -408,6 +413,7 @@ impl AppSysConfig {
             oauth2_user_default_role,
             oauth2_button,
             grpc_detection_timeout,
+            enable_grpc_detection_log,
         }
     }
 

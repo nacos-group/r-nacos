@@ -193,6 +193,12 @@ impl InvokerHandler {
 impl PayloadHandler for InvokerHandler {
     fn get_log_args(&self, request_payload: &Payload, request_meta: &RequestMeta) -> HandleLogArgs {
         if let Some(url) = PayloadUtils::get_payload_type(request_payload) {
+            if SERVER_CHECK_REQUEST.eq(url) {
+                if self.app.sys_config.enable_grpc_detection_log {
+                    return HandleLogArgs::None;
+                }
+                return HandleLogArgs::Ignore;
+            }
             if let Some(handler) = self.match_handler(url) {
                 return handler.get_log_args(request_payload, request_meta);
             }
