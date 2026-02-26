@@ -90,9 +90,17 @@ async fn disable_no_auth_console_index() -> impl Responder {
 /// 面向SDK的http服务接口
 pub fn app_config(conf_data: AppSysConfig) -> impl FnOnce(&mut ServiceConfig) {
     move |config: &mut ServiceConfig| {
+        // Common services for both modes
+        backup_config(config);
+        mcp_config(config);
+        login_config(config);
+        metrics_config(config);
+        health_config(config);
+        raft_config(config);
+        nacos_console_api_config(config);
+        openapi_route_config(config);
+
         if !conf_data.enable_no_auth_console || conf_data.openapi_enable_auth {
-            backup_config(config);
-            mcp_config(config);
             config
                 .service(web::resource("/").route(web::get().to(disable_no_auth_console_index)))
                 .service(
@@ -108,29 +116,14 @@ pub fn app_config(conf_data: AppSysConfig) -> impl FnOnce(&mut ServiceConfig) {
                     web::resource("/rnacos/{_:.*}")
                         .route(web::get().to(disable_no_auth_console_index)),
                 );
-            login_config(config);
-            metrics_config(config);
-            health_config(config);
-            raft_config(config);
-            nacos_console_api_config(config);
-            openapi_route_config(config);
-            #[cfg(feature = "debug")]
-            debug_config(config);
         } else {
-            backup_config(config);
-            mcp_config(config);
-            login_config(config);
-            metrics_config(config);
-            health_config(config);
-            raft_config(config);
-            nacos_console_api_config(config);
-            openapi_route_config(config);
             console_api_config_v2(config);
             console_api_config_v1(config);
             console_page_config(config);
-            #[cfg(feature = "debug")]
-            debug_config(config);
         };
+
+        #[cfg(feature = "debug")]
+        debug_config(config);
     }
 }
 
