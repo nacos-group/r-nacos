@@ -441,7 +441,13 @@ impl Handler<NamespaceQueryReq> for NamespaceActor {
                 Ok(NamespaceQueryResult::List(list))
             }
             NamespaceQueryReq::Info(id) => {
-                if let Some(v) = self.data.get(&id) {
+                // "public" 和 "" 都指向默认命名空间
+                let lookup_id = if id.as_ref() == DEFAULT_NAMESPACE {
+                    EMPTY_ARC_STRING.clone()
+                } else {
+                    id
+                };
+                if let Some(v) = self.data.get(&lookup_id) {
                     Ok(NamespaceQueryResult::Info(v.clone()))
                 } else {
                     Ok(NamespaceQueryResult::None)

@@ -22,8 +22,14 @@ pub struct NamespaceInfo {
 
 impl From<Namespace> for NamespaceInfo {
     fn from(value: Namespace) -> Self {
+        // 默认命名空间在内部存储为 ""，对外返回 "public" 以兼容 nacos 客户端
+        let namespace_id = if value.namespace_id.is_empty() {
+            Arc::new(crate::namespace::DEFAULT_NAMESPACE.to_owned())
+        } else {
+            value.namespace_id
+        };
         Self {
-            namespace_id: Some(value.namespace_id),
+            namespace_id: Some(namespace_id),
             namespace_name: Some(value.namespace_name),
             r#type: Some(NamespaceFromFlags::get_api_type(value.flag)),
         }

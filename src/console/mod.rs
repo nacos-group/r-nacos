@@ -33,7 +33,7 @@ pub const SYSCONFIG_NAMESPACE_KEY: &str = "namespaces";
 
 lazy_static::lazy_static! {
     static ref DEFAULT_NAMESPACE_INFO:Arc<NamespaceInfo> = Arc::new(NamespaceInfo {
-            namespace_id: Some(Arc::new("".to_owned())),
+            namespace_id: Some(Arc::new(DEFAULT_NAMESPACE.to_owned())),
             namespace_name: Some(DEFAULT_NAMESPACE.to_owned()),
             r#type: Some("0".to_owned()),
     });
