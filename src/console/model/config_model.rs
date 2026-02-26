@@ -31,11 +31,13 @@ impl OpsConfigQueryListRequest {
         let limit = self.page_size.unwrap_or(0xffff_ffff);
         let offset = (self.page_no.unwrap_or(1) - 1) * limit;
         let namespace_privilege = user_namespace_privilege!(req);
+        let like_data_id = self.data_param.clone();
         let mut param = ConfigQueryParam {
             limit,
             offset,
             like_group: self.group_param,
-            like_data_id: self.data_param,
+            like_data_id: like_data_id.clone(),
+            like_desc: like_data_id,
             namespace_privilege,
             ..Default::default()
         };

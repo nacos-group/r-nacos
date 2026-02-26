@@ -17,6 +17,7 @@ use serde::{Deserialize, Serialize};
 use crate::common::byte_utils::id_to_bin;
 use crate::common::constant::{CONFIG_TREE_NAME, SEQUENCE_TREE_NAME, SEQ_KEY_CONFIG};
 use crate::common::sequence_utils::SimpleSequence;
+use crate::common::string_utils::StringUtils;
 use actix::prelude::*;
 
 use super::config_subscribe::Subscriber;
@@ -543,6 +544,7 @@ impl ConfigActor {
     }
 
     pub fn get_config_info_page(&self, param: &ConfigQueryParam) -> (usize, Vec<ConfigInfoDto>) {
+        // Get all results from index (filtered by group/data_id)
         let (size, list) = self.tenant_index.query_config_page(param);
 
         if size == 0 {
@@ -550,25 +552,44 @@ impl ConfigActor {
         }
 
         let mut info_list = Vec::with_capacity(size);
+        let mut total_count = 0;
+        let end_index = param.offset + param.limit;
+
         for item in &list {
             if let Some(value) = self.cache.get(item) {
-                let mut info = ConfigInfoDto {
-                    tenant: item.tenant.clone(),
-                    group: item.group.clone(),
-                    data_id: item.data_id.clone(),
-                    desc: value.desc.clone(),
-                    //md5:Some(value.md5.clone()),
-                    //content:Some(value.content.clone()),
-                    ..Default::default()
-                };
-                if param.query_context {
-                    info.content = Some(value.content.clone());
-                    info.md5 = Some(value.md5.clone());
+                // Filter by desc if like_desc is specified
+                if let Some(like_desc) = &param.like_desc {
+                    if let Some(desc) = &value.desc {
+                        // Fuzzy match: check if like_desc is contained in desc
+                        if StringUtils::like(desc.as_str(), like_desc).is_none() {
+                            continue;
+                        }
+                    } else {
+                        // No desc but search term provided - skip this config
+                        continue;
+                    }
                 }
-                info_list.push(info);
+
+                total_count += 1;
+
+                // Apply pagination: only include items within offset/limit range
+                if total_count > param.offset && total_count <= end_index {
+                    let mut info = ConfigInfoDto {
+                        tenant: item.tenant.clone(),
+                        group: item.group.clone(),
+                        data_id: item.data_id.clone(),
+                        desc: value.desc.clone(),
+                        ..Default::default()
+                    };
+                    if param.query_context {
+                        info.content = Some(value.content.clone());
+                        info.md5 = Some(value.md5.clone());
+                    }
+                    info_list.push(info);
+                }
             }
         }
-        (size, info_list)
+        (total_count, info_list)
     }
 
     pub fn get_config_info_by_keys(&self, keys: &[ConfigKey]) -> (usize, Vec<ConfigInfoDto>) {

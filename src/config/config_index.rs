@@ -18,6 +18,7 @@ pub struct ConfigQueryParam {
     pub data_id: Option<Arc<String>>,
     pub like_group: Option<String>,
     pub like_data_id: Option<String>,
+    pub like_desc: Option<String>,
     pub namespace_privilege: NamespacePrivilegeGroup,
     pub query_context: bool,
     pub offset: usize,
