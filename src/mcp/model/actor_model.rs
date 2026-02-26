@@ -16,6 +16,8 @@ pub enum McpManagerReq {
     QueryServerHistory(u64, usize, usize, Option<i64>, Option<i64>),
     GetToolSpec(ToolKey),
     QueryToolSpec(McpToolSpecQueryParam),
+    /// 刷新所有服务引用的工具到最新版本
+    RefreshAllServerTools,
 }
 
 /// MCP 查询结果
@@ -26,6 +28,8 @@ pub enum McpManagerResult {
     ServerHistoryPageInfo(usize, Vec<McpServerValue>),
     ToolSpecInfo(Option<Arc<ToolSpec>>),
     ToolSpecPageInfo(usize, Vec<ToolSpecDto>),
+    /// 刷新工具结果: (更新的服务数量, 跳过的不需要更新的服务数量)
+    RefreshResult(usize, usize),
     None,
 }
 

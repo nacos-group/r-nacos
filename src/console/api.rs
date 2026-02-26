@@ -412,6 +412,10 @@ pub fn console_api_config_v2(config: &mut web::ServiceConfig) {
             .service(
                 web::resource("/mcp/server/import")
                     .route(web::post().to(v2::mcp_server_api::import_mcp_servers)),
+            )
+            .service(
+                web::resource("/mcp/server/update_tools")
+                    .route(web::post().to(v2::mcp_server_api::update_tools)),
             ),
     );
 }

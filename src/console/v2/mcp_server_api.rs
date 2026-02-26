@@ -842,3 +842,30 @@ async fn update_mcp_server_for_import(
         )),
     }
 }
+
+/// 刷新所有服务引用的工具到最新版本
+pub async fn update_tools(
+    _req: HttpRequest,
+    appdata: web::Data<Arc<AppShareData>>,
+) -> impl Responder {
+    // 发送刷新请求到MCP Manager
+    let cmd = McpManagerReq::RefreshAllServerTools;
+    match appdata.mcp_manager.send(cmd).await {
+        Ok(res) => match res {
+            Ok(McpManagerResult::RefreshResult(updated_count, skipped_count)) => {
+                let message = format!(
+                    "工具刷新完成: 更新了 {} 个服务，跳过了 {} 个服务",
+                    updated_count, skipped_count
+                );
+                log::info!("{}", message);
+                HttpResponse::Ok().json(ApiResult::success(Some(message)))
+            }
+            Ok(_) => handle_unexpected_response_error("MCP Manager refresh tools"),
+            Err(err) => handle_mcp_manager_error(err, "refresh tools"),
+        },
+        Err(err) => handle_system_error(
+            format!("Unable to connect to MCP Manager: {}", err),
+            "Failed to send refresh tools request to MCP Manager",
+        ),
+    }
+}

@@ -255,6 +255,65 @@ impl McpManager {
         Ok(())
     }
 
+    /// 刷新所有服务引用的工具到最新版本
+    /// 返回: (更新的服务数量, 跳过的服务数量)
+    fn refresh_all_server_tools(&mut self) -> (usize, usize) {
+        let mut updated_count = 0;
+        let mut skipped_count = 0;
+
+        for server in self.server_map.values_mut() {
+            let mut server_updated = false;
+
+            // 检查并刷新 current_value
+            if self.refresh_server_value_tools(&mut server.as_ref().to_owned().current_value) {
+                server_updated = true;
+            }
+
+            // 检查并刷新 release_value
+            if self.refresh_server_value_tools(&mut server.as_ref().to_owned().release_value) {
+                server_updated = true;
+            }
+
+            if server_updated {
+                // 更新 server_map 中的服务
+                let server_clone = server.as_ref().clone();
+                self.server_map.insert(server_clone.id, Arc::new(server_clone));
+                updated_count += 1;
+            } else {
+                skipped_count += 1;
+            }
+        }
+
+        // 重建引用计数
+        self.init_tool_spec_version_ref_map();
+
+        (updated_count, skipped_count)
+    }
+
+    /// 刷新单个服务值中的工具引用到最新版本
+    /// 返回: 是否进行了更新
+    fn refresh_server_value_tools(&self, server_value: &mut McpServerValue) -> bool {
+        let mut updated = false;
+
+        for tool in &mut server_value.tools {
+            if let Some(tool_spec) = self.tool_spec_map.get(&tool.tool_key) {
+                let latest_version = tool_spec.current_version;
+                if tool.tool_version != latest_version {
+                    log::info!(
+                        "Updating tool {} from version {} to latest version {}",
+                        tool.tool_key.tool_name.as_str(),
+                        tool.tool_version,
+                        latest_version
+                    );
+                    tool.tool_version = latest_version;
+                    updated = true;
+                }
+            }
+        }
+
+        updated
+    }
+
     fn set_tool_spec(&mut self, tool_spec: Arc<ToolSpec>) {
         self.tool_spec_map.insert(tool_spec.key.clone(), tool_spec);
     }
@@ -546,6 +605,15 @@ impl Handler<McpManagerReq> for McpManager {
             McpManagerReq::QueryToolSpec(query_param) => {
                 let (size, list) = self.query_tool_specs(&query_param);
                 Ok(McpManagerResult::ToolSpecPageInfo(size, list))
+            }
+            McpManagerReq::RefreshAllServerTools => {
+                let (updated_count, skipped_count) = self.refresh_all_server_tools();
+                log::info!(
+                    "RefreshAllServerTools: updated={}, skipped={}",
+                    updated_count,
+                    skipped_count
+                );
+                Ok(McpManagerResult::RefreshResult(updated_count, skipped_count))
             }
         }
     }
