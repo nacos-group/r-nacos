@@ -8,6 +8,7 @@ use crate::metrics::metrics_key::MetricsKey;
 use crate::metrics::model::{MetricsItem, MetricsRecord, MetricsRequest};
 use crate::raft::cache::model::{CacheKey, CacheType};
 use crate::raft::cluster::model::{RouterRequest, RouterResponse};
+use crate::user::permission::UserRole;
 use actix::Addr;
 use actix_http::body::EitherBody;
 use actix_http::HttpMessage;
@@ -108,20 +109,28 @@ where
             } else {
                 EMPTY_ARC_STRING.clone()
             };
-            let pass = if !enable_auth || !is_check_path {
-                true
+            let (pass, visitor_forbidden) = if !enable_auth || !is_check_path {
+                (true, false)
             } else if token.is_empty() {
-                false
+                (false, false)
             } else if let Ok(Some(session)) = get_user_session(
                 &app_share_data,
                 CacheKey::new(CacheType::ApiTokenSession, token.clone()),
             )
             .await
             {
-                request.extensions_mut().insert(session);
-                true
+                // Check if visitor is attempting a write operation (POST/PUT/DELETE)
+                let method = request.method().as_str();
+                let is_write = matches!(method, "POST" | "PUT" | "DELETE");
+                let is_visitor_only = is_only_visitor_role(&session.roles);
+                if is_write && is_visitor_only {
+                    (false, true)
+                } else {
+                    request.extensions_mut().insert(session);
+                    (true, false)
+                }
             } else {
-                false
+                (false, false)
             };
             //log::info!( "open api auth: {}|{}|{}|{}|{}|{}", &token, open_auth, is_check_path, pass, request.path(), request.query_string() );
             if pass {
@@ -141,9 +150,13 @@ where
                     ServiceResponse::map_into_left_body(item)
                 })
             } else {
-                //没有登录
-                let body=format!("{{\"timestamp\":\"{}\",\"status\":403,\"error\":\"Forbidden\",\"message\":\"unknown user!\",\"path\":\"{}\"}}"
-                                 ,datetime_utils::get_now_timestamp_str(offset),request.path());
+                let forbidden_msg = if visitor_forbidden {
+                    "visitor role has no write permission!"
+                } else {
+                    "unknown user!"
+                };
+                let body=format!("{{\"timestamp\":\"{}\",\"status\":403,\"error\":\"Forbidden\",\"message\":\"{}\",\"path\":\"{}\"}}"
+                                 ,datetime_utils::get_now_timestamp_str(offset),forbidden_msg,request.path());
                 let response = HttpResponse::Forbidden()
                     .insert_header(("Content-Type", "application/json;charset=UTF-8"))
                     .body(body)
@@ -227,6 +240,21 @@ async fn get_user_session(
             Ok(None)
         }
     }
+}
+
+/// Check if the user only has the visitor role (no higher privilege role).
+fn is_only_visitor_role(roles: &[Arc<String>]) -> bool {
+    if roles.is_empty() {
+        return false;
+    }
+    for role in roles {
+        let user_role = UserRole::new(role.as_str());
+        match user_role {
+            UserRole::Manager | UserRole::Developer => return false,
+            _ => {}
+        }
+    }
+    true
 }
 
 fn record_req_metrics(metrics_manager: &Addr<MetricsManager>, duration: f64, _success: bool) {
