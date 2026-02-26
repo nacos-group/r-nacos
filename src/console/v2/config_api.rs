@@ -1,9 +1,13 @@
 use crate::common::appdata::AppShareData;
 use crate::common::model::{ApiResult, PageResult, UserSession};
-use crate::config::core::{ConfigActor, ConfigCmd, ConfigResult};
+use crate::config::core::{ConfigActor, ConfigCmd, ConfigKey, ConfigResult};
 pub use crate::console::config_api::{download_config, import_config};
-use crate::console::model::config_model::{ConfigInfo, ConfigParams, OpsConfigQueryListRequest};
-use crate::console::v2::ERROR_CODE_SYSTEM_ERROR;
+use crate::console::model::config_model::{
+    CloneConfigRequest, ConfigInfo, ConfigParams, OpsConfigQueryListRequest,
+};
+use crate::console::v2::{ERROR_CODE_PARAM_ERROR, ERROR_CODE_SYSTEM_ERROR};
+use crate::config::config_index::ConfigQueryParam;
+use crate::config::ConfigUtils;
 use crate::raft::cluster::model::{DelConfigReq, SetConfigReq};
 use crate::{user_namespace_privilege, user_no_namespace_permission};
 use actix::Addr;
@@ -172,4 +176,93 @@ pub async fn remove_config(
             None,
         ))
     }
+}
+
+/// 跨命名空间克隆配置
+pub async fn clone_config(
+    req: HttpRequest,
+    appdata: Data<Arc<AppShareData>>,
+    web::Json(param): web::Json<CloneConfigRequest>,
+    config_addr: web::Data<Addr<ConfigActor>>,
+) -> impl Responder {
+    let namespace_privilege = user_namespace_privilege!(req);
+
+    // 解析源命名空间和目标命名空间
+    let source_tenant = Arc::new(ConfigUtils::default_tenant(
+        param.source_tenant.unwrap_or_default(),
+    ));
+    let target_tenant = Arc::new(ConfigUtils::default_tenant(param.target_tenant));
+
+    if source_tenant == target_tenant {
+        return HttpResponse::Ok().json(ApiResult::<()>::error(
+            ERROR_CODE_PARAM_ERROR.to_string(),
+            Some("source and target namespace cannot be the same".to_string()),
+        ));
+    }
+
+    // 检查源命名空间和目标命名空间的权限
+    if !namespace_privilege.check_permission(&source_tenant) {
+        user_no_namespace_permission!(&source_tenant);
+    }
+    if !namespace_privilege.check_permission(&target_tenant) {
+        user_no_namespace_permission!(&target_tenant);
+    }
+
+    let op_user = req
+        .extensions()
+        .get::<Arc<UserSession>>()
+        .map(|session| session.username.clone());
+
+    // 查询源命名空间的配置列表
+    let query_param = ConfigQueryParam {
+        tenant: Some(source_tenant),
+        like_group: param.group,
+        like_data_id: param.data_id,
+        query_context: true,
+        offset: 0,
+        limit: 0xffff_ffff,
+        namespace_privilege: namespace_privilege.clone(),
+        ..Default::default()
+    };
+    let cmd = ConfigCmd::QueryPageInfo(Box::new(query_param));
+    let list = match config_addr.send(cmd).await {
+        Ok(Ok(ConfigResult::ConfigInfoPage(_size, list))) => list,
+        _ => {
+            return HttpResponse::Ok().json(ApiResult::<()>::error(
+                ERROR_CODE_SYSTEM_ERROR.to_string(),
+                Some("failed to query source namespace configs".to_string()),
+            ));
+        }
+    };
+
+    // 逐个写入目标命名空间
+    let mut success_count = 0u32;
+    let mut skip_count = 0u32;
+    for item in &list {
+        let config_key = ConfigKey::new_by_arc(
+            item.data_id.clone(),
+            item.group.clone(),
+            target_tenant.clone(),
+        );
+        let value = match &item.content {
+            Some(v) => v.clone(),
+            None => {
+                skip_count += 1;
+                continue;
+            }
+        };
+        let mut set_req = SetConfigReq::new(config_key, value);
+        set_req.desc = item.desc.clone();
+        set_req.config_type = SetConfigReq::detect_config_type(item.data_id.clone());
+        set_req.op_user = op_user.clone();
+        match appdata.config_route.set_config(set_req).await {
+            Ok(_) => success_count += 1,
+            Err(_) => skip_count += 1,
+        }
+    }
+
+    HttpResponse::Ok().json(ApiResult::success(Some(serde_json::json!({
+        "successCount": success_count,
+        "skipCount": skip_count,
+    }))))
 }

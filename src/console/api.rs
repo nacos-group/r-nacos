@@ -288,6 +288,10 @@ pub fn console_api_config_v2(config: &mut web::ServiceConfig) {
                     .route(web::post().to(v2::config_api::remove_config)),
             )
             .service(
+                web::resource("/config/clone")
+                    .route(web::post().to(v2::config_api::clone_config)),
+            )
+            .service(
                 web::resource("/config/history")
                     .route(web::get().to(v2::config_api::query_history_config_page)),
             )

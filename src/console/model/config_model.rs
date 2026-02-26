@@ -106,6 +106,19 @@ impl ConfigParams {
 
 #[derive(Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
+pub struct CloneConfigRequest {
+    /// 源命名空间
+    pub source_tenant: Option<String>,
+    /// 目标命名空间
+    pub target_tenant: String,
+    /// 可选的 group 过滤
+    pub group: Option<String>,
+    /// 可选的 data_id 过滤
+    pub data_id: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
 pub struct ConfigInfo {
     pub value: Option<Arc<String>>,
     pub md5: Option<Arc<String>>,
