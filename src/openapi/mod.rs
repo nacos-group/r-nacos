@@ -3,7 +3,7 @@ use actix_web::web::{scope, ServiceConfig};
 use crate::common::AppSysConfig;
 use crate::openapi::config::config_v1_route;
 use crate::openapi::constant::NACOS_PREFIX;
-use crate::openapi::naming::naming_v1_route;
+use crate::openapi::naming::{naming_v1_route, naming_v2_route};
 
 pub(crate) mod auth;
 pub(crate) mod backup;
@@ -73,4 +73,5 @@ fn openapi_service(conf: RouteConf) -> impl FnOnce(&mut ServiceConfig) {
 pub fn openapi_route_config(config: &mut ServiceConfig) {
     config_v1_route(config);
     naming_v1_route(config);
+    naming_v2_route(config);
 }
