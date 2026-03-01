@@ -19,10 +19,7 @@ pub fn select_option_by_clone<T>(a: &Option<T>, b: &Option<T>) -> Option<T>
 where
     T: Clone,
 {
-    match a {
-        Some(_a) => Some(_a.clone()),
-        None => b.clone(),
-    }
+    a.as_ref().cloned().or_else(|| b.clone())
 }
 
 pub fn option_owned_by_clone<T>(a: Option<&T>) -> Option<T>
@@ -33,10 +30,7 @@ where
 }
 
 pub fn merge_option<T>(a: Option<T>, b: Option<T>) -> Option<T> {
-    match a {
-        Some(v) => Some(v),
-        None => b,
-    }
+    a.or(b)
 }
 
 pub fn get_bool_from_string(s: &Option<String>, default: bool) -> bool {
