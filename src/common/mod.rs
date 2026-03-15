@@ -72,7 +72,9 @@ pub struct AppSysConfig {
     pub local_db_dir: String,
     pub config_max_content: usize,
     pub http_port: u16,
+    pub sdk_host: String,
     pub http_console_port: u16,
+    pub console_host: String,
     pub enable_no_auth_console: bool,
     pub http_workers: Option<usize>,
     pub grpc_port: u16,
@@ -139,6 +141,7 @@ impl AppSysConfig {
             .unwrap_or("8848".to_owned())
             .parse()
             .unwrap_or(8848);
+        let sdk_host = std::env::var("RNACOS_SDK_HOST").unwrap_or("0.0.0.0".to_owned());
         let http_workers = std::env::var("RNACOS_HTTP_WORKERS")
             .unwrap_or("".to_owned())
             .parse()
@@ -151,6 +154,8 @@ impl AppSysConfig {
             .unwrap_or("".to_owned())
             .parse()
             .unwrap_or(http_port + 2000);
+        let console_host =
+            std::env::var("RNACOS_CONSOLE_HOST").unwrap_or_else(|_| sdk_host.clone());
         let run_in_docker = std::env::var("RNACOS_RUN_IN_DOCKER")
             .unwrap_or("".to_owned())
             .eq_ignore_ascii_case("true");
@@ -363,7 +368,9 @@ impl AppSysConfig {
             config_db_file,
             config_max_content,
             http_port,
+            sdk_host,
             http_console_port,
+            console_host,
             enable_no_auth_console,
             grpc_port,
             http_workers,
@@ -440,15 +447,15 @@ impl AppSysConfig {
     }
 
     pub fn get_grpc_addr(&self) -> String {
-        format!("0.0.0.0:{}", &self.grpc_port)
+        format!("{}:{}", &self.sdk_host, &self.grpc_port)
     }
 
     pub fn get_http_addr(&self) -> String {
-        format!("0.0.0.0:{}", &self.http_port)
+        format!("{}:{}", &self.sdk_host, &self.http_port)
     }
 
     pub fn get_http_console_addr(&self) -> String {
-        format!("0.0.0.0:{}", &self.http_console_port)
+        format!("{}:{}", &self.console_host, &self.http_console_port)
     }
 
     pub fn get_ldap_config(&self) -> Arc<LdapConfig> {

@@ -172,8 +172,10 @@ helm install r-nacos rnacos/rnacos
 | 参数KEY|内容描述|默认值|示例|开始支持的版本|
 |--|--|--|--|--|
 |RNACOS_HTTP_PORT|r-nacos监听http端口|8848|8848|0.1.x|
+|RNACOS_SDK_HOST|r-nacos监听http和grpc地址|0.0.0.0|127.0.0.1,[::1]|0.8.1|
 |RNACOS_GRPC_PORT|r-nacos监听grpc端口|默认是 HTTP端口+1000|9848|0.1.x|
 |RNACOS_HTTP_CONSOLE_PORT|r-nacos独立控制台端口|默认是 HTTP端口+2000;设置为0可不开启独立控制台|10848|0.4.x|
+|RNACOS_CONSOLE_HOST|r-nacos独立控制台地址|默认与RNACOS_SDK_HOST一致|127.0.0.1,[::1]|0.8.1|
 |RNACOS_CONSOLE_LOGIN_ONE_HOUR_LIMIT|r-nacos控制台登录1小时失败次数限制|默认是5,一个用户连续登陆失败5次，会被锁定1个小时|5|0.4.x|
 |RNACOS_HTTP_WORKERS|http工作线程数|cpu核数|8|0.1.x|
 |RNACOS_CONFIG_DB_FILE|配置中心的本地数据库文件地址【0.2.x后不在使用】|config.db|config.db|0.1.x|
