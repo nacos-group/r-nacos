@@ -835,20 +835,15 @@ impl NamingActor {
 
         for (service_key, val) in res {
             for (ip_port, _) in val {
-                let parts: Vec<&str> = ip_port.split(':').collect();
-                if parts.len() == 2 {
-                    if let Ok(port) = parts[1].parse::<u16>() {
-                        let subscriber_info = SubscriberInfoDto {
-                            service_name: service_key.service_name.clone(),
-                            group_name: service_key.group_name.clone(),
-                            namespace_id: service_key.namespace_id.clone(),
-                            ip: Arc::new(parts[0].to_string()),
-                            port,
-                        };
-
-                        ret.push(Arc::new(subscriber_info));
-                    }
-                }
+                let (ip, port) = Subscriber::parse_ip_port(ip_port.as_ref());
+                let subscriber_info = SubscriberInfoDto {
+                    service_name: service_key.service_name.clone(),
+                    group_name: service_key.group_name.clone(),
+                    namespace_id: service_key.namespace_id.clone(),
+                    ip,
+                    port,
+                };
+                ret.push(Arc::new(subscriber_info));
             }
         }
 

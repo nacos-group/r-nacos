@@ -235,16 +235,22 @@ impl Subscriber {
         (index, rlist)
     }
 
-    fn parse_ip_port(ip_port: &str) -> (Arc<String>, u16) {
-        let parts: Vec<&str> = ip_port.split(':').collect();
-        let mut ip = EMPTY_ARC_STRING.clone();
-        let mut port = 0;
-        if parts.len() == 2 {
-            ip = Arc::new(parts[0].to_string());
-            if let Ok(p) = parts[1].parse::<u16>() {
-                port = p;
+    pub(crate) fn parse_ip_port(ip_port: &str) -> (Arc<String>, u16) {
+        let start_idx = ip_port.find('_');
+        let (ip_str, port_str): (&str, &str) = if let Some(colon_pos) = ip_port.rfind(':') {
+            if let Some(idx) = start_idx {
+                if idx < colon_pos {
+                    (&ip_port[idx + 1..colon_pos], &ip_port[colon_pos + 1..])
+                } else {
+                    (&ip_port[..colon_pos], &ip_port[colon_pos + 1..])
+                }
+            } else {
+                (&ip_port[..colon_pos], &ip_port[colon_pos + 1..])
             }
-        }
-        (ip, port)
+        } else {
+            ("", "")
+        };
+        let port = port_str.parse::<u16>().unwrap_or(0);
+        (Arc::new(ip_str.to_string()), port)
     }
 }
