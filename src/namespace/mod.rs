@@ -160,7 +160,7 @@ impl NamespaceActor {
     }
 
     fn set_weak_namespace(&mut self, namespace_id: Arc<String>, from_type: WeakNamespaceFromType) {
-        if namespace_id.is_empty() {
+        if namespace_id.is_empty() || namespace_id.as_str() == DEFAULT_NAMESPACE {
             return;
         }
         if let Some(v) = self.data.get(&namespace_id) {
