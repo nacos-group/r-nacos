@@ -151,13 +151,17 @@ pub fn app_without_no_auth_console_config(config: &mut ServiceConfig) {
 
 pub fn nacos_console_api_config(config: &mut ServiceConfig) {
     config.service(
-        web::scope("/nacos/v1/console").service(
-            web::resource("/namespaces")
-                .route(web::get().to(nacos_console::namespace::query_namespace_list))
-                .route(web::post().to(nacos_console::namespace::add_namespace))
-                .route(web::put().to(nacos_console::namespace::update_namespace))
-                .route(web::delete().to(nacos_console::namespace::remove_namespace)),
-        ),
+        web::scope("/nacos/v1/console")
+            .service(
+                web::resource("/namespaces")
+                    .route(web::get().to(nacos_console::namespace::query_namespace_list))
+                    .route(web::post().to(nacos_console::namespace::add_namespace))
+                    .route(web::put().to(nacos_console::namespace::update_namespace))
+                    .route(web::delete().to(nacos_console::namespace::remove_namespace)),
+            )
+            .service(
+                web::resource("/health/readiness").route(web::get().to(nacos_console::readiness)),
+            ),
     );
 
     config.service(
