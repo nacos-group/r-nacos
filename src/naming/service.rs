@@ -392,11 +392,23 @@ impl Service {
 
     pub(crate) fn get_instance_list(
         &self,
-        _cluster_names: Vec<String>,
+        cluster_names: Vec<String>,
         only_healthy: bool,
         only_enable: bool,
     ) -> Vec<Arc<Instance>> {
-        self.get_all_instances(only_healthy, only_enable)
+        if cluster_names.is_empty() {
+            self.get_all_instances(only_healthy, only_enable)
+        } else {
+            self.instances
+                .values()
+                .filter(|x| {
+                    (x.enabled || !only_enable)
+                        && (x.healthy || !only_healthy)
+                        && cluster_names.contains(&x.cluster_name)
+                })
+                .cloned()
+                .collect::<Vec<_>>()
+        }
     }
 
     pub fn get_service_key(&self) -> ServiceKey {
