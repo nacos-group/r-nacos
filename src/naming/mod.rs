@@ -3,6 +3,7 @@ use std::collections::HashMap;
 pub mod api_model;
 pub mod core;
 pub(crate) mod filter;
+pub mod instance_meta_manager;
 pub mod instance_meta_repository;
 pub mod listener;
 pub mod model;
