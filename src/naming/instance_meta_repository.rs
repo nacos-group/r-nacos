@@ -6,6 +6,7 @@ use crate::common::protobuf_utils::FileMessageReader;
 use crate::naming::model::{InstanceShortKey, ServiceKey};
 use quick_protobuf::MessageRead;
 use tokio::io::AsyncWriteExt;
+use uuid::Uuid;
 
 const FILE_MAP_NAME: &str = "file_map";
 
@@ -219,5 +220,21 @@ impl InstanceMetaRepository {
         }
 
         Ok(records)
+    }
+
+    pub async fn update_metadata(
+        &mut self,
+        service_key: &ServiceKey,
+        records: Vec<InstanceMetaDto>,
+    ) -> anyhow::Result<()> {
+        if let Some(file_name) = self.file_map.get(service_key) {
+            self.write_records_to_file(file_name, &records).await?;
+        } else {
+            let file_name = Uuid::new_v4().simple().to_string();
+            self.write_records_to_file(&file_name, &records).await?;
+            self.file_map.insert(service_key.clone(), file_name);
+            self.save_file_map().await?;
+        }
+        Ok(())
     }
 }
