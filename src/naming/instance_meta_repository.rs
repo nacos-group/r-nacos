@@ -155,8 +155,6 @@ impl InstanceMetaRepository {
                 let mut writer = quick_protobuf::Writer::new(&mut buf);
                 writer.write_message(&file_do)?;
             }
-            let len_buf = crate::common::protobuf_utils::write_varint64(buf.len() as u64);
-            file.write_all(&len_buf).await?;
             file.write_all(&buf).await?;
         }
 
@@ -180,8 +178,6 @@ impl InstanceMetaRepository {
                 let mut writer = quick_protobuf::Writer::new(&mut buf);
                 writer.write_message(&proto)?;
             }
-            let len_buf = crate::common::protobuf_utils::write_varint64(buf.len() as u64);
-            file.write_all(&len_buf).await?;
             file.write_all(&buf).await?;
         }
 
