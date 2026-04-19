@@ -2,7 +2,12 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::common::pb::service_meta;
+use crate::common::protobuf_utils::FileMessageReader;
 use crate::naming::model::{InstanceShortKey, ServiceKey};
+use quick_protobuf::MessageRead;
+use tokio::io::AsyncWriteExt;
+
+const FILE_MAP_NAME: &str = "file_map";
 
 #[derive(Debug, Clone)]
 pub struct InstanceMetaDto {
@@ -86,5 +91,76 @@ impl From<InstanceMetaDoOwned> for InstanceMetaDto {
             },
             metadata: Arc::new(value.metadata),
         }
+    }
+}
+
+#[derive(Debug)]
+pub struct InstanceMetaRepository {
+    base_path: String,
+    file_map: HashMap<ServiceKey, String>,
+}
+
+impl InstanceMetaRepository {
+    pub async fn new(base_path: String) -> anyhow::Result<Self> {
+        tokio::fs::create_dir_all(&base_path).await?;
+        let mut repository = Self {
+            base_path,
+            file_map: HashMap::new(),
+        };
+        repository.load_file_map().await?;
+        Ok(repository)
+    }
+
+    async fn load_file_map(&mut self) -> anyhow::Result<()> {
+        let file_map_path = format!("{}/{}", self.base_path, FILE_MAP_NAME);
+        let file = match tokio::fs::File::open(&file_map_path).await {
+            Ok(f) => f,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                log::info!("file_map not found, init empty map");
+                return Ok(());
+            }
+            Err(e) => return Err(e.into()),
+        };
+
+        let mut reader = FileMessageReader::new(file, 0);
+        while let Ok(data_buf) = reader.read_next().await {
+            let mut bytes_reader = quick_protobuf::BytesReader::from_bytes(&data_buf);
+            let file_do = service_meta::InstanceFileDo::from_reader(&mut bytes_reader, &data_buf)?;
+            let service_key = ServiceKey::new(
+                &file_do.namespace_id.to_string(),
+                &file_do.group_name.to_string(),
+                &file_do.service_name.to_string(),
+            );
+            let file_name = file_do.file_name.to_string();
+            self.file_map.insert(service_key, file_name);
+        }
+        Ok(())
+    }
+
+    async fn save_file_map(&self) -> anyhow::Result<()> {
+        let file_map_path = format!("{}/{}", self.base_path, FILE_MAP_NAME);
+        let temp_path = format!("{}.tmp", file_map_path);
+        let mut file = tokio::fs::File::create(&temp_path).await?;
+
+        for (service_key, file_name) in &self.file_map {
+            let file_do = service_meta::InstanceFileDo {
+                namespace_id: service_key.namespace_id.as_str().into(),
+                group_name: service_key.group_name.as_str().into(),
+                service_name: service_key.service_name.as_str().into(),
+                file_name: file_name.as_str().into(),
+            };
+            let mut buf = Vec::new();
+            {
+                let mut writer = quick_protobuf::Writer::new(&mut buf);
+                writer.write_message(&file_do)?;
+            }
+            let len_buf = crate::common::protobuf_utils::write_varint64(buf.len() as u64);
+            file.write_all(&len_buf).await?;
+            file.write_all(&buf).await?;
+        }
+
+        file.flush().await?;
+        tokio::fs::rename(&temp_path, &file_map_path).await?;
+        Ok(())
     }
 }
