@@ -237,4 +237,20 @@ impl InstanceMetaRepository {
         }
         Ok(())
     }
+
+    pub async fn remove_metadata(
+        &mut self,
+        service_keys: &[ServiceKey],
+    ) -> anyhow::Result<()> {
+        for service_key in service_keys {
+            if let Some(file_name) = self.file_map.remove(service_key) {
+                let file_path = format!("{}/{}", self.base_path, file_name);
+                if let Err(e) = tokio::fs::remove_file(&file_path).await {
+                    log::warn!("failed to remove file {}: {}", file_path, e);
+                }
+            }
+        }
+        self.save_file_map().await?;
+        Ok(())
+    }
 }
