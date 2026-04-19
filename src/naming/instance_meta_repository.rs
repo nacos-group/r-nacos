@@ -112,6 +112,10 @@ impl InstanceMetaRepository {
         Ok(repository)
     }
 
+    pub fn base_path(&self) -> &str {
+        &self.base_path
+    }
+
     async fn load_file_map(&mut self) -> anyhow::Result<()> {
         let file_map_path = format!("{}/{}", self.base_path, FILE_MAP_NAME);
         let mut file = match tokio::fs::File::open(&file_map_path).await {

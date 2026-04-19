@@ -241,15 +241,13 @@ impl Handler<InstanceMetaManagerReq> for InstanceMetaManager {
                 service_key,
                 records,
             } => {
-                let use_repo_0 = self.current_survivor == 0;
-                let s0_ptr = &mut self.survivor_repo_0 as *mut InstanceMetaRepository;
-                let s1_ptr = &mut self.survivor_repo_1 as *mut InstanceMetaRepository;
+                let repo_base_path = if self.current_survivor == 0 {
+                    self.survivor_repo_0.base_path().to_string()
+                } else {
+                    self.survivor_repo_1.base_path().to_string()
+                };
                 let fut = async move {
-                    let repo = if use_repo_0 {
-                        unsafe { &mut *s0_ptr }
-                    } else {
-                        unsafe { &mut *s1_ptr }
-                    };
+                    let mut repo = InstanceMetaRepository::new(repo_base_path).await?;
                     repo.update_metadata(&service_key, records).await
                 }
                 .into_actor(self)
@@ -257,15 +255,13 @@ impl Handler<InstanceMetaManagerReq> for InstanceMetaManager {
                 Box::pin(fut)
             }
             InstanceMetaManagerReq::RemoveServiceMeta { service_keys } => {
-                let use_repo_0 = self.current_survivor == 0;
-                let s0_ptr = &mut self.survivor_repo_0 as *mut InstanceMetaRepository;
-                let s1_ptr = &mut self.survivor_repo_1 as *mut InstanceMetaRepository;
+                let repo_base_path = if self.current_survivor == 0 {
+                    self.survivor_repo_0.base_path().to_string()
+                } else {
+                    self.survivor_repo_1.base_path().to_string()
+                };
                 let fut = async move {
-                    let repo = if use_repo_0 {
-                        unsafe { &mut *s0_ptr }
-                    } else {
-                        unsafe { &mut *s1_ptr }
-                    };
+                    let mut repo = InstanceMetaRepository::new(repo_base_path).await?;
                     repo.remove_metadata(&service_keys).await
                 }
                 .into_actor(self)
