@@ -1,6 +1,5 @@
 use actix::prelude::*;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 use tokio::io::AsyncWriteExt;
 
 use crate::naming::instance_meta_repository::InstanceMetaDto;
