@@ -4,7 +4,7 @@ use tokio::io::AsyncWriteExt;
 
 use crate::naming::instance_meta_repository::InstanceMetaDto;
 use crate::naming::instance_meta_repository::InstanceMetaRepository;
-use crate::naming::model::ServiceKey;
+use crate::naming::model::{InstanceShortKey, ServiceKey};
 
 const META_FILE_NAME: &str = "meta";
 const SURVIVOR_DIR_S0: &str = "s0";
@@ -290,5 +290,448 @@ impl Handler<InstanceMetaManagerReq> for InstanceMetaManager {
                 Box::pin(fut)
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use actix::Actor;
+    use std::collections::HashMap;
+    use std::sync::Arc;
+
+    fn build_meta_dto(
+        namespace_id: &str,
+        group_name: &str,
+        service_name: &str,
+        ip: &str,
+        port: u32,
+        metadata: HashMap<String, String>,
+    ) -> InstanceMetaDto {
+        InstanceMetaDto::new(
+            ServiceKey::new(namespace_id, group_name, service_name),
+            InstanceShortKey::new(Arc::new(ip.to_owned()), port),
+            Arc::new(metadata),
+        )
+    }
+
+    #[tokio::test]
+    async fn test_constructor_initialization() {
+        let dir = tempfile::tempdir().unwrap();
+        let parent_url = dir.path().to_str().unwrap().to_owned();
+
+        let manager = InstanceMetaManager::new(parent_url.clone())
+            .await
+            .unwrap();
+
+        assert_eq!(manager.parent_url, parent_url);
+        assert_eq!(manager.current_survivor, 0);
+
+        let s0_path = format!("{}/{}", parent_url, SURVIVOR_DIR_S0);
+        let s1_path = format!("{}/{}", parent_url, SURVIVOR_DIR_S1);
+        assert!(tokio::fs::metadata(&s0_path).await.is_ok());
+        assert!(tokio::fs::metadata(&s1_path).await.is_ok());
+
+        let meta_path = format!("{}/{}", parent_url, META_FILE_NAME);
+        assert!(tokio::fs::metadata(&meta_path).await.is_ok());
+
+        let meta_content = tokio::fs::read_to_string(&meta_path).await.unwrap();
+        let meta_info: InstanceMetaInfo = serde_json::from_str(&meta_content).unwrap();
+        assert_eq!(meta_info.version, DEFAULT_VERSION);
+        assert_eq!(meta_info.current_survivor, 0);
+    }
+
+    #[tokio::test]
+    async fn test_meta_file_exists_and_valid() {
+        let dir = tempfile::tempdir().unwrap();
+        let parent_url = dir.path().to_str().unwrap().to_owned();
+
+        let manager = InstanceMetaManager::new(parent_url.clone())
+            .await
+            .unwrap();
+        let loaded_meta = manager.load_meta().await;
+
+        assert_eq!(loaded_meta.version, DEFAULT_VERSION);
+        assert_eq!(loaded_meta.current_survivor, 0);
+    }
+
+    #[tokio::test]
+    async fn test_meta_file_not_exists() {
+        let dir = tempfile::tempdir().unwrap();
+        let parent_url = dir.path().to_str().unwrap().to_owned();
+
+        let manager = InstanceMetaManager::new(parent_url.clone())
+            .await
+            .unwrap();
+
+        tokio::fs::remove_file(format!("{}/{}", parent_url, META_FILE_NAME))
+            .await
+            .unwrap();
+
+        let loaded_meta = manager.load_meta().await;
+        assert_eq!(loaded_meta.version, DEFAULT_VERSION);
+        assert_eq!(loaded_meta.current_survivor, 0);
+    }
+
+    #[tokio::test]
+    async fn test_meta_file_invalid_format() {
+        let dir = tempfile::tempdir().unwrap();
+        let parent_url = dir.path().to_str().unwrap().to_owned();
+
+        let meta_path = format!("{}/{}", parent_url, META_FILE_NAME);
+        tokio::fs::write(&meta_path, "invalid json content")
+            .await
+            .unwrap();
+
+        let manager = InstanceMetaManager::new(parent_url.clone())
+            .await
+            .unwrap();
+        let loaded_meta = manager.load_meta().await;
+
+        assert_eq!(loaded_meta.version, DEFAULT_VERSION);
+        assert_eq!(loaded_meta.current_survivor, 0);
+    }
+
+    #[test]
+    fn test_survivor_repo_switch() {
+        let dir = tempfile::tempdir().unwrap();
+        let parent_url = dir.path().to_str().unwrap().to_owned();
+
+        System::new().block_on(async move {
+            let manager = InstanceMetaManager::new(parent_url.clone())
+                .await
+                .unwrap();
+            let addr = manager.start();
+
+            let meta_path = format!("{}/{}", parent_url, META_FILE_NAME);
+            let meta_content_before = tokio::fs::read_to_string(&meta_path).await.unwrap();
+            let meta_info_before: InstanceMetaInfo = serde_json::from_str(&meta_content_before).unwrap();
+            let old_survivor = meta_info_before.current_survivor;
+
+            let service_key = ServiceKey::new("public", "DEFAULT", "test-switch");
+            let metadata: HashMap<String, String> = HashMap::new();
+            let dto = build_meta_dto("public", "DEFAULT", "test-switch", "127.0.0.1", 8080, metadata);
+
+            let msg = InstanceMetaManagerReq::UpdateServiceMeta {
+                service_key,
+                records: vec![dto],
+            };
+            let _ = addr.send(msg).await;
+
+            tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+
+            let meta_content_after = tokio::fs::read_to_string(&meta_path).await.unwrap();
+            let meta_info_after: InstanceMetaInfo = serde_json::from_str(&meta_content_after).unwrap();
+
+            assert_eq!(meta_info_after.current_survivor, old_survivor);
+            System::current().stop();
+        });
+    }
+
+    #[test]
+    fn test_update_service_meta_new_service() {
+        let dir = tempfile::tempdir().unwrap();
+        let parent_url = dir.path().to_str().unwrap().to_owned();
+
+        System::new().block_on(async move {
+            let manager = InstanceMetaManager::new(parent_url.clone())
+                .await
+                .unwrap();
+            let addr = manager.start();
+
+            let service_key = ServiceKey::new("public", "DEFAULT", "test-service");
+            let metadata: HashMap<String, String> = {
+                let mut m = HashMap::new();
+                m.insert("version".to_owned(), "1.0.0".to_owned());
+                m.insert("env".to_owned(), "prod".to_owned());
+                m
+            };
+            let dto = build_meta_dto(
+                "public",
+                "DEFAULT",
+                "test-service",
+                "127.0.0.1",
+                8080,
+                metadata.clone(),
+            );
+
+            let msg = InstanceMetaManagerReq::UpdateServiceMeta {
+                service_key: service_key.clone(),
+                records: vec![dto],
+            };
+
+            let result = addr.send(msg).await;
+            assert!(result.is_ok());
+
+            tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+
+            let s0_path = format!("{}/{}", parent_url, SURVIVOR_DIR_S0);
+            let repo = InstanceMetaRepository::new(s0_path).await.unwrap();
+            let records = repo.get_metadata(&service_key).await.unwrap();
+            assert_eq!(records.len(), 1);
+            assert_eq!(records[0].service_key.namespace_id.as_str(), "public");
+            assert_eq!(records[0].service_key.group_name.as_str(), "DEFAULT");
+            assert_eq!(records[0].service_key.service_name.as_str(), "test-service");
+            assert_eq!(records[0].instance_key.ip.as_str(), "127.0.0.1");
+            assert_eq!(records[0].instance_key.port, 8080);
+            assert_eq!(&*records[0].metadata, &metadata);
+            System::current().stop();
+        });
+    }
+
+    #[test]
+    fn test_update_service_meta_overwrite_existing() {
+        let dir = tempfile::tempdir().unwrap();
+        let parent_url = dir.path().to_str().unwrap().to_owned();
+
+        System::new().block_on(async move {
+            let manager = InstanceMetaManager::new(parent_url.clone())
+                .await
+                .unwrap();
+            let addr = manager.start();
+
+            let service_key = ServiceKey::new("ns1", "G1", "svc1");
+            let old_metadata: HashMap<String, String> = {
+                let mut m = HashMap::new();
+                m.insert("old".to_owned(), "data".to_owned());
+                m
+            };
+            let new_metadata: HashMap<String, String> = {
+                let mut m = HashMap::new();
+                m.insert("new".to_owned(), "data".to_owned());
+                m
+            };
+
+            let old_dto = build_meta_dto("ns1", "G1", "svc1", "192.168.1.1", 3000, old_metadata);
+            let msg1 = InstanceMetaManagerReq::UpdateServiceMeta {
+                service_key: service_key.clone(),
+                records: vec![old_dto],
+            };
+            let _ = addr.send(msg1).await;
+
+            tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+
+            let new_dto = build_meta_dto("ns1", "G1", "svc1", "192.168.1.2", 3001, new_metadata.clone());
+            let msg2 = InstanceMetaManagerReq::UpdateServiceMeta {
+                service_key: service_key.clone(),
+                records: vec![new_dto],
+            };
+            let _ = addr.send(msg2).await;
+
+            tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+
+            let s0_path = format!("{}/{}", parent_url, SURVIVOR_DIR_S0);
+            let repo = InstanceMetaRepository::new(s0_path).await.unwrap();
+            let records = repo.get_metadata(&service_key).await.unwrap();
+            assert_eq!(records.len(), 1);
+            assert_eq!(records[0].instance_key.ip.as_str(), "192.168.1.2");
+            assert_eq!(records[0].instance_key.port, 3001);
+            assert_eq!(&*records[0].metadata, &new_metadata);
+            System::current().stop();
+        });
+    }
+
+    #[test]
+    fn test_remove_service_meta_existing() {
+        let dir = tempfile::tempdir().unwrap();
+        let parent_url = dir.path().to_str().unwrap().to_owned();
+
+        System::new().block_on(async move {
+            let manager = InstanceMetaManager::new(parent_url.clone())
+                .await
+                .unwrap();
+            let addr = manager.start();
+
+            let service_key = ServiceKey::new("public", "DEFAULT", "to-remove");
+            let metadata: HashMap<String, String> = HashMap::new();
+            let dto = build_meta_dto("public", "DEFAULT", "to-remove", "10.0.0.1", 9090, metadata);
+
+            let msg1 = InstanceMetaManagerReq::UpdateServiceMeta {
+                service_key: service_key.clone(),
+                records: vec![dto],
+            };
+            let _ = addr.send(msg1).await;
+
+            tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+
+            let msg2 = InstanceMetaManagerReq::RemoveServiceMeta {
+                service_keys: vec![service_key.clone()],
+            };
+            let result = addr.send(msg2).await;
+            assert!(result.is_ok());
+
+            tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+
+            let s0_path = format!("{}/{}", parent_url, SURVIVOR_DIR_S0);
+            let repo = InstanceMetaRepository::new(s0_path).await.unwrap();
+            let records = repo.get_metadata(&service_key).await.unwrap();
+            assert!(records.is_empty());
+            System::current().stop();
+        });
+    }
+
+    #[test]
+    fn test_remove_service_meta_nonexistent() {
+        let dir = tempfile::tempdir().unwrap();
+        let parent_url = dir.path().to_str().unwrap().to_owned();
+
+        System::new().block_on(async move {
+            let manager = InstanceMetaManager::new(parent_url.clone())
+                .await
+                .unwrap();
+            let addr = manager.start();
+
+            let service_key = ServiceKey::new("missing", "G", "svc");
+            let msg = InstanceMetaManagerReq::RemoveServiceMeta {
+                service_keys: vec![service_key],
+            };
+            let result = addr.send(msg).await;
+            assert!(result.is_ok());
+            System::current().stop();
+        });
+    }
+
+    #[test]
+    fn test_remove_multiple_services() {
+        let dir = tempfile::tempdir().unwrap();
+        let parent_url = dir.path().to_str().unwrap().to_owned();
+
+        System::new().block_on(async move {
+            let manager = InstanceMetaManager::new(parent_url.clone())
+                .await
+                .unwrap();
+            let addr = manager.start();
+
+            let service_key1 = ServiceKey::new("ns", "G", "svc1");
+            let service_key2 = ServiceKey::new("ns", "G", "svc2");
+
+            let metadata: HashMap<String, String> = HashMap::new();
+            let dto1 = build_meta_dto("ns", "G", "svc1", "10.0.0.1", 8080, metadata.clone());
+            let dto2 = build_meta_dto("ns", "G", "svc2", "10.0.0.2", 8081, metadata);
+
+            let _ = addr.send(InstanceMetaManagerReq::UpdateServiceMeta {
+                service_key: service_key1.clone(),
+                records: vec![dto1],
+            })
+            .await;
+
+            let _ = addr.send(InstanceMetaManagerReq::UpdateServiceMeta {
+                service_key: service_key2.clone(),
+                records: vec![dto2],
+            })
+            .await;
+
+            tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+
+            let msg = InstanceMetaManagerReq::RemoveServiceMeta {
+                service_keys: vec![service_key1.clone(), service_key2.clone()],
+            };
+            let _ = addr.send(msg).await;
+
+            tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+
+            let s0_path = format!("{}/{}", parent_url, SURVIVOR_DIR_S0);
+            let repo = InstanceMetaRepository::new(s0_path).await.unwrap();
+            let records1 = repo.get_metadata(&service_key1).await.unwrap();
+            let records2 = repo.get_metadata(&service_key2).await.unwrap();
+            assert!(records1.is_empty());
+            assert!(records2.is_empty());
+            System::current().stop();
+        });
+    }
+
+    #[test]
+    fn test_auto_switch_after_one_day() {
+        let dir = tempfile::tempdir().unwrap();
+        let parent_url = dir.path().to_str().unwrap().to_owned();
+
+        System::new().block_on(async move {
+            let mut manager = InstanceMetaManager::new(parent_url.clone())
+                .await
+                .unwrap();
+
+            manager.start_time = crate::now_millis_i64() - DAY_MILLIS - 1000;
+
+            let addr = manager.start();
+
+            let meta_path = format!("{}/{}", parent_url, META_FILE_NAME);
+            let meta_content_before = tokio::fs::read_to_string(&meta_path).await.unwrap();
+            let meta_info_before: InstanceMetaInfo = serde_json::from_str(&meta_content_before).unwrap();
+            let original_survivor = meta_info_before.current_survivor;
+
+            let service_key = ServiceKey::new("public", "DEFAULT", "test-auto-switch");
+            let metadata: HashMap<String, String> = HashMap::new();
+            let dto = build_meta_dto("public", "DEFAULT", "test-auto-switch", "127.0.0.1", 8080, metadata);
+
+            let msg = InstanceMetaManagerReq::UpdateServiceMeta {
+                service_key,
+                records: vec![dto],
+            };
+            let _ = addr.send(msg).await;
+
+            tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
+
+            let meta_content_after = tokio::fs::read_to_string(&meta_path).await.unwrap();
+            let meta_info_after: InstanceMetaInfo = serde_json::from_str(&meta_content_after).unwrap();
+
+            assert_ne!(meta_info_after.current_survivor, original_survivor);
+            System::current().stop();
+        });
+    }
+
+    #[test]
+    fn test_no_auto_switch_within_one_day() {
+        let dir = tempfile::tempdir().unwrap();
+        let parent_url = dir.path().to_str().unwrap().to_owned();
+
+        System::new().block_on(async move {
+            let manager = InstanceMetaManager::new(parent_url.clone())
+                .await
+                .unwrap();
+            let addr = manager.start();
+
+            let meta_path = format!("{}/{}", parent_url, META_FILE_NAME);
+            let meta_content_before = tokio::fs::read_to_string(&meta_path).await.unwrap();
+            let meta_info_before: InstanceMetaInfo = serde_json::from_str(&meta_content_before).unwrap();
+            let original_survivor = meta_info_before.current_survivor;
+
+            let service_key = ServiceKey::new("public", "DEFAULT", "test-no-switch");
+            let metadata: HashMap<String, String> = HashMap::new();
+            let dto = build_meta_dto("public", "DEFAULT", "test-no-switch", "127.0.0.1", 8080, metadata);
+
+            let msg = InstanceMetaManagerReq::UpdateServiceMeta {
+                service_key,
+                records: vec![dto],
+            };
+            let _ = addr.send(msg).await;
+
+            tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+
+            let meta_content = tokio::fs::read_to_string(&meta_path).await.unwrap();
+            let meta_info: InstanceMetaInfo = serde_json::from_str(&meta_content).unwrap();
+
+            assert_eq!(meta_info.current_survivor, original_survivor);
+            System::current().stop();
+        });
+    }
+
+    #[tokio::test]
+    async fn test_meta_info_default() {
+        let info = InstanceMetaInfo::default();
+        assert_eq!(info.version, DEFAULT_VERSION);
+        assert_eq!(info.current_survivor, 0);
+    }
+
+    #[tokio::test]
+    async fn test_meta_file_path() {
+        let dir = tempfile::tempdir().unwrap();
+        let parent_url = dir.path().to_str().unwrap().to_owned();
+
+        let manager = InstanceMetaManager::new(parent_url.clone())
+            .await
+            .unwrap();
+
+        let expected_path = format!("{}/{}", parent_url, META_FILE_NAME);
+        assert_eq!(manager.meta_file_path(), expected_path);
     }
 }
