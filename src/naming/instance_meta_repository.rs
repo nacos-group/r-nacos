@@ -163,4 +163,61 @@ impl InstanceMetaRepository {
         tokio::fs::rename(&temp_path, &file_map_path).await?;
         Ok(())
     }
+
+    async fn write_records_to_file(
+        &self,
+        file_name: &str,
+        records: &[InstanceMetaDto],
+    ) -> anyhow::Result<()> {
+        let file_path = format!("{}/{}", self.base_path, file_name);
+        let mut file = tokio::fs::File::create(&file_path).await?;
+
+        for record in records {
+            let proto = record.to_proto();
+            let mut buf = Vec::new();
+            {
+                let mut writer = quick_protobuf::Writer::new(&mut buf);
+                writer.write_message(&proto)?;
+            }
+            let len_buf = crate::common::protobuf_utils::write_varint64(buf.len() as u64);
+            file.write_all(&len_buf).await?;
+            file.write_all(&buf).await?;
+        }
+
+        file.flush().await?;
+        Ok(())
+    }
+
+    async fn read_records_from_file(
+        &self,
+        file_name: &str,
+    ) -> anyhow::Result<Vec<InstanceMetaDoOwned>> {
+        let file_path = format!("{}/{}", self.base_path, file_name);
+        let file = match tokio::fs::File::open(&file_path).await {
+            Ok(f) => f,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                log::warn!("file not found: {}", file_path);
+                return Ok(Vec::new());
+            }
+            Err(e) => return Err(e.into()),
+        };
+
+        let mut reader = FileMessageReader::new(file, 0);
+        let mut records = Vec::new();
+
+        while let Ok(data_buf) = reader.read_next().await {
+            let mut bytes_reader = quick_protobuf::BytesReader::from_bytes(&data_buf);
+            match service_meta::InstanceMetaDo::from_reader(&mut bytes_reader, &data_buf) {
+                Ok(meta_do) => {
+                    let owned: InstanceMetaDoOwned = meta_do.into();
+                    records.push(owned);
+                }
+                Err(e) => {
+                    log::error!("failed to parse InstanceMetaDo: {}", e);
+                }
+            }
+        }
+
+        Ok(records)
+    }
 }
