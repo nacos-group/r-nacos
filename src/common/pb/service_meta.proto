@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package service_meta;
+
+message InstanceMetaDo {
+    string namespace_id = 1;
+    string group_name = 2;
+    string service_name = 3;
+    string ip = 4;
+    uint32 port = 5;
+    map<string, string> metadata = 6;
+}
+
+message InstanceFileDo {
+    string namespace_id = 1;
+    string group_name = 2;
+    string service_name = 3;
+    string file_name = 4;
+}
