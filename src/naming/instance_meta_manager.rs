@@ -195,25 +195,41 @@ impl Actor for InstanceMetaManager {
             self.parent_url
         );
         let current_survivor = self.current_survivor;
-        let services = if current_survivor == 0 {
-            self.survivor_repo_0.list_services()
-        } else {
-            self.survivor_repo_1.list_services()
-        };
+        let parent_url = self.parent_url.clone();
 
-        let repo = if current_survivor == 0 {
-            &self.survivor_repo_0
-        } else {
-            &self.survivor_repo_1
-        };
-
-        let repo_ptr = repo as *const InstanceMetaRepository;
         let fut = async move {
+            let repo_base_path = if current_survivor == 0 {
+                format!("{}/{}", parent_url, SURVIVOR_DIR_S0)
+            } else {
+                format!("{}/{}", parent_url, SURVIVOR_DIR_S1)
+            };
+            let repo = InstanceMetaRepository::new(repo_base_path)
+                .await
+                .map_err(|e| {
+                    log::error!("failed to load repository during init: {}", e);
+                    e
+                });
+
+            if repo.is_err() {
+                return Vec::new();
+            }
+
+            let repo = repo.unwrap();
+            let services = repo.list_services();
             let mut results = Vec::new();
             for service_key in services {
-                let repo_ref = unsafe { &*repo_ptr };
-                let metadata = repo_ref.get_metadata(&service_key).await.unwrap_or_default();
-                results.push((service_key, metadata));
+                match repo.get_metadata(&service_key).await {
+                    Ok(metadata) => {
+                        results.push((service_key, metadata));
+                    }
+                    Err(e) => {
+                        log::error!(
+                            "failed to load metadata for service {:?}: {}",
+                            service_key,
+                            e
+                        );
+                    }
+                }
             }
             results
         }
@@ -222,6 +238,7 @@ impl Actor for InstanceMetaManager {
             for (service_key, metadata) in results {
                 act.update_instance_metadata(&service_key, &metadata);
             }
+            log::info!("InstanceMetaManager initialization completed");
         });
         fut.wait(ctx);
     }
