@@ -241,12 +241,14 @@ impl Handler<InstanceMetaManagerReq> for InstanceMetaManager {
                 service_key,
                 records,
             } => {
-                let repo_base_path = if self.current_survivor == 0 {
-                    self.survivor_repo_0.base_path().to_string()
-                } else {
-                    self.survivor_repo_1.base_path().to_string()
-                };
+                let current_survivor = self.current_survivor;
+                let parent_url = self.parent_url.clone();
                 let fut = async move {
+                    let repo_base_path = if current_survivor == 0 {
+                        format!("{}/{}", parent_url, SURVIVOR_DIR_S0)
+                    } else {
+                        format!("{}/{}", parent_url, SURVIVOR_DIR_S1)
+                    };
                     let mut repo = InstanceMetaRepository::new(repo_base_path).await?;
                     repo.update_metadata(&service_key, records).await
                 }
@@ -255,12 +257,14 @@ impl Handler<InstanceMetaManagerReq> for InstanceMetaManager {
                 Box::pin(fut)
             }
             InstanceMetaManagerReq::RemoveServiceMeta { service_keys } => {
-                let repo_base_path = if self.current_survivor == 0 {
-                    self.survivor_repo_0.base_path().to_string()
-                } else {
-                    self.survivor_repo_1.base_path().to_string()
-                };
+                let current_survivor = self.current_survivor;
+                let parent_url = self.parent_url.clone();
                 let fut = async move {
+                    let repo_base_path = if current_survivor == 0 {
+                        format!("{}/{}", parent_url, SURVIVOR_DIR_S0)
+                    } else {
+                        format!("{}/{}", parent_url, SURVIVOR_DIR_S1)
+                    };
                     let mut repo = InstanceMetaRepository::new(repo_base_path).await?;
                     repo.remove_metadata(&service_keys).await
                 }
