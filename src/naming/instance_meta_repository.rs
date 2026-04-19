@@ -253,4 +253,8 @@ impl InstanceMetaRepository {
         self.save_file_map().await?;
         Ok(())
     }
+
+    pub fn list_services(&self) -> Vec<ServiceKey> {
+        self.file_map.keys().cloned().collect()
+    }
 }
