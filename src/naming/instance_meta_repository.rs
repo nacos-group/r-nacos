@@ -2,10 +2,10 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::common::pb::service_meta;
-use crate::common::protobuf_utils::FileMessageReader;
+use crate::common::protobuf_utils::MessageBufReader;
 use crate::naming::model::{InstanceShortKey, ServiceKey};
-use quick_protobuf::MessageRead;
-use tokio::io::AsyncWriteExt;
+use quick_protobuf::BytesReader;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use uuid::Uuid;
 
 const FILE_MAP_NAME: &str = "file_map";
@@ -114,7 +114,7 @@ impl InstanceMetaRepository {
 
     async fn load_file_map(&mut self) -> anyhow::Result<()> {
         let file_map_path = format!("{}/{}", self.base_path, FILE_MAP_NAME);
-        let file = match tokio::fs::File::open(&file_map_path).await {
+        let mut file = match tokio::fs::File::open(&file_map_path).await {
             Ok(f) => f,
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
                 log::info!("file_map not found, init empty map");
@@ -123,19 +123,36 @@ impl InstanceMetaRepository {
             Err(e) => return Err(e.into()),
         };
 
-        let mut reader = FileMessageReader::new(file, 0);
-        while let Ok(data_buf) = reader.read_next().await {
-            let mut bytes_reader = quick_protobuf::BytesReader::from_bytes(&data_buf);
-            let file_do = service_meta::InstanceFileDo::from_reader(&mut bytes_reader, &data_buf)?;
-            let service_key = ServiceKey::new(
-                &file_do.namespace_id.to_string(),
-                &file_do.group_name.to_string(),
-                &file_do.service_name.to_string(),
-            );
-            let file_name = file_do.file_name.to_string();
-            self.file_map.insert(service_key, file_name);
+        let mut message_reader = MessageBufReader::new();
+        let mut data_buf = vec![0u8; 1024];
+        let read_len = file.read(&mut data_buf).await?;
+        if read_len == 0 {
+            return Ok(());
         }
-        Ok(())
+        message_reader.append_next_buf(&data_buf[..read_len]);
+
+        loop {
+            loop {
+                if let Some(v) = message_reader.next_message_vec() {
+                    let mut bytes_reader = BytesReader::from_bytes(v);
+                    let file_do: service_meta::InstanceFileDo = bytes_reader.read_message(v)?;
+                    let service_key = ServiceKey::new(
+                        &file_do.namespace_id.to_string(),
+                        &file_do.group_name.to_string(),
+                        &file_do.service_name.to_string(),
+                    );
+                    let file_name = file_do.file_name.to_string();
+                    self.file_map.insert(service_key, file_name);
+                } else {
+                    break;
+                }
+            }
+            let read_len = file.read(&mut data_buf).await?;
+            if read_len == 0 {
+                return Ok(());
+            }
+            message_reader.append_next_buf(&data_buf[..read_len]);
+        }
     }
 
     async fn save_file_map(&self) -> anyhow::Result<()> {
@@ -190,7 +207,7 @@ impl InstanceMetaRepository {
         file_name: &str,
     ) -> anyhow::Result<Vec<InstanceMetaDoOwned>> {
         let file_path = format!("{}/{}", self.base_path, file_name);
-        let file = match tokio::fs::File::open(&file_path).await {
+        let mut file = match tokio::fs::File::open(&file_path).await {
             Ok(f) => f,
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
                 log::warn!("file not found: {}", file_path);
@@ -199,22 +216,38 @@ impl InstanceMetaRepository {
             Err(e) => return Err(e.into()),
         };
 
-        let mut reader = FileMessageReader::new(file, 0);
+        let mut message_reader = MessageBufReader::new();
+        let mut data_buf = vec![0u8; 1024];
         let mut records = Vec::new();
+        let read_len = file.read(&mut data_buf).await?;
+        if read_len == 0 {
+            return Ok(records);
+        }
+        message_reader.append_next_buf(&data_buf[..read_len]);
 
-        while let Ok(data_buf) = reader.read_next().await {
-            let mut bytes_reader = quick_protobuf::BytesReader::from_bytes(&data_buf);
-            match service_meta::InstanceMetaDo::from_reader(&mut bytes_reader, &data_buf) {
-                Ok(meta_do) => {
-                    let owned: InstanceMetaDoOwned = meta_do.into();
-                    records.push(owned);
-                }
-                Err(e) => {
-                    log::error!("failed to parse InstanceMetaDo: {}", e);
+        loop {
+            loop {
+                if let Some(v) = message_reader.next_message_vec() {
+                    let mut bytes_reader = BytesReader::from_bytes(v);
+                    match bytes_reader.read_message::<service_meta::InstanceMetaDo>(v) {
+                        Ok(meta_do) => {
+                            let owned: InstanceMetaDoOwned = meta_do.into();
+                            records.push(owned);
+                        }
+                        Err(e) => {
+                            log::error!("failed to parse InstanceMetaDo: {}", e);
+                        }
+                    }
+                } else {
+                    break;
                 }
             }
+            let read_len = file.read(&mut data_buf).await?;
+            if read_len == 0 {
+                break;
+            }
+            message_reader.append_next_buf(&data_buf[..read_len]);
         }
-
         Ok(records)
     }
 
@@ -234,10 +267,7 @@ impl InstanceMetaRepository {
         Ok(())
     }
 
-    pub async fn remove_metadata(
-        &mut self,
-        service_keys: &[ServiceKey],
-    ) -> anyhow::Result<()> {
+    pub async fn remove_metadata(&mut self, service_keys: &[ServiceKey]) -> anyhow::Result<()> {
         for service_key in service_keys {
             if let Some(file_name) = self.file_map.remove(service_key) {
                 let file_path = format!("{}/{}", self.base_path, file_name);
@@ -265,5 +295,315 @@ impl InstanceMetaRepository {
             }
             None => Ok(Vec::new()),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn build_meta_dto(
+        namespace_id: &str,
+        group_name: &str,
+        service_name: &str,
+        ip: &str,
+        port: u32,
+        metadata: HashMap<String, String>,
+    ) -> InstanceMetaDto {
+        InstanceMetaDto::new(
+            ServiceKey::new(namespace_id, group_name, service_name),
+            InstanceShortKey::new(Arc::new(ip.to_owned()), port),
+            Arc::new(metadata),
+        )
+    }
+
+    fn assert_meta_eq(
+        actual: &InstanceMetaDto,
+        expected_ns: &str,
+        expected_group: &str,
+        expected_svc: &str,
+        expected_ip: &str,
+        expected_port: u32,
+        expected_metadata: &HashMap<String, String>,
+    ) {
+        assert_eq!(actual.service_key.namespace_id.as_str(), expected_ns);
+        assert_eq!(actual.service_key.group_name.as_str(), expected_group);
+        assert_eq!(actual.service_key.service_name.as_str(), expected_svc);
+        assert_eq!(actual.instance_key.ip.as_str(), expected_ip);
+        assert_eq!(actual.instance_key.port, expected_port);
+        assert_eq!(&*actual.metadata, expected_metadata);
+    }
+
+    #[tokio::test]
+    async fn test_update_metadata_new_service() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut repo = InstanceMetaRepository::new(dir.path().to_str().unwrap().to_owned())
+            .await
+            .unwrap();
+
+        let service_key = ServiceKey::new("public", "DEFAULT", "test-service");
+        let metadata: HashMap<String, String> = {
+            let mut m = HashMap::new();
+            m.insert("version".to_owned(), "1.0.0".to_owned());
+            m.insert("env".to_owned(), "prod".to_owned());
+            m
+        };
+        let dto = build_meta_dto(
+            "public",
+            "DEFAULT",
+            "test-service",
+            "127.0.0.1",
+            8080,
+            metadata.clone(),
+        );
+
+        repo.update_metadata(&service_key, vec![dto]).await.unwrap();
+
+        let services = repo.list_services();
+        assert_eq!(services.len(), 1);
+        assert!(services.contains(&service_key));
+
+        let records = repo.get_metadata(&service_key).await.unwrap();
+        assert_eq!(records.len(), 1);
+        assert_meta_eq(
+            &records[0],
+            "public",
+            "DEFAULT",
+            "test-service",
+            "127.0.0.1",
+            8080,
+            &metadata,
+        );
+    }
+
+    #[tokio::test]
+    async fn test_update_metadata_multiple_records() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut repo = InstanceMetaRepository::new(dir.path().to_str().unwrap().to_owned())
+            .await
+            .unwrap();
+
+        let service_key = ServiceKey::new("public", "DEFAULT", "multi-service");
+        let meta1: HashMap<String, String> = {
+            let mut m = HashMap::new();
+            m.insert("k1".to_owned(), "v1".to_owned());
+            m
+        };
+        let meta2: HashMap<String, String> = {
+            let mut m = HashMap::new();
+            m.insert("k2".to_owned(), "v2".to_owned());
+            m
+        };
+
+        let dto1 = build_meta_dto(
+            "public",
+            "DEFAULT",
+            "multi-service",
+            "10.0.0.1",
+            8080,
+            meta1.clone(),
+        );
+        let dto2 = build_meta_dto(
+            "public",
+            "DEFAULT",
+            "multi-service",
+            "10.0.0.2",
+            8081,
+            meta2.clone(),
+        );
+
+        repo.update_metadata(&service_key, vec![dto1, dto2])
+            .await
+            .unwrap();
+
+        let records = repo.get_metadata(&service_key).await.unwrap();
+        assert_eq!(records.len(), 2);
+        assert_meta_eq(
+            &records[0],
+            "public",
+            "DEFAULT",
+            "multi-service",
+            "10.0.0.1",
+            8080,
+            &meta1,
+        );
+        assert_meta_eq(
+            &records[1],
+            "public",
+            "DEFAULT",
+            "multi-service",
+            "10.0.0.2",
+            8081,
+            &meta2,
+        );
+    }
+
+    #[tokio::test]
+    async fn test_update_metadata_overwrite() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut repo = InstanceMetaRepository::new(dir.path().to_str().unwrap().to_owned())
+            .await
+            .unwrap();
+
+        let service_key = ServiceKey::new("ns1", "G1", "svc1");
+        let old_meta: HashMap<String, String> = {
+            let mut m = HashMap::new();
+            m.insert("old".to_owned(), "data".to_owned());
+            m
+        };
+        let new_meta: HashMap<String, String> = {
+            let mut m = HashMap::new();
+            m.insert("new".to_owned(), "data".to_owned());
+            m
+        };
+
+        let old_dto = build_meta_dto("ns1", "G1", "svc1", "192.168.1.1", 3000, old_meta);
+        repo.update_metadata(&service_key, vec![old_dto])
+            .await
+            .unwrap();
+
+        let new_dto = build_meta_dto("ns1", "G1", "svc1", "192.168.1.2", 3001, new_meta.clone());
+        repo.update_metadata(&service_key, vec![new_dto])
+            .await
+            .unwrap();
+
+        let records = repo.get_metadata(&service_key).await.unwrap();
+        assert_eq!(records.len(), 1);
+        assert_meta_eq(
+            &records[0],
+            "ns1",
+            "G1",
+            "svc1",
+            "192.168.1.2",
+            3001,
+            &new_meta,
+        );
+    }
+
+    #[tokio::test]
+    async fn test_get_metadata_nonexistent() {
+        let dir = tempfile::tempdir().unwrap();
+        let repo = InstanceMetaRepository::new(dir.path().to_str().unwrap().to_owned())
+            .await
+            .unwrap();
+
+        let service_key = ServiceKey::new("missing", "G", "svc");
+        let records = repo.get_metadata(&service_key).await.unwrap();
+        assert!(records.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_list_services_empty() {
+        let dir = tempfile::tempdir().unwrap();
+        let repo = InstanceMetaRepository::new(dir.path().to_str().unwrap().to_owned())
+            .await
+            .unwrap();
+
+        let services = repo.list_services();
+        assert!(services.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_list_services_multiple() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut repo = InstanceMetaRepository::new(dir.path().to_str().unwrap().to_owned())
+            .await
+            .unwrap();
+
+        let key1 = ServiceKey::new("ns", "G", "svc1");
+        let key2 = ServiceKey::new("ns", "G", "svc2");
+        let key3 = ServiceKey::new("ns2", "G", "svc3");
+
+        let empty_meta = HashMap::new();
+        for key in [&key1, &key2, &key3] {
+            let dto = build_meta_dto(
+                key.namespace_id.as_str(),
+                key.group_name.as_str(),
+                key.service_name.as_str(),
+                "127.0.0.1",
+                8080,
+                empty_meta.clone(),
+            );
+            repo.update_metadata(key, vec![dto]).await.unwrap();
+        }
+
+        let services = repo.list_services();
+        assert_eq!(services.len(), 3);
+        assert!(services.contains(&key1));
+        assert!(services.contains(&key2));
+        assert!(services.contains(&key3));
+    }
+
+    #[tokio::test]
+    async fn test_remove_metadata() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut repo = InstanceMetaRepository::new(dir.path().to_str().unwrap().to_owned())
+            .await
+            .unwrap();
+
+        let key1 = ServiceKey::new("ns", "G", "svc1");
+        let key2 = ServiceKey::new("ns", "G", "svc2");
+        let empty_meta = HashMap::new();
+
+        let dto1 = build_meta_dto("ns", "G", "svc1", "10.0.0.1", 8080, empty_meta.clone());
+        let dto2 = build_meta_dto("ns", "G", "svc2", "10.0.0.2", 8081, empty_meta);
+        repo.update_metadata(&key1, vec![dto1]).await.unwrap();
+        repo.update_metadata(&key2, vec![dto2]).await.unwrap();
+
+        assert_eq!(repo.list_services().len(), 2);
+
+        repo.remove_metadata(&[key1.clone()]).await.unwrap();
+
+        assert_eq!(repo.list_services().len(), 1);
+        assert!(repo.get_metadata(&key1).await.unwrap().is_empty());
+        assert_eq!(repo.get_metadata(&key2).await.unwrap().len(), 1);
+
+        repo.remove_metadata(&[key2.clone()]).await.unwrap();
+        assert!(repo.list_services().is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_new_loads_existing_data() {
+        let dir = tempfile::tempdir().unwrap();
+        let base_path = dir.path().to_str().unwrap().to_owned();
+
+        let service_key = ServiceKey::new("public", "DEFAULT", "persist-svc");
+        let metadata: HashMap<String, String> = {
+            let mut m = HashMap::new();
+            m.insert("region".to_owned(), "cn-east".to_owned());
+            m
+        };
+        let dto = build_meta_dto(
+            "public",
+            "DEFAULT",
+            "persist-svc",
+            "172.16.0.1",
+            9090,
+            metadata.clone(),
+        );
+
+        {
+            let mut repo = InstanceMetaRepository::new(base_path.clone())
+                .await
+                .unwrap();
+            repo.update_metadata(&service_key, vec![dto]).await.unwrap();
+        }
+
+        let repo2 = InstanceMetaRepository::new(base_path).await.unwrap();
+        let services = repo2.list_services();
+        assert_eq!(services.len(), 1);
+        assert!(services.contains(&service_key));
+
+        let records = repo2.get_metadata(&service_key).await.unwrap();
+        assert_eq!(records.len(), 1);
+        assert_meta_eq(
+            &records[0],
+            "public",
+            "DEFAULT",
+            "persist-svc",
+            "172.16.0.1",
+            9090,
+            &metadata,
+        );
     }
 }
