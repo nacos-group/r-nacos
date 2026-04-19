@@ -257,4 +257,17 @@ impl InstanceMetaRepository {
     pub fn list_services(&self) -> Vec<ServiceKey> {
         self.file_map.keys().cloned().collect()
     }
+
+    pub async fn get_metadata(
+        &self,
+        service_key: &ServiceKey,
+    ) -> anyhow::Result<Vec<InstanceMetaDto>> {
+        match self.file_map.get(service_key) {
+            Some(file_name) => {
+                let records = self.read_records_from_file(file_name).await?;
+                Ok(records.into_iter().map(|r| r.into()).collect())
+            }
+            None => Ok(Vec::new()),
+        }
+    }
 }
