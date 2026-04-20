@@ -1,10 +1,11 @@
-use std::collections::HashMap;
-use std::sync::Arc;
-
 use crate::common::pb::service_meta;
 use crate::common::protobuf_utils::MessageBufReader;
+use crate::naming::instance_meta_manager::{InstanceMetaManagerReq, InstanceMetaManagerResult};
 use crate::naming::model::{InstanceShortKey, ServiceKey};
+use actix::prelude::*;
 use quick_protobuf::BytesReader;
+use std::collections::HashMap;
+use std::sync::Arc;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use uuid::Uuid;
 
@@ -95,7 +96,7 @@ impl From<InstanceMetaDoOwned> for InstanceMetaDto {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct InstanceMetaRepository {
     base_path: String,
     file_map: HashMap<ServiceKey, String>,
@@ -299,6 +300,105 @@ impl InstanceMetaRepository {
             }
             None => Ok(Vec::new()),
         }
+    }
+
+    pub async fn get_all_metadata(
+        &self,
+    ) -> anyhow::Result<Vec<(ServiceKey, Vec<InstanceMetaDto>)>> {
+        let mut result = Vec::new();
+        for (service_key, file_name) in &self.file_map {
+            let records = self.read_records_from_file(file_name).await?;
+            let metas = records.into_iter().map(|r| r.into()).collect();
+            result.push((service_key.clone(), metas))
+        }
+        Ok(result)
+    }
+
+    fn clear(&mut self) {
+        //todo  删除self.base_path整个目录内容，再重新创建目录
+        self.file_map.clear();
+    }
+
+    pub async fn handle_msg(
+        &mut self,
+        msg: InstanceMetaRepositoryReq,
+    ) -> anyhow::Result<InstanceMetaRepositoryResult> {
+        match msg {
+            InstanceMetaRepositoryReq::UpdateMetadata(service_key, metas) => {
+                self.update_metadata(&service_key, metas).await?
+            }
+            InstanceMetaRepositoryReq::RemoveMetadata(keys) => self.remove_metadata(&keys).await?,
+            InstanceMetaRepositoryReq::GetServiceList => {
+                let keys = self.list_services();
+                return Ok(InstanceMetaRepositoryResult::ServiceList(keys));
+            }
+            InstanceMetaRepositoryReq::GetServiceMetadata(key) => {
+                let metas = self.get_metadata(&key).await?;
+                return Ok(InstanceMetaRepositoryResult::ServiceMetadata(metas));
+            }
+            InstanceMetaRepositoryReq::Clear => {
+                self.clear();
+            }
+            InstanceMetaRepositoryReq::GetAllMetaData => {
+                let data = self.get_all_metadata().await?;
+                return Ok(InstanceMetaRepositoryResult::AllMetaData(data));
+            }
+        }
+        Ok(InstanceMetaRepositoryResult::None)
+    }
+}
+
+impl Actor for InstanceMetaRepository {
+    type Context = Context<Self>;
+    fn started(&mut self, _ctx: &mut Self::Context) {
+        log::info!(
+            "InstanceMetaRepository started, base_path: {}",
+            self.base_path
+        );
+    }
+}
+
+#[derive(Debug, Message)]
+#[rtype(result = "anyhow::Result<InstanceMetaRepositoryResult>")]
+pub enum InstanceMetaRepositoryReq {
+    UpdateMetadata(ServiceKey, Vec<InstanceMetaDto>),
+    RemoveMetadata(Vec<ServiceKey>),
+    Clear,
+    GetServiceList,
+    GetServiceMetadata(ServiceKey),
+    GetAllMetaData,
+}
+
+pub enum InstanceMetaRepositoryResult {
+    None,
+    ServiceList(Vec<ServiceKey>),
+    ServiceMetadata(Vec<InstanceMetaDto>),
+    AllMetaData(Vec<(ServiceKey, Vec<InstanceMetaDto>)>),
+}
+
+impl Handler<InstanceMetaRepositoryReq> for InstanceMetaRepository {
+    type Result = ResponseActFuture<Self, anyhow::Result<InstanceMetaRepositoryResult>>;
+
+    fn handle(&mut self, msg: InstanceMetaRepositoryReq, _ctx: &mut Self::Context) -> Self::Result {
+        let this = self.clone();
+        let fut = async move {
+            let mut that: InstanceMetaRepository = this;
+            let result = that.handle_msg(msg).await;
+            (that.file_map, result)
+        }
+        .into_actor(self)
+        .map(
+            |(file_map, result): (
+                HashMap<ServiceKey, String>,
+                anyhow::Result<InstanceMetaRepositoryResult>,
+            ),
+             act,
+             _ctx| {
+                act.file_map = file_map;
+                result
+            },
+        );
+        Box::pin(fut)
     }
 }
 
