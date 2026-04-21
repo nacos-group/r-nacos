@@ -126,6 +126,7 @@ pub struct AppSysConfig {
     pub oauth2_button: Arc<String>,
     pub grpc_detection_timeout: u64,
     pub enable_grpc_detection_log: bool,
+    pub naming_instance_metadata_persistence_enable: bool,
 }
 
 impl AppSysConfig {
@@ -363,6 +364,11 @@ impl AppSysConfig {
             .unwrap_or("false".to_owned())
             .parse()
             .unwrap_or(false);
+        let naming_instance_metadata_persistence_enable =
+            std::env::var("RNACOS_NAMING_INSTANCE_METADATA_PERSISTENCE_ENABLE")
+                .unwrap_or("true".to_owned())
+                .parse()
+                .unwrap_or(true);
         Self {
             local_db_dir,
             config_db_file,
@@ -421,6 +427,7 @@ impl AppSysConfig {
             oauth2_button,
             grpc_detection_timeout,
             enable_grpc_detection_log,
+            naming_instance_metadata_persistence_enable,
         }
     }
 

@@ -234,10 +234,12 @@ pub async fn config_factory(sys_config: Arc<AppSysConfig>) -> anyhow::Result<Fac
     factory.register(BeanDefinition::actor_with_inject_from_obj(oauth2_manager));
     let sse_manager = SseStreamManager::new().start();
     factory.register(BeanDefinition::actor_with_inject_from_obj(sse_manager));
-    if let Ok(instance_meta_manager) = InstanceMetaManager::new(&base_path).await {
-        factory.register(BeanDefinition::actor_with_inject_from_obj(
-            instance_meta_manager.start(),
-        ));
+    if sys_config.naming_instance_metadata_persistence_enable {
+        if let Ok(instance_meta_manager) = InstanceMetaManager::new(&base_path).await {
+            factory.register(BeanDefinition::actor_with_inject_from_obj(
+                instance_meta_manager.start(),
+            ));
+        }
     }
     Ok(factory.init().await)
 }

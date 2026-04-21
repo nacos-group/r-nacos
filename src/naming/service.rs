@@ -237,6 +237,9 @@ impl Service {
         let mut records = Vec::new();
         let service_key = self.get_service_key();
         for (instance_short_key, meta) in &self.instance_metadata_map {
+            if meta.is_empty() {
+                continue;
+            }
             let record = InstanceMetaDto::new(
                 service_key.clone(),
                 instance_short_key.clone(),

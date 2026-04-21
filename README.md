@@ -223,8 +223,9 @@ helm install r-nacos rnacos/rnacos
 |RNACOS_OAUTH2_BUTTON|OAuth2.0登录按钮显示文本|OAuth2.0 登录|OAuth2.0 登录|0.7.4|
 |RNACOS_GRPC_DETECTION_TIMEOUT_SECOND|gRPC心跳检测超时时间，单位为秒|15|20|0.8.1|
 |RNACOS_ENABLE_GRPC_DETECTION_LOG|是否开启打印GRPC心跳请求日志|false|true|0.8.1|
+|RNACOS_NAMING_INSTANCE_METADATA_PERSISTENCE_ENABLE|是否启用注册中心实例元数据持久化|true|false|0.8.3|
 
-启动配置方式可以参考： [运行参数说明](https://r-nacos.github.io/docs/notes/env_config/)
+ 启动配置方式可以参考： [运行参数说明](https://r-nacos.github.io/docs/notes/env_config/)
 
 【集群部署】
 

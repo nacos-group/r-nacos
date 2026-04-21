@@ -1795,6 +1795,8 @@ async fn query_healthy_instances() {
     use tokio::net::UdpSocket;
     //let listener_addr = InnerNamingListener::new_and_create(5000, None);
     let mut naming = NamingActor::new();
+    naming.sys_config.instance_health_timeout_millis = 2000;
+    naming.sys_config.instance_timeout_millis = 4000;
     let mut instance = Instance::new("127.0.0.1".to_owned(), 8080);
     instance.namespace_id = Arc::new("public".to_owned());
     instance.service_name = Arc::new("foo".to_owned());
@@ -1817,7 +1819,7 @@ async fn query_healthy_instances() {
         "empty cluster list:{}",
         serde_json::to_string(&items).unwrap()
     );
-    tokio::time::sleep(Duration::from_millis(16000)).await;
+    tokio::time::sleep(Duration::from_millis(2100)).await;
     naming.time_check();
     println!("-------------");
     let items = naming.get_instance_list(&key, "", false);
@@ -1826,7 +1828,7 @@ async fn query_healthy_instances() {
         "empty cluster list:{}",
         serde_json::to_string(&items).unwrap()
     );
-    tokio::time::sleep(Duration::from_millis(16000)).await;
+    tokio::time::sleep(Duration::from_millis(2100)).await;
     naming.time_check();
     println!("-------------");
     let items = naming.get_instance_list(&key, "", false);
