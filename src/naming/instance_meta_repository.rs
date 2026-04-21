@@ -1,10 +1,10 @@
 use crate::common::pb::service_meta;
 use crate::common::protobuf_utils::MessageBufReader;
-use crate::naming::instance_meta_manager::{InstanceMetaManagerReq, InstanceMetaManagerResult};
 use crate::naming::model::{InstanceShortKey, ServiceKey};
 use actix::prelude::*;
 use quick_protobuf::BytesReader;
 use std::collections::HashMap;
+use std::path::Path;
 use std::sync::Arc;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use uuid::Uuid;
@@ -117,8 +117,16 @@ impl InstanceMetaRepository {
         &self.base_path
     }
 
+    #[inline]
+    fn build_file_path(&self, file_name: &str) -> String {
+        Path::new(self.base_path.as_str())
+            .join(file_name)
+            .to_string_lossy()
+            .into_owned()
+    }
+
     async fn load_file_map(&mut self) -> anyhow::Result<()> {
-        let file_map_path = format!("{}/{}", self.base_path, FILE_MAP_NAME);
+        let file_map_path = self.build_file_path(FILE_MAP_NAME);
         let mut file = match tokio::fs::File::open(&file_map_path).await {
             Ok(f) => f,
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
@@ -161,7 +169,7 @@ impl InstanceMetaRepository {
     }
 
     async fn save_file_map(&self) -> anyhow::Result<()> {
-        let file_map_path = format!("{}/{}", self.base_path, FILE_MAP_NAME);
+        let file_map_path = self.build_file_path(FILE_MAP_NAME);
         let temp_path = format!("{}.tmp", file_map_path);
         let mut file = tokio::fs::File::create(&temp_path).await?;
 
@@ -190,7 +198,7 @@ impl InstanceMetaRepository {
         file_name: &str,
         records: &[InstanceMetaDto],
     ) -> anyhow::Result<()> {
-        let file_path = format!("{}/{}", self.base_path, file_name);
+        let file_path = self.build_file_path(file_name);
         let mut file = tokio::fs::File::create(&file_path).await?;
 
         for record in records {
@@ -211,7 +219,7 @@ impl InstanceMetaRepository {
         &self,
         file_name: &str,
     ) -> anyhow::Result<Vec<InstanceMetaDoOwned>> {
-        let file_path = format!("{}/{}", self.base_path, file_name);
+        let file_path = self.build_file_path(file_name);
         let mut file = match tokio::fs::File::open(&file_path).await {
             Ok(f) => f,
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
@@ -275,7 +283,7 @@ impl InstanceMetaRepository {
     pub async fn remove_metadata(&mut self, service_keys: &[ServiceKey]) -> anyhow::Result<()> {
         for service_key in service_keys {
             if let Some(file_name) = self.file_map.remove(service_key) {
-                let file_path = format!("{}/{}", self.base_path, file_name);
+                let file_path = self.build_file_path(&file_name);
                 if let Err(e) = tokio::fs::remove_file(&file_path).await {
                     log::warn!("failed to remove file {}: {}", file_path, e);
                 }
@@ -314,9 +322,11 @@ impl InstanceMetaRepository {
         Ok(result)
     }
 
-    fn clear(&mut self) {
-        //todo  删除self.base_path整个目录内容，再重新创建目录
+    async fn clear(&mut self) -> anyhow::Result<()> {
+        tokio::fs::remove_dir_all(&self.base_path).await?;
+        tokio::fs::create_dir_all(&self.base_path).await?;
         self.file_map.clear();
+        Ok(())
     }
 
     pub async fn handle_msg(
@@ -337,7 +347,7 @@ impl InstanceMetaRepository {
                 return Ok(InstanceMetaRepositoryResult::ServiceMetadata(metas));
             }
             InstanceMetaRepositoryReq::Clear => {
-                self.clear();
+                self.clear().await?;
             }
             InstanceMetaRepositoryReq::GetAllMetaData => {
                 let data = self.get_all_metadata().await?;

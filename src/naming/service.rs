@@ -9,8 +9,11 @@ use super::{
 };
 use crate::common::constant::EMPTY_ARC_STRING;
 use crate::naming::cluster::model::ProcessRange;
+use crate::naming::instance_meta_manager::{InstanceMetaManager, InstanceMetaManagerReq};
+use crate::naming::instance_meta_repository::InstanceMetaDto;
 use crate::naming::model::UpdatePerpetualType;
 use crate::now_millis;
+use actix::Addr;
 use actix_web::rt;
 use inner_mem_cache::TimeoutSet;
 use rand::prelude::IteratorRandom;
@@ -74,6 +77,7 @@ impl Service {
         mut instance: Instance,
         update_tag: Option<InstanceUpdateTag>,
         from_sync: bool,
+        meta_manager_addr: &Option<Addr<InstanceMetaManager>>,
     ) -> (UpdateInstanceType, Option<Arc<String>>, UpdatePerpetualType) {
         //!("test update_instance {:?}", &instance);
         instance.namespace_id = self.namespace_id.clone();
@@ -156,6 +160,12 @@ impl Service {
                         //从控制台设置的metadata
                         self.instance_metadata_map
                             .insert(short_key, instance.metadata.clone());
+                        if let Some(meta_manager_addr) = meta_manager_addr {
+                            meta_manager_addr.do_send(InstanceMetaManagerReq::UpdateServiceMeta {
+                                service_key: self.get_service_key(),
+                                records: self.get_service_meta_list(),
+                            });
+                        }
                         perpetual_changed = true;
                     } else if let Some(priority_metadata) =
                         self.instance_metadata_map.get(&short_key)
@@ -180,6 +190,15 @@ impl Service {
             //新增的尝试使用高优先级metadata
             if let Some(priority_metadata) = self.instance_metadata_map.get(&short_key) {
                 instance.metadata = priority_metadata.clone();
+            } else if !instance.metadata.is_empty() {
+                if let Some(meta_manager_addr) = meta_manager_addr {
+                    self.instance_metadata_map
+                        .insert(short_key, instance.metadata.clone());
+                    meta_manager_addr.do_send(InstanceMetaManagerReq::UpdateServiceMeta {
+                        service_key: self.get_service_key(),
+                        records: self.get_service_meta_list(),
+                    });
+                }
             }
             self.instance_size += 1;
             if instance.healthy {
@@ -212,6 +231,20 @@ impl Service {
         }
         self.instances.insert(key, new_instance);
         (rtype, replace_old_client_id, perpetua_type)
+    }
+
+    pub(crate) fn get_service_meta_list(&self) -> Vec<InstanceMetaDto> {
+        let mut records = Vec::new();
+        let service_key = self.get_service_key();
+        for (instance_short_key, meta) in &self.instance_metadata_map {
+            let record = InstanceMetaDto::new(
+                service_key.clone(),
+                instance_short_key.clone(),
+                meta.clone(),
+            );
+            records.push(record);
+        }
+        records
     }
 
     ///

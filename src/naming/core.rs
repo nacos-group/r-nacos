@@ -62,6 +62,8 @@ use crate::common::pb::data_object::InstanceDo;
 use crate::metrics::metrics_key::MetricsKey;
 use crate::metrics::model::{MetricsItem, MetricsQuery, MetricsRecord};
 use crate::namespace::NamespaceActor;
+use crate::naming::instance_meta_manager::{InstanceMetaManager, InstanceMetaManagerReq};
+use crate::naming::instance_meta_repository::InstanceMetaDto;
 use crate::naming::model::actor_model::{
     InstanceRegisterParam, LoadResult, NamingRaftReq, NamingRaftResult, SnapshotBuildRequest,
     SnapshotLoadRequest,
@@ -102,6 +104,7 @@ pub struct NamingActor {
     pub(crate) last_perpetual_instance_probe_time: i32,
     //dal_addr: Addr<ServiceDalActor>,
     pub(crate) raft_router: Option<Arc<RaftRequestRoute>>,
+    pub(crate) meta_manager_addr: Option<Addr<InstanceMetaManager>>,
 }
 
 impl Actor for NamingActor {
@@ -129,6 +132,7 @@ impl Inject for NamingActor {
         self.cluster_node_manage = factory_data.get_actor();
         self.cluster_delay_notify = factory_data.get_actor();
         self.namespace_actor = factory_data.get_actor();
+        self.meta_manager_addr = factory_data.get_actor();
         self.namespace_index.namespace_actor = self.namespace_actor.clone();
         let sys_config: Option<Arc<AppSysConfig>> = factory_data.get_bean();
         if let Some(sys_config) = sys_config {
@@ -181,6 +185,7 @@ impl NamingActor {
             net_sniffing_addr: None,
             last_perpetual_instance_probe_time: 0,
             raft_router: None,
+            meta_manager_addr: None,
         }
     }
 
@@ -199,11 +204,9 @@ impl NamingActor {
         rx.recv().unwrap()
     }
 
+    #[inline]
     pub(crate) fn get_service(&mut self, key: &ServiceKey) -> Option<&mut Service> {
-        match self.service_map.get_mut(key) {
-            Some(v) => Some(v),
-            None => None,
-        }
+        self.service_map.get_mut(key)
     }
 
     pub(crate) fn create_empty_service(&mut self, key: &ServiceKey) {
@@ -274,6 +277,36 @@ impl NamingActor {
                 );
             }
         }
+    }
+
+    fn init_service_metadata(&mut self, key: ServiceKey, records: Vec<InstanceMetaDto>) {
+        self.create_empty_service(&key);
+        if let Some(service) = self.service_map.get_mut(&key) {
+            let now = now_millis();
+            let timeout = now + self.sys_config.instance_metadata_time_out_millis;
+            for record in records {
+                self.instance_metadate_set.add(
+                    timeout,
+                    InstanceKey::new_by_service_key(
+                        &key,
+                        record.instance_key.ip.clone(),
+                        record.instance_key.port,
+                    ),
+                );
+                service
+                    .instance_metadata_map
+                    .insert(record.instance_key, record.metadata);
+            }
+        }
+    }
+
+    fn get_service_metadata_list(&self) -> Vec<(ServiceKey, Vec<InstanceMetaDto>)> {
+        let mut result = Vec::new();
+        for (service_key, service) in &self.service_map {
+            let records = service.get_service_meta_list();
+            result.push((service_key.clone(), records));
+        }
+        result
     }
 
     fn remove_empty_service(&mut self, service_map_key: ServiceKey) -> anyhow::Result<()> {
@@ -454,9 +487,8 @@ impl NamingActor {
             }
         }
         let instance_short_key = instance.get_short_key();
-
         let (tag, replace_old_client_id, perpetua_type) =
-            service.update_instance(instance, tag, from_sync);
+            service.update_instance(instance, tag, from_sync, &self.meta_manager_addr);
         #[cfg(feature = "debug")]
         log::info!(
             "update_instance tag:{:?},key:{:?},replace_old_client_id:{:?}",
@@ -947,17 +979,27 @@ impl NamingActor {
     }
 
     fn clear_timeout_instance_metadata(&mut self) {
+        let meta_manager_addr = self.meta_manager_addr.clone();
         for instance_key in self.instance_metadate_set.timeout(now_millis()) {
-            self.clear_one_timeout_instance_metadata(instance_key);
+            self.clear_one_timeout_instance_metadata(instance_key, &meta_manager_addr);
         }
     }
 
-    fn clear_one_timeout_instance_metadata(&mut self, instance_key: InstanceKey) {
+    fn clear_one_timeout_instance_metadata(
+        &mut self,
+        instance_key: InstanceKey,
+        meta_manager_addr: &Option<Addr<InstanceMetaManager>>,
+    ) {
         let service_key = instance_key.get_service_key();
         if let Some(service) = self.service_map.get_mut(&service_key) {
             let short_key = instance_key.get_short_key();
             if !service.instances.contains_key(&short_key) {
                 service.instance_metadata_map.remove(&short_key);
+                if let Some(meta_manager_addr) = meta_manager_addr {
+                    meta_manager_addr.do_send(InstanceMetaManagerReq::RemoveServiceMeta {
+                        service_keys: vec![service_key],
+                    });
+                }
             }
         }
     }
@@ -1406,6 +1448,8 @@ pub enum NamingCmd {
     },
     NotifyUpdateRaftInstance(Arc<Instance>),
     NotifyRemoveRaftInstance(InstanceKey),
+    InitInstanceMeta(ServiceKey, Vec<InstanceMetaDto>),
+    QueryAllServiceInstanceMetaData,
 }
 
 pub enum NamingResult {
@@ -1426,6 +1470,7 @@ pub enum NamingResult {
     GrpcDistroData(DistroData),
     DiffDistroData(DistroData),
     DistroInstancesSnapshot(Vec<Arc<Instance>>),
+    AllServiceInstanceMetaData(Vec<(ServiceKey, Vec<InstanceMetaDto>)>),
 }
 
 impl Supervised for NamingActor {
@@ -1704,6 +1749,14 @@ impl Handler<NamingCmd> for NamingActor {
             NamingCmd::NotifyRemoveRaftInstance(instance_key) => {
                 self.remove_instance_to_raft(instance_key, ctx);
                 Ok(NamingResult::NULL)
+            }
+            NamingCmd::InitInstanceMeta(service_key, records) => {
+                self.init_service_metadata(service_key, records);
+                Ok(NamingResult::NULL)
+            }
+            NamingCmd::QueryAllServiceInstanceMetaData => {
+                let data = self.get_service_metadata_list();
+                Ok(NamingResult::AllServiceInstanceMetaData(data))
             }
         }
     }

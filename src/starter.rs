@@ -8,6 +8,7 @@ use crate::mcp::core::McpManager;
 use crate::mcp::sse_manage::SseStreamManager;
 use crate::metrics::core::MetricsManager;
 use crate::namespace::NamespaceActor;
+use crate::naming::instance_meta_manager::InstanceMetaManager;
 use crate::naming::sniffing::NetSniffing;
 use crate::oauth2::core::OAuth2Manager;
 use crate::raft::cluster::route::RaftRequestRoute;
@@ -233,6 +234,11 @@ pub async fn config_factory(sys_config: Arc<AppSysConfig>) -> anyhow::Result<Fac
     factory.register(BeanDefinition::actor_with_inject_from_obj(oauth2_manager));
     let sse_manager = SseStreamManager::new().start();
     factory.register(BeanDefinition::actor_with_inject_from_obj(sse_manager));
+    if let Ok(instance_meta_manager) = InstanceMetaManager::new(&base_path).await {
+        factory.register(BeanDefinition::actor_with_inject_from_obj(
+            instance_meta_manager.start(),
+        ));
+    }
     Ok(factory.init().await)
 }
 
