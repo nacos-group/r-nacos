@@ -285,6 +285,9 @@ impl NamingActor {
             let now = now_millis();
             let timeout = now + self.sys_config.instance_metadata_time_out_millis;
             for record in records {
+                if record.metadata.is_empty() {
+                    continue;
+                }
                 self.instance_metadate_set.add(
                     timeout,
                     InstanceKey::new_by_service_key(
@@ -293,6 +296,15 @@ impl NamingActor {
                         record.instance_key.port,
                     ),
                 );
+                if let Some(instance) = service.instances.get(&record.instance_key) {
+                    if instance.metadata.is_empty() {
+                        let mut new_instance = instance.as_ref().to_owned();
+                        new_instance.metadata = record.metadata.clone();
+                        service
+                            .instances
+                            .insert(record.instance_key.clone(), Arc::new(new_instance));
+                    }
+                }
                 service
                     .instance_metadata_map
                     .insert(record.instance_key, record.metadata);

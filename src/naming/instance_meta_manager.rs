@@ -1,4 +1,4 @@
-use crate::naming::core::{NamingActor, NamingCmd, NamingResult};
+use crate::naming::core::{NamingActor, NamingCmd};
 use crate::naming::instance_meta_repository::InstanceMetaRepository;
 use crate::naming::instance_meta_repository::{
     InstanceMetaDto, InstanceMetaRepositoryReq, InstanceMetaRepositoryResult,
@@ -14,20 +14,17 @@ use tokio::io::AsyncWriteExt;
 
 const META_FILE_NAME: &str = "meta";
 const SURVIVOR_DIR_S0: &str = "s0";
-const SURVIVOR_DIR_S1: &str = "s1";
 const DEFAULT_VERSION: &str = "1.0";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct InstanceMetaInfo {
     version: String,
-    current_survivor: u8,
 }
 
 impl Default for InstanceMetaInfo {
     fn default() -> Self {
         Self {
             version: DEFAULT_VERSION.to_string(),
-            current_survivor: 0,
         }
     }
 }
@@ -49,16 +46,15 @@ pub enum InstanceMetaManagerResult {
 }
 
 #[bean(inject)]
+#[allow(unused)]
 pub struct InstanceMetaManager {
     parent_url: String,
     meta_path: String,
-    survivor_repo_0: Addr<InstanceMetaRepository>,
-    survivor_repo_1: Addr<InstanceMetaRepository>,
-    current_survivor: u8,
-    start_time: i64,
-    switch_timeout: i64,
+    survivor_repo: Addr<InstanceMetaRepository>,
     naming_actor: Option<Addr<NamingActor>>,
     cache_meta: HashMap<ServiceKey, Vec<InstanceMetaDto>>,
+    last_clear_time: i64,
+    clear_interval: i64,
 }
 
 impl InstanceMetaManager {
@@ -73,32 +69,31 @@ impl InstanceMetaManager {
             .join(META_FILE_NAME)
             .to_string_lossy()
             .into_owned();
-        let meta_info = Self::load_meta(meta_path.clone()).await.unwrap_or_default();
+        if let Ok(meta_info) = Self::load_meta(meta_path.clone()).await {
+            meta_info
+        } else {
+            let meta = InstanceMetaInfo::default();
+            Self::save_meta(meta_path.as_str(), &meta).await.ok();
+            meta
+        };
 
         let s0_path = Path::new(parent_url.as_str())
             .join(SURVIVOR_DIR_S0)
             .to_string_lossy()
             .into_owned();
-        let s1_path = Path::new(parent_url.as_str())
-            .join(SURVIVOR_DIR_S1)
-            .to_string_lossy()
-            .into_owned();
 
-        let survivor_repo_0 = InstanceMetaRepository::new(s0_path).await?.start();
-        let survivor_repo_1 = InstanceMetaRepository::new(s1_path).await?.start();
+        let survivor_repo = InstanceMetaRepository::new(s0_path).await?.start();
 
-        let start_time = crate::now_millis_i64();
+        let last_clear_time = crate::now_millis_i64();
 
         Ok(Self {
             parent_url,
             meta_path,
-            survivor_repo_0,
-            survivor_repo_1,
-            current_survivor: meta_info.current_survivor,
-            start_time,
+            survivor_repo,
             naming_actor: None,
-            switch_timeout: 86_400_000,
+            clear_interval: 86_400_000,
             cache_meta: HashMap::new(),
+            last_clear_time,
         })
     }
 
@@ -125,7 +120,7 @@ impl InstanceMetaManager {
         }
     }
 
-    async fn save_meta(meta_path: String, info: &InstanceMetaInfo) -> anyhow::Result<()> {
+    async fn save_meta(meta_path: &str, info: &InstanceMetaInfo) -> anyhow::Result<()> {
         let path = meta_path;
         let temp_path = format!("{}.tmp", path);
         let content = serde_json::to_string(info)?;
@@ -136,11 +131,8 @@ impl InstanceMetaManager {
         Ok(())
     }
 
-    fn current_repo(&mut self) -> Addr<InstanceMetaRepository> {
-        match self.current_survivor {
-            0 => self.survivor_repo_0.clone(),
-            1 | _ => self.survivor_repo_1.clone(),
-        }
+    fn current_repo(&self) -> Addr<InstanceMetaRepository> {
+        self.survivor_repo.clone()
     }
 
     fn update_instance_metadata(&self, service_key: ServiceKey, records: Vec<InstanceMetaDto>) {
@@ -154,49 +146,12 @@ impl InstanceMetaManager {
         }
     }
 
-    fn switch_survivor(&mut self, ctx: &mut Context<Self>) {
-        let next_survivor = if self.current_survivor == 0 { 1 } else { 0 };
-        self.start_time = crate::now_millis_i64();
-        let info = InstanceMetaInfo {
-            version: DEFAULT_VERSION.to_string(),
-            current_survivor: next_survivor,
-        };
-        let naming_actor = self.naming_actor.clone();
-        let meta_path = self.meta_path.clone();
-        self.update_delay_meta();
-        let fut = async move {
-            let mut meta_records = Vec::new();
-            if let Some(naming_actor) = naming_actor.as_ref() {
-                if let Ok(Ok(NamingResult::AllServiceInstanceMetaData(records))) = naming_actor
-                    .send(NamingCmd::QueryAllServiceInstanceMetaData)
-                    .await
-                {
-                    meta_records = records;
-                }
-            }
-            Self::save_meta(meta_path, &info).await?;
-            Ok((next_survivor, meta_records))
-        }
-        .into_actor(self)
-        .map(
-            |result: anyhow::Result<(u8, Vec<(ServiceKey, Vec<InstanceMetaDto>)>)>, act, _ctx| {
-                if let Ok((next_survivor, meta_data_list)) = result {
-                    act.current_repo().do_send(InstanceMetaRepositoryReq::Clear);
-                    act.current_survivor = next_survivor;
-                    for (service_key, records) in meta_data_list {
-                        act.cache_meta.insert(service_key, records);
-                    }
-                    act.update_delay_meta();
-                }
-            },
-        );
-        fut.spawn(ctx);
-    }
-
-    fn check_and_switch_if_needed(&mut self, ctx: &mut Context<Self>) {
+    fn check_and_clear_unref_files(&mut self) {
         let now = crate::now_millis_i64();
-        if now - self.start_time > self.switch_timeout {
-            self.switch_survivor(ctx);
+        if now - self.last_clear_time > self.clear_interval {
+            self.last_clear_time = now;
+            self.survivor_repo
+                .do_send(InstanceMetaRepositoryReq::ClearUnRefFile);
         }
     }
 
@@ -228,7 +183,7 @@ impl InstanceMetaManager {
 
     fn delay_handle_meta(&mut self, ctx: &mut Context<Self>) {
         self.update_delay_meta();
-        self.check_and_switch_if_needed(ctx);
+        self.check_and_clear_unref_files();
         ctx.run_later(Duration::from_millis(2000), |act, ctx| {
             act.delay_handle_meta(ctx)
         });
@@ -281,7 +236,11 @@ impl Handler<InstanceMetaManagerReq> for InstanceMetaManager {
                 service_key,
                 records,
             } => {
-                self.cache_meta.insert(service_key, records);
+                if records.is_empty() {
+                    self.cache_meta.remove(&service_key);
+                } else {
+                    self.cache_meta.insert(service_key, records);
+                }
             }
             InstanceMetaManagerReq::RemoveServiceMeta { service_keys } => {
                 for key in &service_keys {
