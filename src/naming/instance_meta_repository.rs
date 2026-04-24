@@ -329,6 +329,32 @@ impl InstanceMetaRepository {
         Ok(())
     }
 
+    pub async fn clear_unref_files(&self) -> anyhow::Result<()> {
+        let referenced_files: std::collections::HashSet<&str> =
+            self.file_map.values().map(|s| s.as_str()).collect();
+        let mut entries = tokio::fs::read_dir(&self.base_path).await?;
+        while let Some(entry) = entries.next_entry().await? {
+            let file_name = entry.file_name();
+            let file_name_str = file_name.to_string_lossy();
+            if file_name_str.len() < 16 {
+                continue;
+            }
+            if file_name_str == FILE_MAP_NAME {
+                continue;
+            }
+            if referenced_files.contains(file_name_str.as_ref()) {
+                continue;
+            }
+            let file_path = entry.path();
+            if let Err(e) = tokio::fs::remove_file(&file_path).await {
+                log::warn!("failed to remove unreferenced file {:?}: {}", file_path, e);
+            } else {
+                log::info!("removed unreferenced file: {:?}", file_path);
+            }
+        }
+        Ok(())
+    }
+
     pub async fn handle_msg(
         &mut self,
         msg: InstanceMetaRepositoryReq,
@@ -348,6 +374,9 @@ impl InstanceMetaRepository {
             }
             InstanceMetaRepositoryReq::Clear => {
                 self.clear().await?;
+            }
+            InstanceMetaRepositoryReq::ClearUnRefFile => {
+                self.clear_unref_files().await?;
             }
             InstanceMetaRepositoryReq::GetAllMetaData => {
                 let data = self.get_all_metadata().await?;
@@ -377,6 +406,7 @@ pub enum InstanceMetaRepositoryReq {
     GetServiceList,
     GetServiceMetadata(ServiceKey),
     GetAllMetaData,
+    ClearUnRefFile,
 }
 
 pub enum InstanceMetaRepositoryResult {
@@ -719,5 +749,41 @@ mod tests {
             9090,
             &metadata,
         );
+    }
+
+    #[tokio::test]
+    async fn test_clear_unref_files() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut repo = InstanceMetaRepository::new(dir.path().to_str().unwrap().to_owned())
+            .await
+            .unwrap();
+
+        let service_key = ServiceKey::new("ns", "G", "svc1");
+        let empty_meta = HashMap::new();
+        let dto = build_meta_dto("ns", "G", "svc1", "10.0.0.1", 8080, empty_meta);
+        repo.update_metadata(&service_key, vec![dto]).await.unwrap();
+
+        let unreferenced_file_name = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+        let unreferenced_path = Path::new(dir.path()).join(unreferenced_file_name);
+        tokio::fs::write(&unreferenced_path, b"orphan")
+            .await
+            .unwrap();
+
+        let short_name_path = Path::new(dir.path()).join("short");
+        tokio::fs::write(&short_name_path, b"short").await.unwrap();
+
+        assert!(unreferenced_path.exists());
+        assert!(short_name_path.exists());
+
+        repo.clear_unref_files().await.unwrap();
+
+        assert!(
+            !unreferenced_path.exists(),
+            "unreferenced file should be removed"
+        );
+        assert!(short_name_path.exists(), "short name file should be kept");
+
+        let records = repo.get_metadata(&service_key).await.unwrap();
+        assert_eq!(records.len(), 1, "referenced file should be kept");
     }
 }
