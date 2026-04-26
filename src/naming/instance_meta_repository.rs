@@ -280,6 +280,27 @@ impl InstanceMetaRepository {
         Ok(())
     }
 
+    pub async fn batch_update_metadata(
+        &mut self,
+        records_map: HashMap<ServiceKey, Vec<InstanceMetaDto>>,
+    ) -> anyhow::Result<()> {
+        let mut file_map_changed = false;
+        for (service_key, records) in records_map {
+            if let Some(file_name) = self.file_map.get(&service_key) {
+                self.write_records_to_file(file_name, &records).await?;
+            } else {
+                let file_name = Uuid::new_v4().simple().to_string();
+                self.write_records_to_file(&file_name, &records).await?;
+                self.file_map.insert(service_key, file_name);
+                file_map_changed = true;
+            }
+        }
+        if file_map_changed {
+            self.save_file_map().await?;
+        }
+        Ok(())
+    }
+
     pub async fn remove_metadata(&mut self, service_keys: &[ServiceKey]) -> anyhow::Result<()> {
         for service_key in service_keys {
             if let Some(file_name) = self.file_map.remove(service_key) {
@@ -303,7 +324,10 @@ impl InstanceMetaRepository {
     ) -> anyhow::Result<Vec<InstanceMetaDto>> {
         match self.file_map.get(service_key) {
             Some(file_name) => {
-                let records = self.read_records_from_file(file_name).await?;
+                let records = self
+                    .read_records_from_file(file_name)
+                    .await
+                    .unwrap_or_default();
                 Ok(records.into_iter().map(|r| r.into()).collect())
             }
             None => Ok(Vec::new()),
@@ -315,7 +339,10 @@ impl InstanceMetaRepository {
     ) -> anyhow::Result<Vec<(ServiceKey, Vec<InstanceMetaDto>)>> {
         let mut result = Vec::new();
         for (service_key, file_name) in &self.file_map {
-            let records = self.read_records_from_file(file_name).await?;
+            let records = self
+                .read_records_from_file(file_name)
+                .await
+                .unwrap_or_default();
             let metas = records.into_iter().map(|r| r.into()).collect();
             result.push((service_key.clone(), metas))
         }
@@ -363,6 +390,9 @@ impl InstanceMetaRepository {
             InstanceMetaRepositoryReq::UpdateMetadata(service_key, metas) => {
                 self.update_metadata(&service_key, metas).await?
             }
+            InstanceMetaRepositoryReq::UpdateBatch(records_map) => {
+                self.batch_update_metadata(records_map).await?
+            }
             InstanceMetaRepositoryReq::RemoveMetadata(keys) => self.remove_metadata(&keys).await?,
             InstanceMetaRepositoryReq::GetServiceList => {
                 let keys = self.list_services();
@@ -401,6 +431,7 @@ impl Actor for InstanceMetaRepository {
 #[rtype(result = "anyhow::Result<InstanceMetaRepositoryResult>")]
 pub enum InstanceMetaRepositoryReq {
     UpdateMetadata(ServiceKey, Vec<InstanceMetaDto>),
+    UpdateBatch(HashMap<ServiceKey, Vec<InstanceMetaDto>>),
     RemoveMetadata(Vec<ServiceKey>),
     Clear,
     GetServiceList,

@@ -190,14 +190,12 @@ impl InstanceMetaManager {
     }
 
     fn update_delay_meta(&mut self) {
-        let current_repo = self.current_repo();
-        for (service_key, records) in &self.cache_meta {
-            current_repo.do_send(InstanceMetaRepositoryReq::UpdateMetadata(
-                service_key.clone(),
-                records.clone(),
-            ));
+        if self.cache_meta.is_empty() {
+            return;
         }
-        self.cache_meta.clear();
+        let current_repo = self.current_repo();
+        let records_map = std::mem::take(&mut self.cache_meta);
+        current_repo.do_send(InstanceMetaRepositoryReq::UpdateBatch(records_map));
     }
 }
 
