@@ -1,6 +1,8 @@
+use actix_web::web;
 use actix_web::web::{scope, ServiceConfig};
 
 use crate::common::AppSysConfig;
+use crate::openapi::auth::login;
 use crate::openapi::config::config_v1_route;
 use crate::openapi::constant::NACOS_PREFIX;
 use crate::openapi::naming::naming_v1_route;
@@ -19,6 +21,7 @@ pub(crate) mod v2;
 #[cfg(feature = "debug")]
 pub(crate) mod debug;
 pub mod mcp;
+pub(crate) mod mcp_api;
 
 /// r-nacos openapi packages
 
@@ -73,4 +76,14 @@ fn openapi_service(conf: RouteConf) -> impl FnOnce(&mut ServiceConfig) {
 pub fn openapi_route_config(config: &mut ServiceConfig) {
     config_v1_route(config);
     naming_v1_route(config);
+}
+
+pub fn rnacos_openapi_config(config: &mut ServiceConfig) {
+    //login
+    config.service(
+        web::resource("/rnacos/v1/auth/user/login")
+            .route(web::post().to(login))
+            .route(web::get().to(login)),
+    );
+    mcp_api::mcp_route_config(config);
 }

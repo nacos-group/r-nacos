@@ -22,9 +22,10 @@ use std::time::SystemTime;
 
 lazy_static::lazy_static! {
     pub static ref IGNORE_PATH: Vec<&'static str> = vec![
-        "/nacos/v1/auth/login", "/nacos/v1/auth/users/login","/nacos/v3/auth/user/login" ,"/nacos/metrics"
+        "/nacos/v1/auth/login", "/nacos/v1/auth/users/login","/nacos/v3/auth/user/login","/rnacos/v1/auth/user/login" ,"/nacos/metrics"
     ];
     pub static ref API_PATH: Regex = Regex::new(r"(?i)/nacos/.*").unwrap();
+    pub static ref R_NACOS_API_PATH: Regex = Regex::new(r"(?i)/rnacos/v1/.*").unwrap();
     pub static ref IGNORE_METRICS_PATH: Vec<&'static str> = vec![
         "/nacos/v1/cs/configs/listener"
     ];
@@ -86,7 +87,8 @@ where
         let enable_auth = self.app_share_data.sys_config.openapi_enable_auth;
         let path = request.path();
         let is_check_path = if enable_auth {
-            API_PATH.is_match(path) && !IGNORE_PATH.contains(&path)
+            (API_PATH.is_match(path) || R_NACOS_API_PATH.is_match(path))
+                && !IGNORE_PATH.contains(&path)
         } else {
             true
         };

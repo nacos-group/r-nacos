@@ -13,7 +13,8 @@ use crate::openapi::health::health_config;
 use crate::openapi::mcp::mcp_config;
 use crate::openapi::metrics::metrics_config;
 use crate::openapi::{
-    openapi_route_config, v1::console as nacos_console, v2::console as nacos_console_v2,
+    openapi_route_config, rnacos_openapi_config, v1::console as nacos_console,
+    v2::console as nacos_console_v2,
 };
 use crate::raft::network::raft_config;
 
@@ -93,6 +94,7 @@ pub fn app_config(conf_data: AppSysConfig) -> impl FnOnce(&mut ServiceConfig) {
         if !conf_data.enable_no_auth_console || conf_data.openapi_enable_auth {
             backup_config(config);
             mcp_config(config);
+            rnacos_openapi_config(config);
             config
                 .service(web::resource("/").route(web::get().to(disable_no_auth_console_index)))
                 .service(
@@ -119,6 +121,7 @@ pub fn app_config(conf_data: AppSysConfig) -> impl FnOnce(&mut ServiceConfig) {
         } else {
             backup_config(config);
             mcp_config(config);
+            rnacos_openapi_config(config);
             login_config(config);
             metrics_config(config);
             health_config(config);
