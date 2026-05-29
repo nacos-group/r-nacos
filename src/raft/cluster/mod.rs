@@ -111,6 +111,18 @@ pub async fn handle_route(
             }
             Ok(RouterResponse::None)
         }
+        RouterRequest::LockReq { req } => {
+            let resp = app
+                .raft
+                .client_write(ClientWriteRequest::new(ClientRequest::LockReq(req)))
+                .await?;
+            if let ClientResponse::LockResp(lock_status) = resp.data {
+                return Ok(RouterResponse::LockResult {
+                    result: lock_status,
+                });
+            }
+            Ok(RouterResponse::None)
+        }
         RouterRequest::ImportData { data, param } => {
             let result = app
                 .transfer_import_manager
