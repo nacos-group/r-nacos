@@ -46,6 +46,9 @@ jobs:
           - target: aarch64-apple-darwin
             os: macos-latest
             name: rnacos-aarch64-apple-darwin-${GITHUB_REF#refs/*/}.tar.gz
+          - target: x86_64-apple-darwin
+            os: macos-latest
+            name: ratchjob-x86_64-apple-darwin-${GITHUB_REF#refs/*/}.tar.gz
           - target: x86_64-unknown-linux-musl
             allocator: mimalloc
             os: ubuntu-latest
@@ -69,14 +72,8 @@ jobs:
         run: |
           brew install gnu-tar
           echo "/usr/local/opt/gnu-tar/libexec/gnubin" >> $GITHUB_PATH
-
-      - name: Build default allocator
-        if: ${{ matrix.allocator != 'mimalloc' && matrix.target !='x86_64-unknown-linux-musl' }}
-        run: |
-          cargo build --release
-
-      - name: Build default musl
-        if: ${{ matrix.allocator != 'mimalloc' && matrix.target =='x86_64-unknown-linux-musl' }}
+      - name: Build target
+        if: matrix.allocator != 'mimalloc'
         run: |
           cargo build --release --target ${{ matrix.target }}
 
@@ -89,23 +86,13 @@ jobs:
         if: matrix.os == 'windows-latest'
         run: |
           cd target/release
-          cp ../../doc/conf/.env.example .env
-          7z a ../../${{ matrix.name }} rnacos.exe .env
+          cp ../../../doc/conf/.env.example .env
+          7z a ../../../${{ matrix.name }} rnacos.exe .env
           cd -
       - name: Archive binary (linux and macOS)
-        if: ${{  matrix.os != 'windows-latest' && matrix.target !='x86_64-unknown-linux-musl' }}
+        if: matrix.os != 'windows-latest'
         run: |
           cd target/release
-          cp ../../doc/conf/.env.example .env
-          tar czvf ../../${{ matrix.name }} rnacos .env
-          cd -
-          echo ${{ matrix.name }}
-          echo ${GITHUB_REF#refs/*/}
-      - name: Archive binary (linux-musl)
-        if: matrix.target =='x86_64-unknown-linux-musl'
-        run: |
-          # 注意，下面进入了三级目录，与上面两个打包操作路径不同
-          cd target/x86_64-unknown-linux-musl/release
           cp ../../../doc/conf/.env.example .env
           tar czvf ../../../${{ matrix.name }} rnacos .env
           cd -
