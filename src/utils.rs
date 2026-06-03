@@ -1,18 +1,10 @@
 use std::io::Read;
 
-use crypto::digest::Digest;
 use flate2::read::GzEncoder;
 
 pub fn get_md5(content: &str) -> String {
-    let mut m = crypto::md5::Md5::new();
-    m.input_str(content);
-    m.result_str()
-}
-
-pub fn get_sha1(content: &str) -> String {
-    let mut m = crypto::sha1::Sha1::new();
-    m.input_str(content);
-    m.result_str()
+    let digest = md5::compute(content.as_bytes());
+    format!("{:x}", digest)
 }
 
 pub fn select_option_by_clone<T>(a: &Option<T>, b: &Option<T>) -> Option<T>
