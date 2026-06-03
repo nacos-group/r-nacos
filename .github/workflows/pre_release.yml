@@ -85,14 +85,14 @@ jobs:
       - name: Archive binary (windows)
         if: matrix.os == 'windows-latest'
         run: |
-          cd target/release
+          cd target/${{matrix.target}}/release
           cp ../../../doc/conf/.env.example .env
           7z a ../../../${{ matrix.name }} rnacos.exe .env
           cd -
       - name: Archive binary (linux and macOS)
         if: matrix.os != 'windows-latest'
         run: |
-          cd target/release
+          cd target/${{matrix.target}}/release
           cp ../../../doc/conf/.env.example .env
           tar czvf ../../../${{ matrix.name }} rnacos .env
           cd -
