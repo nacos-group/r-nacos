@@ -18,13 +18,13 @@ jobs:
         target:
           - x86_64-unknown-linux-musl
           - x86_64-unknown-linux-gnu
+          - aarch64-unknown-linux-gnu
           - x86_64-pc-windows-msvc
           - i686-pc-windows-msvc
           - aarch64-pc-windows-msvc
           - aarch64-apple-darwin
           - x86_64-apple-darwin
         allocator: [null]
-        zigmark: [null]
         include:
           - target: x86_64-unknown-linux-musl
             os: ubuntu-latest
@@ -32,7 +32,9 @@ jobs:
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
             name: rnacos-x86_64-unknown-linux-gnu-${GITHUB_REF#refs/*/}.tar.gz
-            zigmark: zig
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
+            name: rnacos-aarch64-unknown-linux-gnu-${GITHUB_REF#refs/*/}.tar.gz
           - target: x86_64-unknown-linux-musl
             allocator: mimalloc
             os: ubuntu-latest
@@ -61,13 +63,13 @@ jobs:
           targets: ${{ matrix.target }}
 
       - name: Install Zig
-        if: matrix.zigmark =='zig'
+        if: matrix.target =='x86_64-unknown-linux-gnu' || matrix.target =='aarch64-unknown-linux-gnu'
         uses: mlugg/setup-zig@v1
         with:
           version: 0.14.0
 
       - name: Install cargo-zigbuild
-        if: matrix.zigmark =='zig'
+        if: matrix.target =='x86_64-unknown-linux-gnu' || matrix.target =='aarch64-unknown-linux-gnu'
         run: cargo install cargo-zigbuild
 
       - name: Install musl tools
@@ -82,13 +84,13 @@ jobs:
           brew install gnu-tar
           echo "/usr/local/opt/gnu-tar/libexec/gnubin" >> $GITHUB_PATH
 
-      - name: zig build target
-        if: matrix.zigmark =='zig'
+      - name: Build target
+        if: matrix.target =='x86_64-unknown-linux-gnu' || matrix.target =='aarch64-unknown-linux-gnu'
         run: |
           cargo zigbuild --release --target ${{ matrix.target }}.2.17
 
       - name: Build target
-        if: matrix.allocator != 'mimalloc' && matrix.zigmark !='zig'
+        if: matrix.allocator != 'mimalloc' && !(matrix.target =='x86_64-unknown-linux-gnu' || matrix.target =='aarch64-unknown-linux-gnu')
         run: |
           cargo build --release --target ${{ matrix.target }}
 
