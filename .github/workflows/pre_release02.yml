@@ -25,7 +25,6 @@ jobs:
           - aarch64-apple-darwin
           - x86_64-apple-darwin
         allocator: [null]
-        buildtype: [null]
         include:
           - target: x86_64-unknown-linux-musl
             os: ubuntu-latest
@@ -33,7 +32,6 @@ jobs:
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
             name: rnacos-x86_64-unknown-linux-gnu-${GITHUB_REF#refs/*/}.tar.gz
-            buildtype: zigbuild
           - target: x86_64-unknown-linux-musl
             allocator: mimalloc
             os: ubuntu-latest
@@ -74,7 +72,7 @@ jobs:
           echo "/usr/local/opt/gnu-tar/libexec/gnubin" >> $GITHUB_PATH
 
       - name: Build target
-        if: ${{ matrix.allocator != 'mimalloc' && matrix.buildtype != 'zigbuild' }}
+        if: matrix.allocator != 'mimalloc'
         run: |
           cargo build --release --target ${{ matrix.target }}
 
