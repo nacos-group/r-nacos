@@ -520,12 +520,15 @@ impl LogInnerManager {
             .await?;
         while c > 0 {
             while let Some(v) = message_reader.next_message_vec() {
-                let mut reader = BytesReader::from_bytes(v);
-                let item: LogRecord = reader.read_message(v)?;
-                let dto = item.into();
-                //rlist.push(dto);
-                loader.load(dto).await?;
                 c -= 1;
+                let mut reader = BytesReader::from_bytes(v);
+                if let Ok(item) = reader.read_message::<LogRecord>(v) {
+                    let dto = item.into();
+                    //rlist.push(dto);
+                    if let Err(e) = loader.load(dto).await {
+                        log::error!("load record error:{}", e);
+                    }
+                }
                 if c == 0 {
                     break;
                 }

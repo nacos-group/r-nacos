@@ -197,8 +197,11 @@ impl RaftStorage<ClientRequest, ClientResponse> for FileStore {
             RaftLogResponse::QueryResult(records) => {
                 let mut entrys = Vec::with_capacity(records.len());
                 for item in records.into_iter() {
-                    if let Ok(entry) = StoreUtils::log_record_to_entry(item) {
-                        entrys.push(entry);
+                    match StoreUtils::log_record_to_entry(item) {
+                        Ok(entry) => entrys.push(entry),
+                        Err(e) => {
+                            log::error!("get_log_entries error:{}", e);
+                        }
                     }
                 }
                 Ok(entrys)

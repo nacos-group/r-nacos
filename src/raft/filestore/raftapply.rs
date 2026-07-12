@@ -43,8 +43,7 @@ impl LogRecordLoader for LogRecordLoaderInstance {
             EntryPayload::Normal(req) => {
                 self.data_wrap
                     .load_log(req.data, &self.index_manager)
-                    .await
-                    .ok();
+                    .await?;
             }
             _ => {}
         }
