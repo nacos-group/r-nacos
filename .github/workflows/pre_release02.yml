@@ -84,7 +84,7 @@ jobs:
           brew install gnu-tar
           echo "/usr/local/opt/gnu-tar/libexec/gnubin" >> $GITHUB_PATH
 
-      - name: Build target
+      - name: zig build target
         if: matrix.target =='x86_64-unknown-linux-gnu' || matrix.target =='aarch64-unknown-linux-gnu'
         run: |
           cargo zigbuild --release --target ${{ matrix.target }}.2.17

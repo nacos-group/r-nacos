@@ -21,10 +21,12 @@ jobs:
         target:
           - x86_64-unknown-linux-musl
           - x86_64-unknown-linux-gnu
+          - aarch64-unknown-linux-gnu
           - x86_64-pc-windows-msvc
           - i686-pc-windows-msvc
           - aarch64-pc-windows-msvc
           - aarch64-apple-darwin
+          - x86_64-apple-darwin
         allocator: [null]
         include:
           - target: x86_64-unknown-linux-musl
@@ -33,6 +35,13 @@ jobs:
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
             name: rnacos-x86_64-unknown-linux-gnu-${GITHUB_REF#refs/*/}.tar.gz
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
+            name: rnacos-aarch64-unknown-linux-gnu-${GITHUB_REF#refs/*/}.tar.gz
+          - target: x86_64-unknown-linux-musl
+            allocator: mimalloc
+            os: ubuntu-latest
+            name: rnacos-x86_64-unknown-linux-musl-mimalloc-${GITHUB_REF#refs/*/}.tar.gz
           - target: x86_64-pc-windows-msvc
             os: windows-latest
             name: rnacos-x86_64-pc-windows-msvc-${GITHUB_REF#refs/*/}.zip
@@ -48,10 +57,6 @@ jobs:
           - target: x86_64-apple-darwin
             os: macos-latest
             name: rnacos-x86_64-apple-darwin-${GITHUB_REF#refs/*/}.tar.gz
-          - target: x86_64-unknown-linux-musl
-            allocator: mimalloc
-            os: ubuntu-latest
-            name: rnacos-x86_64-unknown-linux-musl-mimalloc-${GITHUB_REF#refs/*/}.tar.gz
     runs-on: ${{ matrix.os }}
     steps:
       # Largely inspired by https://github.com/starship/starship/blob/35a0a20f5c4fea6a08e1b91ff631b089eef8fc50/.github/workflows/deploy.yml
@@ -61,14 +66,18 @@ jobs:
           targets: ${{ matrix.target }}
 
       - name: Install Zig
+        if: matrix.target =='x86_64-unknown-linux-gnu' || matrix.target =='aarch64-unknown-linux-gnu'
         uses: mlugg/setup-zig@v1
+        with:
+          version: 0.14.0
 
       - name: Install cargo-zigbuild
+        if: matrix.target =='x86_64-unknown-linux-gnu' || matrix.target =='aarch64-unknown-linux-gnu'
         run: cargo install cargo-zigbuild
 
       - name: Install musl tools
         if: matrix.target == 'x86_64-unknown-linux-musl'
-        run: sudo apt-get install -y musl-tools 
+        run: sudo apt-get install -y musl-tools
 
       # Install gnu-tar because BSD tar is buggy
       # https://github.com/actions/cache/issues/403
@@ -78,8 +87,13 @@ jobs:
           brew install gnu-tar
           echo "/usr/local/opt/gnu-tar/libexec/gnubin" >> $GITHUB_PATH
 
+      - name: zig build target
+        if: matrix.target =='x86_64-unknown-linux-gnu' || matrix.target =='aarch64-unknown-linux-gnu'
+        run: |
+          cargo zigbuild --release --target ${{ matrix.target }}.2.17
+
       - name: Build target
-        if: matrix.allocator != 'mimalloc'
+        if: matrix.allocator != 'mimalloc' && !(matrix.target =='x86_64-unknown-linux-gnu' || matrix.target =='aarch64-unknown-linux-gnu')
         run: |
           cargo build --release --target ${{ matrix.target }}
 
