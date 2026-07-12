@@ -24,6 +24,7 @@ jobs:
           - aarch64-apple-darwin
           - x86_64-apple-darwin
         allocator: [null]
+        zigmark: [null]
         include:
           - target: x86_64-unknown-linux-musl
             os: ubuntu-latest
@@ -31,6 +32,7 @@ jobs:
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
             name: rnacos-x86_64-unknown-linux-gnu-${GITHUB_REF#refs/*/}.tar.gz
+            zigmark: zig
           - target: x86_64-unknown-linux-musl
             allocator: mimalloc
             os: ubuntu-latest
@@ -59,13 +61,13 @@ jobs:
           targets: ${{ matrix.target }}
 
       - name: Install Zig
-        if: matrix.target =='x86_64-unknown-linux-gnu'
+        if: matrix.zigmark =='zig'
         uses: mlugg/setup-zig@v1
         with:
           version: 0.14.0
 
       - name: Install cargo-zigbuild
-        if: matrix.target =='x86_64-unknown-linux-gnu'
+        if: matrix.zigmark =='zig'
         run: cargo install cargo-zigbuild
 
       - name: Install musl tools
@@ -80,13 +82,13 @@ jobs:
           brew install gnu-tar
           echo "/usr/local/opt/gnu-tar/libexec/gnubin" >> $GITHUB_PATH
 
-      - name: Build target
-        if: matrix.target =='x86_64-unknown-linux-gnu'
+      - name: zig build target
+        if: matrix.zigmark =='zig'
         run: |
-          cargo zigbuild --release --target ${{ matrix.target }}
+          cargo zigbuild --release --target ${{ matrix.target }}.2.17
 
       - name: Build target
-        if: matrix.allocator != 'mimalloc' && matrix.target !='x86_64-unknown-linux-gnu'
+        if: matrix.allocator != 'mimalloc' && matrix.zigmark !='zig'
         run: |
           cargo build --release --target ${{ matrix.target }}
 
