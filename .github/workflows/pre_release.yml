@@ -67,12 +67,6 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
-      - name: Install Zig
-        uses: mlugg/setup-zig@v1
-
-      - name: Install cargo-zigbuild
-        run: cargo install cargo-zigbuild
-
       - name: Install musl tools
         if: matrix.target == 'x86_64-unknown-linux-musl'
         run: sudo apt-get install -y musl-tools
@@ -89,11 +83,6 @@ jobs:
         if: ${{ matrix.allocator != 'mimalloc' && matrix.buildtype != 'zigbuild' }}
         run: |
           cargo build --release --target ${{ matrix.target }}
-
-      - name: Build target
-        if: ${{ matrix.allocator != 'mimalloc' && matrix.buildtype == 'zigbuild' }}
-        run: |
-          cargo zigbuild --release --target ${{ matrix.target }}.2.17
 
       - name: Build with mimalloc
         if: matrix.allocator == 'mimalloc'
