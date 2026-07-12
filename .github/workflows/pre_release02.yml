@@ -1,0 +1,108 @@
+name: pre release02
+
+on:
+  push:
+    branches:
+      - ignore
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build ${{ matrix.target }}
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - x86_64-unknown-linux-musl
+          - x86_64-unknown-linux-gnu
+          - x86_64-apple-darwin
+          - x86_64-pc-windows-msvc
+          - i686-pc-windows-msvc
+          - aarch64-pc-windows-msvc
+          - aarch64-apple-darwin
+          - x86_64-apple-darwin
+        allocator: [null]
+        buildtype: [null]
+        include:
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-latest
+            name: rnacos-x86_64-unknown-linux-musl-${GITHUB_REF#refs/*/}.tar.gz
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            name: rnacos-x86_64-unknown-linux-gnu-${GITHUB_REF#refs/*/}.tar.gz
+            buildtype: zigbuild
+          - target: x86_64-unknown-linux-musl
+            allocator: mimalloc
+            os: ubuntu-latest
+            name: rnacos-x86_64-unknown-linux-musl-mimalloc-${GITHUB_REF#refs/*/}.tar.gz
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            name: rnacos-x86_64-pc-windows-msvc-${GITHUB_REF#refs/*/}.zip
+          - target: i686-pc-windows-msvc
+            os: windows-latest
+            name: rnacos-i686-pc-windows-msvc-${GITHUB_REF#refs/*/}.zip
+          - target: aarch64-pc-windows-msvc
+            os: windows-latest
+            name: rnacos-aarch64-pc-windows-msvc-${GITHUB_REF#refs/*/}.zip
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            name: rnacos-aarch64-apple-darwin-${GITHUB_REF#refs/*/}.tar.gz
+          - target: x86_64-apple-darwin
+            os: macos-latest
+            name: rnacos-x86_64-apple-darwin-${GITHUB_REF#refs/*/}.tar.gz
+    runs-on: ${{ matrix.os }}
+    steps:
+      # Largely inspired by https://github.com/starship/starship/blob/35a0a20f5c4fea6a08e1b91ff631b089eef8fc50/.github/workflows/deploy.yml
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install musl tools
+        if: matrix.target == 'x86_64-unknown-linux-musl'
+        run: sudo apt-get install -y musl-tools
+
+      # Install gnu-tar because BSD tar is buggy
+      # https://github.com/actions/cache/issues/403
+      - name: Install GNU tar (macOS)
+        if: matrix.os == 'macos-latest'
+        run: |
+          brew install gnu-tar
+          echo "/usr/local/opt/gnu-tar/libexec/gnubin" >> $GITHUB_PATH
+
+      - name: Build target
+        if: ${{ matrix.allocator != 'mimalloc' && matrix.buildtype != 'zigbuild' }}
+        run: |
+          cargo build --release --target ${{ matrix.target }}
+
+      - name: Build with mimalloc
+        if: matrix.allocator == 'mimalloc'
+        run: |
+          cargo build --release --target ${{ matrix.target }} --features mimalloc
+
+      - name: Archive binary (windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          cd target/${{matrix.target}}/release
+          cp ../../../doc/conf/.env.example .env
+          7z a ../../../${{ matrix.name }} rnacos.exe .env
+          cd -
+      - name: Archive binary (linux and macOS)
+        if: matrix.os != 'windows-latest'
+        run: |
+          cd target/${{matrix.target}}/release
+          cp ../../../doc/conf/.env.example .env
+          tar czvf ../../../${{ matrix.name }} rnacos .env
+          cd -
+          echo ${{ matrix.name }}
+          echo ${GITHUB_REF#refs/*/}
+      - name: Upload binary artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: binaries-${{ matrix.target }}${{ matrix.allocator && format('-{0}', matrix.allocator) || '' }}
+          path: |
+            *.tar.gz
+            *.zip
