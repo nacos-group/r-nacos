@@ -84,14 +84,9 @@ jobs:
           echo "/usr/local/opt/gnu-tar/libexec/gnubin" >> $GITHUB_PATH
 
       - name: Build target
-        if: matrix.allocator != 'mimalloc' && matrix.buildtype != 'zigbuild'
+        if: matrix.allocator != 'mimalloc'
         run: |
           cargo build --release --target ${{ matrix.target }}
-
-      - name: zig build target
-        if: matrix.allocator != 'mimalloc' && matrix.buildtype == 'zigbuild'
-        run: |
-          cargo build --release --target ${{ matrix.target }}.2.17
 
       - name: Build with mimalloc
         if: matrix.allocator == 'mimalloc'
