@@ -24,6 +24,7 @@ jobs:
           - aarch64-pc-windows-msvc
           - aarch64-apple-darwin
         allocator: [null]
+        buildtype: [null]
         include:
           - target: x86_64-unknown-linux-musl
             os: ubuntu-latest
@@ -31,6 +32,11 @@ jobs:
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
             name: rnacos-x86_64-unknown-linux-gnu-${GITHUB_REF#refs/*/}.tar.gz
+            buildtype: zigbuild
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
+            name: rnacos-aarch64-unknown-linux-gnu-${GITHUB_REF#refs/*/}.tar.gz
+            buildtype: zigbuild
           - target: x86_64-apple-darwin
             os: macos-13
             name: rnacos-x86_64-apple-darwin-${GITHUB_REF#refs/*/}.tar.gz
@@ -48,7 +54,7 @@ jobs:
             name: rnacos-aarch64-apple-darwin-${GITHUB_REF#refs/*/}.tar.gz
           - target: x86_64-apple-darwin
             os: macos-latest
-            name: ratchjob-x86_64-apple-darwin-${GITHUB_REF#refs/*/}.tar.gz
+            name: rnacos-x86_64-apple-darwin-${GITHUB_REF#refs/*/}.tar.gz
           - target: x86_64-unknown-linux-musl
             allocator: mimalloc
             os: ubuntu-latest
@@ -60,6 +66,12 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
+
+      - name: Install Zig
+        uses: mlugg/setup-zig@v1
+
+      - name: Install cargo-zigbuild
+        run: cargo install cargo-zigbuild
 
       - name: Install musl tools
         if: matrix.target == 'x86_64-unknown-linux-musl'
@@ -73,9 +85,14 @@ jobs:
           brew install gnu-tar
           echo "/usr/local/opt/gnu-tar/libexec/gnubin" >> $GITHUB_PATH
       - name: Build target
-        if: matrix.allocator != 'mimalloc'
+        if: ${{ (matrix.allocator != 'mimalloc') && (matrix.buildtype !='zigbuild') }}
         run: |
           cargo build --release --target ${{ matrix.target }}
+
+      - name: Build target
+        if: ${{ (matrix.allocator != 'mimalloc') && (matrix.buildtype =='zigbuild') }}
+        run: |
+          cargo zigbuild --release --target ${{ matrix.target }}.2.17
 
       - name: Build with mimalloc
         if: matrix.allocator == 'mimalloc'
