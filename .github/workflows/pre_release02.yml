@@ -59,9 +59,13 @@ jobs:
           targets: ${{ matrix.target }}
 
       - name: Install Zig
+        if: matrix.target =='x86_64-unknown-linux-gnu'
         uses: mlugg/setup-zig@v1
+        with:
+          version: 0.14.0
 
       - name: Install cargo-zigbuild
+        if: matrix.target =='x86_64-unknown-linux-gnu'
         run: cargo install cargo-zigbuild
 
       - name: Install musl tools
