@@ -24,8 +24,11 @@ def rnacos_exe_name() -> str:
 INTEGRATION_PROJECT_ROOT_DIR = SCRIPT_DIR.parent.joinpath("rust-client-test")
 RNACOS_ROOT_DIR = SCRIPT_DIR.parent.parent;
 RNACOS_BIN = RNACOS_ROOT_DIR.joinpath("target").joinpath("debug").joinpath(rnacos_exe_name())
-BUILD_CMD= "cargo build" 
-TEST_CMD = "cargo test"   # 测试命令
+BUILD_CMD= "cargo build"
+TEST_CMD = "cargo test"   # 常规测试命令（不含 #[ignore] 标注的破坏性测试）
+# close-write 端到端集成测试：禁写 node1 是单向破坏性操作，会干扰并行的常规
+# 集群测试，故标注 #[ignore]，在常规测试通过后单独串行执行。
+CLOSE_WRITE_TEST_CMD = "cargo test close_write -- --ignored --test-threads=1"
 NODE_CNT = 3                   # 节点数
 BASE_HTTP_PORT = 8848
 BASE_RAFT_PORT = 9848
@@ -109,7 +112,15 @@ def main():
             time.sleep(3)
 
         print("Running test command:", TEST_CMD)
-        test_ret = subprocess.run(TEST_CMD, shell=True, cwd=INTEGRATION_PROJECT_ROOT_DIR).returncode
+        test_env = os.environ.copy()
+        test_env["RNACOS_TEST_WORK_DIR"] = str(work_dir)
+        test_ret = subprocess.run(TEST_CMD, shell=True, cwd=INTEGRATION_PROJECT_ROOT_DIR, env=test_env).returncode
+
+        # 常规测试通过后，单独串行执行 close-write 端到端集成测试（禁写 node1
+        # 是破坏性操作，须在常规集群测试之后运行，否则会影响依赖 node1 的用例）。
+        if test_ret == 0:
+            print("Running close-write integration tests:", CLOSE_WRITE_TEST_CMD)
+            test_ret = subprocess.run(CLOSE_WRITE_TEST_CMD, shell=True, cwd=INTEGRATION_PROJECT_ROOT_DIR, env=test_env).returncode
     finally:
         print("Stopping rnacos processes...")
         kill_rnacos()
