@@ -18,6 +18,7 @@ use async_raft_ext::storage::{CurrentSnapshotData, HardState, InitialState};
 use async_raft_ext::RaftStorage;
 use async_trait::async_trait;
 use std::collections::HashSet;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 pub fn vec_to_set(list: &Vec<u64>) -> HashSet<u64> {
@@ -36,6 +37,8 @@ pub struct FileStore {
     log_manager: Addr<RaftLogManager>,
     //data_store: Addr<RaftDataStore>,
     apply_manager: Addr<StateApplyManager>,
+    /// raft 禁写标记，进程生命周期内单向生效（false→true），仅重启进程可恢复
+    close_write: Arc<AtomicBool>,
 }
 
 impl FileStore {
@@ -54,7 +57,22 @@ impl FileStore {
             log_manager,
             //data_store,
             apply_manager,
+            close_write: Arc::new(AtomicBool::new(false)),
         }
+    }
+
+    /// 设置 raft 禁写（单向，进程内不可恢复）
+    pub fn set_close_write(&self) {
+        self.close_write.store(true, Ordering::SeqCst);
+        log::warn!(
+            "raft close_write enabled, node:{} raft write disabled",
+            self.node_id
+        );
+    }
+
+    /// 判断是否处于 raft 禁写状态
+    pub fn is_close_write(&self) -> bool {
+        self.close_write.load(Ordering::SeqCst)
     }
 
     pub async fn get_last_log_index(&self) -> anyhow::Result<LogIndexInfo> {
@@ -242,6 +260,11 @@ impl RaftStorage<ClientRequest, ClientResponse> for FileStore {
         index: &u64,
         data: &ClientRequest,
     ) -> anyhow::Result<ClientResponse> {
+        if self.is_close_write() {
+            return Err(anyhow::anyhow!(
+                "raft is in close-write state, reject apply_entry"
+            ));
+        }
         match self
             .apply_manager
             .send(StateApplyAsyncRequest::ApplyRequest(ApplyRequestDto::new(
@@ -261,6 +284,11 @@ impl RaftStorage<ClientRequest, ClientResponse> for FileStore {
         &self,
         entries: &[(&u64, &ClientRequest)],
     ) -> anyhow::Result<()> {
+        if self.is_close_write() {
+            return Err(anyhow::anyhow!(
+                "raft is in close-write state, reject replicate"
+            ));
+        }
         let mut list = Vec::with_capacity(entries.len());
         for (index, data) in entries {
             list.push(ApplyRequestDto::new((*index).to_owned(), (*data).clone()))
