@@ -3,8 +3,9 @@ use std::sync::Arc;
 
 use actix_web::web::Data;
 use actix_web::web::Json;
-use actix_web::Responder;
+use actix_web::{HttpResponse, Responder};
 use async_raft_ext::raft::ClientWriteRequest;
+use serde_json::json;
 
 use crate::common::appdata::AppShareData;
 use crate::raft::join_node;
@@ -88,4 +89,27 @@ pub async fn init(app: Data<Arc<AppShareData>>) -> actix_web::Result<impl Respon
 pub async fn metrics(app: Data<Arc<AppShareData>>) -> actix_web::Result<impl Responder> {
     let metrics = app.raft.metrics().borrow().clone();
     Ok(Json(metrics))
+}
+
+/// 触发 raft 禁写：校验 `{local_db_dir}/close_raft_mark` 标记文件存在后，置禁写标记
+//#[post("/close-write")]
+pub async fn close_write(app: Data<Arc<AppShareData>>) -> actix_web::Result<impl Responder> {
+    let local_db_dir = &app.sys_config.local_db_dir;
+    let mark = std::path::Path::new(local_db_dir.as_str()).join("close_raft_mark");
+    if !mark.exists() {
+        log::warn!(
+            "close_write rejected, mark file not found: {}",
+            mark.display()
+        );
+        return Ok(HttpResponse::Ok().json(json!({
+            "ok": 0,
+            "msg": format!("执行前需要在指定目录({})创建对应标记文件 close_raft_mark", local_db_dir)
+        })));
+    }
+    app.raft_store.set_close_write();
+    log::info!(
+        "close_write enabled, raft write disabled, local_db_dir:{}",
+        local_db_dir
+    );
+    Ok(HttpResponse::Ok().json(json!({ "ok": 1 })))
 }

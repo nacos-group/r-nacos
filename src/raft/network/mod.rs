@@ -21,7 +21,8 @@ pub fn raft_config(config: &mut web::ServiceConfig) {
                 web::resource("/change-membership")
                     .route(web::post().to(management::change_membership)),
             )
-            .service(web::resource("/metrics").route(web::get().to(management::metrics))),
+            .service(web::resource("/metrics").route(web::get().to(management::metrics)))
+            .service(web::resource("/close-write").route(web::post().to(management::close_write))),
     );
     // for debug
     // .service(web::resource("/route").route(web::post().to(routeapi::route_request)))

@@ -31,6 +31,11 @@ impl PayloadHandler for RaftAppendRequestHandler {
         request_payload: Payload,
         _request_meta: RequestMeta,
     ) -> anyhow::Result<HandlerResult> {
+        if self.app_data.raft_store.is_close_write() {
+            return Err(anyhow::anyhow!(
+                "raft is in close-write state, reject append_entries"
+            ));
+        }
         let body_vec = request_payload.body.unwrap_or_default().value;
         let request: async_raft_ext::raft::AppendEntriesRequest<ClientRequest> =
             serde_json::from_slice(&body_vec)?;

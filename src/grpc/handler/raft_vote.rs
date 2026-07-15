@@ -22,6 +22,11 @@ impl PayloadHandler for RaftVoteRequestHandler {
         request_payload: Payload,
         _request_meta: RequestMeta,
     ) -> anyhow::Result<HandlerResult> {
+        if self.app_data.raft_store.is_close_write() {
+            return Err(anyhow::anyhow!(
+                "raft is in close-write state, reject vote"
+            ));
+        }
         let body_vec = request_payload.body.unwrap_or_default().value;
         let request: async_raft_ext::raft::VoteRequest = serde_json::from_slice(&body_vec)?;
         let res = self.app_data.raft.vote(request).await?;
