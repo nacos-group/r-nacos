@@ -433,3 +433,38 @@ impl RaftStorage<ClientRequest, ClientResponse> for FileStore {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use actix::dev::channel;
+
+    /// 构造仅用于测试禁写标记逻辑的 `FileStore`，所有 actor 地址为不连接的 channel
+    fn new_test_store() -> FileStore {
+        FileStore {
+            node_id: 1,
+            index_manager: Addr::new(channel::channel::<RaftIndexManager>(1).0),
+            snapshot_manager: Addr::new(channel::channel::<RaftSnapshotManager>(1).0),
+            log_manager: Addr::new(channel::channel::<RaftLogManager>(1).0),
+            apply_manager: Addr::new(channel::channel::<StateApplyManager>(1).0),
+            close_write: Arc::new(AtomicBool::new(false)),
+        }
+    }
+
+    #[test]
+    fn close_write_default_is_false() {
+        let store = new_test_store();
+        assert!(!store.is_close_write());
+    }
+
+    #[test]
+    fn close_write_is_one_way_irreversible() {
+        let store = new_test_store();
+        assert!(!store.is_close_write());
+        store.set_close_write();
+        assert!(store.is_close_write());
+        assert!(store.is_close_write());
+        store.set_close_write();
+        assert!(store.is_close_write());
+    }
+}

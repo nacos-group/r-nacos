@@ -95,11 +95,10 @@ pub async fn metrics(app: Data<Arc<AppShareData>>) -> actix_web::Result<impl Res
 //#[post("/close-write")]
 pub async fn close_write(app: Data<Arc<AppShareData>>) -> actix_web::Result<impl Responder> {
     let local_db_dir = &app.sys_config.local_db_dir;
-    let mark = std::path::Path::new(local_db_dir.as_str()).join("close_raft_mark");
-    if !mark.exists() {
+    if !close_raft_mark_exists(local_db_dir.as_str()) {
         log::warn!(
-            "close_write rejected, mark file not found: {}",
-            mark.display()
+            "close_write rejected, mark file not found: {}/close_raft_mark",
+            local_db_dir
         );
         return Ok(HttpResponse::Ok().json(json!({
             "ok": 0,
@@ -112,4 +111,31 @@ pub async fn close_write(app: Data<Arc<AppShareData>>) -> actix_web::Result<impl
         local_db_dir
     );
     Ok(HttpResponse::Ok().json(json!({ "ok": 1 })))
+}
+
+/// 校验禁写安全闸门标记文件 `{local_db_dir}/close_raft_mark` 是否存在
+fn close_raft_mark_exists(local_db_dir: &str) -> bool {
+    std::path::Path::new(local_db_dir)
+        .join("close_raft_mark")
+        .exists()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::close_raft_mark_exists;
+    use tempfile::tempdir;
+
+    #[test]
+    fn close_raft_mark_not_exists_when_absent() {
+        let dir = tempdir().unwrap();
+        assert!(!close_raft_mark_exists(dir.path().to_str().unwrap()));
+    }
+
+    #[test]
+    fn close_raft_mark_exists_when_present() {
+        let dir = tempdir().unwrap();
+        let mark = dir.path().join("close_raft_mark");
+        std::fs::write(&mark, b"").unwrap();
+        assert!(close_raft_mark_exists(dir.path().to_str().unwrap()));
+    }
 }
