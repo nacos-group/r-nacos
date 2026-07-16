@@ -31,6 +31,20 @@ impl RaftRouter {
         let addr = self.store.get_target_addr(target).await?;
         self.cluster_sender.send_request(addr, payload).await
     }
+
+    /// 禁写闸门：本节点处于 close-write 状态时，拒绝一切出站 raft 网络请求。
+    ///
+    /// leader 的 heartbeat / 日志复制、follower 的投票请求都经此拦截，
+    /// 使本节点不再向集群发送任何 raft 消息（含心跳），从而让其余节点
+    /// 触发选举超时并选出新 leader，真正达成"等同关闭进程"的语义。
+    fn ensure_not_close_write(&self) -> anyhow::Result<()> {
+        if self.store.is_close_write() {
+            return Err(anyhow::anyhow!(
+                "raft is in close-write state, reject outbound raft network request"
+            ));
+        }
+        Ok(())
+    }
 }
 
 #[async_trait]
@@ -40,6 +54,7 @@ impl RaftNetwork<ClientRequest> for RaftRouter {
         target: NodeId,
         req: AppendEntriesRequest<ClientRequest>,
     ) -> anyhow::Result<AppendEntriesResponse> {
+        self.ensure_not_close_write()?;
         let request = serde_json::to_string(&req).unwrap_or_default();
         let payload = PayloadUtils::build_payload(RAFT_APPEND_REQUEST, request);
         let resp_payload = self.send_request(target, payload).await?;
@@ -53,6 +68,7 @@ impl RaftNetwork<ClientRequest> for RaftRouter {
         target: NodeId,
         req: InstallSnapshotRequest,
     ) -> anyhow::Result<InstallSnapshotResponse> {
+        self.ensure_not_close_write()?;
         let request = serde_json::to_string(&req).unwrap_or_default();
         let payload = PayloadUtils::build_payload(RAFT_SNAPSHOT_REQUEST, request);
         let resp_payload = self.send_request(target, payload).await?;
@@ -62,6 +78,7 @@ impl RaftNetwork<ClientRequest> for RaftRouter {
     }
 
     async fn vote(&self, target: NodeId, req: VoteRequest) -> anyhow::Result<VoteResponse> {
+        self.ensure_not_close_write()?;
         let request = serde_json::to_string(&req).unwrap_or_default();
         let payload = PayloadUtils::build_payload(RAFT_VOTE_REQUEST, request);
         let resp_payload = self.send_request(target, payload).await?;

@@ -174,8 +174,15 @@ async fn test_close_write_end_to_end() {
     let before = last_applied(1).await;
     let leader = current_leader().await.expect("leader exists");
     let writer = config_client_for_leader(leader);
-    let warm_key = ConfigKey::new(&format!("cw_warm_{}", unique_suffix()), &generate_test_group(), "");
-    writer.set_config(&warm_key, "v1").await.expect("warm write ok");
+    let warm_key = ConfigKey::new(
+        &format!("cw_warm_{}", unique_suffix()),
+        &generate_test_group(),
+        "",
+    );
+    writer
+        .set_config(&warm_key, "v1")
+        .await
+        .expect("warm write ok");
     let grew = wait_for(
         || async { last_applied(1).await > before },
         Duration::from_secs(10),
@@ -200,8 +207,15 @@ async fn test_close_write_end_to_end() {
     );
 
     let before2 = last_applied(1).await;
-    let warm2 = ConfigKey::new(&format!("cw_warm2_{}", unique_suffix()), &generate_test_group(), "");
-    writer.set_config(&warm2, "v1").await.expect("warm2 write ok");
+    let warm2 = ConfigKey::new(
+        &format!("cw_warm2_{}", unique_suffix()),
+        &generate_test_group(),
+        "",
+    );
+    writer
+        .set_config(&warm2, "v1")
+        .await
+        .expect("warm2 write ok");
     let still_growing = wait_for(
         || async { last_applied(1).await > before2 },
         Duration::from_secs(10),
