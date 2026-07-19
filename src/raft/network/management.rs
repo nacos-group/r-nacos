@@ -113,6 +113,48 @@ pub async fn close_write(app: Data<Arc<AppShareData>>) -> actix_web::Result<impl
     Ok(HttpResponse::Ok().json(json!({ "ok": 1 })))
 }
 
+/// raft 日志写入错误注入请求体（仅 debug feature）
+#[cfg(feature = "debug")]
+#[derive(serde::Deserialize)]
+pub struct InjectErrorReq {
+    /// 注入场景，目前仅支持 discard_log
+    pub scene: String,
+    /// 丢弃后续 WriteBatch 的次数
+    pub times: u64,
+}
+
+/// 触发 raft 日志写入错误注入（仅 debug feature，免鉴权）
+//#[post("/inject-error")]
+#[cfg(feature = "debug")]
+pub async fn inject_error(
+    app: Data<Arc<AppShareData>>,
+    req: Json<InjectErrorReq>,
+) -> actix_web::Result<impl Responder> {
+    match req.scene.as_str() {
+        "discard_log" => match app.raft_store.inject_discard_log(req.times).await {
+            Ok(_) => {
+                log::warn!(
+                    "inject_error discard_log ok, node:{} times:{}",
+                    app.sys_config.raft_node_id, req.times
+                );
+                Ok(HttpResponse::Ok().json(json!({ "ok": 1 })))
+            }
+            Err(e) => {
+                log::error!(
+                    "inject_error discard_log failed, node:{} times:{} err:{:?}",
+                    app.sys_config.raft_node_id, req.times, e
+                );
+                Ok(HttpResponse::Ok().json(json!({ "ok": 0, "msg": format!("{:?}", e) })))
+            }
+        },
+        other => {
+            log::warn!("inject_error unknown scene:{}", other);
+            Ok(HttpResponse::Ok()
+                .json(json!({ "ok": 0, "msg": format!("unknown scene: {other}") })))
+        }
+    }
+}
+
 /// 校验禁写安全闸门标记文件 `{local_db_dir}/close_raft_mark` 是否存在
 fn close_raft_mark_exists(local_db_dir: &str) -> bool {
     std::path::Path::new(local_db_dir)

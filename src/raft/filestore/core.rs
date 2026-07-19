@@ -7,6 +7,8 @@ use crate::raft::filestore::raftindex::{RaftIndexManager, RaftIndexRequest, Raft
 use crate::raft::filestore::raftlog::{
     RaftLogManager, RaftLogManagerAsyncRequest, RaftLogManagerRequest, RaftLogResponse,
 };
+#[cfg(feature = "debug")]
+use crate::raft::filestore::raftlog::InjectErrorSceneRequest;
 use crate::raft::filestore::raftsnapshot::{
     RaftSnapshotManager, RaftSnapshotRequest, RaftSnapshotResponse,
 };
@@ -84,6 +86,15 @@ impl FileStore {
             RaftLogResponse::LastLogIndex(last_index) => Ok(last_index),
             _ => Ok(LogIndexInfo::default()),
         }
+    }
+
+    /// 触发 raft 日志写入错误注入：设置后续 `times` 个 WriteBatch 静默丢弃（仅 debug feature）
+    #[cfg(feature = "debug")]
+    pub async fn inject_discard_log(&self, times: u64) -> anyhow::Result<()> {
+        self.log_manager
+            .send(InjectErrorSceneRequest::InjectDiscardLog { times })
+            .await??;
+        Ok(())
     }
 
     /*
