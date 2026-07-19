@@ -274,6 +274,11 @@ def run_reproduce(work_dir):
     client = nacos.NacosClient(leader_addr, namespace=NAMESPACE)
     print(f"Publish config data_id={DATA_ID} to leader {leader_addr}")
     client.publish_config(DATA_ID, GROUP, "inject init value 0")
+    payload = {"name": "pre-inject", "value": 0}
+    for i in range(60):
+        payload["value"] = i
+        client.publish_config(DATA_ID, GROUP, json.dumps(payload))
+        time.sleep(0.05)
 
     status, body = inject_discard_log(inject_node, INJECT_TIMES)
     if status == 404:
