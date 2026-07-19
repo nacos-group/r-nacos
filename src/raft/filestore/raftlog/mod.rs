@@ -829,6 +829,8 @@ pub struct RaftLogManager {
     pre_ready_snapshot_pointer: Option<LogRecordDto>,
     last_ready_snapshot_pointer: Option<LogRecordDto>,
     is_init: bool,
+    #[cfg(feature = "debug")]
+    discard_times: u64,
 }
 
 impl RaftLogManager {
@@ -845,6 +847,8 @@ impl RaftLogManager {
             pre_ready_snapshot_pointer: None,
             last_ready_snapshot_pointer: None,
             is_init: false,
+            #[cfg(feature = "debug")]
+            discard_times: 0,
         }
     }
 
@@ -1355,6 +1359,15 @@ pub enum RaftLogManagerAsyncRequest {
     },
 }
 
+/// raft 日志写入错误注入请求（仅 debug feature 下可用；可扩展，新增场景追加枚举变体即可）
+#[cfg(feature = "debug")]
+#[derive(Message)]
+#[rtype(result = "anyhow::Result<()>")]
+pub enum InjectErrorSceneRequest {
+    /// 注入丢弃 WriteBatch 场景：覆盖式设置 discard_times = times，使后续 times 个 WriteBatch 静默丢弃
+    InjectDiscardLog { times: u64 },
+}
+
 pub enum RaftLogManagerInnerCtx {
     Query {
         start: u64,
@@ -1400,6 +1413,17 @@ impl Handler<RaftLogManagerRequest> for RaftLogManager {
                 Ok(RaftLogResponse::None)
             }
             RaftLogManagerRequest::WriteBatch(records) => {
+                #[cfg(feature = "debug")]
+                {
+                    if self.discard_times > 0 {
+                        self.discard_times -= 1;
+                        log::warn!(
+                            "discard a WriteBatch by inject, remain:{}",
+                            self.discard_times
+                        );
+                        return Ok(RaftLogResponse::None);
+                    }
+                }
                 self.write_batch(ctx, records, 0);
                 Ok(RaftLogResponse::None)
             }
@@ -1478,5 +1502,24 @@ impl Handler<RaftLogManagerAsyncRequest> for RaftLogManager {
         .into_actor(self)
         .map(|r, _act, _ctx| r);
         Box::pin(fut)
+    }
+}
+
+#[cfg(feature = "debug")]
+impl Handler<InjectErrorSceneRequest> for RaftLogManager {
+    type Result = anyhow::Result<()>;
+
+    fn handle(
+        &mut self,
+        msg: InjectErrorSceneRequest,
+        _ctx: &mut Self::Context,
+    ) -> Self::Result {
+        match msg {
+            InjectErrorSceneRequest::InjectDiscardLog { times } => {
+                self.discard_times = times;
+                log::warn!("inject discard_log set, times:{}", times);
+                Ok(())
+            }
+        }
     }
 }
