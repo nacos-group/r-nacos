@@ -1637,3 +1637,90 @@ impl Handler<InjectErrorSceneRequest> for RaftLogManager {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn new_record(index: u64, term: u64) -> LogRecordDto {
+        LogRecordDto {
+            index,
+            term,
+            value: vec![1, 2, 3, 4],
+        }
+    }
+
+    /// `LogInnerManager::write` 在 `current_index_count` 达到 `index_interval` 且
+    /// `end_index != record.index` 时返回 `LogWriteMark::IndexEqualError`，且不提交索引项、
+    /// 不重置计数、不推进有效记录数（用例5）。
+    #[tokio::test]
+    async fn write_index_equal_error_when_index_mismatch() {
+        let temp = tempfile::tempdir().unwrap();
+        let log_path = temp
+            .path()
+            .join("log_unit")
+            .to_string_lossy()
+            .into_owned();
+        let mut mgr = LogInnerManager::init(log_path, 0, 0, 0).await.unwrap();
+        let interval = mgr.header.index_interval;
+
+        // 写入 interval-1 条 index 连续的记录，使 current_index_count 达到 interval-1，
+        // 每条走 else 分支推进 msg_count 但不触发 index 校验。
+        for i in 0..(interval as u64 - 1) {
+            let mark = mgr.write(&new_record(i, 1)).await.unwrap();
+            assert!(
+                matches!(mark, LogWriteMark::Success),
+                "prefix write {} should be Success",
+                i
+            );
+        }
+        assert_eq!(mgr.current_index_count, interval - 1);
+        assert_eq!(mgr.msg_count, (interval as u64) - 1);
+        assert_eq!(mgr.get_end_index(), (interval as u64) - 1);
+
+        let indexs_len_before = mgr.indexs.len();
+        let count_before = mgr.current_index_count;
+
+        // 下一条使 current_index_count 达到 interval 触发 index 校验；故意传入跳变的 index。
+        // end_index = interval-1，与 record.index 不匹配。
+        let bad_index = (interval as u64) + 100;
+        let mark = mgr.write(&new_record(bad_index, 1)).await.unwrap();
+        assert!(matches!(mark, LogWriteMark::IndexEqualError));
+
+        // 索引项未新增
+        assert_eq!(mgr.indexs.len(), indexs_len_before);
+        // current_index_count 未被重置为 0（保持为 interval）
+        assert_eq!(mgr.current_index_count, interval);
+        assert_eq!(mgr.current_index_count, count_before + 1);
+        // 该条未被计入有效记录：end_index 未推进
+        assert_eq!(mgr.get_end_index(), (interval as u64) - 1);
+    }
+
+    /// 对照用例：index 匹配时正常写入，索引项按预期新增、计数重置（需求4.3，匹配路径不受影响）。
+    #[tokio::test]
+    async fn write_success_when_index_match_at_interval_boundary() {
+        let temp = tempfile::tempdir().unwrap();
+        let log_path = temp
+            .path()
+            .join("log_unit")
+            .to_string_lossy()
+            .into_owned();
+        let mut mgr = LogInnerManager::init(log_path, 0, 0, 0).await.unwrap();
+        let interval = mgr.header.index_interval;
+
+        // 写入 interval 条连续 index 记录，第 interval 条触发 index 校验且匹配。
+        for i in 0..(interval as u64) {
+            let mark = mgr.write(&new_record(i, 1)).await.unwrap();
+            assert!(
+                matches!(mark, LogWriteMark::Success),
+                "write {} should be Success",
+                i
+            );
+        }
+        // 校验通过：索引项新增一个、current_index_count 重置为 0、msg_count 推进到 interval。
+        assert_eq!(mgr.indexs.len(), 2);
+        assert_eq!(mgr.current_index_count, 0);
+        assert_eq!(mgr.msg_count, interval as u64);
+        assert_eq!(mgr.get_end_index(), interval as u64);
+    }
+}

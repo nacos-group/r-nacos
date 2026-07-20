@@ -501,4 +501,116 @@ mod tests {
         store.set_close_write();
         assert!(store.is_close_write());
     }
+
+    use async_raft_ext::raft::EntryPayload;
+    use crate::raft::filestore::raftlog::RaftLogManager;
+    use std::time::Duration;
+
+    /// 构造一条 Blank 负载的日志 Entry（负载内容对落盘验证无影响）
+    fn one_entry(index: u64, term: u64) -> Entry<ClientRequest> {
+        Entry {
+            term,
+            index,
+            payload: EntryPayload::Blank,
+        }
+    }
+
+    /// 启动单节点 FileStore 完整 actor 链，日志目录指向临时目录。
+    /// 返回的 TempDir 必须在测试期间存活，否则文件被回收。
+    fn new_persistent_store() -> (FileStore, tempfile::TempDir) {
+        let temp = tempfile::tempdir().unwrap();
+        let base_path = Arc::new(temp.path().to_string_lossy().into_owned());
+        let index_manager = RaftIndexManager::new(base_path.clone()).start();
+        let log_manager = RaftLogManager::new(base_path.clone(), Some(index_manager.clone())).start();
+        let snapshot_manager =
+            RaftSnapshotManager::new(base_path.clone(), Some(index_manager.clone())).start();
+        let apply_manager = StateApplyManager::new().start();
+        let store = FileStore::new(
+            1,
+            index_manager,
+            snapshot_manager,
+            log_manager,
+            apply_manager,
+        );
+        (store, temp)
+    }
+
+    /// 用例1：单条写入返回成功且已真正落盘（`append_entry_to_log` / `Write`）。
+    #[actix::test]
+    async fn append_entry_to_log_persists_before_return() {
+        let (store, _temp) = new_persistent_store();
+        store.append_entry_to_log(&one_entry(1, 1)).await.unwrap();
+        let got = store.get_log_entries(1, 2).await.unwrap();
+        assert_eq!(got.len(), 1);
+        assert_eq!(got[0].index, 1);
+        assert_eq!(got[0].term, 1);
+    }
+
+    /// 用例2：批量写入返回成功且整批已落盘（`replicate_to_log` / `WriteBatch`）。
+    #[actix::test]
+    async fn replicate_to_log_persists_whole_batch_before_return() {
+        let (store, _temp) = new_persistent_store();
+        let entries: Vec<Entry<ClientRequest>> = (1..=5).map(|i| one_entry(i, 1)).collect();
+        store.replicate_to_log(&entries).await.unwrap();
+        let got = store.get_log_entries(1, 6).await.unwrap();
+        assert_eq!(got.len(), 5);
+        for (i, e) in got.iter().enumerate() {
+            assert_eq!(e.index, (i as u64) + 1);
+        }
+    }
+
+    /// 用例3：空批量写入按 Ignore 返回成功，不产生新记录、不空等待。
+    #[actix::test]
+    async fn replicate_to_log_empty_returns_success_without_new_record() {
+        let (store, _temp) = new_persistent_store();
+        store.append_entry_to_log(&one_entry(1, 1)).await.unwrap();
+        let before = store.get_last_log_index().await.unwrap().index;
+        // 空数据应返回 Ok(())（Ignore → Ok(())）且有限时间内完成
+        let r = tokio::time::timeout(Duration::from_secs(3), store.replicate_to_log(&[]))
+            .await
+            .expect("replicate_to_log empty should not block");
+        r.unwrap();
+        let after = store.get_last_log_index().await.unwrap().index;
+        assert_eq!(after, before);
+    }
+
+    /// 用例4：删除日志返回成功且被删 index 不可读、保留段仍可读（`delete_logs_from` / `StripLogToIndex`）。
+    #[actix::test]
+    async fn delete_logs_from_makes_removed_range_unreadable() {
+        let (store, _temp) = new_persistent_store();
+        let entries: Vec<Entry<ClientRequest>> = (1..=5).map(|i| one_entry(i, 1)).collect();
+        store.replicate_to_log(&entries).await.unwrap();
+        // 删除 index >= 3 的日志
+        store.delete_logs_from(3, None).await.unwrap();
+        let removed = store.get_log_entries(3, 6).await.unwrap();
+        assert!(removed.is_empty(), "deleted range should be unreadable");
+        let kept = store.get_log_entries(1, 3).await.unwrap();
+        assert_eq!(kept.len(), 2);
+        assert_eq!(kept[0].index, 1);
+        assert_eq!(kept[1].index, 2);
+    }
+
+    /// 用例6：debug 注入丢弃 WriteBatch 时，调用方不空等待；注入耗尽后恢复正常写入。
+    #[cfg(feature = "debug")]
+    #[actix::test]
+    async fn discard_injected_writebatch_does_not_block_caller() {
+        let (store, _temp) = new_persistent_store();
+        // 注入：后续 1 个 WriteBatch 静默丢弃
+        store.inject_discard_log(1).await.unwrap();
+        let entries: Vec<Entry<ClientRequest>> = (1..=3).map(|i| one_entry(i, 1)).collect();
+        // 被丢弃但调用方在有限时间内返回 Ok(())（discard 约定回传 Success）
+        let r = tokio::time::timeout(
+            Duration::from_secs(3),
+            store.replicate_to_log(&entries),
+        )
+        .await
+        .expect("discarded WriteBatch should not block caller");
+        r.unwrap();
+        // 注入次数耗尽后恢复正常写入路径，仍回传真实结果
+        store.replicate_to_log(&entries).await.unwrap();
+        let got = store.get_log_entries(1, 4).await.unwrap();
+        assert_eq!(got.len(), 3);
+        assert_eq!(got[0].index, 1);
+        assert_eq!(got[2].index, 3);
+    }
 }
