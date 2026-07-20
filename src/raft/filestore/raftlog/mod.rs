@@ -46,6 +46,7 @@ pub enum LogWriteMark {
     SuccessToEnd,
     Failure,
     Error,
+    IndexEqualError,
 }
 
 pub enum LogWriteResult {
@@ -54,7 +55,18 @@ pub enum LogWriteResult {
     Failure(u64, u64, LogRecordDto),
     FailureBatch(u64, u64, Vec<LogRecordDto>, usize),
     Error,
+    IndexEqualError,
 }
+
+/// 对外（调用方 FileStore）的最终写入语义结果，通过 oneshot 通道回传。
+pub enum WriteLogResult {
+    Success,
+    Ignore,
+    LogIndexEqualError,
+}
+
+/// oneshot 通道发送端，承载对外写入结果 `anyhow::Result<WriteLogResult>`。
+pub type LogWriteResultSender = tokio::sync::oneshot::Sender<anyhow::Result<WriteLogResult>>;
 
 pub struct LogInnerManager {
     data_file: tokio::fs::File,
@@ -579,6 +591,7 @@ impl LogInnerManager {
                         LogWriteResult::Failure(self.get_end_index(), self.last_term, record)
                     }
                     LogWriteMark::Error => LogWriteResult::Error,
+                    LogWriteMark::IndexEqualError => LogWriteResult::IndexEqualError,
                 };
                 Ok(RaftLogResponse::WriteResult(result))
             }
@@ -613,6 +626,7 @@ impl LogInnerManager {
                         last_index,
                     ),
                     LogWriteMark::Error => LogWriteResult::Error,
+                    LogWriteMark::IndexEqualError => LogWriteResult::IndexEqualError,
                 };
                 Ok(RaftLogResponse::WriteResult(result))
             }
