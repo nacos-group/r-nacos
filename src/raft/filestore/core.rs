@@ -6,6 +6,7 @@ use crate::raft::filestore::raftapply::{
 use crate::raft::filestore::raftindex::{RaftIndexManager, RaftIndexRequest, RaftIndexResponse};
 use crate::raft::filestore::raftlog::{
     RaftLogManager, RaftLogManagerAsyncRequest, RaftLogManagerRequest, RaftLogResponse,
+    WriteLogResult,
 };
 #[cfg(feature = "debug")]
 use crate::raft::filestore::raftlog::InjectErrorSceneRequest;
@@ -124,6 +125,16 @@ impl FileStore {
             Err(anyhow::anyhow!("get_target_addr error"))
         }
     }
+
+    /// Map the oneshot-delivered write result to the RaftStorage return value.
+    fn write_log_result_to_result(r: WriteLogResult) -> anyhow::Result<()> {
+        match r {
+            WriteLogResult::Success | WriteLogResult::Ignore => Ok(()),
+            WriteLogResult::LogIndexEqualError => {
+                Err(anyhow::anyhow!("log write index not equal"))
+            }
+        }
+    }
 }
 
 #[async_trait]
@@ -240,23 +251,25 @@ impl RaftStorage<ClientRequest, ClientResponse> for FileStore {
     }
 
     async fn delete_logs_from(&self, start: u64, _stop: Option<u64>) -> anyhow::Result<()> {
-        let (tx, _rx) = tokio::sync::oneshot::channel();
+        let (tx, rx) = tokio::sync::oneshot::channel();
         self.log_manager
             .send(RaftLogManagerRequest::StripLogToIndex {
                 end_index: start,
                 sender: tx,
             })
             .await??;
-        Ok(())
+        let r = rx.await??;
+        Self::write_log_result_to_result(r)
     }
 
     async fn append_entry_to_log(&self, entry: &Entry<ClientRequest>) -> anyhow::Result<()> {
         let record = StoreUtils::entry_to_record(entry)?;
-        let (tx, _rx) = tokio::sync::oneshot::channel();
+        let (tx, rx) = tokio::sync::oneshot::channel();
         self.log_manager
             .send(RaftLogManagerRequest::Write { record, sender: tx })
             .await??;
-        Ok(())
+        let r = rx.await??;
+        Self::write_log_result_to_result(r)
     }
 
     async fn replicate_to_log(&self, entries: &[Entry<ClientRequest>]) -> anyhow::Result<()> {
@@ -265,14 +278,15 @@ impl RaftStorage<ClientRequest, ClientResponse> for FileStore {
             let record = StoreUtils::entry_to_record(item)?;
             records.push(record);
         }
-        let (tx, _rx) = tokio::sync::oneshot::channel();
+        let (tx, rx) = tokio::sync::oneshot::channel();
         self.log_manager
             .send(RaftLogManagerRequest::WriteBatch {
                 records,
                 sender: tx,
             })
             .await??;
-        Ok(())
+        let r = rx.await??;
+        Self::write_log_result_to_result(r)
     }
 
     async fn apply_entry_to_state_machine(
