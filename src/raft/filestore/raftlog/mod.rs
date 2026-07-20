@@ -332,20 +332,21 @@ impl LogInnerManager {
             self.need_seek_at_write = false;
         }
         self.data_file.write_all(&buf).await?;
-        self.msg_count += 1;
         self.data_cursor += buf.len() as u64;
         self.current_index_count += 1;
         self.last_term = record.term;
         if self.current_index_count == self.header.index_interval {
-            let end_index = self.get_end_index() - 1;
+            let end_index = self.get_end_index();
             if end_index != record.index {
                 log::warn!(
                     "logfile index != record.index,{},{}",
                     end_index,
                     record.index
                 );
+                return Ok(LogWriteMark::IndexEqualError);
             }
             self.current_index_count = 0;
+            self.msg_count += 1;
             let index_data =
                 write_varint64(self.data_cursor - self.indexs.last().unwrap().file_index);
             self.index_file
@@ -357,6 +358,8 @@ impl LogInnerManager {
                 log_index: self.msg_count + self.header.first_index,
                 file_index: self.data_cursor,
             });
+        } else {
+            self.msg_count += 1;
         }
         if self.index_cursor + 10 >= self.header.data_area_index as u64
             || self.data_cursor >= 2_000_000_000
@@ -601,6 +604,9 @@ impl LogInnerManager {
                 for record in &list[record_start_index..] {
                     mark = self.write(record).await.unwrap_or(LogWriteMark::Failure);
                     if let LogWriteMark::Failure = mark {
+                        break;
+                    }
+                    if let LogWriteMark::IndexEqualError = mark {
                         break;
                     }
                     last_index += 1;
