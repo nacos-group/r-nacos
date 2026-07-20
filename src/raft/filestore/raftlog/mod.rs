@@ -1082,7 +1082,13 @@ impl RaftLogManager {
         self.current_log_actor = Some(log_actor_addr);
     }
 
-    fn write(&mut self, ctx: &mut Context<Self>, record: LogRecordDto, can_rewrite: bool) {
+    fn write(
+        &mut self,
+        ctx: &mut Context<Self>,
+        record: LogRecordDto,
+        can_rewrite: bool,
+        tx: Option<LogWriteResultSender>,
+    ) {
         let log_actor = if let Some(log_actor) = &self.current_log_actor {
             log_actor.clone()
         } else {
@@ -1091,22 +1097,58 @@ impl RaftLogManager {
         };
         async move {
             let r = log_actor.send(RaftLogRequest::Write(record)).await??;
-            Ok((r, can_rewrite))
+            Ok(r)
         }
         .into_actor(self)
-        .map(|v: anyhow::Result<(RaftLogResponse, bool)>, act, ctx| {
-            if let Ok((RaftLogResponse::WriteResult(write_result), can_rewrite)) = v {
-                match write_result {
-                    LogWriteResult::SuccessToEnd(next_index, last_term) => {
-                        act.switch_new_log(ctx, next_index, last_term);
+        .map(move |v: anyhow::Result<RaftLogResponse>, act, ctx| match v {
+            Err(e) => {
+                if let Some(tx) = tx {
+                    let _ = tx.send(Err(e));
+                }
+            }
+            Ok(RaftLogResponse::WriteResult(write_result)) => match write_result {
+                LogWriteResult::Success => {
+                    if let Some(tx) = tx {
+                        let _ = tx.send(Ok(WriteLogResult::Success));
                     }
-                    LogWriteResult::Failure(next_index, last_term, record) => {
-                        act.switch_new_log(ctx, next_index, last_term);
-                        if can_rewrite {
-                            act.write(ctx, record, false);
-                        }
+                }
+                LogWriteResult::SuccessToEnd(next_index, last_term) => {
+                    act.switch_new_log(ctx, next_index, last_term);
+                    if let Some(tx) = tx {
+                        let _ = tx.send(Ok(WriteLogResult::Success));
                     }
-                    _ => {}
+                }
+                LogWriteResult::IndexEqualError => {
+                    if let Some(tx) = tx {
+                        let _ = tx.send(Ok(WriteLogResult::LogIndexEqualError));
+                    }
+                }
+                LogWriteResult::Error => {
+                    if let Some(tx) = tx {
+                        let _ = tx.send(Err(anyhow::anyhow!("write log error")));
+                    }
+                }
+                LogWriteResult::Failure(next_index, last_term, record) => {
+                    act.switch_new_log(ctx, next_index, last_term);
+                    if can_rewrite {
+                        act.write(ctx, record, false, tx);
+                    } else if let Some(tx) = tx {
+                        let _ = tx.send(Err(anyhow::anyhow!(
+                            "write log failure and can not rewrite"
+                        )));
+                    }
+                }
+                LogWriteResult::FailureBatch(..) => {
+                    if let Some(tx) = tx {
+                        let _ = tx.send(Err(anyhow::anyhow!(
+                            "write log unexpected failure batch for single write"
+                        )));
+                    }
+                }
+            },
+            Ok(_) => {
+                if let Some(tx) = tx {
+                    let _ = tx.send(Err(anyhow::anyhow!("write log unexpected response")));
                 }
             }
         })
@@ -1118,10 +1160,14 @@ impl RaftLogManager {
         ctx: &mut Context<Self>,
         records: Vec<LogRecordDto>,
         record_index: usize,
+        tx: Option<LogWriteResultSender>,
     ) {
         let (index, term) = if let Some(record) = records.first() {
             (record.index, record.term)
         } else {
+            if let Some(tx) = tx {
+                let _ = tx.send(Ok(WriteLogResult::Ignore));
+            }
             return;
         };
         let log_actor = if let Some(log_actor) = &self.current_log_actor {
@@ -1137,17 +1183,47 @@ impl RaftLogManager {
             Ok(r)
         }
         .into_actor(self)
-        .map(|v: anyhow::Result<RaftLogResponse>, act, ctx| {
-            if let Ok(RaftLogResponse::WriteResult(write_result)) = v {
-                match write_result {
-                    LogWriteResult::SuccessToEnd(next_index, last_term) => {
-                        act.switch_new_log(ctx, next_index, last_term);
+        .map(move |v: anyhow::Result<RaftLogResponse>, act, ctx| match v {
+            Err(e) => {
+                if let Some(tx) = tx {
+                    let _ = tx.send(Err(e));
+                }
+            }
+            Ok(RaftLogResponse::WriteResult(write_result)) => match write_result {
+                LogWriteResult::Success => {
+                    if let Some(tx) = tx {
+                        let _ = tx.send(Ok(WriteLogResult::Success));
                     }
-                    LogWriteResult::FailureBatch(next_index, last_term, records, record_index) => {
-                        act.switch_new_log(ctx, next_index, last_term);
-                        act.write_batch(ctx, records, record_index);
+                }
+                LogWriteResult::SuccessToEnd(next_index, last_term) => {
+                    act.switch_new_log(ctx, next_index, last_term);
+                    if let Some(tx) = tx {
+                        let _ = tx.send(Ok(WriteLogResult::Success));
                     }
-                    _ => {}
+                }
+                LogWriteResult::IndexEqualError => {
+                    if let Some(tx) = tx {
+                        let _ = tx.send(Ok(WriteLogResult::LogIndexEqualError));
+                    }
+                }
+                LogWriteResult::Error => {
+                    if let Some(tx) = tx {
+                        let _ = tx.send(Err(anyhow::anyhow!("write batch error")));
+                    }
+                }
+                LogWriteResult::Failure(..) => {
+                    if let Some(tx) = tx {
+                        let _ = tx.send(Err(anyhow::anyhow!("write batch failure")));
+                    }
+                }
+                LogWriteResult::FailureBatch(next_index, last_term, records, record_index) => {
+                    act.switch_new_log(ctx, next_index, last_term);
+                    act.write_batch(ctx, records, record_index, tx);
+                }
+            },
+            Ok(_) => {
+                if let Some(tx) = tx {
+                    let _ = tx.send(Err(anyhow::anyhow!("write batch unexpected response")));
                 }
             }
         })
@@ -1160,7 +1236,12 @@ impl RaftLogManager {
         };
     }
 
-    fn strip_log_to_index(&mut self, _ctx: &mut Context<Self>, end_index: u64) {
+    fn strip_log_to_index(
+        &mut self,
+        _ctx: &mut Context<Self>,
+        end_index: u64,
+        tx: Option<LogWriteResultSender>,
+    ) {
         log::info!("strip_log_to_index end_index:{}", end_index);
         let mut pop_count = 0;
         for item in &mut self.logs {
@@ -1195,6 +1276,9 @@ impl RaftLogManager {
                 };
                 self.current_log_actor = Some(log_actor);
             }
+        }
+        if let Some(tx) = tx {
+            let _ = tx.send(Ok(WriteLogResult::Success));
         }
     }
 
@@ -1238,7 +1322,7 @@ impl RaftLogManager {
         );
         self.split_off(ctx, snapshot_pointer.index + 1);
         if self.logs.is_empty() {
-            self.write(ctx, snapshot_pointer, true);
+            self.write(ctx, snapshot_pointer, true, None);
         } else {
             let pre_log_id = {
                 if let Some(first_log) = self.logs.first_mut() {
@@ -1355,9 +1439,18 @@ pub enum RaftLogManagerRequest {
         end: u64,
         loader: Arc<dyn LogRecordLoader + Sync + Send + 'static>,
     },
-    Write(LogRecordDto),
-    WriteBatch(Vec<LogRecordDto>),
-    StripLogToIndex(u64),
+    Write {
+        record: LogRecordDto,
+        sender: LogWriteResultSender,
+    },
+    WriteBatch {
+        records: Vec<LogRecordDto>,
+        sender: LogWriteResultSender,
+    },
+    StripLogToIndex {
+        end_index: u64,
+        sender: LogWriteResultSender,
+    },
     SplitOff(u64),
     //加载snapshot后
     BuildSnapshotPointerLog(LogRecordDto),
@@ -1428,11 +1521,11 @@ impl Handler<RaftLogManagerRequest> for RaftLogManager {
                 self.load_record(ctx, start, end, loader);
                 Ok(RaftLogResponse::None)
             }
-            RaftLogManagerRequest::Write(record) => {
-                self.write(ctx, record, true);
+            RaftLogManagerRequest::Write { record, sender } => {
+                self.write(ctx, record, true, Some(sender));
                 Ok(RaftLogResponse::None)
             }
-            RaftLogManagerRequest::WriteBatch(records) => {
+            RaftLogManagerRequest::WriteBatch { records, sender } => {
                 #[cfg(feature = "debug")]
                 {
                     if self.discard_times > 0 {
@@ -1441,14 +1534,15 @@ impl Handler<RaftLogManagerRequest> for RaftLogManager {
                             "discard a WriteBatch by inject, remain:{}",
                             self.discard_times
                         );
+                        let _ = sender.send(Ok(WriteLogResult::Success));
                         return Ok(RaftLogResponse::None);
                     }
                 }
-                self.write_batch(ctx, records, 0);
+                self.write_batch(ctx, records, 0, Some(sender));
                 Ok(RaftLogResponse::None)
             }
-            RaftLogManagerRequest::StripLogToIndex(end_index) => {
-                self.strip_log_to_index(ctx, end_index);
+            RaftLogManagerRequest::StripLogToIndex { end_index, sender } => {
+                self.strip_log_to_index(ctx, end_index, Some(sender));
                 Ok(RaftLogResponse::None)
             }
             RaftLogManagerRequest::SplitOff(start_index) => {

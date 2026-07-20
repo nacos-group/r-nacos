@@ -240,16 +240,21 @@ impl RaftStorage<ClientRequest, ClientResponse> for FileStore {
     }
 
     async fn delete_logs_from(&self, start: u64, _stop: Option<u64>) -> anyhow::Result<()> {
+        let (tx, _rx) = tokio::sync::oneshot::channel();
         self.log_manager
-            .send(RaftLogManagerRequest::StripLogToIndex(start))
+            .send(RaftLogManagerRequest::StripLogToIndex {
+                end_index: start,
+                sender: tx,
+            })
             .await??;
         Ok(())
     }
 
     async fn append_entry_to_log(&self, entry: &Entry<ClientRequest>) -> anyhow::Result<()> {
         let record = StoreUtils::entry_to_record(entry)?;
+        let (tx, _rx) = tokio::sync::oneshot::channel();
         self.log_manager
-            .send(RaftLogManagerRequest::Write(record))
+            .send(RaftLogManagerRequest::Write { record, sender: tx })
             .await??;
         Ok(())
     }
@@ -260,8 +265,12 @@ impl RaftStorage<ClientRequest, ClientResponse> for FileStore {
             let record = StoreUtils::entry_to_record(item)?;
             records.push(record);
         }
+        let (tx, _rx) = tokio::sync::oneshot::channel();
         self.log_manager
-            .send(RaftLogManagerRequest::WriteBatch(records))
+            .send(RaftLogManagerRequest::WriteBatch {
+                records,
+                sender: tx,
+            })
             .await??;
         Ok(())
     }
