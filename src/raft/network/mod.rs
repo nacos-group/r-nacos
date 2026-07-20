@@ -24,9 +24,8 @@ pub fn raft_config(config: &mut web::ServiceConfig) {
         .service(web::resource("/close-write").route(web::post().to(management::close_write)));
 
     #[cfg(feature = "debug")]
-    let scope = scope.service(
-        web::resource("/inject-error").route(web::post().to(management::inject_error)),
-    );
+    let scope = scope
+        .service(web::resource("/inject-error").route(web::post().to(management::inject_error)));
 
     config.service(scope);
     // for debug

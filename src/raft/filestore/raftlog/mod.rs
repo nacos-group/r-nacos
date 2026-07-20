@@ -1100,58 +1100,60 @@ impl RaftLogManager {
             Ok(r)
         }
         .into_actor(self)
-        .map(move |v: anyhow::Result<RaftLogResponse>, act, ctx| match v {
-            Err(e) => {
-                if let Some(tx) = tx {
-                    let _ = tx.send(Err(e));
-                }
-            }
-            Ok(RaftLogResponse::WriteResult(write_result)) => match write_result {
-                LogWriteResult::Success => {
+        .map(
+            move |v: anyhow::Result<RaftLogResponse>, act, ctx| match v {
+                Err(e) => {
                     if let Some(tx) = tx {
-                        let _ = tx.send(Ok(WriteLogResult::Success));
+                        let _ = tx.send(Err(e));
                     }
                 }
-                LogWriteResult::SuccessToEnd(next_index, last_term) => {
-                    act.switch_new_log(ctx, next_index, last_term);
-                    if let Some(tx) = tx {
-                        let _ = tx.send(Ok(WriteLogResult::Success));
+                Ok(RaftLogResponse::WriteResult(write_result)) => match write_result {
+                    LogWriteResult::Success => {
+                        if let Some(tx) = tx {
+                            let _ = tx.send(Ok(WriteLogResult::Success));
+                        }
                     }
-                }
-                LogWriteResult::IndexEqualError => {
-                    if let Some(tx) = tx {
-                        let _ = tx.send(Ok(WriteLogResult::LogIndexEqualError));
+                    LogWriteResult::SuccessToEnd(next_index, last_term) => {
+                        act.switch_new_log(ctx, next_index, last_term);
+                        if let Some(tx) = tx {
+                            let _ = tx.send(Ok(WriteLogResult::Success));
+                        }
                     }
-                }
-                LogWriteResult::Error => {
-                    if let Some(tx) = tx {
-                        let _ = tx.send(Err(anyhow::anyhow!("write log error")));
+                    LogWriteResult::IndexEqualError => {
+                        if let Some(tx) = tx {
+                            let _ = tx.send(Ok(WriteLogResult::LogIndexEqualError));
+                        }
                     }
-                }
-                LogWriteResult::Failure(next_index, last_term, record) => {
-                    act.switch_new_log(ctx, next_index, last_term);
-                    if can_rewrite {
-                        act.write(ctx, record, false, tx);
-                    } else if let Some(tx) = tx {
-                        let _ = tx.send(Err(anyhow::anyhow!(
-                            "write log failure and can not rewrite"
-                        )));
+                    LogWriteResult::Error => {
+                        if let Some(tx) = tx {
+                            let _ = tx.send(Err(anyhow::anyhow!("write log error")));
+                        }
                     }
-                }
-                LogWriteResult::FailureBatch(..) => {
+                    LogWriteResult::Failure(next_index, last_term, record) => {
+                        act.switch_new_log(ctx, next_index, last_term);
+                        if can_rewrite {
+                            act.write(ctx, record, false, tx);
+                        } else if let Some(tx) = tx {
+                            let _ = tx.send(Err(anyhow::anyhow!(
+                                "write log failure and can not rewrite"
+                            )));
+                        }
+                    }
+                    LogWriteResult::FailureBatch(..) => {
+                        if let Some(tx) = tx {
+                            let _ = tx.send(Err(anyhow::anyhow!(
+                                "write log unexpected failure batch for single write"
+                            )));
+                        }
+                    }
+                },
+                Ok(_) => {
                     if let Some(tx) = tx {
-                        let _ = tx.send(Err(anyhow::anyhow!(
-                            "write log unexpected failure batch for single write"
-                        )));
+                        let _ = tx.send(Err(anyhow::anyhow!("write log unexpected response")));
                     }
                 }
             },
-            Ok(_) => {
-                if let Some(tx) = tx {
-                    let _ = tx.send(Err(anyhow::anyhow!("write log unexpected response")));
-                }
-            }
-        })
+        )
         .wait(ctx);
     }
 
@@ -1183,50 +1185,52 @@ impl RaftLogManager {
             Ok(r)
         }
         .into_actor(self)
-        .map(move |v: anyhow::Result<RaftLogResponse>, act, ctx| match v {
-            Err(e) => {
-                if let Some(tx) = tx {
-                    let _ = tx.send(Err(e));
-                }
-            }
-            Ok(RaftLogResponse::WriteResult(write_result)) => match write_result {
-                LogWriteResult::Success => {
+        .map(
+            move |v: anyhow::Result<RaftLogResponse>, act, ctx| match v {
+                Err(e) => {
                     if let Some(tx) = tx {
-                        let _ = tx.send(Ok(WriteLogResult::Success));
+                        let _ = tx.send(Err(e));
                     }
                 }
-                LogWriteResult::SuccessToEnd(next_index, last_term) => {
-                    act.switch_new_log(ctx, next_index, last_term);
-                    if let Some(tx) = tx {
-                        let _ = tx.send(Ok(WriteLogResult::Success));
+                Ok(RaftLogResponse::WriteResult(write_result)) => match write_result {
+                    LogWriteResult::Success => {
+                        if let Some(tx) = tx {
+                            let _ = tx.send(Ok(WriteLogResult::Success));
+                        }
                     }
-                }
-                LogWriteResult::IndexEqualError => {
-                    if let Some(tx) = tx {
-                        let _ = tx.send(Ok(WriteLogResult::LogIndexEqualError));
+                    LogWriteResult::SuccessToEnd(next_index, last_term) => {
+                        act.switch_new_log(ctx, next_index, last_term);
+                        if let Some(tx) = tx {
+                            let _ = tx.send(Ok(WriteLogResult::Success));
+                        }
                     }
-                }
-                LogWriteResult::Error => {
-                    if let Some(tx) = tx {
-                        let _ = tx.send(Err(anyhow::anyhow!("write batch error")));
+                    LogWriteResult::IndexEqualError => {
+                        if let Some(tx) = tx {
+                            let _ = tx.send(Ok(WriteLogResult::LogIndexEqualError));
+                        }
                     }
-                }
-                LogWriteResult::Failure(..) => {
-                    if let Some(tx) = tx {
-                        let _ = tx.send(Err(anyhow::anyhow!("write batch failure")));
+                    LogWriteResult::Error => {
+                        if let Some(tx) = tx {
+                            let _ = tx.send(Err(anyhow::anyhow!("write batch error")));
+                        }
                     }
-                }
-                LogWriteResult::FailureBatch(next_index, last_term, records, record_index) => {
-                    act.switch_new_log(ctx, next_index, last_term);
-                    act.write_batch(ctx, records, record_index, tx);
+                    LogWriteResult::Failure(..) => {
+                        if let Some(tx) = tx {
+                            let _ = tx.send(Err(anyhow::anyhow!("write batch failure")));
+                        }
+                    }
+                    LogWriteResult::FailureBatch(next_index, last_term, records, record_index) => {
+                        act.switch_new_log(ctx, next_index, last_term);
+                        act.write_batch(ctx, records, record_index, tx);
+                    }
+                },
+                Ok(_) => {
+                    if let Some(tx) = tx {
+                        let _ = tx.send(Err(anyhow::anyhow!("write batch unexpected response")));
+                    }
                 }
             },
-            Ok(_) => {
-                if let Some(tx) = tx {
-                    let _ = tx.send(Err(anyhow::anyhow!("write batch unexpected response")));
-                }
-            }
-        })
+        )
         .wait(ctx);
     }
 
@@ -1623,11 +1627,7 @@ impl Handler<RaftLogManagerAsyncRequest> for RaftLogManager {
 impl Handler<InjectErrorSceneRequest> for RaftLogManager {
     type Result = anyhow::Result<()>;
 
-    fn handle(
-        &mut self,
-        msg: InjectErrorSceneRequest,
-        _ctx: &mut Self::Context,
-    ) -> Self::Result {
+    fn handle(&mut self, msg: InjectErrorSceneRequest, _ctx: &mut Self::Context) -> Self::Result {
         match msg {
             InjectErrorSceneRequest::InjectDiscardLog { times } => {
                 self.discard_times = times;
@@ -1656,11 +1656,7 @@ mod tests {
     #[tokio::test]
     async fn write_index_equal_error_when_index_mismatch() {
         let temp = tempfile::tempdir().unwrap();
-        let log_path = temp
-            .path()
-            .join("log_unit")
-            .to_string_lossy()
-            .into_owned();
+        let log_path = temp.path().join("log_unit").to_string_lossy().into_owned();
         let mut mgr = LogInnerManager::init(log_path, 0, 0, 0).await.unwrap();
         let interval = mgr.header.index_interval;
 
@@ -1700,11 +1696,7 @@ mod tests {
     #[tokio::test]
     async fn write_success_when_index_match_at_interval_boundary() {
         let temp = tempfile::tempdir().unwrap();
-        let log_path = temp
-            .path()
-            .join("log_unit")
-            .to_string_lossy()
-            .into_owned();
+        let log_path = temp.path().join("log_unit").to_string_lossy().into_owned();
         let mut mgr = LogInnerManager::init(log_path, 0, 0, 0).await.unwrap();
         let interval = mgr.header.index_interval;
 

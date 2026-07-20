@@ -135,14 +135,17 @@ pub async fn inject_error(
             Ok(_) => {
                 log::warn!(
                     "inject_error discard_log ok, node:{} times:{}",
-                    app.sys_config.raft_node_id, req.times
+                    app.sys_config.raft_node_id,
+                    req.times
                 );
                 Ok(HttpResponse::Ok().json(json!({ "ok": 1 })))
             }
             Err(e) => {
                 log::error!(
                     "inject_error discard_log failed, node:{} times:{} err:{:?}",
-                    app.sys_config.raft_node_id, req.times, e
+                    app.sys_config.raft_node_id,
+                    req.times,
+                    e
                 );
                 Ok(HttpResponse::Ok().json(json!({ "ok": 0, "msg": format!("{:?}", e) })))
             }

@@ -72,7 +72,7 @@ def gen_env(node_id: int, work_dir: Path) -> Path:
     lines = [
         f"RNACOS_HTTP_PORT={http_port}",
         f"RNACOS_RAFT_NODE_ADDR=127.0.0.1:{raft_port}",
-        f"RNACOS_CONFIG_DB_DIR={work_dir}/db{node_id:02d}",
+        f"RNACOS_DATA_DIR={work_dir}/db{node_id:02d}",
         f"RNACOS_RAFT_NODE_ID={node_id}",
         "RNACOS_ENABLE_NO_AUTH_CONSOLE=true",
     ]

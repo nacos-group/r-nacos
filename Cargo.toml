@@ -118,8 +118,8 @@ block-modes = "0.8"
 cbc = "0.1.2"
 
 quick-protobuf = "0.8.1"
-binrw = "0.13.3"
-binrw_derive = "0.13.3"
+binrw = "0.15"
+binrw_derive = "0.15"
 sysinfo = "0.30.12"
 bcrypt = "0.15"
 ldap3 = { version="0.12", default-features = false, features = ["tls-rustls-ring"] }

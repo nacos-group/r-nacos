@@ -4,12 +4,12 @@ use crate::raft::filestore::raftapply::{
     StateApplyAsyncRequest, StateApplyManager, StateApplyRequest, StateApplyResponse,
 };
 use crate::raft::filestore::raftindex::{RaftIndexManager, RaftIndexRequest, RaftIndexResponse};
+#[cfg(feature = "debug")]
+use crate::raft::filestore::raftlog::InjectErrorSceneRequest;
 use crate::raft::filestore::raftlog::{
     RaftLogManager, RaftLogManagerAsyncRequest, RaftLogManagerRequest, RaftLogResponse,
     WriteLogResult,
 };
-#[cfg(feature = "debug")]
-use crate::raft::filestore::raftlog::InjectErrorSceneRequest;
 use crate::raft::filestore::raftsnapshot::{
     RaftSnapshotManager, RaftSnapshotRequest, RaftSnapshotResponse,
 };
@@ -130,9 +130,7 @@ impl FileStore {
     fn write_log_result_to_result(r: WriteLogResult) -> anyhow::Result<()> {
         match r {
             WriteLogResult::Success | WriteLogResult::Ignore => Ok(()),
-            WriteLogResult::LogIndexEqualError => {
-                Err(anyhow::anyhow!("log write index not equal"))
-            }
+            WriteLogResult::LogIndexEqualError => Err(anyhow::anyhow!("log write index not equal")),
         }
     }
 }
@@ -502,8 +500,8 @@ mod tests {
         assert!(store.is_close_write());
     }
 
-    use async_raft_ext::raft::EntryPayload;
     use crate::raft::filestore::raftlog::RaftLogManager;
+    use async_raft_ext::raft::EntryPayload;
     use std::time::Duration;
 
     /// 构造一条 Blank 负载的日志 Entry（负载内容对落盘验证无影响）
@@ -521,7 +519,8 @@ mod tests {
         let temp = tempfile::tempdir().unwrap();
         let base_path = Arc::new(temp.path().to_string_lossy().into_owned());
         let index_manager = RaftIndexManager::new(base_path.clone()).start();
-        let log_manager = RaftLogManager::new(base_path.clone(), Some(index_manager.clone())).start();
+        let log_manager =
+            RaftLogManager::new(base_path.clone(), Some(index_manager.clone())).start();
         let snapshot_manager =
             RaftSnapshotManager::new(base_path.clone(), Some(index_manager.clone())).start();
         let apply_manager = StateApplyManager::new().start();
@@ -599,12 +598,9 @@ mod tests {
         store.inject_discard_log(1).await.unwrap();
         let entries: Vec<Entry<ClientRequest>> = (1..=3).map(|i| one_entry(i, 1)).collect();
         // 被丢弃但调用方在有限时间内返回 Ok(())（discard 约定回传 Success）
-        let r = tokio::time::timeout(
-            Duration::from_secs(3),
-            store.replicate_to_log(&entries),
-        )
-        .await
-        .expect("discarded WriteBatch should not block caller");
+        let r = tokio::time::timeout(Duration::from_secs(3), store.replicate_to_log(&entries))
+            .await
+            .expect("discarded WriteBatch should not block caller");
         r.unwrap();
         // 注入次数耗尽后恢复正常写入路径，仍回传真实结果
         store.replicate_to_log(&entries).await.unwrap();
