@@ -1,6 +1,6 @@
 use crate::cache::actor_model::CacheManagerRaftResult;
 use crate::common::appdata::AppShareData;
-use crate::common::constant::{AUTHORIZATION_HEADER, EMPTY_ARC_STRING};
+use crate::common::constant::{ACCESS_TOKEN_HEADER, AUTHORIZATION_HEADER, EMPTY_ARC_STRING};
 use crate::common::datetime_utils;
 use crate::common::model::TokenSession;
 use crate::metrics::core::MetricsManager;
@@ -104,8 +104,8 @@ where
         Box::pin(async move {
             let offset = &app_share_data.timezone_offset;
             let token = if enable_auth && is_check_path {
-                if let Some(v) = request.headers().get(AUTHORIZATION_HEADER) {
-                    Arc::new(v.to_str().unwrap_or_default().to_owned())
+                if let Some(token) = header_token(request.headers()) {
+                    token
                 } else if let Ok(info) =
                     serde_urlencoded::from_str::<AccessInfo>(request.query_string())
                 {
@@ -167,6 +167,21 @@ where
                 Ok(res)
             }
         })
+    }
+}
+
+fn header_token(headers: &actix_web::http::header::HeaderMap) -> Option<Arc<String>> {
+    if let Some(value) = headers.get(AUTHORIZATION_HEADER) {
+        let value = value.to_str().unwrap_or_default();
+        let token = value
+            .split_once(char::is_whitespace)
+            .filter(|(scheme, _)| scheme.eq_ignore_ascii_case("Bearer"))
+            .map_or(value, |(_, token)| token.trim());
+        Some(Arc::new(token.to_owned()))
+    } else {
+        headers
+            .get(ACCESS_TOKEN_HEADER)
+            .map(|value| Arc::new(value.to_str().unwrap_or_default().to_owned()))
     }
 }
 
@@ -248,4 +263,53 @@ fn record_req_metrics(metrics_manager: &Addr<MetricsManager>, duration: f64, _su
             MetricsRecord::CounterInc(1),
         ),
     ]));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use actix_web::http::header::{HeaderMap, HeaderValue};
+
+    fn headers(values: &[(&str, &str)]) -> HeaderMap {
+        let mut headers = HeaderMap::new();
+        for (name, value) in values {
+            headers.insert(
+                actix_web::http::header::HeaderName::from_bytes(name.as_bytes()).unwrap(),
+                HeaderValue::from_str(value).unwrap(),
+            );
+        }
+        headers
+    }
+
+    #[test]
+    fn header_token_keeps_raw_authorization() {
+        let headers = headers(&[("authorization", "raw-token")]);
+        assert_eq!(header_token(&headers).unwrap().as_str(), "raw-token");
+    }
+
+    #[test]
+    fn header_token_strips_case_insensitive_bearer_scheme() {
+        for value in ["Bearer token", "bearer token", "BEARER\ttoken"] {
+            let headers = headers(&[("authorization", value)]);
+            assert_eq!(header_token(&headers).unwrap().as_str(), "token");
+        }
+    }
+
+    #[test]
+    fn header_token_supports_access_token_header() {
+        let headers = headers(&[("accesstoken", "header-token")]);
+        assert_eq!(header_token(&headers).unwrap().as_str(), "header-token");
+    }
+
+    #[test]
+    fn authorization_has_priority_over_access_token_header() {
+        let headers = headers(&[
+            ("authorization", "Bearer authorization-token"),
+            ("accesstoken", "access-token-header"),
+        ]);
+        assert_eq!(
+            header_token(&headers).unwrap().as_str(),
+            "authorization-token"
+        );
+    }
 }
