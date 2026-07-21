@@ -317,6 +317,15 @@ impl LogInnerManager {
             self.flush_log().await?;
             return Ok(LogWriteMark::Failure);
         }
+        let end_index = self.get_end_index();
+        if end_index != record.index {
+            log::error!(
+                "logfile index != record.index,{},{}",
+                end_index,
+                record.index
+            );
+            return Ok(LogWriteMark::IndexEqualError);
+        }
         let mut buf = Vec::new();
         let mut writer = Writer::new(&mut buf);
 
@@ -335,18 +344,9 @@ impl LogInnerManager {
         self.data_cursor += buf.len() as u64;
         self.current_index_count += 1;
         self.last_term = record.term;
+        self.msg_count += 1;
         if self.current_index_count == self.header.index_interval {
-            let end_index = self.get_end_index();
-            if end_index != record.index {
-                log::warn!(
-                    "logfile index != record.index,{},{}",
-                    end_index,
-                    record.index
-                );
-                return Ok(LogWriteMark::IndexEqualError);
-            }
             self.current_index_count = 0;
-            self.msg_count += 1;
             let index_data =
                 write_varint64(self.data_cursor - self.indexs.last().unwrap().file_index);
             self.index_file
@@ -358,8 +358,6 @@ impl LogInnerManager {
                 log_index: self.msg_count + self.header.first_index,
                 file_index: self.data_cursor,
             });
-        } else {
-            self.msg_count += 1;
         }
         if self.index_cursor + 10 >= self.header.data_area_index as u64
             || self.data_cursor >= 2_000_000_000
