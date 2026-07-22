@@ -161,7 +161,45 @@ k8s支持使用 [helm](https://github.com/nacos-group/r-nacos/tree/master/deploy
 helm repo add rnacos https://r-nacos.github.io/helm
 helm install r-nacos rnacos/rnacos
 ```
+#### 方式8: 通过 apt 安装 (Debian/Ubuntu)
 
+由社区维护的 apt 源，每日自动跟进上游最新 release 并打包、签名分发，支持 `amd64` 与 `arm64`。
+
+默认源走 GitHub Pages，国内用户若访问不畅可改用下方的[国内镜像源](#国内镜像源)。
+
+```shell
+# 1. 导入 GPG 公钥
+sudo mkdir -p /etc/apt/keyrings
+curl -fsSL https://r-nacos.github.io/r-nacos-apt/KEY.gpg | sudo gpg --dearmor -o /etc/apt/keyrings/rnacos.gpg
+
+# 2. 添加 apt 源
+echo "deb [signed-by=/etc/apt/keyrings/rnacos.gpg] https://r-nacos.github.io/r-nacos-apt stable main" | sudo tee /etc/apt/sources.list.d/rnacos.list
+
+# 3. 安装并运行
+sudo apt update
+sudo apt install rnacos
+```
+
+##### 国内镜像源
+
+如果 GitHub Pages 访问不畅，可将上面的域名替换为国内镜像 `https://rnacos-img.qyzhg.cc`（同样会同步签名公钥与最新包）：
+
+```shell
+# 1. 下载并导入 GPG 公钥（走镜像，国内可达）
+sudo mkdir -p /etc/apt/keyrings
+curl -fsSL https://rnacos-img.qyzhg.cc/KEY.gpg | sudo gpg --dearmor -o /etc/apt/keyrings/rnacos.gpg
+
+# 2. 添加 apt 源（域名换成镜像）
+echo "deb [signed-by=/etc/apt/keyrings/rnacos.gpg] https://rnacos-img.qyzhg.cc stable main" | sudo tee /etc/apt/sources.list.d/rnacos.list
+
+# 3. 更新并安装 rnacos
+sudo apt update
+sudo apt install rnacos
+```
+
+> 注意：两种源只需任选其一，不要同时配置，否则 `apt update` 会出现重复条目。
+
+项目地址：[r-nacos/r-nacos-apt](https://github.com/r-nacos/r-nacos-apt)
 
 测试、试用推荐使用第1、第2、第3种方式，直接下载运行就可以使用。
 
