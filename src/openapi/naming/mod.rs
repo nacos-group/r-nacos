@@ -32,6 +32,33 @@ pub fn openapi_v1_route(_conf: RouteConf) -> Scope {
         .service(catalog::service())
 }
 
+pub fn naming_v2_route(config: &mut ServiceConfig) {
+    use crate::openapi::naming::v2::api;
+    config
+        .service(
+            scope("/nacos/v2/ns/instance")
+                .service(
+                    web::resource(EMPTY)
+                        .route(web::get().to(api::get_instance))
+                        .route(web::post().to(api::update_instance))
+                        .route(web::put().to(api::update_instance))
+                        .route(web::delete().to(api::del_instance)),
+                )
+                .service(web::resource("/list").route(web::get().to(api::get_instance_list))),
+        )
+        .service(
+            scope("/nacos/v2/ns/service")
+                .service(
+                    web::resource(EMPTY)
+                        .route(web::post().to(api::update_service))
+                        .route(web::put().to(api::update_service))
+                        .route(web::delete().to(api::remove_service))
+                        .route(web::get().to(api::query_service)),
+                )
+                .service(web::resource("/list").route(web::get().to(api::query_service_list))),
+        );
+}
+
 pub fn naming_v1_route(config: &mut ServiceConfig) {
     config
         .service(
