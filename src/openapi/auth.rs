@@ -103,6 +103,7 @@ async fn do_login(
             let session = Arc::new(TokenSession {
                 username: user.username.clone(),
                 roles: user.roles.unwrap_or_default(),
+                namespace_privilege: user.namespace_privilege,
                 extend_infos: user.extend_info.unwrap_or_default(),
             });
             /*

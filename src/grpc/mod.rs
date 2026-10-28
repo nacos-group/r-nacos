@@ -1,5 +1,6 @@
 use self::api_model::BaseResponse;
 use crate::common::model::{ClientVersion, TokenSession};
+use crate::common::model::privilege::NamespacePrivilegeGroup;
 use async_trait::async_trait;
 use std::fmt::Display;
 use std::{collections::HashMap, sync::Arc};
@@ -20,6 +21,24 @@ pub struct RequestMeta {
     pub token_session: Option<Arc<TokenSession>>,
     pub cluster_token_is_valid: bool,
     pub client_version: Arc<ClientVersion>,
+}
+
+impl RequestMeta {
+    /// 命名空间数据权限组; 无会话(鉴权关闭)时为全量权限
+    pub fn namespace_privilege(&self) -> NamespacePrivilegeGroup {
+        match &self.token_session {
+            Some(session) => session.namespace_privilege_group(),
+            None => NamespacePrivilegeGroup::default(),
+        }
+    }
+
+    /// 是否可编辑; 无会话(鉴权关闭)时不限制, 返回 true
+    pub fn can_edit(&self) -> bool {
+        match &self.token_session {
+            Some(session) => session.can_edit(),
+            None => true,
+        }
+    }
 }
 
 pub struct HandlerResult {
@@ -181,5 +200,60 @@ impl PayloadUtils {
             return Some(&meta.r#type);
         }
         None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::common::model::privilege::PrivilegeGroup;
+    use std::collections::HashSet;
+
+    fn build_meta(roles: Vec<&str>, namespace_privilege: Option<PrivilegeGroup<Arc<String>>>) -> RequestMeta {
+        RequestMeta {
+            token_session: Some(Arc::new(TokenSession {
+                username: Arc::new("test_user".to_owned()),
+                roles: roles.into_iter().map(|r| Arc::new(r.to_owned())).collect(),
+                namespace_privilege,
+                extend_infos: HashMap::new(),
+            })),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn test_request_meta_privilege_helper() {
+        // 无会话(鉴权关闭): 全量权限 + 可编辑
+        let meta = RequestMeta::default();
+        assert!(meta.namespace_privilege().is_all());
+        assert!(meta.can_edit());
+
+        // 有会话 Visitor + 全量权限: 不可编辑
+        let meta = build_meta(vec!["2"], Some(PrivilegeGroup::all()));
+        assert!(meta.namespace_privilege().is_all());
+        assert!(!meta.can_edit());
+
+        // 有会话 Developer + 无权限(empty): 不可访问任何命名空间, 可编辑
+        let meta = build_meta(vec!["1"], Some(PrivilegeGroup::empty()));
+        let group = meta.namespace_privilege();
+        assert!(!group.is_all());
+        assert!(!group.check_permission(&Arc::new("public".to_owned())));
+        assert!(meta.can_edit());
+
+        // 有会话 Developer + 白名单空串(public): 可编辑且仅 public 可访问
+        let mut whitelist = HashSet::new();
+        whitelist.insert(Arc::new("".to_owned()));
+        let group = PrivilegeGroup {
+            enabled: true,
+            whitelist_is_all: false,
+            whitelist: Some(Arc::new(whitelist)),
+            blacklist_is_all: false,
+            blacklist: None,
+        };
+        let meta = build_meta(vec!["1"], Some(group));
+        let group = meta.namespace_privilege();
+        assert!(group.check_permission(&Arc::new("public".to_owned())));
+        assert!(!group.check_permission(&Arc::new("ns-x".to_owned())));
+        assert!(meta.can_edit());
     }
 }

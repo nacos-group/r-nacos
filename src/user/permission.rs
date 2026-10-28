@@ -463,6 +463,14 @@ impl UserRole {
         }
     }
 
+    /// 是否为可编辑角色: Developer 或 Manager
+    pub fn is_edit_role(role_value: &str) -> bool {
+        matches!(
+            Self::new(role_value),
+            Self::Developer | Self::Manager
+        )
+    }
+
     pub fn to_role_value(&self) -> &str {
         match self {
             Self::Manager => MANAGER_VALUE,

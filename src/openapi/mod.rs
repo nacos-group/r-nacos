@@ -1,11 +1,29 @@
 use actix_web::web;
 use actix_web::web::{scope, ServiceConfig};
+use serde::{Deserialize, Serialize};
 
 use crate::common::AppSysConfig;
 use crate::openapi::auth::login;
 use crate::openapi::config::config_v1_route;
 use crate::openapi::constant::NACOS_PREFIX;
 use crate::openapi::naming::naming_v1_route;
+
+/// open-api 无权限错误响应体(403)
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ForbiddenResult {
+    #[serde(rename = "errorCode")]
+    pub error_code: String,
+    pub message: String,
+}
+
+impl ForbiddenResult {
+    pub fn new(error_code: &str, message: String) -> Self {
+        Self {
+            error_code: error_code.to_owned(),
+            message,
+        }
+    }
+}
 
 pub(crate) mod auth;
 pub(crate) mod backup;
