@@ -4,9 +4,12 @@ use crate::naming::ops::ops_model::{
     OpsQueryServiceInstanceListRequest, OpsQueryServiceInstanceListResponse, OpsServiceDto,
     OpsServiceOptQueryListResponse, OpsServiceQueryListRequest,
 };
+use crate::naming::NamingUtils;
+use crate::{token_no_namespace_permission, user_namespace_privilege};
 use actix::Addr;
 use actix_web::http::header;
-use actix_web::{get, web, HttpRequest, HttpResponse, Responder, Scope};
+use actix_web::{get, web, HttpMessage, HttpRequest, HttpResponse, Responder, Scope};
+use std::sync::Arc;
 
 pub(super) fn service() -> Scope {
     web::scope("/catalog").service(query_opt_service_list)
@@ -42,9 +45,17 @@ pub async fn query_opt_service_list(
 }
 
 pub async fn get_instance_page(
+    req: HttpRequest,
     param: web::Query<OpsQueryServiceInstanceListRequest>,
     naming_addr: web::Data<Addr<NamingActor>>,
 ) -> impl Responder {
+    let namespace = Arc::new(NamingUtils::default_namespace(
+        param.namespace_id.clone().unwrap_or_default(),
+    ));
+    let namespace_privilege = user_namespace_privilege!(req);
+    if !namespace_privilege.check_permission(&namespace) {
+        token_no_namespace_permission!(&namespace);
+    }
     let page_index = param.page_no.unwrap_or(1);
     let page_size = param.page_size.unwrap_or(20);
     match param.to_clusters_key() {

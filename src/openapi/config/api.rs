@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use actix::Addr;
-use actix_web::{web, HttpRequest, HttpResponse, Responder, Scope};
+use actix_web::{web, HttpMessage, HttpRequest, HttpResponse, Responder, Scope};
 use chrono::Local;
 use serde::{Deserialize, Serialize};
 
@@ -23,6 +23,9 @@ use crate::merge_web_param;
 use crate::openapi::constant::EMPTY;
 use crate::raft::cluster::model::{DelConfigReq, SetConfigReq};
 use crate::utils::select_option_by_clone;
+use crate::{
+    token_can_edit, token_no_edit_permission, token_no_namespace_permission, user_namespace_privilege,
+};
 
 pub(super) fn service() -> Scope {
     web::scope("/configs")
@@ -175,11 +178,22 @@ pub struct ConfigWebConfirmedParam {
 }
 
 pub(crate) async fn add_config(
+    req: HttpRequest,
     a: web::Query<ConfigWebParams>,
     payload: web::Payload,
     appdata: web::Data<Arc<AppShareData>>,
 ) -> impl Responder {
     let selected_param = merge_web_param!(a.0, payload);
+    let tenant = Arc::new(ConfigUtils::default_tenant(
+        selected_param.tenant.clone().unwrap_or_default(),
+    ));
+    let namespace_privilege = user_namespace_privilege!(req);
+    if !namespace_privilege.check_permission(&tenant) {
+        token_no_namespace_permission!(&tenant);
+    }
+    if !token_can_edit!(req) {
+        token_no_edit_permission!();
+    }
     match param_utils::check_tenant(&selected_param.tenant) {
         Ok(v) => v,
         Err(err) => {
@@ -222,11 +236,22 @@ pub(crate) async fn add_config(
 }
 
 pub(crate) async fn del_config(
+    req: HttpRequest,
     a: web::Query<ConfigWebParams>,
     payload: web::Payload,
     appdata: web::Data<Arc<AppShareData>>,
 ) -> impl Responder {
     let selected_param = merge_web_param!(a.0, payload);
+    let tenant = Arc::new(ConfigUtils::default_tenant(
+        selected_param.tenant.clone().unwrap_or_default(),
+    ));
+    let namespace_privilege = user_namespace_privilege!(req);
+    if !namespace_privilege.check_permission(&tenant) {
+        token_no_namespace_permission!(&tenant);
+    }
+    if !token_can_edit!(req) {
+        token_no_edit_permission!();
+    }
     match param_utils::check_tenant(&selected_param.tenant) {
         Ok(v) => v,
         Err(err) => {
@@ -262,9 +287,17 @@ pub(crate) async fn del_config(
 }
 
 pub(crate) async fn get_config(
+    req: HttpRequest,
     web_param: web::Query<ConfigWebParams>,
     appdata: web::Data<Arc<AppShareData>>,
 ) -> impl Responder {
+    let tenant = Arc::new(ConfigUtils::default_tenant(
+        web_param.tenant.clone().unwrap_or_default(),
+    ));
+    let namespace_privilege = user_namespace_privilege!(req);
+    if !namespace_privilege.check_permission(&tenant) {
+        token_no_namespace_permission!(&tenant);
+    }
     if let Some(search) = web_param.search.as_ref() {
         if search == "blur" {
             let query_param = web_param.0.build_like_search_param();
@@ -359,7 +392,7 @@ impl ListenerParams {
 }
 
 pub(super) async fn listener_config(
-    _req: HttpRequest,
+    req: HttpRequest,
     a: web::Query<ListenerParams>,
     payload: web::Payload,
     config_addr: web::Data<Addr<ConfigActor>>,
@@ -377,6 +410,11 @@ pub(super) async fn listener_config(
         }
     };
     let list = a.select_option(&b).to_items();
+    let namespace_privilege = user_namespace_privilege!(req);
+    let list: Vec<ListenerItem> = list
+        .into_iter()
+        .filter(|item| namespace_privilege.check_permission(&item.key.tenant))
+        .collect();
     if list.is_empty() {
         //println!("listener_config error: listener item len == 0");
         return HttpResponse::NoContent()
@@ -386,7 +424,7 @@ pub(super) async fn listener_config(
     let (tx, rx) = tokio::sync::oneshot::channel();
     let current_time = Local::now().timestamp_millis();
     let mut time_out = 0;
-    if let Some(_timeout) = _req.headers().get("Long-Pulling-Timeout") {
+    if let Some(_timeout) = req.headers().get("Long-Pulling-Timeout") {
         match _timeout.to_str().unwrap().parse::<i64>() {
             Ok(v) => {
                 time_out = current_time + v.clamp(10000, 120000) - 500;

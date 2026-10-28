@@ -8,9 +8,11 @@ use crate::openapi::naming::model::{
     ServiceInfoVo, ServiceQueryListRequest, ServiceQueryListResponce,
     ServiceQuerySubscribersListResponce,
 };
+use crate::{token_no_namespace_permission, user_namespace_privilege};
 use actix::Addr;
 use actix_web::http::header;
-use actix_web::{web, HttpResponse, Responder, Scope};
+use actix_web::{web, HttpMessage, HttpRequest, HttpResponse, Responder, Scope};
+use std::sync::Arc;
 
 pub(super) fn service() -> Scope {
     web::scope("/service")
@@ -26,9 +28,17 @@ pub(super) fn service() -> Scope {
 }
 
 pub async fn query_service(
+    req: HttpRequest,
     param: web::Query<ServiceQueryListRequest>,
     naming_addr: web::Data<Addr<NamingActor>>,
 ) -> impl Responder {
+    let namespace = Arc::new(NamingUtils::default_namespace(
+        param.namespace_id.clone().unwrap_or_default(),
+    ));
+    let namespace_privilege = user_namespace_privilege!(req);
+    if !namespace_privilege.check_permission(&namespace) {
+        token_no_namespace_permission!(&namespace);
+    }
     if let Some((group, service_name)) =
         NamingUtils::split_group_and_service_name(&param.0.service_name.clone().unwrap_or_default())
     {
@@ -69,11 +79,19 @@ pub async fn query_service(
 }
 
 pub async fn update_service(
+    req: HttpRequest,
     param: web::Query<ServiceInfoParam>,
     payload: web::Payload,
     naming_addr: web::Data<Addr<NamingActor>>,
 ) -> impl Responder {
     let param = merge_web_param!(param.0, payload);
+    let namespace = Arc::new(NamingUtils::default_namespace(
+        param.namespace_id.clone().unwrap_or_default(),
+    ));
+    let namespace_privilege = user_namespace_privilege!(req);
+    if !namespace_privilege.check_permission(&namespace) {
+        token_no_namespace_permission!(&namespace);
+    }
     match param.build_service_info() {
         Ok(service_info) => {
             let _ = naming_addr
@@ -86,11 +104,19 @@ pub async fn update_service(
 }
 
 pub async fn remove_service(
+    req: HttpRequest,
     param: web::Query<ServiceInfoParam>,
     payload: web::Payload,
     naming_addr: web::Data<Addr<NamingActor>>,
 ) -> impl Responder {
     let param = merge_web_param!(param.0, payload);
+    let namespace = Arc::new(NamingUtils::default_namespace(
+        param.namespace_id.clone().unwrap_or_default(),
+    ));
+    let namespace_privilege = user_namespace_privilege!(req);
+    if !namespace_privilege.check_permission(&namespace) {
+        token_no_namespace_permission!(&namespace);
+    }
     match param.build_service_info() {
         Ok(service_info) => {
             let key = service_info.to_service_key();
@@ -110,9 +136,17 @@ pub async fn remove_service(
 }
 
 pub async fn query_service_list(
+    req: HttpRequest,
     param: web::Query<ServiceQueryListRequest>,
     naming_addr: web::Data<Addr<NamingActor>>,
 ) -> impl Responder {
+    let namespace = Arc::new(NamingUtils::default_namespace(
+        param.namespace_id.clone().unwrap_or_default(),
+    ));
+    let namespace_privilege = user_namespace_privilege!(req);
+    if !namespace_privilege.check_permission(&namespace) {
+        token_no_namespace_permission!(&namespace);
+    }
     let page_size = param.page_size.unwrap_or(0x7fffffff);
     let page_index = param.page_no.unwrap_or(1);
     let namespace_id = NamingUtils::default_namespace(
@@ -151,9 +185,17 @@ pub async fn query_service_list(
 /// 控制台的接口应该走v2的接口,标记废弃
 /// #[deprecated]
 pub async fn query_subscribers_list(
+    req: HttpRequest,
     param: web::Query<ServiceQueryListRequest>,
     naming_addr: web::Data<Addr<NamingActor>>,
 ) -> impl Responder {
+    let namespace = Arc::new(NamingUtils::default_namespace(
+        param.namespace_id.clone().unwrap_or_default(),
+    ));
+    let namespace_privilege = user_namespace_privilege!(req);
+    if !namespace_privilege.check_permission(&namespace) {
+        token_no_namespace_permission!(&namespace);
+    }
     let page_size = param.page_size.unwrap_or(0x7fffffff);
     let page_index = param.page_no.unwrap_or(1);
     let namespace_id = NamingUtils::default_namespace(
