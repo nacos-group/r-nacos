@@ -41,11 +41,14 @@ impl PayloadHandler for ConfigQueryRequestHandler {
     ) -> anyhow::Result<HandlerResult> {
         let body_vec = request_payload.body.unwrap_or_default().value;
         let request: ConfigQueryRequest = serde_json::from_slice(&body_vec)?;
-        let cmd = ConfigCmd::GET(ConfigKey::new(
-            &request.data_id,
-            &request.group,
-            &ConfigUtils::default_tenant(request.tenant),
-        ));
+        let tenant = Arc::new(ConfigUtils::default_tenant(request.tenant));
+        if !request_meta.namespace_privilege().check_permission(&tenant) {
+            return Ok(HandlerResult::error(
+                403,
+                format!("NO_NAMESPACE_PERMISSION, user no such namespace permission: {}", tenant),
+            ));
+        }
+        let cmd = ConfigCmd::GET(ConfigKey::new(&request.data_id, &request.group, &tenant));
         let mut response = ConfigQueryResponse {
             request_id: request.request_id,
             ..Default::default()

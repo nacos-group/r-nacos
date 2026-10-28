@@ -41,16 +41,17 @@ impl PayloadHandler for ConfigChangeBatchListenRequestHandler {
         let request: ConfigBatchListenRequest = serde_json::from_slice(&body_vec)?;
         let mut listener_items = vec![];
         let mut use_public = false;
+        let namespace_privilege = request_meta.namespace_privilege();
         for item in request.config_listen_contexts {
             let tenant = item.tenant.unwrap_or_default();
+            let default_tenant = ConfigUtils::default_tenant(tenant.clone());
+            if !namespace_privilege.check_permission(&Arc::new(default_tenant.clone())) {
+                continue;
+            }
             if tenant == DEFAULT_TENANT {
                 use_public = true;
             }
-            let key = ConfigKey::new(
-                &item.data_id,
-                &item.group,
-                &ConfigUtils::default_tenant(tenant),
-            );
+            let key = ConfigKey::new(&item.data_id, &item.group, &default_tenant);
             listener_items.push(ListenerItem::new(key, item.md5.unwrap_or_default()));
         }
         let cmd = if request.listen {

@@ -83,6 +83,16 @@ impl PayloadHandler for SubscribeServiceRequestHandler {
                 .unwrap_or(&"".to_owned())
                 .to_owned(),
         );
+        let namespace_arc = Arc::new(namespace.clone());
+        if !request_meta.namespace_privilege().check_permission(&namespace_arc) {
+            return Ok(HandlerResult::error(
+                403,
+                format!(
+                    "NO_NAMESPACE_PERMISSION, user no such namespace permission: {}",
+                    namespace
+                ),
+            ));
+        }
         let key = ServiceKey::new(
             &namespace,
             &NamingUtils::default_group(request.group_name.unwrap_or_default()),

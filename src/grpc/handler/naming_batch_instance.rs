@@ -112,6 +112,18 @@ impl PayloadHandler for BatchInstanceRequestHandler {
         let body_vec = request_payload.body.unwrap_or_default().value;
         let request: BatchInstanceRequest = serde_json::from_slice(&body_vec)?;
         let request_id = request.request_id.clone();
+        let namespace = Arc::new(NamingUtils::default_namespace(
+            request.namespace.clone().unwrap_or_default(),
+        ));
+        if !request_meta.namespace_privilege().check_permission(&namespace) {
+            return Ok(HandlerResult::error(
+                403,
+                format!(
+                    "NO_NAMESPACE_PERMISSION, user no such namespace permission: {}",
+                    namespace
+                ),
+            ));
+        }
         let mut is_de_register = false;
         if let Some(t) = &request.r#type {
             if t == DE_REGISTER_INSTANCE {

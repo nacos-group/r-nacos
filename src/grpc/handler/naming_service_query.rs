@@ -44,7 +44,7 @@ impl PayloadHandler for ServiceQueryRequestHandler {
     async fn handle(
         &self,
         request_payload: crate::grpc::nacos_proto::Payload,
-        _request_meta: crate::grpc::RequestMeta,
+        request_meta: crate::grpc::RequestMeta,
     ) -> anyhow::Result<HandlerResult> {
         let body_vec = request_payload.body.unwrap_or_default().value;
         let request: ServiceQueryRequest = serde_json::from_slice(&body_vec)?;
@@ -64,6 +64,16 @@ impl PayloadHandler for ServiceQueryRequestHandler {
                 .unwrap_or(&"".to_owned())
                 .to_owned(),
         );
+        let namespace_arc = Arc::new(namespace.clone());
+        if !request_meta.namespace_privilege().check_permission(&namespace_arc) {
+            return Ok(HandlerResult::error(
+                403,
+                format!(
+                    "NO_NAMESPACE_PERMISSION, user no such namespace permission: {}",
+                    namespace
+                ),
+            ));
+        }
         let key = ServiceKey::new(
             &namespace,
             &NamingUtils::default_group(request.group_name.unwrap_or_default()),

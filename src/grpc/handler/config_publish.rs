@@ -34,7 +34,7 @@ impl PayloadHandler for ConfigPublishRequestHandler {
     async fn handle(
         &self,
         request_payload: crate::grpc::nacos_proto::Payload,
-        _request_meta: crate::grpc::RequestMeta,
+        request_meta: crate::grpc::RequestMeta,
     ) -> anyhow::Result<HandlerResult> {
         let body_vec = request_payload.body.unwrap_or_default().value;
         let request: ConfigPublishRequest = serde_json::from_slice(&body_vec)?;
@@ -42,12 +42,21 @@ impl PayloadHandler for ConfigPublishRequestHandler {
             .map(|v| ConfigType::new_by_value(v.as_ref()).get_value());
         let desc =
             StringUtils::map_not_empty(request.get_addition_param("desc").cloned()).map(Arc::new);
+        let tenant = Arc::new(ConfigUtils::default_tenant(request.tenant));
+        if !request_meta.namespace_privilege().check_permission(&tenant) {
+            return Ok(HandlerResult::error(
+                403,
+                format!("NO_NAMESPACE_PERMISSION, user no such namespace permission: {}", tenant),
+            ));
+        }
+        if !request_meta.can_edit() {
+            return Ok(HandlerResult::error(
+                403,
+                "NO_PERMISSION, user no permission to edit config".to_string(),
+            ));
+        }
         let mut req = SetConfigReq::new(
-            ConfigKey::new(
-                &request.data_id,
-                &request.group,
-                &ConfigUtils::default_tenant(request.tenant),
-            ),
+            ConfigKey::new(&request.data_id, &request.group, &tenant),
             request.content,
         );
         req.config_type = config_type;

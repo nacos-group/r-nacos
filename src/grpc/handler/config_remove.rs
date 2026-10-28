@@ -32,15 +32,24 @@ impl PayloadHandler for ConfigRemoveRequestHandler {
     async fn handle(
         &self,
         request_payload: crate::grpc::nacos_proto::Payload,
-        _request_meta: crate::grpc::RequestMeta,
+        request_meta: crate::grpc::RequestMeta,
     ) -> anyhow::Result<HandlerResult> {
         let body_vec = request_payload.body.unwrap_or_default().value;
         let request: ConfigRemoveRequest = serde_json::from_slice(&body_vec)?;
-        let req = DelConfigReq::new(ConfigKey::new(
-            &request.data_id,
-            &request.group,
-            &ConfigUtils::default_tenant(request.tenant),
-        ));
+        let tenant = Arc::new(ConfigUtils::default_tenant(request.tenant));
+        if !request_meta.namespace_privilege().check_permission(&tenant) {
+            return Ok(HandlerResult::error(
+                403,
+                format!("NO_NAMESPACE_PERMISSION, user no such namespace permission: {}", tenant),
+            ));
+        }
+        if !request_meta.can_edit() {
+            return Ok(HandlerResult::error(
+                403,
+                "NO_PERMISSION, user no permission to edit config".to_string(),
+            ));
+        }
+        let req = DelConfigReq::new(ConfigKey::new(&request.data_id, &request.group, &tenant));
         match self.app_data.config_route.del_config(req).await {
             Ok(_res) => {
                 let mut response = BaseResponse::build_success_response();
