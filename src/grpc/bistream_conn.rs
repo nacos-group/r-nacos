@@ -40,11 +40,7 @@ impl NamespaceType {
     }
 
     pub fn is_default(&self) -> bool {
-        match self {
-            NamespaceType::Empty => true,
-            NamespaceType::Public => true,
-            _ => false,
-        }
+        matches!(self, NamespaceType::Empty | NamespaceType::Public)
     }
 
     pub fn to_str(&self) -> &str {

@@ -16,8 +16,9 @@ pub(crate) const MEDIA_TYPE_TEXT_HTML: &str = "text/html;charset=UTF-8";
 pub(crate) const MEDIA_TYPE_APPLICATION_JSON: &str = "application/json;charset=UTF-8";
 pub(crate) const MEDIA_TYPE_APPLICATION_XML: &str = "application/xml;charset=UTF-8";
 
-#[derive(Debug, Eq, PartialEq, Clone, Hash)]
+#[derive(Debug, Eq, PartialEq, Clone, Hash, Default)]
 pub enum ConfigType {
+    #[default]
     Text,
     Json,
     Xml,
@@ -25,12 +26,6 @@ pub enum ConfigType {
     Html,
     Properties,
     Toml,
-}
-
-impl Default for ConfigType {
-    fn default() -> Self {
-        Self::Text
-    }
 }
 
 impl ConfigType {

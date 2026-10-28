@@ -97,14 +97,14 @@ impl request_server::Request for RequestServerImpl {
             client_version: EMPTY_CLIENT_VERSION.clone(),
             connection_id: Arc::new(format!(
                 "{}_{}",
-                self.app.sys_config.raft_node_id, &remote_addr
+                self.app.sys_config.raft_node_id, remote_addr
             )),
             ..Default::default()
         };
         let request_type = PayloadUtils::get_payload_type(&payload).unwrap();
         let request_log_info = format!(
             "|grpc|client_request|{}|{}",
-            &request_meta.connection_id, &request_type
+            request_meta.connection_id, request_type
         );
         let ignore_active_err = self.invoker.ignore_active_err(request_type);
         //self.bistream_manage_addr.do_send(BiStreamManageCmd::ActiveClinet(request_meta.connection_id.clone()));
@@ -133,7 +133,7 @@ impl request_server::Request for RequestServerImpl {
                                 .duration_since(start)
                                 .unwrap_or_default()
                                 .as_secs_f64();
-                            log::error!("{}|err|{}|{}", request_log_info, duration, &err_msg);
+                            log::error!("{}|err|{}|{}", request_log_info, duration, err_msg);
                             self.record_req_metrics(duration, false);
                             return Ok(tonic::Response::new(PayloadUtils::build_error_payload(
                                 301, err_msg,
@@ -151,7 +151,7 @@ impl request_server::Request for RequestServerImpl {
                         .duration_since(start)
                         .unwrap_or_default()
                         .as_secs_f64();
-                    log::error!("{}|err|{}|{}", request_log_info, duration, &err_msg);
+                    log::error!("{}|err|{}|{}", request_log_info, duration, err_msg);
                     self.record_req_metrics(duration, false);
                     return Ok(tonic::Response::new(PayloadUtils::build_error_payload(
                         301, err_msg,
@@ -186,17 +186,17 @@ impl request_server::Request for RequestServerImpl {
                     } else {
                         ""
                     };
-                    log::error!("{}|err|{}|{}|{}", request_log_info, duration, &args, msg);
+                    log::error!("{}|err|{}|{}|{}", request_log_info, duration, args, msg);
                     self.record_req_metrics(duration, false);
                 } else if duration < 1f64 {
                     if args.enable_log() {
-                        log::info!("{}|ok|{}|{}", request_log_info, duration, &args);
+                        log::info!("{}|ok|{}|{}", request_log_info, duration, args);
                     }
                     self.record_req_metrics(duration, true);
                 } else {
                     if args.enable_log() {
                         //slow request handle
-                        log::warn!("{}|ok|{}|{}", request_log_info, duration, &args);
+                        log::warn!("{}|ok|{}|{}", request_log_info, duration, args);
                     }
                     self.record_req_metrics(duration, true);
                 }
@@ -205,7 +205,7 @@ impl request_server::Request for RequestServerImpl {
             Err(e) => {
                 //Err(tonic::Status::aborted(e.to_string()))
                 //log::error!("request_server handler error:{:?}",e);
-                log::error!("{}|err|{}|{}|{}", request_log_info, duration, &args, e);
+                log::error!("{}|err|{}|{}|{}", request_log_info, duration, args, e);
                 self.record_req_metrics(duration, false);
                 Ok(tonic::Response::new(PayloadUtils::build_error_payload(
                     500u16,
@@ -238,7 +238,7 @@ impl BiRequestStream for BiRequestStreamServerImpl {
         let client_id = Arc::new(format!(
             "{}_{}",
             self.app.sys_config.raft_node_id,
-            &request.remote_addr().unwrap()
+            request.remote_addr().unwrap()
         ));
         let req = request.into_inner();
         let (tx, rx) = tokio::sync::mpsc::channel(10);

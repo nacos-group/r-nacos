@@ -60,20 +60,23 @@ pub enum ClientRequest {
 
 impl AppData for ClientRequest {}
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub enum ClientResponse {
+    #[default]
     Success,
     Fail,
-    SequenceResp { resp: SequenceRaftResult },
-    McpResp { resp: McpManagerRaftResult },
-    NamingResp { resp: NamingRaftResult },
-    CacheResp { resp: CacheManagerRaftResult },
-}
-
-impl Default for ClientResponse {
-    fn default() -> Self {
-        Self::Success
-    }
+    SequenceResp {
+        resp: SequenceRaftResult,
+    },
+    McpResp {
+        resp: McpManagerRaftResult,
+    },
+    NamingResp {
+        resp: NamingRaftResult,
+    },
+    CacheResp {
+        resp: CacheManagerRaftResult,
+    },
 }
 
 impl AppDataResponse for ClientResponse {}

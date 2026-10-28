@@ -15,6 +15,12 @@ pub struct SequenceDbManager {
     init: bool,
 }
 
+impl Default for SequenceDbManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SequenceDbManager {
     pub fn new() -> Self {
         Self {

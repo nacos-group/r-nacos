@@ -6,15 +6,11 @@ use std::{collections::HashMap, sync::Arc};
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[derive(Default)]
 pub enum UserSourceType {
+    #[default]
     Inner,
     Ldap,
-}
-
-impl Default for UserSourceType {
-    fn default() -> Self {
-        UserSourceType::Inner
-    }
 }
 
 impl UserSourceType {

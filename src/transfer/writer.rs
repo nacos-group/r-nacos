@@ -133,7 +133,7 @@ impl TransferWriterActor {
 impl Actor for TransferWriterActor {
     type Context = Context<Self>;
     fn stopped(&mut self, _ctx: &mut Self::Context) {
-        log::info!("TransferWriterActor stopped,file path:{:?}", &self.path);
+        log::info!("TransferWriterActor stopped,file path:{:?}", self.path);
     }
 }
 impl Handler<TransferWriterRequest> for TransferWriterActor {

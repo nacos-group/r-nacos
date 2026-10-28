@@ -16,7 +16,7 @@ pub fn encode_base64(data: &[u8]) -> String {
 /// key,iv长度需要是16的倍数
 pub fn encrypt_aes128(key: &str, iv: &str, plain: &[u8]) -> anyhow::Result<Vec<u8>> {
     let pt_len = plain.len();
-    let buf_len = if pt_len % 48 == 0 {
+    let buf_len = if pt_len.is_multiple_of(48) {
         pt_len
     } else {
         (48 - pt_len % 48) + pt_len
@@ -27,7 +27,7 @@ pub fn encrypt_aes128(key: &str, iv: &str, plain: &[u8]) -> anyhow::Result<Vec<u
         .encrypt_padded_b2b_mut::<Pkcs7>(plain, &mut buf)
     {
         Ok(ct) => Ok(ct.to_vec()),
-        Err(e) => Err(anyhow::anyhow!("encrypt error,{}", &e)),
+        Err(e) => Err(anyhow::anyhow!("encrypt error,{}", e)),
     }
 }
 
@@ -35,7 +35,7 @@ pub fn encrypt_aes128(key: &str, iv: &str, plain: &[u8]) -> anyhow::Result<Vec<u
 /// key,iv长度需要是16的倍数
 pub fn decrypt_aes128(key: &str, iv: &str, cipher: &[u8]) -> anyhow::Result<Vec<u8>> {
     let cipher_len = cipher.len();
-    let buf_len = if cipher_len % 48 == 0 {
+    let buf_len = if cipher_len.is_multiple_of(48) {
         cipher_len
     } else {
         (48 - cipher_len % 48) + cipher_len
@@ -47,6 +47,6 @@ pub fn decrypt_aes128(key: &str, iv: &str, cipher: &[u8]) -> anyhow::Result<Vec<
         .decrypt_padded_b2b_mut::<Pkcs7>(cipher, &mut buf)
     {
         Ok(pt) => Ok(pt.to_vec()),
-        Err(e) => Err(anyhow::anyhow!("decrypt error,{}", &e)),
+        Err(e) => Err(anyhow::anyhow!("decrypt error,{}", e)),
     }
 }

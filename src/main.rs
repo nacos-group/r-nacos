@@ -68,7 +68,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         return run_subcommand(cmd).await;
     }
     // 这里不使用log:info避免日志等级高于info时不打印
-    println!("version:{}, RUST_LOG:{}", get_app_version(), &rust_log);
+    println!("version:{}, RUST_LOG:{}", get_app_version(), rust_log);
     println!("data dir:{}", sys_config.local_db_dir);
 
     // 输出内存分配器信息
@@ -82,8 +82,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let app_data = build_share_data(factory_data.clone())?;
     let http_addr = sys_config.get_http_addr();
     let grpc_addr = sys_config.get_grpc_addr();
-    log::info!("http server addr:{}", &http_addr);
-    log::info!("grpc server addr:{}", &grpc_addr);
+    log::info!("http server addr:{}", http_addr);
+    log::info!("grpc server addr:{}", grpc_addr);
 
     let mut invoker = InvokerHandler::new(app_data.clone());
     invoker.add_config_handler(&app_data);
@@ -181,7 +181,7 @@ async fn run_subcommand(commands: Commands) -> Result<(), Box<dyn Error>> {
 
 async fn run_console_web(source_app_data: Arc<AppShareData>) {
     let http_console_addr = source_app_data.sys_config.get_http_console_addr();
-    log::info!("new console server http addr:{}", &http_console_addr);
+    log::info!("new console server http addr:{}", http_console_addr);
     let app_data = Data::new(source_app_data.clone());
     HttpServer::new(move || {
         let source_app_data = source_app_data.clone();

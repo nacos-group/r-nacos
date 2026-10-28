@@ -483,7 +483,7 @@ impl NamingActor {
         let service = if let Some(service) = self.service_map.get_mut(key) {
             service
         } else {
-            log::warn!("update_instance not found service,{:?}", &key);
+            log::warn!("update_instance not found service,{:?}", key);
             return UpdateInstanceType::None;
         };
         let client_id = instance.client_id.clone();
@@ -605,7 +605,7 @@ impl NamingActor {
         } else {
             page_size * (page_index - 1)
         };
-        all_instances.sort_by(|a, b| a.get_short_key().cmp(&b.get_short_key()));
+        all_instances.sort_by_key(|a| a.get_short_key());
         let page_data = all_instances
             .into_iter()
             .skip(offset)
@@ -985,7 +985,7 @@ impl NamingActor {
                 self.namespace_index
                     .remove_service(&service.get_service_key());
                 self.service_map.remove(&service_map_key);
-                log::info!("clear_empty_service:{:?}", &service_map_key);
+                log::info!("clear_empty_service:{:?}", service_map_key);
             }
         }
     }
@@ -1064,7 +1064,7 @@ impl NamingActor {
 
     fn query_grpc_distro_data(&self) -> HashMap<Arc<String>, HashSet<InstanceKey>> {
         let mut client_data: HashMap<Arc<String>, HashSet<InstanceKey>> = HashMap::new();
-        let client_id_pre = format!("{}_", &self.node_id);
+        let client_id_pre = format!("{}_", self.node_id);
         for (client_id, keys) in &self.client_instance_set {
             if !client_id.as_ref().starts_with(&client_id_pre) {
                 //不是本节点的grpc client直接跳过

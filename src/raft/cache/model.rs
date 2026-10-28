@@ -27,18 +27,13 @@ impl CacheItemDo {
     }
 }
 
-#[derive(Debug, Eq, PartialEq, Clone, Hash, Serialize, Deserialize)]
+#[derive(Debug, Eq, PartialEq, Clone, Hash, Serialize, Deserialize, Default)]
 pub enum CacheType {
+    #[default]
     String,
     Map,
     UserSession,
     ApiTokenSession, //open api
-}
-
-impl Default for CacheType {
-    fn default() -> Self {
-        Self::String
-    }
 }
 
 impl CacheType {
@@ -57,7 +52,7 @@ impl CacheType {
             2 => Ok(CacheType::Map),
             3 => Ok(CacheType::UserSession),
             4 => Ok(CacheType::ApiTokenSession),
-            _ => Err(anyhow::anyhow!("unknown type from {}", &v)),
+            _ => Err(anyhow::anyhow!("unknown type from {}", v)),
         }
     }
 }
@@ -70,13 +65,13 @@ pub struct CacheKey {
 
 impl CacheKey {
     pub fn to_key_string(&self) -> String {
-        format!("{}\x00{}", self.cache_type.get_type_data(), &self.key)
+        format!("{}\x00{}", self.cache_type.get_type_data(), self.key)
     }
 }
 
 impl Display for CacheKey {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}\x00{}", self.cache_type.get_type_data(), &self.key)
+        write!(f, "{}\x00{}", self.cache_type.get_type_data(), self.key)
     }
 }
 

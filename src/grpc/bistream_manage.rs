@@ -69,11 +69,11 @@ impl BiStreamManage {
     }
 
     pub fn add_conn(&mut self, client_id: Arc<String>, sender: Addr<BiStreamConn>) {
-        log::info!("add_conn client_id:{}", &client_id);
+        log::info!("add_conn client_id:{}", client_id);
         let now = now_millis();
         let item = ConnCacheItem::new(now, sender);
         if let Some(old_conn) = self.conn_cache.insert(client_id.clone(), item) {
-            log::info!("add_conn remove old conn:{}", &client_id);
+            log::info!("add_conn remove old conn:{}", client_id);
             old_conn.conn.do_send(BiStreamSenderCmd::Close);
         }
         self.active_time_set

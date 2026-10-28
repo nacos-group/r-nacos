@@ -36,7 +36,7 @@ impl McpImportContext {
     ) -> anyhow::Result<Arc<ToolSpec>> {
         let mut version_map = HashMap::new();
         let mut versions: BTreeMap<u64, ToolSpecVersion> = BTreeMap::new();
-        for (_, tool_version) in tool_spec.versions.iter() {
+        for tool_version in tool_spec.versions.values() {
             let old_id = tool_version.version;
             let new_id = self.next_tool_version_id().await?;
             if old_id == tool_spec.current_version {

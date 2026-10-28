@@ -219,7 +219,7 @@ impl MetricsManager {
             .gauge_manager
             .value(&MetricsKey::ProcessStartTimeSeconds)
             .unwrap_or_default();
-        log::info!("[metrics_system]|already running seconds: {}s|cpu_usage: {:.2}%|rss_usage: {:.2}%|rss: {:.2}M|vms: {:.2}M|total_memory: {:.2}M|",running_seconds,&cpu_usage,&rss_usage,&rss,&vms,&self.total_memory);
+        log::info!("[metrics_system]|already running seconds: {}s|cpu_usage: {:.2}%|rss_usage: {:.2}%|rss: {:.2}M|vms: {:.2}M|total_memory: {:.2}M|",running_seconds,cpu_usage,rss_usage,rss,vms,self.total_memory);
     }
 
     fn after_peek_metrics(&mut self) {

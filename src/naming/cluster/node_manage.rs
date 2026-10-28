@@ -22,16 +22,11 @@ use std::{
     time::Duration,
 };
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub enum NodeStatus {
+    #[default]
     Valid,
     Invalid,
-}
-
-impl Default for NodeStatus {
-    fn default() -> Self {
-        Self::Valid
-    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -641,7 +636,7 @@ impl NodeManage {
                 if let Some(node) = node {
                     Ok(node.addr)
                 } else {
-                    Err(anyhow::anyhow!("the node {} addr is empty", &node_id))
+                    Err(anyhow::anyhow!("the node {} addr is empty", node_id))
                 }
             }
             _ => Err(anyhow::anyhow!("get_node_addr error NodeManageResponse!")),

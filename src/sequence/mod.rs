@@ -21,6 +21,12 @@ pub struct SequenceManager {
     seq_step: u64,
 }
 
+impl Default for SequenceManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SequenceManager {
     pub fn new() -> Self {
         SequenceManager {
@@ -95,10 +101,11 @@ impl SequenceManager {
         let client_resp = raft_router
             .request(ClientRequest::SequenceReq { req: raft_req })
             .await?;
-        if let ClientResponse::SequenceResp { resp } = client_resp {
-            if let SequenceRaftResult::NextRange { start, len } = resp {
-                return Ok((start, len));
-            }
+        if let ClientResponse::SequenceResp {
+            resp: SequenceRaftResult::NextRange { start, len },
+        } = client_resp
+        {
+            return Ok((start, len));
         }
         Err(anyhow::anyhow!(
             "SequenceManager|raft request SequenceRaftReq::NextRange error"

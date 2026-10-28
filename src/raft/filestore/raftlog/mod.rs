@@ -91,7 +91,7 @@ impl Display for LogInnerManager {
         write!(
             f,
             "header:{:?},indexs count:{},msg_count:{},index_cursor:{},data_cursor:{},file_len:{}",
-            &self.header,
+            self.header,
             self.indexs.len(),
             self.msg_count,
             self.index_cursor,
@@ -271,8 +271,8 @@ impl LogInnerManager {
         log::info!(
             "move_to_index_by_count {:?},{},{}",
             last_index,
-            &start_index,
-            &count
+            start_index,
+            count
         );
         loop {
             let read_len = file.read(&mut buffer).await?;
@@ -437,7 +437,7 @@ impl LogInnerManager {
                 return Ok((item.clone(), file_index_len, pop_index_count));
             }
         }
-        Err(anyhow::anyhow!("not found index,{}", &log_index))
+        Err(anyhow::anyhow!("not found index,{}", log_index))
     }
 
     pub async fn read_records(
@@ -722,7 +722,7 @@ impl Actor for RaftLogActor {
     type Context = Context<Self>;
 
     fn started(&mut self, ctx: &mut Self::Context) {
-        log::info!("RaftLogActor startd,{}", &self.path);
+        log::info!("RaftLogActor startd,{}", self.path);
         self.init(ctx);
     }
 }

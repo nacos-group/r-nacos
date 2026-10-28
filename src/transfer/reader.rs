@@ -369,7 +369,7 @@ impl TransferImportManager {
         log::info!(
             "starting transfer import data,len:{},import param:{:?}",
             data.len(),
-            &param
+            param
         );
         self.importing = true;
         let data_wrap = self.data_wrap.clone();

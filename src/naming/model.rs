@@ -51,7 +51,7 @@ impl Instance {
 
     pub fn generate_key(&mut self) {
         //self.id = format!("{}#{}#{}#{}#{}",&self.ip,&self.port,&self.cluster_name,&self.service_name,&self.group_name)
-        self.id = Arc::new(format!("{}#{}", &self.ip, &self.port))
+        self.id = Arc::new(format!("{}#{}", self.ip, self.port))
     }
 
     pub fn init(&mut self) {
@@ -107,7 +107,7 @@ impl Instance {
     }
 
     pub fn get_id_string(&self) -> String {
-        format!("{}#{}", &self.ip, &self.port)
+        format!("{}#{}", self.ip, self.port)
     }
 
     /// 转换为 InstanceDo 用于 protobuf 序列化

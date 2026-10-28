@@ -51,7 +51,7 @@ impl GaugeManager {
 
     pub fn export(&mut self, bytes_mut: &mut BytesMut) -> anyhow::Result<()> {
         for (key, value) in self.data_map.iter() {
-            bytes_mut.write_str(&format!("{}", &GaugeValueFmtWrap::new(key, value)))?;
+            bytes_mut.write_str(&format!("{}", GaugeValueFmtWrap::new(key, value)))?;
         }
         //bytes_mut.write_str("\n")?;
         Ok(())

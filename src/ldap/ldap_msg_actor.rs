@@ -57,7 +57,7 @@ impl LdapMsgActor {
             LdapMsgReq::Bind(bind_req) => {
                 let bind_dn = format!(
                     "uid={},{}",
-                    bind_req.user_name, &ldap_config.ldap_user_base_dn
+                    bind_req.user_name, ldap_config.ldap_user_base_dn
                 );
                 ldap.simple_bind(&bind_dn, &bind_req.password)
                     .await?
@@ -89,9 +89,7 @@ impl LdapMsgActor {
                     let groups = entry.attrs.remove("memberOf").unwrap_or_default();
                     let groups = groups
                         .iter()
-                        .map(|s| StringUtils::extract_ldap_value_cn(s))
-                        .filter(|s| s.is_some())
-                        .map(|s| s.unwrap())
+                        .filter_map(|s| StringUtils::extract_ldap_value_cn(s))
                         .collect::<Vec<_>>();
                     for group in groups.iter() {
                         if ldap_config.ldap_user_developer_groups.contains(group) {

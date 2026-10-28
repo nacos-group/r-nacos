@@ -57,13 +57,13 @@ impl SseStreamManager {
     /// 添加新的 SSE 连接
     pub fn add_conn(&mut self, meta: SseConnMetaInfo, sender: SseSender) {
         let session_id = meta.session_id.clone();
-        log::info!("add_sse_conn session_id:{}", &session_id);
+        log::info!("add_sse_conn session_id:{}", session_id);
         let now = now_second_i32() as u64;
         let item = SseConnCacheItem::new(sender, meta);
 
         // 如果已存在相同 session_id 的连接，先关闭旧连接
         if let Some(old_item) = self.conn_cache.insert(session_id.clone(), item) {
-            log::info!("add_sse_conn remove old conn:{}", &session_id);
+            log::info!("add_sse_conn remove old conn:{}", session_id);
             drop(old_item); // 关闭旧连接
         }
 
@@ -123,7 +123,7 @@ impl SseStreamManager {
 
     /// 移除指定的 SSE 连接
     pub fn remove_conn(&mut self, session_id: Arc<String>) {
-        log::info!("remove_sse_conn session_id:{}", &session_id);
+        log::info!("remove_sse_conn session_id:{}", session_id);
         self.conn_cache.remove(&session_id);
     }
 
@@ -223,8 +223,8 @@ impl Handler<SseStreamManageAsyncCmd> for SseStreamManager {
             Err(e) => {
                 log::warn!(
                     "Failed to send SSE message to session_id: {}, error: {}",
-                    &session_id,
-                    &e
+                    session_id,
+                    e
                 );
                 act.remove_conn(session_id);
                 Err(e)

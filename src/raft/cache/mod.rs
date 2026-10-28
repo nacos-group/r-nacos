@@ -73,7 +73,7 @@ impl CacheManager {
         .map(
             |result: anyhow::Result<Option<Vec<KvPair>>>, act, _ctx| match act.do_load(result) {
                 Ok(_) => {}
-                Err(e) => log::error!("load cache info error,{}", e.to_string()),
+                Err(e) => log::error!("load cache info error,{}", e),
             },
         )
         .wait(ctx);
@@ -309,7 +309,7 @@ impl Handler<CacheManagerReq> for CacheManager {
                 CacheManagerInnerCtx::NotifyChange { key, value } => {
                     match act.do_load(Ok(Some(vec![(key, value)]))) {
                         Ok(_) => {}
-                        Err(err) => log::error!("do_load error :{}", err.to_string()),
+                        Err(err) => log::error!("do_load error :{}", err),
                     };
                     Ok(CacheManagerResult::None)
                 }

@@ -22,7 +22,7 @@ pub async fn query_ops_instances_list(
             if !namespace_privilege.check_permission(&key.namespace_id) {
                 return HttpResponse::Unauthorized().body(format!(
                     "user no such namespace permission: {}",
-                    &key.namespace_id
+                    key.namespace_id
                 ));
             }
             match naming_addr.send(NamingCmd::QueryAllInstanceList(key)).await {

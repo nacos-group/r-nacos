@@ -125,7 +125,7 @@ pub async fn handle_naming_route(
         NamingRouteRequest::QuerySnapshot { index, len } => {
             //请求 snapshot data
             let cluster_id = get_cluster_id(extend_info)?;
-            log::info!("query snapshot from {}", &cluster_id);
+            log::info!("query snapshot from {}", cluster_id);
             let cmd = NodeManageRequest::QueryOwnerRange(ProcessRange::new(index, len));
             let resp: NodeManageResponse = app.naming_inner_node_manage.send(cmd).await??;
             if let NodeManageResponse::OwnerRange(ranges) = resp {
@@ -133,7 +133,7 @@ pub async fn handle_naming_route(
                 let result: NamingResult = app.naming_addr.send(cmd).await??;
                 if let NamingResult::Snapshot(snapshot) = result {
                     //发送 snapshot data
-                    log::info!("send snapshot to {}", &cluster_id);
+                    log::info!("send snapshot to {}", cluster_id);
                     app.naming_inner_node_manage
                         .do_send(NodeManageRequest::SendSnapshot(cluster_id, snapshot));
                 }
@@ -146,7 +146,7 @@ pub async fn handle_naming_route(
             let snapshot = SnapshotDataInfo::from_bytes(&data)?;
             log::info!(
                 "receive snapshot from {},instance size:{}",
-                &cluster_id,
+                cluster_id,
                 snapshot.instances.len()
             );
             let mut snapshot_receive = SnapshotForReceive::try_from(snapshot)?;
@@ -194,7 +194,7 @@ pub async fn handle_naming_route(
             if let NamingResult::DiffDistroData(DistroData::DiffClientInstances(diff_data)) = res {
                 log::info!(
                     "sync distro client|DiffDistroData,{},count:{}",
-                    &cluster_id,
+                    cluster_id,
                     diff_data.len()
                 );
                 if !diff_data.is_empty() {

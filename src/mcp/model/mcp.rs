@@ -261,7 +261,7 @@ pub struct McpServerParam {
 
 impl McpServerParam {
     pub fn build_unique_key(&self) -> Arc<String> {
-        Arc::new(format!("{}_{}", self.update_time, &self.id))
+        Arc::new(format!("{}_{}", self.update_time, self.id))
     }
 }
 

@@ -20,7 +20,7 @@ impl ToolSpecUtils {
         version: u64,
         count: i64,
     ) {
-        if let Some(tool_spec_map) = ref_map.get_mut(&tool_key) {
+        if let Some(tool_spec_map) = ref_map.get_mut(tool_key) {
             let value = if let Some(value) = tool_spec_map.get(&version) {
                 *value + count
             } else {

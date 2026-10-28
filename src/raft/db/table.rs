@@ -112,7 +112,7 @@ impl TableManager {
             if let Some(seq) = table_info.seq.as_mut() {
                 Ok(seq.next_id())
             } else {
-                Err(anyhow::anyhow!("the table {} seq is none", &name))
+                Err(anyhow::anyhow!("the table {} seq is none", name))
             }
         } else {
             self.init_table(name.clone(), seq_step);
@@ -220,7 +220,7 @@ impl TableManager {
         if let Some(table_info) = self.table_map.get(name) {
             if let Some(like_key) = like_key {
                 let mut count = 0;
-                for (k, _) in table_info.table_data.iter() {
+                for k in table_info.table_data.keys() {
                     let key_str = String::from_utf8_lossy(k);
                     if StringUtils::like(&key_str, like_key.as_str()).is_some() {
                         count += 1;

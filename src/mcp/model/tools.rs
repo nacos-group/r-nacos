@@ -184,7 +184,7 @@ impl ToolSpec {
     }
 
     pub fn get_current_version(&self) -> Option<ToolSpecVersion> {
-        self.versions.get(&self.current_version).map(|v| v.clone())
+        self.versions.get(&self.current_version).cloned()
     }
 
     pub fn update_param(&mut self, param: ToolSpecParam) {

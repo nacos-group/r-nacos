@@ -114,7 +114,7 @@ mod tests {
         assert_eq!(queue.remove_front(), Some(101));
         for i in 0..queue.len() {
             let v = queue.get(i);
-            println!("item: {:?}", &v);
+            println!("item: {:?}", v);
         }
     }
 }

@@ -141,8 +141,8 @@ impl RaftIndexManager {
         {
             use fs2::FileExt;
             if file.try_lock_exclusive().is_err() {
-                log::error!("try lock db error,path:{}", &path);
-                return Err(anyhow::anyhow!("try lock db error,path:{}", &path));
+                log::error!("try lock db error,path:{}", path);
+                return Err(anyhow::anyhow!("try lock db error,path:{}", path));
             }
         }
         Ok(file)

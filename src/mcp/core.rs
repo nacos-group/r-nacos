@@ -31,6 +31,12 @@ pub struct McpManager {
     pub(crate) sequence_manager: Option<Addr<SequenceManager>>,
 }
 
+impl Default for McpManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl McpManager {
     pub fn new() -> Self {
         McpManager {
@@ -94,7 +100,7 @@ impl McpManager {
                 continue;
             }
             server_value_id_set.insert(server_value.id);
-            ToolSpecUtils::update_server_ref_to_map(tool_spec_version_ref_map, &server_value);
+            ToolSpecUtils::update_server_ref_to_map(tool_spec_version_ref_map, server_value);
         }
     }
 
@@ -318,7 +324,7 @@ impl McpManager {
                 .collect();
 
             // 按时间倒序排列（最新的在前面）
-            filtered_histories.sort_by(|a, b| b.update_time.cmp(&a.update_time));
+            filtered_histories.sort_by_key(|history| std::cmp::Reverse(history.update_time));
 
             let total_count = filtered_histories.len();
 
@@ -511,11 +517,7 @@ impl Handler<McpManagerReq> for McpManager {
     fn handle(&mut self, msg: McpManagerReq, _ctx: &mut Self::Context) -> Self::Result {
         match msg {
             McpManagerReq::GetServer(id) => {
-                let server_info = if let Some(server) = self.server_map.get(&id) {
-                    Some(server.clone())
-                } else {
-                    None
-                };
+                let server_info = self.server_map.get(&id).cloned();
                 Ok(McpManagerResult::ServerInfo(server_info))
             }
             McpManagerReq::GetServerByKey(key) => {
@@ -557,7 +559,7 @@ impl Handler<McpManagerRaftReq> for McpManager {
     fn handle(&mut self, msg: McpManagerRaftReq, ctx: &mut Self::Context) -> Self::Result {
         match msg {
             McpManagerRaftReq::AddServer(server_param) => {
-                let new_value_id = server_param.publish_value_id.clone();
+                let new_value_id = server_param.publish_value_id;
                 let value = self.update_server(server_param)?;
                 if let Some(new_value_id) = new_value_id {
                     self.publish_server(value.id, new_value_id);

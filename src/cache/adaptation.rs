@@ -11,7 +11,7 @@ impl AdaptationUtils {
     }
 
     pub fn build_value_from_old(v: &[u8]) -> anyhow::Result<crate::cache::model::CacheValue> {
-        let cache_item = CacheItemDo::from_bytes(&v)?;
+        let cache_item = CacheItemDo::from_bytes(v)?;
         let old_value: CacheValue = cache_item.try_into()?;
         let value: crate::cache::model::CacheValue = old_value.into();
         Ok(value)
@@ -21,7 +21,7 @@ impl AdaptationUtils {
         v: &[u8],
     ) -> anyhow::Result<(crate::cache::model::CacheValue, i32)> {
         let now = now_second_i32();
-        let cache_item = CacheItemDo::from_bytes(&v)?;
+        let cache_item = CacheItemDo::from_bytes(v)?;
         let ttl = cache_item.timeout - now;
         let old_value: CacheValue = cache_item.try_into()?;
         let value: crate::cache::model::CacheValue = old_value.into();

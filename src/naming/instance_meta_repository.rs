@@ -145,20 +145,16 @@ impl InstanceMetaRepository {
         message_reader.append_next_buf(&data_buf[..read_len]);
 
         loop {
-            loop {
-                if let Some(v) = message_reader.next_message_vec() {
-                    let mut bytes_reader = BytesReader::from_bytes(v);
-                    let file_do: service_meta::InstanceFileDo = bytes_reader.read_message(v)?;
-                    let service_key = ServiceKey::new(
-                        &file_do.namespace_id.to_string(),
-                        &file_do.group_name.to_string(),
-                        &file_do.service_name.to_string(),
-                    );
-                    let file_name = file_do.file_name.to_string();
-                    self.file_map.insert(service_key, file_name);
-                } else {
-                    break;
-                }
+            while let Some(v) = message_reader.next_message_vec() {
+                let mut bytes_reader = BytesReader::from_bytes(v);
+                let file_do: service_meta::InstanceFileDo = bytes_reader.read_message(v)?;
+                let service_key = ServiceKey::new(
+                    file_do.namespace_id.as_ref(),
+                    file_do.group_name.as_ref(),
+                    file_do.service_name.as_ref(),
+                );
+                let file_name = file_do.file_name.to_string();
+                self.file_map.insert(service_key, file_name);
             }
             let read_len = file.read(&mut data_buf).await?;
             if read_len == 0 {
@@ -239,20 +235,16 @@ impl InstanceMetaRepository {
         message_reader.append_next_buf(&data_buf[..read_len]);
 
         loop {
-            loop {
-                if let Some(v) = message_reader.next_message_vec() {
-                    let mut bytes_reader = BytesReader::from_bytes(v);
-                    match bytes_reader.read_message::<service_meta::InstanceMetaDo>(v) {
-                        Ok(meta_do) => {
-                            let owned: InstanceMetaDoOwned = meta_do.into();
-                            records.push(owned);
-                        }
-                        Err(e) => {
-                            log::error!("failed to parse InstanceMetaDo: {}", e);
-                        }
+            while let Some(v) = message_reader.next_message_vec() {
+                let mut bytes_reader = BytesReader::from_bytes(v);
+                match bytes_reader.read_message::<service_meta::InstanceMetaDo>(v) {
+                    Ok(meta_do) => {
+                        let owned: InstanceMetaDoOwned = meta_do.into();
+                        records.push(owned);
                     }
-                } else {
-                    break;
+                    Err(e) => {
+                        log::error!("failed to parse InstanceMetaDo: {}", e);
+                    }
                 }
             }
             let read_len = file.read(&mut data_buf).await?;
@@ -727,13 +719,17 @@ mod tests {
 
         assert_eq!(repo.list_services().len(), 2);
 
-        repo.remove_metadata(&[key1.clone()]).await.unwrap();
+        repo.remove_metadata(std::slice::from_ref(&key1))
+            .await
+            .unwrap();
 
         assert_eq!(repo.list_services().len(), 1);
         assert!(repo.get_metadata(&key1).await.unwrap().is_empty());
         assert_eq!(repo.get_metadata(&key2).await.unwrap().len(), 1);
 
-        repo.remove_metadata(&[key2.clone()]).await.unwrap();
+        repo.remove_metadata(std::slice::from_ref(&key2))
+            .await
+            .unwrap();
         assert!(repo.list_services().is_empty());
     }
 

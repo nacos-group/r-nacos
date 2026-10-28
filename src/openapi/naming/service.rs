@@ -64,7 +64,7 @@ pub async fn query_service(
                         } else {
                             HttpResponse::InternalServerError().body(format!(
                                 "service not found,namespace_id:{},service_name:{}",
-                                &namespace_id, &service_name
+                                namespace_id, service_name
                             ))
                         }
                     }

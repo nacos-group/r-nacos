@@ -131,7 +131,7 @@ impl UdpSenderCmd {
 impl Handler<UdpSenderCmd> for UdpWorker {
     type Result = Result<(), std::io::Error>;
     fn handle(&mut self, msg: UdpSenderCmd, ctx: &mut Context<Self>) -> Self::Result {
-        log::info!("send instance info by udp,to addr:{}", &msg.target_addr);
+        log::info!("send instance info by udp,to addr:{}", msg.target_addr);
         let socket = self.socket.as_ref().unwrap().clone();
         async move {
             socket.send_to(&msg.data, msg.target_addr).await;

@@ -17,7 +17,7 @@ where
 {
     let opt = Option::<serde_json::Value>::deserialize(deserializer)?;
     match opt {
-        Some(serde_json::Value::Number(n)) => Ok(n.as_u64().and_then(|v| Some(v as u32))),
+        Some(serde_json::Value::Number(n)) => Ok(n.as_u64().map(|v| v as u32)),
         Some(serde_json::Value::String(s)) => {
             let s = s.trim();
             if s.is_empty() {

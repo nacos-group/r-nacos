@@ -166,7 +166,7 @@ impl AppSysConfig {
             .parse()
             .unwrap_or(1);
         let raft_node_addr =
-            std::env::var("RNACOS_RAFT_NODE_ADDR").unwrap_or(format!("127.0.0.1:{}", &grpc_port));
+            std::env::var("RNACOS_RAFT_NODE_ADDR").unwrap_or(format!("127.0.0.1:{}", grpc_port));
         let raft_auto_init = std::env::var("RNACOS_RAFT_AUTO_INIT")
             .unwrap_or("".to_owned())
             .parse()
@@ -454,15 +454,15 @@ impl AppSysConfig {
     }
 
     pub fn get_grpc_addr(&self) -> String {
-        format!("{}:{}", &self.sdk_host, &self.grpc_port)
+        format!("{}:{}", self.sdk_host, self.grpc_port)
     }
 
     pub fn get_http_addr(&self) -> String {
-        format!("{}:{}", &self.sdk_host, &self.http_port)
+        format!("{}:{}", self.sdk_host, self.http_port)
     }
 
     pub fn get_http_console_addr(&self) -> String {
-        format!("{}:{}", &self.console_host, &self.http_console_port)
+        format!("{}:{}", self.console_host, self.http_console_port)
     }
 
     pub fn get_ldap_config(&self) -> Arc<LdapConfig> {

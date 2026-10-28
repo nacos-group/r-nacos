@@ -36,7 +36,7 @@ pub struct ListenerItem {
 
 impl ListenerItem {
     pub fn new(mut clusters: Vec<String>, only_healthy: bool, listener_addr: SocketAddr) -> Self {
-        let clusters_key = format!("{},{}", &gene_cluster_key(&mut clusters), only_healthy);
+        let clusters_key = format!("{},{}", gene_cluster_key(&mut clusters), only_healthy);
         Self {
             clusters,
             only_healthy,
@@ -231,7 +231,7 @@ impl InnerNamingListener {
     fn get_listener_key(key: &ServiceKey) -> String {
         format!(
             "{}\x01{}\x01{}",
-            &key.namespace_id, &key.group_name, &key.service_name
+            key.namespace_id, key.group_name, key.service_name
         )
     }
 
@@ -390,18 +390,18 @@ impl Handler<NamingListenerCmd> for InnerNamingListener {
             NamingListenerCmd::Add(service_key, listener_item) => {
                 log::debug!(
                     "naming-listener add ,{:?},{},{}",
-                    &service_key,
-                    &listener_item.clusters_key,
-                    &listener_item.listener_addr
+                    service_key,
+                    listener_item.clusters_key,
+                    listener_item.listener_addr
                 );
                 self.add(service_key, listener_item);
             }
             NamingListenerCmd::Response(socket_addr) => {
-                log::info!("naming-listener response,{:?}", &socket_addr);
+                log::info!("naming-listener response,{:?}", socket_addr);
                 self.client_response(&socket_addr);
             }
             NamingListenerCmd::Notify(service_key, sign, instances, id) => {
-                log::info!("naming-listener notify,{:?},{}", &service_key, id);
+                log::info!("naming-listener notify,{:?},{}", service_key, id);
                 self.notify(service_key, sign, instances);
             }
             NamingListenerCmd::AddHeartbeat(service_key, id) => {

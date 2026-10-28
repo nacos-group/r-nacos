@@ -92,7 +92,7 @@ impl RaftConnectionFactory {
         if let Ok(channel) = self.channel_cache.get(&key) {
             Ok(channel)
         } else {
-            let addr = format!("http://{}", &key);
+            let addr = format!("http://{}", key);
             let channel = Arc::new(Channel::from_shared(addr)?.connect_lazy()?);
             self.channel_cache.set(key, channel.clone(), self.cache_ses);
             Ok(channel)

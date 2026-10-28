@@ -52,11 +52,7 @@ impl SeqGroup {
         if self.next_adding {
             return false;
         }
-        if !self.range_a.has_next() || !self.range_b.has_next() {
-            true
-        } else {
-            false
-        }
+        !self.range_a.has_next() || !self.range_b.has_next()
     }
 
     /*

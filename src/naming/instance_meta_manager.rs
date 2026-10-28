@@ -109,7 +109,7 @@ impl InstanceMetaManager {
             },
             Err(_) => {
                 let info = InstanceMetaInfo::default();
-                let temp_path = format!("{}.tmp", &path);
+                let temp_path = format!("{}.tmp", path);
                 let content = serde_json::to_string(&info)?;
                 let mut file = tokio::fs::File::create(&temp_path).await?;
                 file.write_all(content.as_bytes()).await?;
@@ -138,7 +138,7 @@ impl InstanceMetaManager {
     fn update_instance_metadata(&self, service_key: ServiceKey, records: Vec<InstanceMetaDto>) {
         log::info!(
             "init service instance metadata: service_key={:?}, record_count={}",
-            &service_key,
+            service_key,
             records.len()
         );
         if let Some(naming_actor) = self.naming_actor.as_ref() {

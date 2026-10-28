@@ -35,7 +35,7 @@ pub async fn query_config_list(
     {
         return HttpResponse::Unauthorized().body(format!(
             "user no such namespace permission: {:?}",
-            &param.tenant
+            param.tenant
         ));
     }
     let cmd = ConfigCmd::QueryPageInfo(Box::new(param));
@@ -177,7 +177,7 @@ fn zip_file(mut zip: ZipWriter<&mut File>, list: Vec<ConfigInfoDto>) -> anyhow::
             .compression_method(zip::CompressionMethod::Stored)
             .unix_permissions(0o755);
         zip.start_file(
-            format!("{}/{}", &item.group.as_str(), &item.data_id.as_str()),
+            format!("{}/{}", item.group.as_str(), item.data_id.as_str()),
             options,
         )?;
         zip.write_all(item.content.as_ref().unwrap().as_bytes())?;

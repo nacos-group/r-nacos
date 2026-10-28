@@ -18,7 +18,7 @@ pub async fn query_opt_service_list(
     {
         return HttpResponse::Unauthorized().body(format!(
             "user no such namespace permission: {:?}",
-            &service_param.namespace_id
+            service_param.namespace_id
         ));
     }
     match naming_addr

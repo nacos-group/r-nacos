@@ -66,12 +66,12 @@ impl CacheValue {
             CacheType::String => Ok(CacheValue::String(Arc::new(
                 std::str::from_utf8(data)?.to_string(),
             ))),
-            CacheType::Map => Ok(CacheValue::Map(Arc::new(serde_json::from_slice(&data)?))),
+            CacheType::Map => Ok(CacheValue::Map(Arc::new(serde_json::from_slice(data)?))),
             CacheType::UserSession => Ok(CacheValue::UserSession(Arc::new(
-                serde_json::from_slice(&data)?,
+                serde_json::from_slice(data)?,
             ))),
             CacheType::ApiTokenSession => {
-                Ok(CacheValue::ApiTokenSession(serde_json::from_slice(&data)?))
+                Ok(CacheValue::ApiTokenSession(serde_json::from_slice(data)?))
             }
         }
     }

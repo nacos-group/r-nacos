@@ -61,7 +61,7 @@ pub async fn sse_connect(
         .ok();
     let init_message = format!(
         "event: endpoint\ndata: /rnacos/mcp/sse/messages/{}/{}/{}\n\n",
-        app_share_data.sys_config.raft_node_id, path.server_key, &session_id
+        app_share_data.sys_config.raft_node_id, path.server_key, session_id
     );
     app_share_data
         .sse_stream_manager

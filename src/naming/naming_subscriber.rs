@@ -14,16 +14,11 @@ use std::{
     sync::Arc,
 };
 
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, Default)]
 pub enum ListenerClusterType {
+    #[default]
     All,
     One(Arc<String>),
-}
-
-impl Default for ListenerClusterType {
-    fn default() -> Self {
-        Self::All
-    }
 }
 
 #[derive(Debug, Clone, Default, Hash, PartialEq, Eq)]
@@ -217,7 +212,7 @@ impl Subscriber {
                 && param.match_group(&key.group_name)
                 && param.match_service(&key.service_name)
             {
-                for (ip_port, _) in value.iter() {
+                for ip_port in value.keys() {
                     if index >= param.offset && index < end_index {
                         let (ip, port) = Self::parse_ip_port(ip_port.as_ref());
                         rlist.push(SubscriberInfoDto {

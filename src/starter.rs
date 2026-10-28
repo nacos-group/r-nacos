@@ -346,8 +346,8 @@ async fn auto_init_raft(
     if state.last_log_term == 0 {
         log::info!(
             "auto init raft. node_id:{},addr:{}",
-            &sys_config.raft_node_id,
-            &sys_config.raft_node_addr
+            sys_config.raft_node_id,
+            sys_config.raft_node_addr
         );
         let mut members = HashSet::new();
         members.insert(sys_config.raft_node_id.to_owned());
@@ -406,9 +406,9 @@ async fn auto_join_raft(
             .await?;
         log::info!(
             "auto join raft,join_addr:{}.node_id:{},addr:{}",
-            &sys_config.raft_join_addr,
-            &sys_config.raft_node_id,
-            &sys_config.raft_node_addr
+            sys_config.raft_join_addr,
+            sys_config.raft_node_id,
+            sys_config.raft_node_addr
         );
     }
     Ok(())

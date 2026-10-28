@@ -194,8 +194,8 @@ impl RaftStorage<ClientRequest, ClientResponse> for FileStore {
                 };
                 log::info!(
                     "get_initial_state from index_manager,{:?},{:?}",
-                    &last_log_index,
-                    &membership
+                    last_log_index,
+                    membership
                 );
                 Ok(InitialState {
                     last_log_index: last_log_index.index,

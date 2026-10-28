@@ -115,10 +115,9 @@ pub async fn mcp_handler(
         .and_then(|h| h.to_str().ok())
         .map(|s| s.to_string());
     //let request_session_is_empty = old_session_id.is_none();
-    let session_id = if old_session_id.is_some() {
-        old_session_id.unwrap()
-    } else {
-        Uuid::new_v4().to_string().replace("-", "")
+    let session_id = match old_session_id {
+        Some(id) => id,
+        None => Uuid::new_v4().to_string().replace("-", ""),
     };
 
     // 解析 JSON-RPC 请求
@@ -176,7 +175,7 @@ pub async fn handle_request(
     headers: HashMap<&str, &[u8]>,
 ) -> Result<JsonRpcResponse, HandleOtherResult> {
     let start = SystemTime::now();
-    let request_log_info = format!("|mcp|client_request|{}|{}", session_id, &request.method);
+    let request_log_info = format!("|mcp|client_request|{}|{}", session_id, request.method);
 
     // 验证 JSON-RPC 版本
     if request.jsonrpc != "2.0" {
@@ -229,8 +228,8 @@ pub async fn handle_request(
             match handle_tools_call(
                 request.params,
                 request.id.clone(),
-                &mcp_server,
-                &app_share_data,
+                mcp_server,
+                app_share_data,
                 headers,
                 &mut log_args,
             )
@@ -246,7 +245,7 @@ pub async fn handle_request(
                         "{}|err|{}|{}|tools_call_error",
                         request_log_info,
                         duration,
-                        &log_args
+                        log_args
                     );
                     JsonRpcResponse {
                         jsonrpc: "2.0".to_string(),
@@ -267,7 +266,7 @@ pub async fn handle_request(
                 "tools_list:count:{}",
                 mcp_server.release_value.tools.len()
             ));
-            handle_tools_list(request.id, &mcp_server)
+            handle_tools_list(request.id, mcp_server)
         }
         "resources/list" => {
             // resources/list
@@ -313,7 +312,7 @@ pub async fn handle_request(
                 "{}|err|{}|{}|method_not_found|{}",
                 request_log_info,
                 duration,
-                &log_args,
+                log_args,
                 request.method
             );
             JsonRpcResponse {
@@ -336,9 +335,9 @@ pub async fn handle_request(
 
     if log_args.enable_log() {
         if duration < 1f64 {
-            log::info!("{}|ok|{}|{}", request_log_info, duration, &log_args);
+            log::info!("{}|ok|{}|{}", request_log_info, duration, log_args);
         } else {
-            log::warn!("{}|ok|{}|{}", request_log_info, duration, &log_args);
+            log::warn!("{}|ok|{}|{}", request_log_info, duration, log_args);
         }
     }
 
@@ -400,15 +399,15 @@ async fn handle_tools_call(
         ) {
             *log_args = McpHandleLogArgs::Arg(format!("tool:{}", tool_name));
 
-            let (tool, url) =
-                match select_tool_and_url(tool_name, &mcp_server, &args, app_share_data).await {
-                    Ok(result) => result,
-                    Err(error) => {
-                        *log_args =
-                            McpHandleLogArgs::Arg(format!("tool:{}|select_failed", tool_name));
-                        return Err(error);
-                    }
-                };
+            let (tool, url) = match select_tool_and_url(tool_name, mcp_server, args, app_share_data)
+                .await
+            {
+                Ok(result) => result,
+                Err(error) => {
+                    *log_args = McpHandleLogArgs::Arg(format!("tool:{}|select_failed", tool_name));
+                    return Err(error);
+                }
+            };
             let client = &app_share_data.common_client;
             let mut req = match tool.route_rule.convert_type {
                 ConvertType::None | ConvertType::Custom => client
@@ -428,9 +427,9 @@ async fn handle_tools_call(
                 ConvertType::JsonToUrl => {
                     let part = serde_urlencoded::to_string(args)?;
                     let query_url = if url.find("?").is_some() {
-                        format!("{}&{}", &url, part)
+                        format!("{}&{}", url, part)
                     } else {
-                        format!("{}?{}", &url, part)
+                        format!("{}?{}", url, part)
                     };
                     client.request(
                         reqwest::Method::from_bytes(tool.route_rule.method.as_str().as_bytes())?,
@@ -444,10 +443,10 @@ async fn handle_tools_call(
                 user_keys.push(k);
             }
             for (k, v) in headers.iter() {
-                if filter_keys(&mut user_keys, k) {
+                if filter_keys(&user_keys, k) {
                     continue;
                 }
-                req = req.header(*k, String::from_utf8_lossy(*v).as_ref());
+                req = req.header(*k, String::from_utf8_lossy(v).as_ref());
             }
             #[cfg(feature = "debug")]
             log::info!(
@@ -459,7 +458,7 @@ async fn handle_tools_call(
                 Err(error) => {
                     *log_args = McpHandleLogArgs::Arg(format!(
                         "tool:{}|http_request_failed|{}",
-                        tool_name, &error
+                        tool_name, error
                     ));
                     return Err(anyhow::anyhow!("HTTP request failed: {}", error));
                 }
@@ -472,7 +471,7 @@ async fn handle_tools_call(
                     Err(error) => {
                         *log_args = McpHandleLogArgs::Arg(format!(
                             "tool:{}|read_response_failed|{}",
-                            tool_name, &error
+                            tool_name, error
                         ));
                         return Err(anyhow::anyhow!("Failed to read response: {}", error));
                     }
@@ -491,7 +490,7 @@ async fn handle_tools_call(
                     Err(error) => {
                         *log_args = McpHandleLogArgs::Arg(format!(
                             "tool:{}|read_error_response_failed|{}",
-                            tool_name, &error
+                            tool_name, error
                         ));
                         return Err(anyhow::anyhow!("Failed to read error response: {}", error));
                     }
@@ -566,7 +565,7 @@ async fn select_tool_and_url<'a>(
 }
 
 fn replace_args(url: String, value: &serde_json::Value) -> anyhow::Result<String> {
-    if let None = url.find("{{") {
+    if url.find("{{").is_none() {
         return Ok(url);
     }
     let mut engine = upon::Engine::new();

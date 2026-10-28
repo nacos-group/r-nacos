@@ -51,7 +51,7 @@ impl TimelineGroup {
             if let Some(key) = MetricsKey::of_key(str_key) {
                 keys.insert(key);
             } else {
-                log::warn!("MetricsKey::of_key is null,key:{}", &str_key);
+                log::warn!("MetricsKey::of_key is null,key:{}", str_key);
             }
         }
         let mut time_index: Vec<u64> = Vec::with_capacity(item_list.len());
@@ -94,7 +94,7 @@ impl TimelineGroup {
                         }
                     }
                 } else if i == 0 {
-                    log::warn!("not found key data,key: {:?}", &key);
+                    log::warn!("not found key data,key: {:?}", key);
                 }
             }
         }

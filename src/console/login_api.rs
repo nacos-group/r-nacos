@@ -54,7 +54,7 @@ pub async fn login(
         }
     }
 
-    let limit_key = Arc::new(format!("USER_L#{}", &param.username));
+    let limit_key = Arc::new(format!("USER_L#{}", param.username));
     if let Some(value) = login_limit(&app, &limit_key).await {
         return value;
     }
@@ -140,7 +140,7 @@ pub async fn oauth2_callback(
             ));
     }
 
-    let limit_key = Arc::new(format!("USER_L#oauth2"));
+    let limit_key = Arc::new("USER_L#oauth2".to_string());
     if let Some(value) = login_limit(&app, &limit_key).await {
         return value;
     }
@@ -358,7 +358,7 @@ async fn check_captcha(
     }
     let req = crate::cache::actor_model::CacheManagerLocalReq::Get(CacheKey::new(
         CacheType::String,
-        Arc::new(format!("Captcha_{}", &captcha_token)),
+        Arc::new(format!("Captcha_{}", captcha_token)),
     ));
     let captcha_check_result =
         if let Ok(Ok(CacheManagerRaftResult::Value(crate::cache::model::CacheValue::String(v)))) =
@@ -434,7 +434,7 @@ pub async fn gen_captcha(app: Data<Arc<AppShareData>>) -> actix_web::Result<impl
     //log::info!("gen_captcha code:{}", &code);
     let cache_req =
         crate::cache::actor_model::CacheManagerRaftReq::Set(CacheSetParam::new_with_ttl(
-            CacheKey::new(CacheType::String, Arc::new(format!("Captcha_{}", &token))),
+            CacheKey::new(CacheType::String, Arc::new(format!("Captcha_{}", token))),
             crate::cache::model::CacheValue::String(code),
             300,
         ));

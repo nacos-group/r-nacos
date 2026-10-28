@@ -116,7 +116,7 @@ impl NamingUtils {
             if kv.len() != 2 {
                 return Err(anyhow::anyhow!(
                     "metadata format incorrect:{}",
-                    &metadata_str
+                    metadata_str
                 ));
             }
             metadata.insert(

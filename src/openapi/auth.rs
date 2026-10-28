@@ -65,7 +65,7 @@ async fn do_login(
 ) -> anyhow::Result<HttpResponse> {
     let username = Arc::new(param.username.unwrap_or_default());
     let password = param.password.unwrap_or_default();
-    let limit_key = Arc::new(format!("API_USER_L#{}", &username));
+    let limit_key = Arc::new(format!("API_USER_L#{}", username));
     let limit_req = CacheLimiterReq::Minutes {
         key: limit_key.clone(),
         limit: app.sys_config.openapi_login_one_minute_limit as i32,

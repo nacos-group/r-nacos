@@ -503,11 +503,11 @@ mod tests {
         for _ in 0..20 {
             histogram_value.record(120.0f32);
         }
-        println!("histogram_value|{}", &histogram_value);
+        println!("histogram_value|{}", histogram_value);
         let mut summary_value =
             SummaryValue::new(&[0.5f32, 0.6f32, 0.7f32, 0.8f32, 0.9f32, 0.95f32, 0.9999f32]);
         //println!("summary_value01|{}",&summary_value);
         summary_value.recalculate_from_histogram(&histogram_value);
-        println!("summary_value|{}", &summary_value);
+        println!("summary_value|{}", summary_value);
     }
 }

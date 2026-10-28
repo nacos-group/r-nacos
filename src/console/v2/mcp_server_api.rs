@@ -341,7 +341,7 @@ pub async fn query_mcp_server_history(
                 // 转换为DTO格式
                 let dto_list: Vec<McpServerValueDto> = history_list
                     .iter()
-                    .map(|history| McpServerValueDto::from_value(history))
+                    .map(McpServerValueDto::from_value)
                     .collect();
 
                 HttpResponse::Ok().json(ApiResult::success(Some(PageResult {

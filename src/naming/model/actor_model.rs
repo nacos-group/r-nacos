@@ -48,17 +48,19 @@ pub struct InstanceRegisterParam {
 
 impl From<InstanceRegisterParam> for Instance {
     fn from(param: InstanceRegisterParam) -> Self {
-        let mut instance = Instance::default();
-        instance.ip = param.ip;
-        instance.port = param.port;
-        instance.namespace_id = param.namespace_id;
-        instance.group_name = param.group_name;
-        instance.service_name = param.service_name;
-        instance.weight = param.weight;
-        instance.enabled = param.enabled;
-        instance.healthy = param.healthy;
-        instance.ephemeral = param.ephemeral;
-        instance.metadata = param.metadata.into();
+        let mut instance = Instance {
+            ip: param.ip,
+            port: param.port,
+            namespace_id: param.namespace_id,
+            group_name: param.group_name,
+            service_name: param.service_name,
+            weight: param.weight,
+            enabled: param.enabled,
+            healthy: param.healthy,
+            ephemeral: param.ephemeral,
+            metadata: param.metadata,
+            ..Default::default()
+        };
         if let Some(cluster_name) = param.cluster_name {
             instance.cluster_name = cluster_name;
         }

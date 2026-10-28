@@ -101,7 +101,7 @@ impl StateApplyManager {
                 last_applied_log,
             }) = r
             {
-                log::info!("load_index,{:?}", &raft_index);
+                log::info!("load_index,{:?}", raft_index);
                 if let Some(e) = raft_index.snapshots.last() {
                     act.snapshot_next_index = e.end_index + 1;
                 }
@@ -129,7 +129,7 @@ impl StateApplyManager {
                 .await??
             {
                 let reader = SnapshotReader::init(&path).await?;
-                log::info!("load_snapshot header,{:?}", &reader.get_header());
+                log::info!("load_snapshot header,{:?}", reader.get_header());
                 Self::do_load_snapshot(data_wrap, reader).await?;
             }
             Ok(())

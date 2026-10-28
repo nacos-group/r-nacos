@@ -181,7 +181,7 @@ impl ConfigDB {
         let history_id_info = self.config_history_id_map.get_mut(key).unwrap();
         history_id_info.count += 1;
         //20个计数一次,超过5次(100个)后，删除最早的数据
-        if history_id_info.count % 20 == 0 {
+        if history_id_info.count.is_multiple_of(20) {
             if let Some(limit_id) = history_id_info.id_queue.pushback(history_id) {
                 self.delete_hisotry_since(history_db, limit_id).ok();
             }

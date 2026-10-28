@@ -27,7 +27,7 @@ pub async fn join_node(
         }
         all_node.insert(node_id);
         let members = all_node.clone().into_iter().collect();
-        log::info!("join_node membership,{:?}", &all_node);
+        log::info!("join_node membership,{:?}", all_node);
         raft.change_membership(all_node).await.ok();
         raft.client_write(ClientWriteRequest::new(ClientRequest::Members(members)))
             .await
