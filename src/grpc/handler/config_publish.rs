@@ -46,7 +46,10 @@ impl PayloadHandler for ConfigPublishRequestHandler {
         if !request_meta.namespace_privilege().check_permission(&tenant) {
             return Ok(HandlerResult::error(
                 403,
-                format!("NO_NAMESPACE_PERMISSION, user no such namespace permission: {}", tenant),
+                format!(
+                    "NO_NAMESPACE_PERMISSION, user no such namespace permission: {}",
+                    tenant
+                ),
             ));
         }
         if !request_meta.can_edit() {

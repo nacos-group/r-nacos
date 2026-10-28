@@ -542,4 +542,3 @@ mod tests {
         assert_eq!(beat_info.period, Some(5000));
     }
 }
-

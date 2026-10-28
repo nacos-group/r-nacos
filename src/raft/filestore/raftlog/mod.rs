@@ -325,9 +325,7 @@ impl LogInnerManager {
                 record.index
             );
             return Ok(LogWriteMark::IndexEqualError);
-        }
-        else if end_index > record.index {
-
+        } else if end_index > record.index {
             self.strip_log_to(record.index).await.ok();
         }
         let mut buf = Vec::new();
@@ -379,10 +377,10 @@ impl LogInnerManager {
             return Ok(());
         }
         log::warn!(
-                "raft strip_log_to,log last index:{},strip index:{}",
-                last_end_index,
-                end_index
-            );
+            "raft strip_log_to,log last index:{},strip index:{}",
+            last_end_index,
+            end_index
+        );
         let (index_dto, file_index_len, pop_index_count) =
             self.get_file_index_by_log_index(end_index)?;
         let empty_data = vec![0u8, 1];

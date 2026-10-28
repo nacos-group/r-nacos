@@ -1,6 +1,6 @@
 use self::api_model::BaseResponse;
-use crate::common::model::{ClientVersion, TokenSession};
 use crate::common::model::privilege::NamespacePrivilegeGroup;
+use crate::common::model::{ClientVersion, TokenSession};
 use async_trait::async_trait;
 use std::fmt::Display;
 use std::{collections::HashMap, sync::Arc};
@@ -209,7 +209,10 @@ mod tests {
     use crate::common::model::privilege::PrivilegeGroup;
     use std::collections::HashSet;
 
-    fn build_meta(roles: Vec<&str>, namespace_privilege: Option<PrivilegeGroup<Arc<String>>>) -> RequestMeta {
+    fn build_meta(
+        roles: Vec<&str>,
+        namespace_privilege: Option<PrivilegeGroup<Arc<String>>>,
+    ) -> RequestMeta {
         RequestMeta {
             token_session: Some(Arc::new(TokenSession {
                 username: Arc::new("test_user".to_owned()),

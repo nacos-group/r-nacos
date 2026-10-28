@@ -107,7 +107,10 @@ impl PayloadHandler for InstanceRequestHandler {
         let namespace = Arc::new(NamingUtils::default_namespace(
             request.namespace.clone().unwrap_or_default(),
         ));
-        if !request_meta.namespace_privilege().check_permission(&namespace) {
+        if !request_meta
+            .namespace_privilege()
+            .check_permission(&namespace)
+        {
             return Ok(HandlerResult::error(
                 403,
                 format!(

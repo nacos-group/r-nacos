@@ -74,12 +74,10 @@ macro_rules! token_can_edit {
 #[macro_export]
 macro_rules! token_no_namespace_permission {
     ($param:expr) => {{
-        return actix_web::HttpResponse::Forbidden().json(
-            $crate::openapi::ForbiddenResult::new(
-                $crate::common::error_code::NO_NAMESPACE_PERMISSION,
-                format!("user no such namespace permission: {:?}", $param),
-            ),
-        );
+        return actix_web::HttpResponse::Forbidden().json($crate::openapi::ForbiddenResult::new(
+            $crate::common::error_code::NO_NAMESPACE_PERMISSION,
+            format!("user no such namespace permission: {:?}", $param),
+        ));
     }};
 }
 

@@ -65,7 +65,10 @@ impl PayloadHandler for ServiceQueryRequestHandler {
                 .to_owned(),
         );
         let namespace_arc = Arc::new(namespace.clone());
-        if !request_meta.namespace_privilege().check_permission(&namespace_arc) {
+        if !request_meta
+            .namespace_privilege()
+            .check_permission(&namespace_arc)
+        {
             return Ok(HandlerResult::error(
                 403,
                 format!(

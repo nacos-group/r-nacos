@@ -45,7 +45,10 @@ impl PayloadHandler for ConfigQueryRequestHandler {
         if !request_meta.namespace_privilege().check_permission(&tenant) {
             return Ok(HandlerResult::error(
                 403,
-                format!("NO_NAMESPACE_PERMISSION, user no such namespace permission: {}", tenant),
+                format!(
+                    "NO_NAMESPACE_PERMISSION, user no such namespace permission: {}",
+                    tenant
+                ),
             ));
         }
         let cmd = ConfigCmd::GET(ConfigKey::new(&request.data_id, &request.group, &tenant));

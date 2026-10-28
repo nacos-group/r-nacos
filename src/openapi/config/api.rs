@@ -24,7 +24,8 @@ use crate::openapi::constant::EMPTY;
 use crate::raft::cluster::model::{DelConfigReq, SetConfigReq};
 use crate::utils::select_option_by_clone;
 use crate::{
-    token_can_edit, token_no_edit_permission, token_no_namespace_permission, user_namespace_privilege,
+    token_can_edit, token_no_edit_permission, token_no_namespace_permission,
+    user_namespace_privilege,
 };
 
 pub(super) fn service() -> Scope {

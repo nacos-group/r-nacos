@@ -118,7 +118,9 @@ impl TokenSession {
     }
 
     /// 命名空间数据权限组; None(历史数据)视为全量权限
-    pub fn namespace_privilege_group(&self) -> crate::common::model::privilege::NamespacePrivilegeGroup {
+    pub fn namespace_privilege_group(
+        &self,
+    ) -> crate::common::model::privilege::NamespacePrivilegeGroup {
         self.namespace_privilege
             .clone()
             .map(crate::common::model::privilege::NamespacePrivilegeGroup::new)
@@ -130,7 +132,10 @@ impl TokenSession {
 mod tests {
     use super::*;
 
-    fn build_session(roles: Vec<&str>, namespace_privilege: Option<PrivilegeGroup<Arc<String>>>) -> TokenSession {
+    fn build_session(
+        roles: Vec<&str>,
+        namespace_privilege: Option<PrivilegeGroup<Arc<String>>>,
+    ) -> TokenSession {
         TokenSession {
             username: Arc::new("test_user".to_owned()),
             roles: roles.into_iter().map(|r| Arc::new(r.to_owned())).collect(),
@@ -166,19 +171,15 @@ mod tests {
         assert!(group.is_all());
 
         // Some(all) 权限组
-        let session = build_session(
-            vec!["1"],
-            Some(PrivilegeGroup::all()),
-        );
+        let session = build_session(vec!["1"], Some(PrivilegeGroup::all()));
         assert!(session.namespace_privilege_group().is_all());
 
         // Some(empty) 表示无任何命名空间权限
-        let session = build_session(
-            vec!["1"],
-            Some(PrivilegeGroup::empty()),
-        );
+        let session = build_session(vec!["1"], Some(PrivilegeGroup::empty()));
         assert!(!session.namespace_privilege_group().is_all());
-        assert!(!session.namespace_privilege_group().check_permission(&Arc::new("public".to_owned())));
+        assert!(!session
+            .namespace_privilege_group()
+            .check_permission(&Arc::new("public".to_owned())));
 
         // 白名单权限组校验(默认命名空间在权限组中存储为空串)
         let mut whitelist = std::collections::HashSet::new();
