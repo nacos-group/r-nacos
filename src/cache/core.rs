@@ -48,10 +48,13 @@ impl DirectCacheManager {
     }
 
     fn clear_time_out(&mut self) {
-        let now_second = now_second_i32();
+        self.clear_time_out_at(now_second_i32());
+    }
+
+    fn clear_time_out_at(&mut self, now_second: i32) {
         for key in self.time_set.timeout(now_second as u64) {
             if let Some(v) = self.cache.get(&key) {
-                if v.expire > -1 && v.expire < now_second {
+                if v.expire > -1 && v.expire <= now_second {
                     self.cache.remove(&key);
                 }
             }
@@ -77,7 +80,7 @@ impl DirectCacheManager {
 
     fn get_valid_value(&self, key: &CacheKey) -> Option<&CacheValue> {
         if let Some(v) = self.cache.get(key) {
-            if v.expire > -1 && v.expire < now_second_i32() {
+            if v.expire > -1 && v.expire <= now_second_i32() {
                 None
             } else {
                 Some(&v.value)
@@ -359,5 +362,55 @@ impl Handler<RaftApplyDataRequest> for DirectCacheManager {
             }
         }
         Ok(RaftApplyDataResponse::None)
+    }
+}
+
+#[cfg(test)]
+mod memory_cleanup_tests {
+    use super::*;
+    use crate::cache::model::CacheType;
+
+    fn key(name: &str) -> CacheKey {
+        CacheKey::new(CacheType::String, Arc::new(name.to_owned()))
+    }
+
+    #[test]
+    fn cache_is_removed_at_exact_expiry_second() {
+        let mut cache = DirectCacheManager::new();
+        for id in 0..1000 {
+            cache.do_set(key(&id.to_string()), CacheValue::Number(id), 100);
+        }
+        cache.clear_time_out_at(99);
+        assert_eq!(cache.cache.len(), 1000);
+        cache.clear_time_out_at(100);
+        assert!(cache.cache.is_empty());
+        assert_eq!(cache.time_set.item_size(), 0);
+    }
+
+    #[test]
+    fn old_expiry_does_not_delete_refreshed_value() {
+        let mut cache = DirectCacheManager::new();
+        let key = key("renewed");
+        cache.do_set(key.clone(), CacheValue::Number(1), 100);
+        cache.do_set(key.clone(), CacheValue::Number(2), 200);
+        cache.clear_time_out_at(100);
+        assert!(matches!(cache.cache[&key].value, CacheValue::Number(2)));
+        cache.clear_time_out_at(200);
+        assert!(cache.cache.is_empty());
+        assert_eq!(cache.time_set.item_size(), 0);
+    }
+
+    #[test]
+    fn old_expiry_does_not_delete_permanent_value() {
+        let mut cache = DirectCacheManager::new();
+        let key = key("permanent");
+        cache.do_set(key.clone(), CacheValue::Number(1), 100);
+        cache.do_set(key.clone(), CacheValue::Number(2), -1);
+        cache.clear_time_out_at(200);
+        assert!(matches!(
+            cache.get_valid_value(&key),
+            Some(CacheValue::Number(2))
+        ));
+        assert_eq!(cache.time_set.item_size(), 0);
     }
 }
