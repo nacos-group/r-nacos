@@ -75,55 +75,53 @@ impl BiStreamConn {
         }
     }
 
+    #[cfg(test)]
+    pub(super) fn without_receiver(
+        sender: SenderType,
+        client_id: Arc<String>,
+        manage: Addr<BiStreamManage>,
+    ) -> Self {
+        Self {
+            sender,
+            client_id,
+            receiver_stream: Cell::new(None),
+            manage,
+        }
+    }
+
     pub fn receive(&mut self, ctx: &mut Context<Self>) {
-        //println!("BiStreamConn start receive");
         if let Some(mut receiver_stream) = self.receiver_stream.replace(None) {
             let manage = self.manage.clone();
             let client_id = self.client_id.clone();
             async move {
-                //if let Some(Ok(_payload)) = receiver_stream.next().await {
-                //println!("BiStreamConn receive frist msg:{}",PayloadUtils::get_payload_string(&payload));
-                //}
                 while let Some(Ok(payload)) = receiver_stream.next().await {
-                    //println!("BiStreamConn receive msg:{}",PayloadUtils::get_payload_string(&payload));
-                    manage.do_send(BiStreamManageCmd::Response(client_id.clone(), payload));
+                    if manage
+                        .send(BiStreamManageCmd::Response(client_id.clone(), payload))
+                        .await
+                        .is_err()
+                    {
+                        break;
+                    }
                 }
-                manage.do_send(BiStreamManageCmd::ConnClose(client_id));
             }
             .into_actor(self)
-            .map(|_, _, ctx| {
-                //debug
-                //println!("stop at receive!");
-                ctx.stop();
-            })
+            .map(|_, _, ctx| ctx.stop())
             .spawn(ctx);
         }
     }
 
     fn send_payload(&mut self, ctx: &mut Context<Self>, payload: Payload) {
-        let sender = self.sender.clone();
-        //debug
-        //log::info!("send_payload {}",PayloadUtils::get_payload_string(&payload));
-        async move { sender.send(Ok(payload)).await }
-            .into_actor(self)
-            .map(|_, _, _| {})
-            .spawn(ctx);
+        // Do not spawn an unbounded number of futures waiting on a full channel.
+        // Disconnect on overflow so the client reconnects and resynchronizes.
+        if self.sender.try_send(Ok(payload)).is_err() {
+            self.close_stream_and_stop(ctx);
+        }
     }
 
     fn close_stream_and_stop(&mut self, ctx: &mut Context<Self>) {
-        let sender = self.sender.clone();
-        async move {
-            //debug
-            //println!("close_stream_and_stop! 01");
-            sender.send(Err(tonic::Status::cancelled("close"))).await
-        }
-        .into_actor(self)
-        .map(|_, _, ctx| {
-            //debug
-            //println!("stop at close_stream_and_stop!");
-            ctx.stop();
-        })
-        .wait(ctx);
+        // A full/closed channel must never prevent actor shutdown.
+        let _ = self.sender.try_send(Err(tonic::Status::cancelled("close")));
+        ctx.stop();
     }
 }
 
@@ -131,8 +129,15 @@ impl Actor for BiStreamConn {
     type Context = Context<Self>;
 
     fn started(&mut self, ctx: &mut Self::Context) {
-        //log::info!("BiStreamConn started");
+        ctx.set_mailbox_capacity(32);
         self.receive(ctx);
+    }
+
+    fn stopped(&mut self, ctx: &mut Self::Context) {
+        self.manage.do_send(BiStreamManageCmd::ConnClose(
+            self.client_id.clone(),
+            ctx.address(),
+        ));
     }
 }
 

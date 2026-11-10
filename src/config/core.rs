@@ -3,7 +3,7 @@ use bean_factory::bean;
 use bean_factory::Inject;
 use chrono::Local;
 use std::collections::BTreeMap;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
 use std::sync::Arc;
 use std::sync::Weak;
@@ -294,9 +294,9 @@ impl ListenerItem {
 }
 
 struct OnceListener {
-    version: u64,
-    //time: i64,
-    //list: Vec<ListenerItem>,
+    keys: HashSet<ConfigKey>,
+    deadline: i64,
+    sender: ListenerSenderType,
 }
 
 pub enum ListenerResult {
@@ -305,13 +305,12 @@ pub enum ListenerResult {
 }
 
 type ListenerSenderType = tokio::sync::oneshot::Sender<ListenerResult>;
-//type ListenerReceiverType = tokio::sync::oneshot::Receiver<ListenerResult>;
 
 pub(crate) struct ConfigListener {
     version: u64,
-    listener: HashMap<ConfigKey, Vec<u64>>,
-    time_listener: BTreeMap<i64, Vec<OnceListener>>,
-    sender_map: HashMap<u64, ListenerSenderType>,
+    listener: HashMap<ConfigKey, HashSet<u64>>,
+    time_listener: BTreeMap<i64, HashSet<u64>>,
+    sender_map: HashMap<u64, OnceListener>,
 }
 
 impl ConfigListener {
@@ -325,38 +324,55 @@ impl ConfigListener {
     }
 
     fn add(&mut self, items: Vec<ListenerItem>, sender: ListenerSenderType, time: i64) {
+        if sender.is_closed() {
+            return;
+        }
         self.version += 1;
-        for item in &items {
-            let key = item.key.clone();
-            match self.listener.get_mut(&key) {
-                Some(list) => {
-                    list.push(self.version);
-                }
-                None => {
-                    self.listener.insert(key, vec![self.version]);
-                }
-            };
+        let keys: HashSet<_> = items.into_iter().map(|item| item.key).collect();
+        for key in &keys {
+            self.listener
+                .entry(key.clone())
+                .or_default()
+                .insert(self.version);
         }
-        self.sender_map.insert(self.version, sender);
-        let once_listener = OnceListener {
-            version: self.version,
-            //time,
-            //list: items,
-        };
-        match self.time_listener.get_mut(&time) {
-            Some(list) => {
-                list.push(once_listener);
-            }
-            None => {
-                self.time_listener.insert(time, vec![once_listener]);
+        self.time_listener
+            .entry(time)
+            .or_default()
+            .insert(self.version);
+        self.sender_map.insert(
+            self.version,
+            OnceListener {
+                keys,
+                deadline: time,
+                sender,
+            },
+        );
+    }
+
+    // A completed request must leave every index, including its other watched keys.
+    fn remove_listener(&mut self, version: u64) -> Option<ListenerSenderType> {
+        let request = self.sender_map.remove(&version)?;
+        for key in request.keys {
+            if let Some(versions) = self.listener.get_mut(&key) {
+                versions.remove(&version);
+                if versions.is_empty() {
+                    self.listener.remove(&key);
+                }
             }
         }
+        if let Some(versions) = self.time_listener.get_mut(&request.deadline) {
+            versions.remove(&version);
+            if versions.is_empty() {
+                self.time_listener.remove(&request.deadline);
+            }
+        }
+        Some(request.sender)
     }
 
     fn notify(&mut self, key: ConfigKey) {
-        if let Some(list) = self.listener.remove(&key) {
-            for v in list {
-                if let Some(sender) = self.sender_map.remove(&v) {
+        if let Some(versions) = self.listener.remove(&key) {
+            for version in versions {
+                if let Some(sender) = self.remove_listener(version) {
                     sender.send(ListenerResult::DATA(vec![key.clone()])).ok();
                 }
             }
@@ -364,23 +380,34 @@ impl ConfigListener {
     }
 
     fn timeout(&mut self) {
-        let current_time = Local::now().timestamp_millis();
-        let mut keys: Vec<i64> = Vec::new();
-        for (key, list) in self.time_listener.iter().take(10000) {
-            if *key < current_time {
-                keys.push(*key);
-                for item in list {
-                    let v = item.version;
-                    if let Some(sender) = self.sender_map.remove(&v) {
+        self.timeout_at(Local::now().timestamp_millis());
+    }
+
+    fn timeout_at(&mut self, current_time: i64) {
+        let deadlines: Vec<_> = self
+            .time_listener
+            .range(..=current_time)
+            .take(10000)
+            .map(|(&deadline, _)| deadline)
+            .collect();
+        for deadline in deadlines {
+            if let Some(versions) = self.time_listener.remove(&deadline) {
+                for version in versions {
+                    if let Some(sender) = self.remove_listener(version) {
                         sender.send(ListenerResult::NULL).ok();
                     }
                 }
-            } else {
-                break;
             }
         }
-        for key in keys {
-            self.time_listener.remove(&key);
+        // HTTP clients can disconnect before their long-poll deadline.
+        let cancelled: Vec<_> = self
+            .sender_map
+            .iter()
+            .filter(|(_, request)| request.sender.is_closed())
+            .map(|(&version, _)| version)
+            .collect();
+        for version in cancelled {
+            self.remove_listener(version);
         }
     }
 
@@ -971,5 +998,78 @@ impl Handler<TransferDataRequest> for ConfigActor {
                 Ok(TransferDataResponse::None)
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod memory_cleanup_tests {
+    use super::*;
+
+    fn item(key: &ConfigKey) -> ListenerItem {
+        ListenerItem::new(key.clone(), Arc::new(String::new()))
+    }
+
+    fn assert_empty(listener: &ConfigListener) {
+        assert!(listener.listener.is_empty());
+        assert!(listener.time_listener.is_empty());
+        assert!(listener.sender_map.is_empty());
+    }
+
+    #[test]
+    fn long_poll_timeouts_do_not_accumulate_ids() {
+        let mut listener = ConfigListener::new();
+        let key = ConfigKey::new("data", "group", "");
+        for deadline in 0..10_000 {
+            let (tx, mut rx) = tokio::sync::oneshot::channel();
+            listener.add(vec![item(&key)], tx, deadline);
+            listener.timeout_at(deadline);
+            assert!(matches!(rx.try_recv(), Ok(ListenerResult::NULL)));
+            assert_empty(&listener);
+        }
+    }
+
+    #[test]
+    fn notification_cleans_other_keys_without_removing_other_requests() {
+        let mut listener = ConfigListener::new();
+        let a = ConfigKey::new("a", "group", "");
+        let b = ConfigKey::new("b", "group", "");
+        let (tx, mut rx) = tokio::sync::oneshot::channel();
+        listener.add(vec![item(&a), item(&a), item(&b)], tx, 100);
+        let (other_tx, mut other_rx) = tokio::sync::oneshot::channel();
+        listener.add(vec![item(&b)], other_tx, 100);
+        listener.notify(a.clone());
+        match rx.try_recv().unwrap() {
+            ListenerResult::DATA(keys) => assert_eq!(keys, vec![a]),
+            _ => panic!("expected changed key"),
+        }
+        assert_eq!(listener.listener[&b].len(), 1);
+        assert_eq!(listener.sender_map.len(), 1);
+        assert_eq!(listener.time_listener[&100].len(), 1);
+        assert!(other_rx.try_recv().is_err());
+        listener.timeout_at(100);
+        assert!(matches!(other_rx.try_recv(), Ok(ListenerResult::NULL)));
+        assert_empty(&listener);
+    }
+
+    #[test]
+    fn disconnected_long_poll_releases_indexes_before_deadline() {
+        let mut listener = ConfigListener::new();
+        let key = ConfigKey::new("data", "group", "");
+        let (tx, rx) = tokio::sync::oneshot::channel();
+        listener.add(vec![item(&key)], tx, 100);
+        drop(rx);
+        listener.timeout_at(0);
+        assert_empty(&listener);
+    }
+
+    #[test]
+    fn notification_removes_deadline_immediately() {
+        let mut listener = ConfigListener::new();
+        let key = ConfigKey::new("data", "group", "");
+        let (tx, mut rx) = tokio::sync::oneshot::channel();
+        listener.add(vec![item(&key)], tx, 100);
+        listener.notify(key);
+        assert!(matches!(rx.try_recv(), Ok(ListenerResult::DATA(_))));
+        assert_empty(&listener);
     }
 }

@@ -80,6 +80,27 @@ impl BiStreamManage {
             .add(now + self.detection_time_out, client_id);
     }
 
+    fn remove_client(&mut self, client_id: &Arc<String>) {
+        if let Some(item) = self.conn_cache.remove(client_id) {
+            item.conn.do_send(BiStreamSenderCmd::Close);
+            if let Some(config_addr) = &self.config_addr {
+                config_addr.do_send(ConfigCmd::RemoveSubscribeClient(client_id.clone()));
+            }
+            if let Some(naming_addr) = &self.naming_addr {
+                naming_addr.do_send(NamingCmd::RemoveClient(client_id.clone()));
+            }
+        }
+    }
+
+    fn send_to_client(&mut self, client_id: &Arc<String>, msg: BiStreamSenderCmd) {
+        if let Some(item) = self.conn_cache.get(client_id) {
+            if item.conn.try_send(msg).is_err() {
+                // Remove first: subsequent notifications cannot enqueue more close messages.
+                self.remove_client(client_id);
+            }
+        }
+    }
+
     fn active_client(&mut self, client_id: Arc<String>) -> anyhow::Result<Arc<ClientVersion>> {
         let now = now_millis();
         if let Some(item) = self.conn_cache.get_mut(&client_id) {
@@ -118,8 +139,8 @@ impl BiStreamManage {
             log::info!("check timeout detection client, size:{}", check_keys.len());
         }
         for (key, request_id) in check_keys {
-            if let Some(item) = self.conn_cache.get(&key) {
-                item.conn.do_send(BiStreamSenderCmd::Detection(request_id));
+            self.send_to_client(&key, BiStreamSenderCmd::Detection(request_id));
+            if self.conn_cache.contains_key(&key) {
                 self.response_time_set
                     .add(now + self.response_time_out, key);
             }
@@ -142,21 +163,8 @@ impl BiStreamManage {
         if !del_keys.is_empty() {
             log::info!("check timeout close client, size:{}", del_keys.len());
         }
-        for key in &del_keys {
-            if let Some(item) = self.conn_cache.remove(key) {
-                //item.conn.do_send(BiStreamSenderCmd::Reset(self.next_request_id(),None,None));
-                item.conn.do_send(BiStreamSenderCmd::Close);
-            }
-        }
-        if let Some(config_addr) = &self.config_addr {
-            for key in &del_keys {
-                config_addr.do_send(ConfigCmd::RemoveSubscribeClient(key.clone()));
-            }
-        }
-        if let Some(naming_addr) = &self.naming_addr {
-            for key in &del_keys {
-                naming_addr.do_send(NamingCmd::RemoveClient(key.clone()));
-            }
+        for key in del_keys {
+            self.remove_client(&key);
         }
     }
 
@@ -212,7 +220,7 @@ impl Supervised for BiStreamManage {
 #[rtype(result = "anyhow::Result<BiStreamManageResult>")]
 pub enum BiStreamManageCmd {
     Response(Arc<String>, Payload),
-    ConnClose(Arc<String>),
+    ConnClose(Arc<String>, Addr<BiStreamConn>),
     AddConn(Arc<String>, BiStreamConn),
     ActiveClinet(Arc<String>),
     NotifyConfig(ConfigKey, HashSet<Arc<String>>),
@@ -253,15 +261,16 @@ impl Handler<BiStreamManageCmd> for BiStreamManage {
                     self.active_client(client_id).ok();
                 }
             }
-            BiStreamManageCmd::ConnClose(client_id) => {
-                self.conn_cache.remove(&client_id);
-                if let Some(config_addr) = &self.config_addr {
-                    config_addr.do_send(ConfigCmd::RemoveSubscribeClient(client_id.clone()))
+            BiStreamManageCmd::ConnClose(client_id, conn) => {
+                // A replaced connection may stop after its replacement has registered.
+                if self
+                    .conn_cache
+                    .get(&client_id)
+                    .map(|item| item.conn == conn)
+                    .unwrap_or(false)
+                {
+                    self.remove_client(&client_id);
                 }
-                if let Some(naming_addr) = &self.naming_addr {
-                    naming_addr.do_send(NamingCmd::RemoveClient(client_id));
-                }
-                //println!("|ConnClose|conn size: {}",self.conn_cache.len());
             }
             BiStreamManageCmd::AddConn(client_id, conn) => {
                 self.add_conn(client_id, conn.start());
@@ -286,8 +295,8 @@ impl Handler<BiStreamManageCmd> for BiStreamManage {
                     serde_json::to_string(&request)?,
                 ));
                 let mut other_default_payload = None;
-                for item in &client_id_set {
-                    if let Some(item) = self.conn_cache.get(item) {
+                for client_id in &client_id_set {
+                    if let Some(item) = self.conn_cache.get(client_id) {
                         // 默认命名空间有两个值，需要把通知的命令空间值调整为监听的值，以兼容不同版本的客户端
                         if item.namespace.is_default() && item.namespace.to_str() != tenant.as_str()
                         {
@@ -300,11 +309,14 @@ impl Handler<BiStreamManageCmd> for BiStreamManage {
                                     )));
                             }
                             if let Some(payload) = other_default_payload.as_ref() {
-                                item.conn.do_send(BiStreamSenderCmd::Send(payload.clone()));
+                                self.send_to_client(
+                                    client_id,
+                                    BiStreamSenderCmd::Send(payload.clone()),
+                                );
                                 continue;
                             }
                         }
-                        item.conn.do_send(BiStreamSenderCmd::Send(payload.clone()));
+                        self.send_to_client(client_id, BiStreamSenderCmd::Send(payload.clone()));
                     }
                 }
             }
@@ -323,10 +335,8 @@ impl Handler<BiStreamManageCmd> for BiStreamManage {
                     "NotifySubscriberRequest",
                     serde_json::to_string(&request).unwrap(),
                 ));
-                for item in &client_id_set {
-                    if let Some(item) = self.conn_cache.get(item) {
-                        item.conn.do_send(BiStreamSenderCmd::Send(payload.clone()));
-                    }
+                for client_id in &client_id_set {
+                    self.send_to_client(client_id, BiStreamSenderCmd::Send(payload.clone()));
                 }
             }
             BiStreamManageCmd::QueryConnList => {
@@ -338,5 +348,110 @@ impl Handler<BiStreamManageCmd> for BiStreamManage {
             }
         }
         Ok(BiStreamManageResult::None)
+    }
+}
+
+#[cfg(test)]
+mod memory_cleanup_tests {
+    use super::*;
+
+    async fn wait_until_removed(manager: &Addr<BiStreamManage>) {
+        tokio::time::timeout(Duration::from_secs(2), async {
+            loop {
+                if let BiStreamManageResult::ConnList(clients) = manager
+                    .send(BiStreamManageCmd::QueryConnList)
+                    .await
+                    .unwrap()
+                    .unwrap()
+                {
+                    if clients.is_empty() {
+                        break;
+                    }
+                }
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("connection must be removed without draining its output");
+    }
+
+    #[actix_rt::test]
+    async fn full_output_disconnects_and_cleans_manager() {
+        let manager = BiStreamManage::new().start();
+        let id = Arc::new("slow-client".to_owned());
+        let (tx, mut rx) = tokio::sync::mpsc::channel(1);
+        let conn = BiStreamConn::without_receiver(tx, id.clone(), manager.clone());
+        manager
+            .send(BiStreamManageCmd::AddConn(id.clone(), conn))
+            .await
+            .unwrap()
+            .unwrap();
+        for _ in 0..2 {
+            manager
+                .send(BiStreamManageCmd::NotifyConfig(
+                    ConfigKey::new("data", "group", ""),
+                    [id.clone()].iter().cloned().collect(),
+                ))
+                .await
+                .unwrap()
+                .unwrap();
+        }
+        wait_until_removed(&manager).await;
+        assert!(rx.recv().await.unwrap().is_ok());
+        assert!(tokio::time::timeout(Duration::from_secs(1), rx.recv())
+            .await
+            .unwrap()
+            .is_none());
+    }
+
+    #[actix_rt::test]
+    async fn close_does_not_wait_for_full_output() {
+        let manager = BiStreamManage::new().start();
+        let (tx, mut rx) = tokio::sync::mpsc::channel(1);
+        tx.try_send(Ok(Payload::default())).unwrap();
+        let conn =
+            BiStreamConn::without_receiver(tx, Arc::new("closing".to_owned()), manager).start();
+        conn.send(BiStreamSenderCmd::Close).await.unwrap().unwrap();
+        assert!(rx.recv().await.unwrap().is_ok());
+        assert!(tokio::time::timeout(Duration::from_secs(1), rx.recv())
+            .await
+            .unwrap()
+            .is_none());
+    }
+
+    #[actix_rt::test]
+    async fn full_mailbox_removes_client_instead_of_accumulating_messages() {
+        let manager_addr = BiStreamManage::new().start();
+        let id = Arc::new("busy".to_owned());
+        let (tx, _rx) = tokio::sync::mpsc::channel(1);
+        let conn = BiStreamConn::without_receiver(tx, id.clone(), manager_addr).start();
+        let mut manager = BiStreamManage::new();
+        manager.add_conn(id.clone(), conn.clone());
+        // No await: the actor cannot consume messages while this producer fills its mailbox.
+        for _ in 0..100 {
+            manager.send_to_client(&id, BiStreamSenderCmd::Send(Arc::new(Payload::default())));
+        }
+        assert!(!manager.conn_cache.contains_key(&id));
+    }
+
+    #[actix_rt::test]
+    async fn replaced_connection_cannot_remove_new_connection() {
+        let manager_addr = BiStreamManage::new().start();
+        let id = Arc::new("reused-id".to_owned());
+        let (old_tx, _old_rx) = tokio::sync::mpsc::channel(1);
+        let (new_tx, _new_rx) = tokio::sync::mpsc::channel(1);
+        let old = BiStreamConn::without_receiver(old_tx, id.clone(), manager_addr.clone()).start();
+        let new = BiStreamConn::without_receiver(new_tx, id.clone(), manager_addr).start();
+        let mut manager = BiStreamManage::new();
+        manager.add_conn(id.clone(), old.clone());
+        manager.add_conn(id.clone(), new.clone());
+        manager
+            .handle(
+                BiStreamManageCmd::ConnClose(id.clone(), old),
+                &mut Context::new(),
+            )
+            .unwrap();
+        assert!(manager.conn_cache[&id].conn == new);
+        manager.remove_client(&id);
     }
 }
